@@ -2,8 +2,8 @@
 
 - **MainActivity**: Compose navigation shell; screens are explicit top-level modes.
 - **`data/`**: Room `Observation` model, DAO, DB, repository contract, and independent validation logic.
-- **`location/`**: on-demand Android location abstraction, no background collection.
-- **`feature/map/`**: MapLibre view, manual annotation dialog, GPS point capture; **nothing presented as an actual radio reading**.
+- **`location/`**: one-shot Android location abstraction using allowed network/GPS providers, no background collection.
+- **`feature/map/`**: MapLibre view, OpenFreeMap Liberty/Dark selectable styles, foreground auto-center with one-time permission prompt, manual annotation dialog, GPS point capture; **nothing presented as an actual radio reading**.
 - **`feature/discoveries/`**: search, list, deletion and provenance details.
 - **`feature/scanner/`**: real device capability checks and explicit inactive states.
 - **`feature/investigations/`**: honest inactive session state.
@@ -16,7 +16,7 @@ All records v0.1 have `source=MANUAL`, `verification=UNVERIFIED`, and a timestam
 
 ## Next steps
 
-- Improve error/loading states for MapLibre online maps, add stored map camera position.
+- Improve offline/failure UI states and optionally remember a deliberate map camera position; current styles are online only.
 - Separate Gradle modules once compiling the initial foundation in CI.
 - Add investigation sessions and controlled data export.
 - Android permission-gated Wi-Fi/BLE scanning using only supported APIs; no fake spectrum scanning.

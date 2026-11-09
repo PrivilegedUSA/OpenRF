@@ -1,64 +1,50 @@
-# OpenRF v0.1.3 — Android foundation
+# OpenRF v0.1.4 — Automatic GPS centering and detailed map
 
-OpenRF is an experimental, offline-first, general-purpose Android RF investigation and infrastructure documentation platform. This initial release is an **actual Android source project**; it does **not** yet scan RF signals or detect Flock cameras automatically.
+OpenRF is an experimental, offline-first, general-purpose Android RF investigation and infrastructure documentation platform. This is a working Android source project, **not yet** an RF scanner or an automated ALPR/camera detector.
 
 ## Included
 
-- Dark Kotlin + Jetpack Compose Material 3 interface, five tabs: Map, Scanner, Saved, Sessions, Settings.
-- Interactive MapLibre map with online *development-only* style tiles.
-- On-demand location permission and a one-shot GPS/network fix; no tracking service.
-- Add manual map observations by **long-pressing the map** or **finding your position then tapping the add-location button**.
-- Map markers, title/category/notes, observed coordinates, optional GPS accuracy, timestamps, and explicit `MANUAL` / `UNVERIFIED` labels.
-- Persistent Room database, search and deletion of manual observations.
-- Local CSV export through the system document picker.
-- Hardware capability status (no active scanning), basic sensor/alert interfaces.
-- GitHub Actions unit-test + debug APK build workflow.
+- Native Kotlin + Jetpack Compose Material 3 dark UI; Map, Scanner, Saved, Sessions, Settings.
+- MapLibre interactive map using OpenFreeMap street-level **Liberty** style by default; optional **Dark** style via Layers button. City and road labels appear as you zoom in. No API key.
+- When Map opens with location permission, requests a single foreground location fix and automatically centers on it; prompts once on first launch if permission is not granted. If declined, manual map use still works, and the location button can ask again.
+- After the user switches tabs and reenters Map, the map requests a fresh location fix if permission remains granted. The location marker represents the **last one-shot fix**, not continuous live tracking.
+- Long-press a location or tap add-location after an actual GPS/network fix to save manual observations, with notes/category, timestamp and optional accuracy.
+- Persistent Room records, observation search/delete, local CSV export via Android file picker.
+- Scanner/Sessions are inactive and clearly described; no fake detections or background monitoring.
+- GitHub Actions Kotlin tests + debug APK build.
 
-## Install via OpenRF's existing updater
+## Install the bundle
 
-Save `OpenRF-v0.1.3.zip` in the Downloads folder, then from any PowerShell directory:
+Save `OpenRF-v0.1.4.zip` to your Windows Downloads folder and run from any PowerShell directory:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
 ```
 
-The updater validates the `openrf-bundle.json` manifest, backs up managed files, installs source, commits and pushes to GitHub if `origin` is configured. `-NoPush` disables the push. Installing the ZIP **does not install an APK on your phone**.
+The updater installs source into `C:\projects\OpenRF`, commits managed files and pushes to GitHub by default. It does not install the APK on your phone. Once the pushed GitHub Actions run succeeds, use Actions → OpenRF Android Debug APK → Artifacts → `OpenRF-v0.1.4-debug-apk`, unzip and install the APK. Local records should remain intact when upgrading with the same Android application ID; the database schema is unchanged.
 
-After the push, open your GitHub repository → **Actions** → **OpenRF Android Debug APK** → latest successful run → **Artifacts** → `OpenRF-v0.1.3-debug-apk`. Download and unzip the artifact; install the APK on your Android phone. The artifact appears only after the workflow successfully builds.
+## Phone test steps
 
-## Local build
+1. Open Map with internet access, allow location when Android prompts, and verify the map zooms to your real position automatically. There may be a delay while a fresh fix is obtained.
+2. Confirm **streets, road labels, city names** render when zoomed to neighborhood/city level. This now uses an OpenFreeMap street map, not MapLibre's intentionally sparse test tiles.
+3. Tap Layers (upper-right), select Dark, verify the map theme changes **without resetting your camera** or losing the locally saved pins. Switch back to Streets.
+4. Tap the center-on-location button to refresh your one-time position. Deny the request on a second device to ensure the map remains usable and doesn't repeatedly ask on every visit.
+5. Long-press a place, save a manual observation; verify it appears in Saved, survives force-closing the app, and can be exported to CSV from Settings.
+6. Test on Wi-Fi and cellular data. With data disabled, previously cached tiles may appear, but **offline maps/downloads are not implemented**.
+7. Open Scanner and Sessions and confirm neither falsely claims live RF scanning.
 
-JDK 17 and Android SDK API 36 / Android Build Tools 35.0.0 are required. Run:
+## Limitations and privacy
 
-```bash
-./gradlew :app:testDebugUnitTest :app:assembleDebug
-```
+- **Internet is required for new map tiles.** OpenFreeMap's public tiles are not an offline service. The provider receives ordinary network tile/style requests for viewed areas, but observations are not uploaded by OpenRF.
+- Provider-hosted offline downloads have limits (currently 3,000 tiles or 50 MB per download, with no more than 4 concurrent requests; follow their terms). This release implements **no offline downloading**. Future larger offline maps need separately licensed datasets or self-hosting.
+- GPS is on demand when Map is entered or the center button is pressed; it does not run after leaving the map and does not record trips.
+- The marker for your location is the latest one-shot fix; **not** a continuous tracking dot. Nearby cell/Wi-Fi/BLE signals are not being measured.
+- No active scanner, proximity alerts, investigation sessions, directions, automatic camera classification or Flock detection yet.
+- All observations remain `MANUAL` and `UNVERIFIED`, even when their coordinates are from Android's location API.
+- No API key or user account required. The OpenRF application's own source license remains to be selected before public distribution.
 
-On Windows use `gradlew.bat`. **Wrapper note:** The local `gradlew` and `gradlew.bat` launchers download the Gradle **8.13 wrapper JAR** from the official `gradle/gradle` GitHub `v8.13.0` tag into the ignored `.gradle/openrf-bootstrap` folder and check its SHA-256 against the published Gradle checksum. The GitHub Actions workflow installs pinned Gradle 8.13 with `gradle/actions/setup-gradle@v4` and calls `gradle` directly, so CI does not depend on the launcher bootstrap URL. The official Gradle 8.13 distribution ZIP is also SHA-256 pinned via `gradle-wrapper.properties`. Both downloads require internet. The launcher is included in the bundle; no manual Gradle installation is required.
+## Build
 
-## Test on phone
+GitHub Actions sets up JDK 17, Android SDK 36 and Gradle 8.13, runs `:app:testDebugUnitTest :app:assembleDebug` and uploads the artifact if successful. Local Gradle launchers are also provided. Build success for **this exact release** is not guaranteed until the workflow completes.
 
-1. Open Map with an internet connection and confirm geographic tiles display. This uses a demo service, not a production tile SLA.
-2. Long-press a road location, create a title/note, and verify that a marker appears.
-3. Switch to Saved; check category, coordinates, unverified label, and timestamp.
-4. Force-close/reopen the app, confirm the record persists.
-5. Tap the locate button, allow location once, and verify it centers on a real reported fix; if denied, verify manual placement still works.
-6. Save a second record at the GPS fix and check location accuracy and source labels.
-7. Export CSV via Settings and verify saved rows; delete one observation and ensure it disappears from the map.
-8. Open Scanner and Sessions: ensure they clearly say no detection/session is active.
-
-## Privacy and limitations
-
-- Manual observations are saved in private app storage with Room and are not automatically uploaded.
-- The development map loads `https://demotiles.maplibre.org/style.json` via the network; the map host sees normal tile requests. The map is **not offline-capable** yet. Saved records and CSV export work without map tiles.
-- No RF measurements, no Wi-Fi/BLE scanning, no ALPR discovery, no radar detection, no navigation, no alerts, no background location, no photo capture, no synced map data in this version.
-- Location is fetched only following an explicit user action. Source is `MANUAL` even if the coordinates came from GPS because the *identification* is human-authored.
-- Map marker annotations use MapLibre's legacy marker API initially; migrate to a supported annotation plugin in a later iteration.
-- Room schema is version 1; future schema upgrades need explicit migrations. No destructive migration fallback configured.
-- Minimum Android version is Android 8.0 (API 26); target SDK 35. Test graphics performance on midrange devices.
-
-## Architecture
-
-The app currently builds as a single Gradle `:app` module for fast validation, but uses boundaries by package: `data`, `location`, `feature/map`, `feature/scanner`, `feature/discoveries`, `feature/investigations`, `feature/settings`, `sensor`, `alerts`, `export`, `ui`. Repository and sensor contracts allow future splitting into feature Gradle modules without a disruptive rewrite.
-
-See `CHANGELOG.md`, `docs/THIRD_PARTY.md`, and `docs/ARCHITECTURE.md`. License for the OpenRF application's original source has not yet been chosen; until a license is added the source should not be represented as formally open-licensed for public redistribution. No proprietary or GPL source was copied into this release.
+See `CHANGELOG.md`, `docs/ARCHITECTURE.md` and `docs/THIRD_PARTY.md` for implementation and license notes.

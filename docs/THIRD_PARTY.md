@@ -9,8 +9,8 @@ Source is newly authored. Dependencies are resolved at build time from Google Ma
 | Jetpack Compose / Material 3 | BOM 2025.09.00 | Apache-2.0, Android Open Source Project |
 | AndroidX Room | 2.8.3 | Apache-2.0, Android Open Source Project |
 | MapLibre Native Android OpenGL | 13.7.1 | BSD-2-Clause, MapLibre contributors |
-| MapLibre demonstration tiles | Online test style | MapLibre demo service / OpenStreetMap and tile attribution as displayed by MapLibre |
+| OpenFreeMap hosted vector tiles/styles | Liberty and Dark | Free public service with usage terms: https://openfreemap.org/quick_start/; OpenStreetMap/OpenMapTiles attribution |
 | Gradle | 8.13 | Apache-2.0, Gradle |
 | JUnit | 4.13.2 | Eclipse Public License 1.0 |
 
-Full transitive dependency license inventory should be generated and reviewed before public release. Don't republish the MapLibre demo tiles as your own offline tiles; choose a licensed production provider or self-hosted tile source and respect attribution requirements.
+Full transitive dependency license inventory should be generated and reviewed before public release. OpenFreeMap's public online styles do not require an API key. Offline downloads have size/concurrency limits; no offline downloader exists in v0.1.4. See OpenFreeMap's terms before distributing offline data. Preserve OpenStreetMap/OpenMapTiles attribution, and generate a transitive license inventory before public release.

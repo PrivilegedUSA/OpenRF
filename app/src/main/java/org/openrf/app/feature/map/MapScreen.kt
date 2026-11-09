@@ -1,17 +1,19 @@
 package org.openrf.app.feature.map
 
 import android.Manifest
+import android.content.Context
 import android.location.Location
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddLocationAlt
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -33,20 +35,27 @@ import org.openrf.app.data.ObservationValidator
 import org.openrf.app.location.PhoneLocationSource
 import java.util.Locale
 
+private const val PERMISSION_PROMPTED_KEY = "location_permission_prompted"
+private const val BASEMAP_KEY = "basemap_style"
 private data class DraftPoint(val latitude: Double, val longitude: Double, val accuracyMeters: Float?)
 
 @Composable
 fun MapScreen(records: List<Observation>, onSave: (String, String, String, Double, Double, Float?) -> Unit) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
+    val preferences = remember(context) { context.getSharedPreferences("openrf_map", Context.MODE_PRIVATE) }
     val locationSource = remember(context) { PhoneLocationSource(context) }
     val mapView = remember(context) { MapView(context).apply { onCreate(null) } }
     var map by remember { mutableStateOf<MapLibreMap?>(null) }
+    var styleLoaded by remember { mutableStateOf(false) }
+    var requestedStyleId by remember { mutableStateOf<String?>(null) }
+    var basemapId by rememberSaveable { mutableStateOf(BasemapStyle.fromId(preferences.getString(BASEMAP_KEY, null)).id) }
+    var styleMenuExpanded by remember { mutableStateOf(false) }
     var currentLocation by remember { mutableStateOf<Location?>(null) }
     var draft by remember { mutableStateOf<DraftPoint?>(null) }
     var notice by remember { mutableStateOf("Long-press the map to record a location.") }
 
-    // MapView is a classic Android view: its lifecycle must follow the host.
+    // A MapView has its own Android view lifecycle. No background location service is started.
     DisposableEffect(mapView, owner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -59,6 +68,9 @@ fun MapScreen(records: List<Observation>, onSave: (String, String, String, Doubl
             }
         }
         owner.lifecycle.addObserver(observer)
+        // A tab can be entered while the activity is already resumed.
+        if (owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) mapView.onStart()
+        if (owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) mapView.onResume()
         onDispose {
             owner.lifecycle.removeObserver(observer)
             mapView.onPause()
@@ -73,40 +85,59 @@ fun MapScreen(records: List<Observation>, onSave: (String, String, String, Doubl
                 draft = DraftPoint(latLng.latitude, latLng.longitude, null)
                 true
             }
-            readyMap.setStyle("https://demotiles.maplibre.org/style.json") {
-                map = readyMap
-                readyMap.cameraPosition = CameraPosition.Builder()
-                    .target(LatLng(25.0, 0.0)).zoom(1.5).build()
-            }
+            // Temporary regional fallback, never represented as the user's location.
+            // When permitted, a real device fix takes precedence immediately.
+            val saved = records.firstOrNull()
+            readyMap.cameraPosition = CameraPosition.Builder()
+                .target(if (saved != null) LatLng(saved.latitude, saved.longitude) else LatLng(39.0, -98.0))
+                .zoom(if (saved != null) 13.0 else 3.5)
+                .build()
+            map = readyMap
         }
     }
 
-    LaunchedEffect(map, records, currentLocation) {
+    // Changing base styles must not reset the current camera or remove saved observations.
+    LaunchedEffect(map, basemapId) {
         val activeMap = map ?: return@LaunchedEffect
+        styleLoaded = false
+        requestedStyleId = basemapId
+        val requestId = basemapId
+        activeMap.setStyle(BasemapStyle.fromId(requestId).url) {
+            if (requestedStyleId == requestId) styleLoaded = true
+        }
+    }
+
+    LaunchedEffect(map, styleLoaded, records, currentLocation) {
+        val activeMap = map ?: return@LaunchedEffect
+        if (!styleLoaded) return@LaunchedEffect
         activeMap.clear()
         records.forEach { record ->
             activeMap.addMarker(MarkerOptions()
                 .position(LatLng(record.latitude, record.longitude))
                 .title(record.title)
-                .snippet("${record.category} · ${record.verification.lowercase()}; tap Discoveries for details"))
+                .snippet("${record.category} · ${record.verification.lowercase()}; tap Saved for details"))
         }
         currentLocation?.let { fix ->
             activeMap.addMarker(MarkerOptions()
                 .position(LatLng(fix.latitude, fix.longitude))
-                .title("On-demand location fix (${fix.provider})")
+                .title("Your last foreground location fix (${fix.provider})")
                 .snippet(if (fix.hasAccuracy()) "Reported accuracy: ±${fix.accuracy.toInt()} m" else "Accuracy not supplied"))
         }
     }
 
     fun locate() {
-        notice = "Requesting a current location fix…"
+        if (!locationSource.hasPermission()) {
+            notice = "Location permission is not granted. Tap the location button to request it."
+            return
+        }
+        notice = "Finding your location…"
         locationSource.currentFix { fix ->
             if (fix == null) {
-                notice = "No location fix. Check that Location is enabled, then try again."
+                notice = "No location fix. Check Location services, signal, or permissions, then retry."
             } else {
                 currentLocation = fix
                 map?.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(fix.latitude, fix.longitude), 15.0))
-                notice = "Location fix (${fix.provider}) · ${if (fix.hasAccuracy()) "±${fix.accuracy.toInt()} m" else "accuracy unknown"}. No background tracking."
+                notice = "Location (${fix.provider}) · ${if (fix.hasAccuracy()) "±${fix.accuracy.toInt()} m" else "accuracy unknown"}. One-time foreground fix."
             }
         }
     }
@@ -115,17 +146,28 @@ fun MapScreen(records: List<Observation>, onSave: (String, String, String, Doubl
         ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
         if (result.values.any { it }) locate()
-        else notice = "Location permission denied. You can still long-press the map."
+        else notice = "Location denied. The map and manual pins still work; tap the location button to try again."
+    }
+
+    // Automatically locate when returning to this screen with permission. Prompt just once
+    // across launches; the user can always opt in later via the location button.
+    LaunchedEffect(map) {
+        if (map == null) return@LaunchedEffect
+        if (locationSource.hasPermission()) {
+            locate()
+        } else if (!preferences.getBoolean(PERMISSION_PROMPTED_KEY, false)) {
+            preferences.edit().putBoolean(PERMISSION_PROMPTED_KEY, true).apply()
+            notice = "Allow location to automatically center the map on your position."
+            permissionLauncher.launch(arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ))
+        } else {
+            notice = "Location is off. Tap the location button to enable it, or long-press to add a pin."
+        }
     }
 
     Column(Modifier.fillMaxSize()) {
-        Surface(color = MaterialTheme.colorScheme.surfaceVariant) {
-            Text(
-                "Development map tiles need internet. Manual observations are saved on-device.",
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 9.dp),
-                style = MaterialTheme.typography.labelMedium
-            )
-        }
         Box(Modifier.weight(1f)) {
             AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
             Column(
@@ -133,18 +175,35 @@ fun MapScreen(records: List<Observation>, onSave: (String, String, String, Doubl
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                Box {
+                    FilledTonalIconButton(onClick = { styleMenuExpanded = true }) {
+                        Icon(Icons.Filled.Layers, contentDescription = "Choose street or dark basemap")
+                    }
+                    DropdownMenu(expanded = styleMenuExpanded, onDismissRequest = { styleMenuExpanded = false }) {
+                        BasemapStyle.entries.forEach { style ->
+                            DropdownMenuItem(
+                                text = { Text(if (style.id == basemapId) "✓ ${style.label}" else style.label) },
+                                onClick = {
+                                    basemapId = style.id
+                                    preferences.edit().putString(BASEMAP_KEY, style.id).apply()
+                                    styleMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
                 FilledTonalIconButton(onClick = {
                     if (locationSource.hasPermission()) locate()
                     else permissionLauncher.launch(arrayOf(
                         Manifest.permission.ACCESS_FINE_LOCATION,
                         Manifest.permission.ACCESS_COARSE_LOCATION
                     ))
-                }) { Icon(Icons.Filled.MyLocation, contentDescription = "Find my current location") }
+                }) { Icon(Icons.Filled.MyLocation, contentDescription = "Center on my current location") }
                 FilledTonalIconButton(onClick = {
                     val fix = currentLocation
                     if (fix != null) draft = DraftPoint(fix.latitude, fix.longitude, if (fix.hasAccuracy()) fix.accuracy else null)
-                    else notice = "Find your location or long-press the map before adding a record."
-                }) { Icon(Icons.Filled.AddLocationAlt, contentDescription = "Add at current GPS fix") }
+                    else notice = "First obtain a location fix, or long-press anywhere to add a manual record."
+                }) { Icon(Icons.Filled.AddLocationAlt, contentDescription = "Record at last location fix") }
             }
             Surface(
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(12.dp),
@@ -152,7 +211,14 @@ fun MapScreen(records: List<Observation>, onSave: (String, String, String, Doubl
                 shape = RoundedCornerShape(12.dp),
                 tonalElevation = 2.dp
             ) {
-                Text(notice, modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
+                Column(Modifier.padding(horizontal = 12.dp, vertical = 9.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(if (styleLoaded) "${BasemapStyle.fromId(basemapId).label} map" else "Loading ${BasemapStyle.fromId(basemapId).label.lowercase()} map… internet required",
+                        style = MaterialTheme.typography.labelMedium)
+                    Text(notice, style = MaterialTheme.typography.bodySmall)
+                    Text("Map data © OpenStreetMap contributors · Tiles © OpenFreeMap / OpenMapTiles",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
     }

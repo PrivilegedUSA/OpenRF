@@ -39,12 +39,12 @@ fun SettingsScreen(records: List<Observation>) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Settings & hardware", style = MaterialTheme.typography.headlineSmall)
-        Text("OpenRF v0.1.0 · offline records, online development map")
+        Text("OpenRF v0.1.4 · local observations, online street maps")
         ElevatedCard {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Location permission", style = MaterialTheme.typography.titleMedium)
                 Text(if (permissionState) "Granted" else "Not granted")
-                Text("Location is read only when you tap the locate button. There is no background service.",
+                Text("The map automatically requests one foreground location fix when opened and permission is granted. If permission has not yet been requested, it asks once. No background tracking or route logging.",
                     style = MaterialTheme.typography.bodySmall)
                 Button(onClick = {
                     permissionLauncher.launch(arrayOf(
@@ -65,7 +65,7 @@ fun SettingsScreen(records: List<Observation>) {
         ElevatedCard {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("Map and privacy", style = MaterialTheme.typography.titleMedium)
-                Text("MapLibre loads its demonstration style over the internet. Map tile requests reach the demo host. Observation records are not uploaded.")
+                Text("MapLibre loads street or dark OpenFreeMap tiles online (map data from OpenStreetMap). The map service receives ordinary requests for areas viewed; your saved observation database is not uploaded. Change the basemap using the Layers icon on the Map screen.")
                 Text("Offline map downloads, live scanning, hardware pairing, and proximity alerts are not implemented in this release.")
             }
         }

@@ -1,5 +1,11 @@
 # OpenRF changelog
 
+## v0.1.4 — 2026-11-09
+
+**First phone-feedback iteration.** The user confirmed v0.1.3 installs and starts on Android. Replaced MapLibre's minimal demonstration style with public OpenFreeMap Liberty street map (with road and place labels), added optional OpenFreeMap Dark map selection, and saved the selection locally. Map automatically requests a one-shot foreground location fix on entry when permitted; first opening prompts once for Android location permission, with manual fallback if denied. The on-demand fix now tries both allowed network and GPS providers, using the first valid reading, including when only approximate location is granted. Preserved manual observation creation, source/verification labels, Room schema v1, local CSV export and existing five tabs. Added visible OpenStreetMap/OpenFreeMap map attribution and refreshed privacy explanations.
+
+**Verification:** Whole ZIP/manifest/continuity and static project checks performed, plus JVM-only checks of the style catalog and location overload stubs. No Android SDK in the packaging environment, so the full Android build and user-visible rendering are **not yet verified** for v0.1.4. Integration verification is the GitHub Actions build; the map and permission behavior require a phone test.
+
 ## v0.1.3 — 2026-11-09
 
 **Kotlin location compilation hotfix.** The v0.1.2 GitHub Actions run successfully initialized Android SDK/Gradle and reached `:app:compileDebugKotlin`, which failed on an overloaded `LocationManagerCompat.getCurrentLocation` call in `PhoneLocationSource.kt`. The `null` cancellation-signal argument could match both the Android platform and AndroidX compatibility overloads. The location code now passes an explicitly typed `android.os.CancellationSignal?` and an explicitly typed `androidx.core.util.Consumer<Location>` callback. No change to the on-demand location semantics, app permissions, database, scanners or UI apart from the version label. APK artifact version updated to v0.1.3.

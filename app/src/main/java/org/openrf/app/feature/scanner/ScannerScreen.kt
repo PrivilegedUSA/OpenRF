@@ -21,7 +21,7 @@ fun ScannerScreen() {
     ) {
         Text("Wireless & RF scanner", style = MaterialTheme.typography.headlineSmall)
         Text(
-            "No scanning is running in v0.1.0. This page displays hardware support only; it does not claim to detect signals.",
+            "No scanning is running in v0.1.4. This page displays hardware support only; it does not claim to detect signals.",
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         FeatureStatus("Wi-Fi adapter", packageManager.hasSystemFeature(PackageManager.FEATURE_WIFI),
