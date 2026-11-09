@@ -41,7 +41,7 @@ class MainActivity : ComponentActivity() {
                                 Text("OPENRF", style = MaterialTheme.typography.titleLarge,
                                     color = MaterialTheme.colorScheme.primary)
                                 Spacer(Modifier.weight(1f))
-                                Text("FIELD TOOL  ·  v0.1", style = MaterialTheme.typography.labelSmall)
+                                Text("FIELD TOOL  ·  v0.1.1", style = MaterialTheme.typography.labelSmall)
                             }
                         }
                     },

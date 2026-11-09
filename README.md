@@ -1,4 +1,4 @@
-# OpenRF v0.1.0 — Android foundation
+# OpenRF v0.1.1 — Android foundation
 
 OpenRF is an experimental, offline-first, general-purpose Android RF investigation and infrastructure documentation platform. This initial release is an **actual Android source project**; it does **not** yet scan RF signals or detect Flock cameras automatically.
 
@@ -16,7 +16,7 @@ OpenRF is an experimental, offline-first, general-purpose Android RF investigati
 
 ## Install via OpenRF's existing updater
 
-Save `OpenRF-v0.1.0.zip` in the Downloads folder, then from any PowerShell directory:
+Save `OpenRF-v0.1.1.zip` in the Downloads folder, then from any PowerShell directory:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
@@ -24,7 +24,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Upda
 
 The updater validates the `openrf-bundle.json` manifest, backs up managed files, installs source, commits and pushes to GitHub if `origin` is configured. `-NoPush` disables the push. Installing the ZIP **does not install an APK on your phone**.
 
-After the push, open your GitHub repository → **Actions** → **OpenRF Android Debug APK** → latest successful run → **Artifacts** → `OpenRF-v0.1.0-debug-apk`. Download and unzip the artifact; install the APK on your Android phone. The artifact appears only after the workflow successfully builds.
+After the push, open your GitHub repository → **Actions** → **OpenRF Android Debug APK** → latest successful run → **Artifacts** → `OpenRF-v0.1.1-debug-apk`. Download and unzip the artifact; install the APK on your Android phone. The artifact appears only after the workflow successfully builds.
 
 ## Local build
 

@@ -20,7 +20,12 @@ jobs:
           distribution: temurin
           java-version: '17'
       - name: Configure Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          # The SDK no longer distributes the old 'tools' package.
+          # v4 defaults to platform-tools; keep it explicit to prevent regressions.
+          packages: 'platform-tools'
+          log-accepted-android-sdk-licenses: 'false' 
       - name: Install Android API 36
         run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
       - name: Configure Gradle
@@ -34,7 +39,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: OpenRF-v0.1.0-debug-apk
+          name: OpenRF-v0.1.1-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
