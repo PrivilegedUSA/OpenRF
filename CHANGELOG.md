@@ -1,3 +1,16 @@
+# OpenRF Changelog
+
+## 0.1.6 — Foreground investigation sessions (2026-11-09)
+
+- Added a named, explicit Start / Stop investigation workflow and local session history.
+- New `investigation_sessions`, `session_scans` and `session_readings` Room tables, with non-destructive v1→v2 migration. Existing saved observation table is untouched.
+- Each completed BLE/Wi-Fi scan during an active session is stored automatically, including successful scans with zero readings, preserving repeated measurements across scan cycles.
+- Optional one-shot receiver phone fix per completed scan; absent locations stay null, and phone coordinates do not represent transmitter locations.
+- Added per-session review, snapshot statistics, detailed readings, user-directed CSV export and confirmed deletion. CSV escapes spreadsheet formula prefixes in untrusted wireless labels.
+- Sessions end on app background and are recovered as interrupted after unexpected process death; no background scanning or travel recording.
+- Added SessionCsvExporter JVM unit tests and documentation of migration/phone tests. Scanner/map/manual observations retained.
+- No full APK build or device upgrade test was available in the packaging environment; verify via GitHub Actions and an in-place phone upgrade.
+
 # OpenRF changelog
 
 ## v0.1.5 — 2026-11-09

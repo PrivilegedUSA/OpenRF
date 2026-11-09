@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.openrf.app.location.PhoneLocationSource
+import org.openrf.app.data.InvestigationSession
 import org.openrf.app.scanner.ScanPhase
 import org.openrf.app.scanner.ScanStatus
 import org.openrf.app.scanner.WirelessMedium
@@ -25,15 +26,23 @@ import org.openrf.app.scanner.WirelessScanController
 import java.text.DateFormat
 import java.util.Date
 
-/** Only explicit, bounded foreground scans. Results disappear on leaving this screen unless saved. */
+/** Explicit foreground scans; completed scan snapshots are stored only when a user-created session is active. */
 @Composable
-fun ScannerScreen(onSave: (WirelessReading, Location) -> Unit) {
+fun ScannerScreen(
+    onSave: (WirelessReading, Location) -> Unit,
+    activeSession: InvestigationSession?,
+    onCaptureScan: (Long, WirelessMedium, List<WirelessReading>, Long, (Long?) -> Unit) -> Unit,
+    onAttachScanLocation: (Long, Location) -> Unit
+) {
     val context = LocalContext.current
     val controller = remember(context) { WirelessScanController(context) }
     val state by controller.state.collectAsStateWithLifecycle()
     val locationSource = remember(context) { PhoneLocationSource(context) }
     val lifecycleOwner = LocalLifecycleOwner.current
     var visible by remember { mutableStateOf(true) }
+    var foreground by remember(lifecycleOwner) {
+        mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+    }
     var pendingPermissionFor by remember { mutableStateOf<WirelessMedium?>(null) }
     var notice by remember { mutableStateOf("") }
     var savingKey by remember { mutableStateOf<String?>(null) }
@@ -48,7 +57,11 @@ fun ScannerScreen(onSave: (WirelessReading, Location) -> Unit) {
     }
     DisposableEffect(controller, lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) controller.pause()
+            if (event == Lifecycle.Event.ON_START) foreground = true
+            if (event == Lifecycle.Event.ON_STOP) {
+                foreground = false
+                controller.pause()
+            }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
@@ -56,6 +69,32 @@ fun ScannerScreen(onSave: (WirelessReading, Location) -> Unit) {
             lifecycleOwner.lifecycle.removeObserver(observer)
             controller.close()
         }
+    }
+
+    // Each completed scan generates one snapshot, not an ongoing sampling/monitoring task.
+    // Failure/unavailable states are deliberately excluded from the session evidence.
+    fun storeCompleted(medium: WirelessMedium, timestamp: Long?, results: List<WirelessReading>) {
+        val sessionId = activeSession?.id ?: return
+        if (!foreground || timestamp == null) return
+        onCaptureScan(sessionId, medium, results.toList(), timestamp) { scanId ->
+            if (scanId == null) {
+                if (visible && foreground) notice = "Scan not recorded: session ended or local storage was unavailable."
+            } else if (visible && foreground) {
+                notice = "${medium.name} scan stored in session · ${results.size} readings. Requesting one receiver location fix."
+                if (locationSource.hasPermission()) {
+                    locationSource.currentFix { fix ->
+                        if (visible && foreground && fix != null) onAttachScanLocation(scanId, fix)
+                    }
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(state.ble.phase, state.ble.completedAtMillis) {
+        if (state.ble.phase == ScanPhase.COMPLETE) storeCompleted(WirelessMedium.BLE, state.ble.completedAtMillis, state.bleResults)
+    }
+    LaunchedEffect(state.wifi.phase, state.wifi.completedAtMillis) {
+        if (state.wifi.phase == ScanPhase.COMPLETE) storeCompleted(WirelessMedium.WIFI, state.wifi.completedAtMillis, state.wifiResults)
     }
 
     fun requestScan(medium: WirelessMedium) {
@@ -93,6 +132,17 @@ fun ScannerScreen(onSave: (WirelessReading, Location) -> Unit) {
             Spacer(Modifier.height(5.dp))
             Text("User-started scans only · no background tracking. Signal strength is received power (dBm), not distance or proof of a camera.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (activeSession != null) {
+                Spacer(Modifier.height(6.dp))
+                Text("Recording to session: ${activeSession.name}", color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelMedium)
+                Text("Each completed scan is automatically saved to this local session, even if zero signals are found. This is not continuous scanning.",
+                    style = MaterialTheme.typography.bodySmall)
+            } else {
+                Spacer(Modifier.height(6.dp))
+                Text("No active session · scan snapshots disappear on leaving this screen unless saved individually.",
+                    style = MaterialTheme.typography.labelSmall)
+            }
             if (notice.isNotBlank()) {
                 Spacer(Modifier.height(8.dp))
                 Text(notice, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
@@ -126,7 +176,7 @@ fun ScannerScreen(onSave: (WirelessReading, Location) -> Unit) {
         }
         item {
             HorizontalDivider()
-            Text("Save is optional: observations stay in memory only until you leave Scanner. Saved entries appear in Discoveries and CSV export, with source, timestamp, phone coordinates and location accuracy. Bluetooth identifiers may rotate. No Flock, camera, or device-type identification is performed.",
+            Text("Individually saving a survey point is optional. With an active investigation, completed scan snapshots are stored in Sessions automatically; they are not added as transmitter pins on Map. Without a session, snapshots disappear on leaving Scanner. Bluetooth identifiers may rotate. No camera or Flock identification is performed.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(5.dp))
             Text("External SDR, ESP32 and full RF-spectrum analysis are not connected in this release.", style = MaterialTheme.typography.bodySmall)

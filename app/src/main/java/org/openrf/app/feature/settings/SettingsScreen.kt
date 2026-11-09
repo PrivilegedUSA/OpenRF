@@ -39,7 +39,7 @@ fun SettingsScreen(records: List<Observation>) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Settings & hardware", style = MaterialTheme.typography.headlineSmall)
-        Text("OpenRF v0.1.5 · local observations, optional BLE / Wi-Fi surveys, online maps")
+        Text("OpenRF v0.1.6 · local observations, user-started BLE / Wi-Fi session history, online maps")
         ElevatedCard {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Location permission", style = MaterialTheme.typography.titleMedium)
@@ -66,7 +66,7 @@ fun SettingsScreen(records: List<Observation>) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("Map and privacy", style = MaterialTheme.typography.titleMedium)
                 Text("MapLibre loads street or dark OpenFreeMap tiles online (map data from OpenStreetMap). The map service receives ordinary requests for areas viewed; your saved observation database is not uploaded. Change the basemap using the Layers icon on the Map screen.")
-                Text("BLE and Wi-Fi scanning only runs while Scanner is visible and on request. Offline map downloads, RF spectrum analysis, hardware pairing, sessions and proximity alerts are not implemented.")
+                Text("BLE and Wi-Fi scanning only runs while Scanner is visible and on request. Explicit investigation sessions retain completed scan snapshots locally while the app stays in the foreground, with no background route tracking. Offline map downloads, RF spectrum analysis, hardware pairing and proximity alerts are not implemented.")
             }
         }
         if (status.isNotBlank()) Text(status, style = MaterialTheme.typography.bodySmall)

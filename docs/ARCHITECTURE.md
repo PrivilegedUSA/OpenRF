@@ -1,4 +1,4 @@
-# OpenRF architecture v0.1.5
+# OpenRF architecture v0.1.6
 
 - **MainActivity:** Compose app shell, tab navigation; Scanner takes an explicit-save callback into `OpenRfViewModel`.
 - **`data/`:** Room v1 `Observation` table/DAO/repository; retained schema protects existing installs. `MANUAL` records stay distinct from `BLE_SCAN`/`WIFI_SCAN` with `UNIDENTIFIED` verification.
@@ -23,3 +23,7 @@ Wi-Fi scans need `ACCESS_FINE_LOCATION`, `CHANGE_WIFI_STATE`, `ACCESS_WIFI_STATE
 - Model deduplication over sessions and stronger stale-data rules before broader collection.
 - Explore permitted passive ESP32 USB/BLE accessory communication and external SDR after phone scanning is proven.
 - Explore true offline maps under compatible licensing; no unsupported navigation claims.
+
+## v0.1.6: investigation sessions
+
+`SessionRepository` isolates the Room `SessionDao` from the ViewModel. Database v2 adds sessions, successful scan cycles and their reading snapshots (FK cascade), with a v1-to-v2 additive migration. `ScannerScreen` captures a completed, explicitly requested scan only if a foreground user-started session is active. The database write is transactional per scan. One optional single phone location fix annotates each scan, not each device location. `InvestigationsScreen` reviews these private records and `SessionCsvExporter` produces a user-chosen CSV. No background service or scheduled RF scan is involved. See `docs/SESSION_RECORDING.md`.

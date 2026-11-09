@@ -27,12 +27,22 @@ import org.openrf.app.ui.OpenRfTheme
 class MainActivity : ComponentActivity() {
     private val model: OpenRfViewModel by viewModels { OpenRfViewModel.factory(application) }
 
+    override fun onStop() {
+        // No session silently remains active while OpenRF is in the background.
+        if (!isChangingConfigurations) model.stopSession(interrupted = true)
+        super.onStop()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         MapLibre.getInstance(applicationContext)
         setContent {
             OpenRfTheme {
                 val records by model.observations.collectAsStateWithLifecycle()
+                val sessions by model.sessions.collectAsStateWithLifecycle()
+                val activeSession by model.activeSession.collectAsStateWithLifecycle()
+                val sessionReady by model.sessionReady.collectAsStateWithLifecycle()
+                val sessionMessage by model.sessionMessage.collectAsStateWithLifecycle()
                 var section by remember { mutableStateOf(Screen.MAP) }
                 Scaffold(
                     topBar = {
@@ -41,7 +51,7 @@ class MainActivity : ComponentActivity() {
                                 Text("OPENRF", style = MaterialTheme.typography.titleLarge,
                                     color = MaterialTheme.colorScheme.primary)
                                 Spacer(Modifier.weight(1f))
-                                Text("FIELD TOOL  ·  v0.1.5", style = MaterialTheme.typography.labelSmall)
+                                Text("FIELD TOOL  ·  v0.1.6", style = MaterialTheme.typography.labelSmall)
                             }
                         }
                     },
@@ -61,9 +71,19 @@ class MainActivity : ComponentActivity() {
                     Box(Modifier.fillMaxSize().padding(padding)) {
                         when (section) {
                             Screen.MAP -> MapScreen(records, model::add)
-                            Screen.SCANNER -> ScannerScreen(model::saveWireless)
+                            Screen.SCANNER -> ScannerScreen(
+                                onSave = model::saveWireless,
+                                activeSession = activeSession,
+                                onCaptureScan = model::captureScan,
+                                onAttachScanLocation = model::attachScanLocation
+                            )
                             Screen.DISCOVERIES -> DiscoveriesScreen(records, model::delete)
-                            Screen.INVESTIGATIONS -> InvestigationsScreen()
+                            Screen.INVESTIGATIONS -> InvestigationsScreen(
+                                sessions = sessions, active = activeSession, ready = sessionReady,
+                                message = sessionMessage, onStart = model::startSession,
+                                onStop = { model.stopSession() }, onDelete = model::deleteSession,
+                                scansFor = model::scansForSession, readingsFor = model::readingsForSession
+                            )
                             Screen.SETTINGS -> SettingsScreen(records)
                         }
                     }

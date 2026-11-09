@@ -13,4 +13,4 @@ Source is newly authored. Dependencies are resolved at build time from Google Ma
 | Gradle | 8.13 | Apache-2.0, Gradle |
 | JUnit | 4.13.2 | Eclipse Public License 1.0 |
 
-Full transitive dependency license inventory should be generated and reviewed before public release. OpenFreeMap's public online styles do not require an API key. Offline downloads have size/concurrency limits; no offline downloader exists in v0.1.5. See OpenFreeMap's terms before distributing offline data. Preserve OpenStreetMap/OpenMapTiles attribution, and generate a transitive license inventory before public release.
+Full transitive dependency license inventory should be generated and reviewed before public release. OpenFreeMap's public online styles do not require an API key. Offline downloads have size/concurrency limits; no offline downloader exists in v0.1.6. See OpenFreeMap's terms before distributing offline data. Preserve OpenStreetMap/OpenMapTiles attribution, and generate a transitive license inventory before public release.
