@@ -1,5 +1,15 @@
 # OpenRF changelog
 
+## v0.1.5 — 2026-11-09
+
+- Added real, user-started **Bluetooth LE advertisement scans** with hardware/permission checks, 12-second timeout, stop button, RSSI, timestamps, deduplication and explicit scan errors.
+- Added real **Wi-Fi AP discovery** using Android `WifiManager.startScan` and scan-completion broadcast. Filters failed/cached result sets and timestamp-stale access points; surfaces platform throttling and missing Location services.
+- Added optional, user-initiated **Save survey point** for observed BLE/Wi-Fi readings using a recent foreground phone location. Preserved the Room v1 database schema, with `source=BLE_SCAN` or `WIFI_SCAN` and `verification=UNIDENTIFIED`. Saved coordinates denote the phone receiver, not transmitter location.
+- Updated Discoveries, Map marker descriptions, and Settings to distinguish manual notes from RF observations, retain provenance and avoid unsupported classifications. Added four pure JVM tests for Wi-Fi freshness and monotonic-to-wall-clock time conversion.
+- Kept MapLibre GPS/maps, existing manual records, CSV export and GitHub workflow. No session recording or external hardware detection.
+
+**Verification:** Full source and manifest packaging validated; targeted Kotlin tests are run locally when available. GitHub Actions and device checks remain necessary to confirm Android compilation and platform scan behavior.
+
 ## v0.1.4 — 2026-11-09
 
 **First phone-feedback iteration.** The user confirmed v0.1.3 installs and starts on Android. Replaced MapLibre's minimal demonstration style with public OpenFreeMap Liberty street map (with road and place labels), added optional OpenFreeMap Dark map selection, and saved the selection locally. Map automatically requests a one-shot foreground location fix on entry when permitted; first opening prompts once for Android location permission, with manual fallback if denied. The on-demand fix now tries both allowed network and GPS providers, using the first valid reading, including when only approximate location is granted. Preserved manual observation creation, source/verification labels, Room schema v1, local CSV export and existing five tabs. Added visible OpenStreetMap/OpenFreeMap map attribution and refreshed privacy explanations.

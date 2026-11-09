@@ -115,7 +115,8 @@ fun MapScreen(records: List<Observation>, onSave: (String, String, String, Doubl
             activeMap.addMarker(MarkerOptions()
                 .position(LatLng(record.latitude, record.longitude))
                 .title(record.title)
-                .snippet("${record.category} · ${record.verification.lowercase()}; tap Saved for details"))
+                .snippet(if (record.source == "MANUAL") "${record.category} · unverified; tap Saved for details"
+                    else "${record.source} · phone survey position only, NOT emitter location"))
         }
         currentLocation?.let { fix ->
             activeMap.addMarker(MarkerOptions()

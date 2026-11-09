@@ -1,50 +1,45 @@
-# OpenRF v0.1.4 — Automatic GPS centering and detailed map
+# OpenRF v0.1.5 — Real, user-initiated BLE and Wi-Fi discovery
 
-OpenRF is an experimental, offline-first, general-purpose Android RF investigation and infrastructure documentation platform. This is a working Android source project, **not yet** an RF scanner or an automated ALPR/camera detector.
+OpenRF is an experimental, privacy-first Android RF investigation and infrastructure documentation app. v0.1.5 implements **real platform Wi-Fi access-point scans and Bluetooth LE advertisement discovery**, rather than simulated data. It is not a full-spectrum RF analyzer, an ALPR detector, or a camera-identification system.
 
-## Included
+## What works
 
-- Native Kotlin + Jetpack Compose Material 3 dark UI; Map, Scanner, Saved, Sessions, Settings.
-- MapLibre interactive map using OpenFreeMap street-level **Liberty** style by default; optional **Dark** style via Layers button. City and road labels appear as you zoom in. No API key.
-- When Map opens with location permission, requests a single foreground location fix and automatically centers on it; prompts once on first launch if permission is not granted. If declined, manual map use still works, and the location button can ask again.
-- After the user switches tabs and reenters Map, the map requests a fresh location fix if permission remains granted. The location marker represents the **last one-shot fix**, not continuous live tracking.
-- Long-press a location or tap add-location after an actual GPS/network fix to save manual observations, with notes/category, timestamp and optional accuracy.
-- Persistent Room records, observation search/delete, local CSV export via Android file picker.
-- Scanner/Sessions are inactive and clearly described; no fake detections or background monitoring.
-- GitHub Actions Kotlin tests + debug APK build.
+- **Map:** MapLibre and OpenFreeMap street/dark maps, automatic one-time GPS centering with permission; long-press to save manual observations.
+- **Scanner → Bluetooth LE:** Explicitly tap Scan now. Collects real BLE advertisement results for up to 12 seconds. Deduplicates rotating observed identifiers within the run, shows advertised name (if present), observed address, RSSI (dBm), and observation time. Stop is available. Does not pair/connect to advertising devices.
+- **Scanner → Wi-Fi:** Explicitly tap Scan now. Calls Android Wi-Fi scan API and waits for the system completion broadcast. Shows only newly updated, recent access-point results with SSID/BSSID, RSSI, frequency (MHz), basic advertised capabilities and timestamp. If Android throttles the scan or only cached results are available, OpenRF reports this instead of presenting cached readings as fresh.
+- **Foreground-only:** BLE scanning is capped at 12 seconds, and active scans stop when leaving Scanner or when the app leaves the foreground. No continuous background scanner, passive tracking service, or automatic uploads.
+- **Save survey point:** Tap Save survey point on a reading to request a fresh foreground phone location. The resulting Room observation includes radio type, identifier, RSSI, timestamp, signal metadata, GPS coordinates and location accuracy. These coordinates are **where the phone was at save time**, not where an emitter was located. If there is no recent location fix, the reading is not saved. Saved entries appear in Discoveries, on Map, and in CSV export; automatic bulk logging is NOT enabled.
+- **Persisted manual notes, search/delete and local CSV export:** Same Room schema and app package as v0.1.4, so existing local records should survive an in-place update.
+- **Sessions and external SDR/ESP32:** Still not implemented. No invented detections or signal confidence scores.
 
-## Install the bundle
+## Install/update
 
-Save `OpenRF-v0.1.4.zip` to your Windows Downloads folder and run from any PowerShell directory:
+Download `OpenRF-v0.1.5.zip` to Downloads, then run from any PowerShell directory:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
 ```
 
-The updater installs source into `C:\projects\OpenRF`, commits managed files and pushes to GitHub by default. It does not install the APK on your phone. Once the pushed GitHub Actions run succeeds, use Actions → OpenRF Android Debug APK → Artifacts → `OpenRF-v0.1.4-debug-apk`, unzip and install the APK. Local records should remain intact when upgrading with the same Android application ID; the database schema is unchanged.
+The updater validates and extracts this complete release source bundle, commits managed files, and pushes to GitHub unless given `-NoPush`. The GitHub Actions workflow runs JVM unit tests and an Android debug build. After a successful run, download **Actions → OpenRF Android Debug APK → latest run → Artifacts → `OpenRF-v0.1.5-debug-apk`** and install its APK (not the source ZIP). An upload/build attempt does not mean the APK is guaranteed to compile or install.
 
-## Phone test steps
+## First phone tests
 
-1. Open Map with internet access, allow location when Android prompts, and verify the map zooms to your real position automatically. There may be a delay while a fresh fix is obtained.
-2. Confirm **streets, road labels, city names** render when zoomed to neighborhood/city level. This now uses an OpenFreeMap street map, not MapLibre's intentionally sparse test tiles.
-3. Tap Layers (upper-right), select Dark, verify the map theme changes **without resetting your camera** or losing the locally saved pins. Switch back to Streets.
-4. Tap the center-on-location button to refresh your one-time position. Deny the request on a second device to ensure the map remains usable and doesn't repeatedly ask on every visit.
-5. Long-press a place, save a manual observation; verify it appears in Saved, survives force-closing the app, and can be exported to CSV from Settings.
-6. Test on Wi-Fi and cellular data. With data disabled, previously cached tiles may appear, but **offline maps/downloads are not implemented**.
-7. Open Scanner and Sessions and confirm neither falsely claims live RF scanning.
+1. Install as an update to v0.1.4 (do not uninstall first), check existing Map observations are still saved.
+2. Open Scanner. On Bluetooth LE tap **Scan now**. Allow **Precise Location** and **Nearby devices** when Android asks. Ensure Location services and Bluetooth are enabled. Scan near a known BLE advertiser, confirm actual received entries show RSSI, identifier and timestamps, and wait for the scan to end automatically after 12 seconds.
+3. On Wi-Fi tap **Scan now**. Allow precise location if prompted; turn Wi-Fi and Android Location services on. Confirm SSID/BSSID, dBm and frequency of discovered access points. Try scanning repeatedly: Android may throttle requests. Verify a denied/throttled scan never displays old results as new.
+4. Save one BLE or Wi-Fi reading after a valid GPS/network fix. Confirm it appears under Discoveries as `BLE_SCAN` or `WIFI_SCAN`, marked `UNIDENTIFIED`, and that the Map marker/CSV clearly refers to the **phone observation point**. An unavailable current location should cause a clear message instead of invented coordinates.
+5. Switch tabs or background the app mid-scan: radio scan activity should stop. Reenter Scanner to start a new scan. Disable Bluetooth, Wi-Fi or Location and verify explicit unavailable/error states instead of crashes.
+6. Export CSV in Settings; confirm manual and explicitly saved radio readings appear in the same export. Existing manual records should remain unchanged.
 
-## Limitations and privacy
+## Radio and privacy limits
 
-- **Internet is required for new map tiles.** OpenFreeMap's public tiles are not an offline service. The provider receives ordinary network tile/style requests for viewed areas, but observations are not uploaded by OpenRF.
-- Provider-hosted offline downloads have limits (currently 3,000 tiles or 50 MB per download, with no more than 4 concurrent requests; follow their terms). This release implements **no offline downloading**. Future larger offline maps need separately licensed datasets or self-hosting.
-- GPS is on demand when Map is entered or the center button is pressed; it does not run after leaving the map and does not record trips.
-- The marker for your location is the latest one-shot fix; **not** a continuous tracking dot. Nearby cell/Wi-Fi/BLE signals are not being measured.
-- No active scanner, proximity alerts, investigation sessions, directions, automatic camera classification or Flock detection yet.
-- All observations remain `MANUAL` and `UNVERIFIED`, even when their coordinates are from Android's location API.
-- No API key or user account required. The OpenRF application's own source license remains to be selected before public distribution.
+- Wi-Fi `startScan()` can be throttled by Android (typically foreground apps get four scans per two minutes on Android 9+); Android controls scanning. A scan can fail when Location services are off. Android Wi-Fi results may be cached: v0.1.5 filters by recent *platform timestamp* after a successful broadcast, but timestamps still cannot prove physical distance or identify a surveillance device.
+- On Android 12+, BLE needs `BLUETOOTH_SCAN` and `BLUETOOTH_CONNECT` to perform scanning and access adapter state; OpenRF also requests precise location because the purpose includes optional survey geotagging. On older Android versions BLE scanning needs location permission. Do not set the `neverForLocation` Bluetooth flag because this project can geotag results and filtering could drop some beacons.
+- BLE advertisements can have randomized IDs; the device display name may be absent or misleading. RSSI changes with antenna orientation and environment. Wi-Fi BSSID can also be randomized. Neither scan type reliably detects Flock cameras or arbitrary RF frequencies.
+- When you leave Scanner, any **unsaved** scan snapshot disappears. Saved survey locations and identifiers remain in the private Room database; CSV export is user-triggered. Avoid publishing device identifiers or precise personal routes without review.
+- Online maps require data for new map areas; no offline downloads yet. OpenFreeMap receives normal tile-view requests but OpenRF does not upload investigation records.
+- Choose an application license and complete third-party attribution review before public release.
 
-## Build
+## Build verification
 
-GitHub Actions sets up JDK 17, Android SDK 36 and Gradle 8.13, runs `:app:testDebugUnitTest :app:assembleDebug` and uploads the artifact if successful. Local Gradle launchers are also provided. Build success for **this exact release** is not guaranteed until the workflow completes.
-
-See `CHANGELOG.md`, `docs/ARCHITECTURE.md` and `docs/THIRD_PARTY.md` for implementation and license notes.
+Target Android SDK 35, compile SDK 36, min SDK 26, Java 17, Gradle 8.13, Room 2.8.3, MapLibre 13.7.1, Compose. Check `CHANGELOG.md`, `docs/ARCHITECTURE.md` and `docs/THIRD_PARTY.md` for release details. Release ZIP checks and targeted JVM tests can be performed in the packaging environment; a full Android build and phone behavior must be verified through GitHub Actions and an Android device.

@@ -41,7 +41,7 @@ class MainActivity : ComponentActivity() {
                                 Text("OPENRF", style = MaterialTheme.typography.titleLarge,
                                     color = MaterialTheme.colorScheme.primary)
                                 Spacer(Modifier.weight(1f))
-                                Text("FIELD TOOL  ·  v0.1.4", style = MaterialTheme.typography.labelSmall)
+                                Text("FIELD TOOL  ·  v0.1.5", style = MaterialTheme.typography.labelSmall)
                             }
                         }
                     },
@@ -61,7 +61,7 @@ class MainActivity : ComponentActivity() {
                     Box(Modifier.fillMaxSize().padding(padding)) {
                         when (section) {
                             Screen.MAP -> MapScreen(records, model::add)
-                            Screen.SCANNER -> ScannerScreen()
+                            Screen.SCANNER -> ScannerScreen(model::saveWireless)
                             Screen.DISCOVERIES -> DiscoveriesScreen(records, model::delete)
                             Screen.INVESTIGATIONS -> InvestigationsScreen()
                             Screen.SETTINGS -> SettingsScreen(records)

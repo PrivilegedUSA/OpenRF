@@ -14,7 +14,7 @@ fun InvestigationsScreen() {
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("No active investigation", style = MaterialTheme.typography.titleMedium)
                 Text("Session recording, comparisons, and route history are not implemented yet.")
-                Text("The Map and Discoveries sections already support manually saving locations, without tracking where you travel.",
+                Text("Map supports manually saved places; Scanner can save radio readings on explicit request. There is no background travel recording.",
                     style = MaterialTheme.typography.bodySmall)
             }
         }
