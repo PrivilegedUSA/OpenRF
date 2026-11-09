@@ -24,9 +24,16 @@ class PhoneLocationSource(private val context: Context) {
         }
         if (provider == null) { callback(null); return }
         try {
+            // Core 1.17 exposes Android and AndroidX CancellationSignal overloads.
+            // Type the signal explicitly to avoid Kotlin overload ambiguity.
+            val cancellationSignal: android.os.CancellationSignal? = null
+            val locationConsumer = androidx.core.util.Consumer<Location> { location ->
+                callback(location)
+            }
             LocationManagerCompat.getCurrentLocation(
-                manager, provider, null, ContextCompat.getMainExecutor(context)
-            ) { location -> callback(location) }
+                manager, provider, cancellationSignal,
+                ContextCompat.getMainExecutor(context), locationConsumer
+            )
         } catch (_: SecurityException) { callback(null) }
         catch (_: IllegalArgumentException) { callback(null) }
     }

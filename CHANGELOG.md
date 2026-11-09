@@ -1,5 +1,11 @@
 # OpenRF changelog
 
+## v0.1.3 — 2026-11-09
+
+**Kotlin location compilation hotfix.** The v0.1.2 GitHub Actions run successfully initialized Android SDK/Gradle and reached `:app:compileDebugKotlin`, which failed on an overloaded `LocationManagerCompat.getCurrentLocation` call in `PhoneLocationSource.kt`. The `null` cancellation-signal argument could match both the Android platform and AndroidX compatibility overloads. The location code now passes an explicitly typed `android.os.CancellationSignal?` and an explicitly typed `androidx.core.util.Consumer<Location>` callback. No change to the on-demand location semantics, app permissions, database, scanners or UI apart from the version label. APK artifact version updated to v0.1.3.
+
+**Verification:** Package structure and release continuity are verified. The location source was compiled against minimal Java stubs modeling both AndroidX overloads using local Kotlin compiler. The full Android/Gradle build and phone runtime are not verified here; GitHub Actions remains the integration test.
+
 ## v0.1.2 — 2026-11-09
 
 **Gradle startup hotfix.** The v0.1.1 GitHub Actions run advanced past Android SDK setup but failed before compilation: the custom `gradlew` launcher requested `https://services.gradle.org/distributions/gradle-8.13-wrapper.jar`, which returned HTTP 404. GitHub Actions now provisions Gradle 8.13 via `gradle/actions/setup-gradle@v4` and executes it directly. Both local launchers now fetch the wrapper JAR from Gradle's official GitHub `v8.13.0` tag, retaining the published SHA-256 verification. Gradle distribution SHA-256 pin is unchanged. Updated app version and artifact name to 0.1.2.
