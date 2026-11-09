@@ -10,45 +10,31 @@ permissions:
 jobs:
   android:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 50
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
-
-      - name: Check whether Android source exists yet
-        id: source
-        shell: bash
-        run: |
-          if [ -f gradlew ] && { [ -f settings.gradle.kts ] || [ -f settings.gradle ]; } && [ -d app ]; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "Android source is not present yet; skipping build until the first app bundle arrives." >> "$GITHUB_STEP_SUMMARY"
-          fi
-
-      - name: Configure Java
-        if: steps.source.outputs.ready == 'true'
+      - name: Configure Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
+      - name: Configure Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install Android API 36
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
       - name: Configure Gradle
-        if: steps.source.outputs.ready == 'true'
-        uses: gradle/actions/setup-gradle@v6
-
-      - name: Build debug APK
-        if: steps.source.outputs.ready == 'true'
-        shell: bash
+        uses: gradle/actions/setup-gradle@v4
+      - name: Verify source is present
+        run: test -f gradlew && test -f settings.gradle.kts && test -d app
+      - name: Run unit tests and build debug APK
         run: |
           chmod +x ./gradlew
-          ./gradlew --no-daemon :app:assembleDebug
-
-      - name: Upload APK artifact
-        if: steps.source.outputs.ready == 'true'
+          ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: OpenRF-debug-apk
+          name: OpenRF-v0.1.0-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
