@@ -1,0 +1,54 @@
+name: OpenRF Android Debug APK
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Check whether Android source exists yet
+        id: source
+        shell: bash
+        run: |
+          if [ -f gradlew ] && { [ -f settings.gradle.kts ] || [ -f settings.gradle ]; } && [ -d app ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Android source is not present yet; skipping build until the first app bundle arrives." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Configure Java
+        if: steps.source.outputs.ready == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Configure Gradle
+        if: steps.source.outputs.ready == 'true'
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Build debug APK
+        if: steps.source.outputs.ready == 'true'
+        shell: bash
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon :app:assembleDebug
+
+      - name: Upload APK artifact
+        if: steps.source.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenRF-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,29 @@
+# Local / sensitive data
+.openrf-state/
+openrf-local.json
+local-data/
+private/
+secrets/
+.env
+.env.*
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+
+# Android and IDE build output
+.gradle/
+**/build/
+.idea/
+.vscode/
+*.iml
+local.properties
+.cxx/
+.externalNativeBuild/
+
+# Misc
+.DS_Store
+Thumbs.db
+*.log
+*.zip
