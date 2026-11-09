@@ -1,4 +1,4 @@
-# OpenRF v0.1.1 — Android foundation
+# OpenRF v0.1.2 — Android foundation
 
 OpenRF is an experimental, offline-first, general-purpose Android RF investigation and infrastructure documentation platform. This initial release is an **actual Android source project**; it does **not** yet scan RF signals or detect Flock cameras automatically.
 
@@ -16,7 +16,7 @@ OpenRF is an experimental, offline-first, general-purpose Android RF investigati
 
 ## Install via OpenRF's existing updater
 
-Save `OpenRF-v0.1.1.zip` in the Downloads folder, then from any PowerShell directory:
+Save `OpenRF-v0.1.2.zip` in the Downloads folder, then from any PowerShell directory:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
@@ -24,7 +24,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Upda
 
 The updater validates the `openrf-bundle.json` manifest, backs up managed files, installs source, commits and pushes to GitHub if `origin` is configured. `-NoPush` disables the push. Installing the ZIP **does not install an APK on your phone**.
 
-After the push, open your GitHub repository → **Actions** → **OpenRF Android Debug APK** → latest successful run → **Artifacts** → `OpenRF-v0.1.1-debug-apk`. Download and unzip the artifact; install the APK on your Android phone. The artifact appears only after the workflow successfully builds.
+After the push, open your GitHub repository → **Actions** → **OpenRF Android Debug APK** → latest successful run → **Artifacts** → `OpenRF-v0.1.2-debug-apk`. Download and unzip the artifact; install the APK on your Android phone. The artifact appears only after the workflow successfully builds.
 
 ## Local build
 
@@ -34,7 +34,7 @@ JDK 17 and Android SDK API 36 / Android Build Tools 35.0.0 are required. Run:
 ./gradlew :app:testDebugUnitTest :app:assembleDebug
 ```
 
-On Windows use `gradlew.bat`. **Wrapper note:** Because the bundle generation environment cannot download binary files, this release's launcher bootstraps the official Gradle **8.13 wrapper JAR** on first run into the ignored `.gradle/openrf-bootstrap` folder; it checks the SHA-256 from the Gradle release checksums page. The official Gradle 8.13 distribution ZIP is also SHA-256 pinned via `gradle-wrapper.properties`. Both downloads require internet. The launcher is included in the bundle; no manual Gradle installation is required.
+On Windows use `gradlew.bat`. **Wrapper note:** The local `gradlew` and `gradlew.bat` launchers download the Gradle **8.13 wrapper JAR** from the official `gradle/gradle` GitHub `v8.13.0` tag into the ignored `.gradle/openrf-bootstrap` folder and check its SHA-256 against the published Gradle checksum. The GitHub Actions workflow installs pinned Gradle 8.13 with `gradle/actions/setup-gradle@v4` and calls `gradle` directly, so CI does not depend on the launcher bootstrap URL. The official Gradle 8.13 distribution ZIP is also SHA-256 pinned via `gradle-wrapper.properties`. Both downloads require internet. The launcher is included in the bundle; no manual Gradle installation is required.
 
 ## Test on phone
 

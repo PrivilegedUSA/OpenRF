@@ -1,6 +1,7 @@
 #!/bin/sh
 # OpenRF wrapper launcher: bootstrap the official, checksum-verified Gradle wrapper JAR.
-# The checked-in application source contains no downloaded binary executable.
+# The JAR is fetched from the official Gradle GitHub v8.13.0 tag and SHA-256 checked.
+# No wrapper binary is bundled; CI independently provisions the pinned Gradle version.
 set -eu
 APP_HOME=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 JAR="$APP_HOME/.gradle/openrf-bootstrap/gradle-wrapper-8.13.jar"
@@ -19,7 +20,7 @@ verify() {
 if [ ! -f "$JAR" ] || ! verify "$JAR"; then
   TMP="$JAR.tmp.$$"
   trap 'rm -f "$TMP"' EXIT INT TERM
-  URL="https://services.gradle.org/distributions/gradle-8.13-wrapper.jar"
+  URL="https://raw.githubusercontent.com/gradle/gradle/v8.13.0/gradle/wrapper/gradle-wrapper.jar"
   if command -v curl >/dev/null 2>&1; then
     curl --fail --location --retry 3 --silent --show-error "$URL" --output "$TMP"
   elif command -v wget >/dev/null 2>&1; then
