@@ -1,13 +1,14 @@
-# OpenRF Linux architecture — 0.2.4
+# OpenRF Linux architecture — 0.2.5
 
 ```
 Windows browser / Pi Chromium kiosk (planned)
    ↕ Local HTTP / JSON (127.0.0.1)
 openrf.server (stdlib HTTP server, read-only static asset hosting)
    ├── openrf.storage (SQLite sessions / observations / export)
-   └── openrf.hardware (read-only runtime and radio capability inventory)
-       └── openrf.drivers.wifi_nmcli (on-demand one-shot NetworkManager AP list only)
-           └── SensorBackend interface for future RF receiver integrations
+   ├── openrf.hardware (read-only host inventory / capability negotiation)
+   ├── openrf.sensor_connections (driver registry, scan receipts, validated observations)
+   └── openrf.drivers.wifi_nmcli (on-demand NetworkManager AP list only)
+       └── Future BlueZ / SDR / GNSS plugins (not implemented)
 ```
 
 - **Backend** runs in Ubuntu WSL or Linux on Raspberry Pi OS. Python 3.11+ standard library only.
@@ -36,6 +37,15 @@ openrf.server (stdlib HTTP server, read-only static asset hosting)
 - NetworkManager's one-shot result list is ephemeral and unlocated; the shared scan function renders it either in Analysis or the map drawer, **never as map pins**. GPS browser geolocation is local to the browser and is never implicitly attached to scan results.
 - No driver API, session storage, SQLite schema, backend capture or API authorization changed.
 
-## v0.2.4 handheld navigation
+## v0.2.5 handheld navigation
 
 A top-left hamburger opens an accessible fixed vertical drawer on compact/touch layouts, leaving desktop persistent navigation unchanged. Measurement tables are rendered as labeled cards on small viewports. No API or database change.
+
+## v0.2.5 — Sensor observation pipeline
+
+- `GET /api/sensors` returns declared adapter statuses. `networkmanager-wifi` may be ready if a Linux wireless interface and `nmcli` are detected, but actual scan success still depends on OS/driver permissions. BLE/SDR/GNSS show `not_implemented` rather than fabricated readiness.
+- `POST /api/wifi/scan` is still explicitly user-started, at most once per 15 seconds; on success it now also generates a random 10-minute receipt stored in server memory. The receipt contains the actual NetworkManager result, not client-supplied network metadata.
+- `POST /api/sensors/networkmanager-wifi/save` accepts `{scan_id, bssid, survey_location?, session_id?}` and saves only a matching BSSID in that server-owned scan. One save per BSSID per scan. Errors and scan expiry do not produce observations. No automatic scanning or record writing occurs.
+- Records use source `SENSOR`, source device `Linux NetworkManager / <interface>`, and the original UTC **retrieval** timestamp. NetworkManager `SIGNAL` is **quality percent**, and remains in notes, not the `rssi_dbm` column. Cached beacon age is unknown; stale flags and GPS fix are not asserted. Optional browser coordinates are observer positions and explicitly marked as client-reported, not independently verified GNSS.
+- The current typed record format is a compatibility boundary for future dedicated modules. New drivers must prove their hardware identity, timestamp, unit, freshness and survey location quality before being allowed to save measured values. See `docs/SENSOR_CONNECTIONS.md`.
+- Map credits remain on-map in an accessible disclosure. OpenFreeMap/OpenMapTiles/OSM attribution cannot be removed just to save space. The map has not yet been packaged for offline street tiles.

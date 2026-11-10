@@ -1,4 +1,4 @@
-# OpenRF v0.2.4 — Five-inch touchscreen workspace
+# OpenRF v0.2.5 — Five-inch touchscreen workspace
 
 Target: official Raspberry Pi Touch Display 2, five-inch 720×1280 portrait; optional 1280×720 landscape. Hardware integration is a future phase.
 
@@ -11,3 +11,8 @@ Target: official Raspberry Pi Touch Display 2, five-inch 720×1280 portrait; opt
 - Test 320×568, 390×844, 720×1280, 1280×720 touch, and 1450×900 desktop for scrolling, drawer, focus, maps, modal, and table readability. Actual touchscreen testing is pending.
 
 Reference: https://www.raspberrypi.com/documentation/accessories/touch-display-2.html
+
+
+### v0.2.5 controls
+
+The five-inch map has a top-right hamburger that opens a right-side vertical navigation drawer. The on-map Layers & Scan launcher is a single icon at bottom-right, with the full panel available when tapped. Compact map attribution is behind the bottom-left `ⓘ` disclosure, not deleted. The vector map applies a browser fix when style initialization finishes; `My location` remains available to retry. At 390×844 and 720×1280, the map launcher should be visible without sideways scrolling. No physical touchscreen verification yet.

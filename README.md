@@ -1,4 +1,4 @@
-# OpenRF v0.2.4 — Non-scrolling Handheld Navigation
+# OpenRF v0.2.5 — Non-scrolling Handheld Navigation
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.4.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.5.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.4 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.5 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -31,13 +31,19 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
 
-## v0.2.4 — Hamburger navigation and no sideways scrolling
+## v0.2.5 — Touchscreen map controls and sensor connections
 
-- On browser windows ≤900 CSS pixels wide, OpenRF opens directly to Survey Map, with a hamburger-triggered vertical drawer (Overview, Map, Analysis, Saved, Sessions, Hardware). 5-inch Raspberry Pi Touch Display 2 portrait 720×1280 and landscape 1280×720 orientations were tested in an emulated browser; no physical touchscreen or Pi OS test has occurred. Desktop layout remains unchanged. All pages remain reachable; technical signal analysis still has its own page.
-- Tap **Layers & Scan** on Survey Map to open a touchscreen-friendly panel. Toggle Wi-Fi, BLE, RF, cellular, infrastructure, and manual **saved survey observations**, view how many geotagged points are displayed, or request the same optional native Linux Wi-Fi one-shot scan that remains on the Analysis page. Demo records remain hidden by default.
-- Markers are color-coded by recorded category. **Every marker represents where an observation was recorded, not an estimated transmitter location.** Manually entered categories remain explicitly `MANUAL` provenance. The live one-shot NetworkManager AP list has **no survey coordinates**, so it remains a temporary list in the sheet and is never plotted or persisted as a guessed point.
+- On browser windows ≤900 CSS pixels wide, OpenRF opens directly to Survey Map, with a top-right hamburger-triggered vertical drawer from the right (Overview, Map, Analysis, Saved, Sessions, Hardware). 5-inch Raspberry Pi Touch Display 2 portrait 720×1280 and landscape 1280×720 orientations were tested in an emulated browser; no physical touchscreen or Pi OS test has occurred. Desktop layout remains unchanged. All pages remain reachable; technical signal analysis still has its own page.
+- Tap the **layers icon in the bottom-right corner** on Survey Map to open a touchscreen-friendly panel. Toggle Wi-Fi, BLE, RF, cellular, infrastructure, and manual **saved survey observations**, view how many geotagged points are displayed, or request the same optional native Linux Wi-Fi one-shot scan that remains on the Analysis page. Demo records remain hidden by default.
+- Markers are color-coded by recorded category. **Every marker represents where an observation was recorded, not an estimated transmitter location.** Manually entered categories remain explicitly `MANUAL` provenance. The live one-shot NetworkManager AP list has **no device coordinates**, so it remains a temporary list by default. A specific result may now be saved explicitly using a server-issued scan receipt. The user may optionally attach the browser's observer coordinates (not the AP's location).
 - Browser location behavior (permission once, accuracy notice, marker, street-level zoom), vector/raster map fallback, observations, investigations, exports, database, and existing Linux hardware detection are preserved. There is no continuous BLE/Wi-Fi/SDR scan or live RF heatmap in this update.
 - To preview the 5-inch layout before purchasing hardware, narrow Firefox to ≤900 CSS pixels wide or use responsive design mode. Map controls are inside the map sheet at handheld sizes.
+
+**v0.2.5 controls:** On compact displays, the menu now sits in the top-right and the map Layers & Scan button is icon-only in the bottom-right. Browser location is applied after the map style becomes ready, preventing the zoom being lost at startup. Attribution has been reduced to a small `ⓘ` disclosure on the map with the required data credits.
+
+**Sensor receipts:** The Hardware screen now lists adapter driver states, and NetworkManager scan results have individual **Save** buttons. Each save references an actual recently returned scan and preserves `SENSOR` provenance and retrieval timestamp. A scan may include cached entries, Wi-Fi quality percentage is not RSSI in dBm, and the user's browser location is optional and is not the access point's location. See [docs/SENSOR_CONNECTIONS.md](docs/SENSOR_CONNECTIONS.md). BLE/SDR/GNSS capture remains future work.
+
+No special map API key is needed for the existing OpenFreeMap styles. Do not paste private keys into project source or public GitHub commits.
 
 Hardware planning: see **[docs/HARDWARE_SHOPPING_LIST.md](docs/HARDWARE_SHOPPING_LIST.md)** for a staged parts list, estimated costs, and what not to buy yet.
 
@@ -47,7 +53,7 @@ Hardware planning: see **[docs/HARDWARE_SHOPPING_LIST.md](docs/HARDWARE_SHOPPING
 - **Map:** Automatically requests browser geolocation on first visit (requires explicit permission), adds separate location marker and accuracy-aware street-level zoom; never saves browser position. MapLibre 5 with OpenFreeMap street/dark vector maps when the resources load, or an independent built-in raster map if they do not. The fallback attempts OpenStreetMap raster street tiles online but can show manual survey pins and an interactive coordinate grid completely offline. The fallback is not an offline street basemap. Map clicks create manual observations at the survey coordinate.
 - **Discoveries:** Save/delete manually entered signal or infrastructure observations, with coordinates, source label, timestamps, optional RSSI/frequency/identifier, and provenance. Coordinates always refer to survey location.
 - **Investigations:** User-started local sessions; manually entered observations can be linked to an active session. Start/stop/review history; a prior ACTIVE session is marked INTERRUPTED after a process restart. No background capture or travel tracking.
-- **Native Linux Wi-Fi survey (new):** On-demand `nmcli` access-point list if a Linux Wi-Fi interface is visible. No background scans; NetworkManager may use active probe frames and may return cached entries. SSID/BSSID, channel, frequency, security, and signal **quality %** are shown temporarily. Results are not GPS positions, RSSI dBm, or stored records. See `docs/NATIVE_WIFI_DRIVER.md`. WSL with no Linux radio returns a clear unavailable error.
+- **Native Linux Wi-Fi survey (new):** On-demand `nmcli` access-point list if a Linux Wi-Fi interface is visible. No background scans; NetworkManager may use active probe frames and may return cached entries. SSID/BSSID, channel, frequency, security, and signal **quality %** are shown temporarily. Results are not GPS positions or RSSI dBm. Individual returned access points may now be explicitly saved to local records with their scan retrieval timestamp and source. See `docs/NATIVE_WIFI_DRIVER.md`. WSL with no Linux radio returns a clear unavailable error.
 - **Signal analysis:** Inspect saved BLE/Wi-Fi/RF/cellular-labeled observations and plot RSSI history by recorded identifier. Manually entered RSSI values remain labeled `MANUAL`; they are not a true measurement from a connected device.
 - **Hardware:** Read-only visibility of real Linux USB descriptors, USB serial ports, network and Bluetooth interfaces, plus unconnected/planned sensor integrations (SDR, BLE, Wi-Fi, GNSS, CC1101 and external cellular modem). No driver availability is falsely inferred from an interface name.
 - **Exports:** Local CSV and GeoJSON with source and observer-location semantics. CSV escapes spreadsheet-formula injection. Nothing is uploaded automatically.
@@ -92,7 +98,7 @@ Detailed architecture: `docs/ARCHITECTURE.md`. License selection is pending; do 
 - Open **Hardware → Detected host devices** to inspect USB descriptors and Linux-visible interfaces. These read-only entries do not prove that a radio device is supported or operational. `Refresh inventory` doesn't run a wireless scan.
 - Stop/restart the OpenRF Python server after installing new source; press `Ctrl+C` in Ubuntu and rerun `python3 -m openrf`. Refresh your Windows browser with `Ctrl+F5` to discard previous scripts.
 
-## v0.2.4 validation walkthrough
+## v0.2.5 validation walkthrough
 
 1. Resize Firefox to ~720 px wide. OpenRF should open Map by default and show a hamburger in the top-left corner. Open it to see all six destinations in a vertical drawer; tap outside it or press Escape to dismiss. Confirm the page has no sideways scrolling. Map layers open from **Layers & Scan**. Desktop still opens Overview.
 2. In the sheet, toggle Wi-Fi/BLE/etc. Existing geotagged saved observations should appear/disappear on both vector and raster maps without being deleted. Other records and DEMO controls remain separate.

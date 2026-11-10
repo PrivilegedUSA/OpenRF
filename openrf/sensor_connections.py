@@ -1,0 +1,135 @@
+"""Sensor adapter contracts and short-lived server-owned scan receipts.
+
+Adapters report only measured/retrieved fields. A browser cannot claim SENSOR
+provenance via a manual POST. Future BLE, SDR and GNSS drivers can provide the
+same fields; a visible USB descriptor alone is not a connected sensor.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+import math
+import secrets
+import threading
+import time
+
+
+@dataclass(frozen=True)
+class SensorDescriptor:
+    sensor_id: str
+    label: str
+    status: str
+    description: str
+    measurement_units: tuple[str, ...] = ()
+
+
+def connections(hardware: dict) -> list[dict]:
+    wifi = hardware.get('wifi_one_shot') or {}
+    return [
+        SensorDescriptor('networkmanager-wifi', 'Linux Wi-Fi / NetworkManager',
+            'ready' if wifi.get('possible') else 'unavailable',
+            'One-shot scan; quality percentage is not RSSI. Interface: ' + str(wifi.get('interface') or 'none'),
+            ('MHz', 'quality_percent')).__dict__,
+        SensorDescriptor('linux-ble', 'Linux Bluetooth LE', 'not_implemented',
+            'Requires a BlueZ acquisition driver and supported controller. No BLE observations can be captured yet.').__dict__,
+        SensorDescriptor('usb-sdr', 'USB software-defined radio', 'not_implemented',
+            'Receiver drivers and spectrum sample pipeline are not yet connected.').__dict__,
+        SensorDescriptor('external-gnss', 'External GPS / GNSS', 'not_implemented',
+            'No validated GNSS fix parser or fix-age quality negotiation yet.').__dict__,
+    ]
+
+
+@dataclass
+class ScanReceipt:
+    scan_id: str
+    created_monotonic: float
+    result: dict
+    saved_bssids: set[str] = field(default_factory=set)
+
+
+class ScanReceiptStore:
+    """One recent verified scan, expiring after ten minutes, with one save per BSSID."""
+    def __init__(self, ttl_seconds: int = 600):
+        self.ttl_seconds = ttl_seconds
+        self._current: ScanReceipt | None = None
+        self._lock = threading.RLock()
+
+    def remember(self, result: dict) -> dict:
+        if result.get('source') != 'NETWORKMANAGER_WIFI' or not isinstance(result.get('records'), list):
+            raise ValueError('Not an actual NetworkManager scan result')
+        scan = ScanReceipt(secrets.token_urlsafe(20), time.monotonic(), result)
+        with self._lock:
+            self._current = scan
+        return {**result, 'scan_id': scan.scan_id, 'expires_in_seconds': self.ttl_seconds}
+
+    def take(self, scan_id: str, bssid: str, save):
+        """Supply only a result from the actual scan to the trusted storage callback.
+
+        The callback is executed under a lock so concurrent saves cannot duplicate
+        the same BSSID; failures do not consume the receipt.
+        """
+        with self._lock:
+            scan = self._current
+            if not isinstance(scan_id, str) or not scan or not secrets.compare_digest(scan.scan_id, scan_id):
+                raise ValueError('Scan receipt unknown. Run a fresh Wi-Fi scan.')
+            if time.monotonic() - scan.created_monotonic > self.ttl_seconds:
+                self._current = None
+                raise ValueError('Scan receipt expired. Run a fresh Wi-Fi scan.')
+            if not isinstance(bssid, str):
+                raise ValueError('Invalid BSSID')
+            if bssid in scan.saved_bssids:
+                raise ValueError('This access point was already saved from the scan.')
+            record = next((r for r in scan.result['records'] if r['bssid'] == bssid), None)
+            if record is None:
+                raise ValueError('BSSID was not observed in the verified scan.')
+            response = save(scan.result, record)
+            scan.saved_bssids.add(bssid)
+            return response
+
+
+def browser_survey_location(data) -> tuple[float | None, float | None, float | None]:
+    """Client-reported survey coordinate, not independently verified GNSS data."""
+    if data is None:
+        return None, None, None
+    if not isinstance(data, dict) or set(data) - {'latitude', 'longitude', 'accuracy_m'}:
+        raise ValueError('Unexpected browser survey location format')
+    def f(name, min_value, max_value):
+        value = data.get(name)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not min_value <= value <= max_value:
+            raise ValueError('Invalid browser survey ' + name)
+        return float(value)
+    return f('latitude', -90, 90), f('longitude', -180, 180), f('accuracy_m', 0, 1000000)
+
+
+def verified_wifi_observation(scan: dict, network: dict, survey_location, session_id):
+    lat, lon, accuracy = browser_survey_location(survey_location)
+    if session_id is not None and (type(session_id) is not int or session_id < 1):
+        raise ValueError('Invalid investigation ID')
+    time_text = scan.get('retrieved_at_utc')
+    try:
+        timestamp = datetime.fromisoformat(time_text.replace('Z', '+00:00'))
+        if timestamp.tzinfo is None:
+            raise ValueError()
+        timestamp = timestamp.astimezone(timezone.utc).isoformat(timespec='seconds')
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise ValueError('Scan has no valid UTC retrieval time') from exc
+    quality = network.get('signal_quality_percent')
+    if type(quality) is not int or not 0 <= quality <= 100:
+        raise ValueError('Scan quality must be a percent, not dBm')
+    frequency = network.get('frequency_mhz')
+    if frequency is not None and (type(frequency) is not int or not 1 <= frequency <= 100000):
+        raise ValueError('Invalid reported Wi-Fi frequency')
+    interface = str(scan.get('interface', 'unknown'))[:32]
+    ssid = str(network.get('ssid') or '(unnamed)')[:100]
+    notes = (f"NetworkManager Wi-Fi scan retrieval; SIGNAL {quality}% quality (NOT RSSI dBm). "
+             f"Channel {network.get('channel') or 'unknown'}, security {network.get('security') or 'unknown'}. "
+             "Beacon age not measured; cached scan results possible. "
+             + ('Coordinates: browser-reported observer position, not independently verified GNSS or AP location.' if lat is not None else 'No survey coordinates recorded.'))
+    return {
+        'kind': 'WIFI', 'source': 'SENSOR', 'label': f'Wi-Fi: {ssid}',
+        'identifier': network['bssid'], 'notes': notes,
+        'source_device': f'Linux NetworkManager / {interface}',
+        'frequency_mhz': frequency, 'rssi_dbm': None,
+        'latitude': lat, 'longitude': lon, 'accuracy_m': accuracy,
+        'session_id': session_id,
+    }, timestamp

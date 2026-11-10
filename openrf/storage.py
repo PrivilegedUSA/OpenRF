@@ -142,15 +142,21 @@ class Repository:
             row = db.execute("SELECT * FROM observations WHERE id=?", (record_id,)).fetchone()
             return dict(row) if row else None
 
-    def add_observation(self, data: dict) -> dict:
+    def add_observation(self, data: dict, *, observed_at_utc: str | None = None) -> dict:
         item = normalize_observation(data)
+        # Only trusted adapter code passes observed_at_utc; the public manual
+        # observations route never accepts a user-supplied timestamp.
+        if observed_at_utc is not None:
+            parsed = datetime.fromisoformat(observed_at_utc.replace('Z', '+00:00'))
+            if parsed.tzinfo is None:
+                raise ValueError('Sensor retrieval timestamp needs UTC timezone')
         with self._lock, self._connect() as db:
             if item["session_id"] is not None:
                 row = db.execute("SELECT status FROM sessions WHERE id=?", (item["session_id"],)).fetchone()
                 if not row or row["status"] != "ACTIVE":
                     raise ValueError("Session is missing or no longer active")
             columns = list(item) + ["observed_at"]
-            values = [*item.values(), now_iso()]
+            values = [*item.values(), observed_at_utc if observed_at_utc is not None else now_iso()]
             cols = ", ".join(columns)
             placeholders = ", ".join("?" for _ in columns)
             record_id = db.execute(

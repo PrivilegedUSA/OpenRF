@@ -16,6 +16,7 @@ from . import __version__
 from .hardware import status_report
 from .drivers.wifi_nmcli import scan_once, WifiScanUnavailable
 from .storage import Repository, to_csv, to_geojson
+from .sensor_connections import connections, ScanReceiptStore, verified_wifi_observation
 
 STATIC_DIR = Path(__file__).resolve().parent / 'static'
 DEFAULT_DB = Path.home() / '.local' / 'share' / 'openrf' / 'openrf.sqlite3'
@@ -86,6 +87,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, self.repo.stats())
         if path == '/api/hardware':
             return self._json(200, status_report())
+        if path == '/api/sensors':
+            return self._json(200, {'schema_version': 1, 'sensors': connections(status_report())})
         if path == '/api/export.geojson':
             raw = json.dumps(to_geojson(self.repo.list_observations()), ensure_ascii=False, indent=2).encode('utf-8')
             return self._send(200, raw, 'application/geo+json; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.geojson"'})
@@ -133,11 +136,19 @@ class Handler(BaseHTTPRequestHandler):
                         return self._error(429, 'Wait at least 15 seconds before requesting another scan.')
                     self.server.wifi_scan_last = now
                     try:
-                        return self._json(200, scan_once())
+                        return self._json(200, self.server.scan_receipts.remember(scan_once()))
                     except WifiScanUnavailable as exc:
                         return self._error(409, str(exc))
                 finally:
                     self.server.wifi_scan_lock.release()
+            if path == '/api/sensors/networkmanager-wifi/save':
+                # The client supplies only a reference to a server-observed AP;
+                # it cannot submit arbitrary measurements or SENSOR provenance.
+                def save(scan, network):
+                    data, observed_at = verified_wifi_observation(
+                        scan, network, body.get('survey_location'), body.get('session_id'))
+                    return self.repo.add_observation(data, observed_at_utc=observed_at)
+                return self._json(201, self.server.scan_receipts.take(body.get('scan_id'), body.get('bssid'), save))
             if path == '/api/demo/load':
                 return self._json(200, {'created': self.repo.load_demo()})
             if path == '/api/demo/clear':
@@ -166,6 +177,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
     server.repository = repository
     server.wifi_scan_lock = threading.Lock()
+    server.scan_receipts = ScanReceiptStore()
     server.wifi_scan_last = float("-inf")
     return server
 

@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, filterSession: null, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+const state = { observations: [], sessions: [], hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, filterSession: null, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], pendingLocationView: null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -66,19 +66,20 @@ function showPage(page, options = {}) {
 }
 
 async function refresh() {
-  const [records, sessions, stats, hardware] = await Promise.all([
-    api('/api/observations'), api('/api/sessions'), api('/api/stats'), api('/api/hardware')
+  const [records, sessions, stats, hardware, sensorData] = await Promise.all([
+    api('/api/observations'), api('/api/sessions'), api('/api/stats'), api('/api/hardware'), api('/api/sensors')
   ]);
   state.observations = records.observations;
   state.sessions = sessions.sessions;
   state.hardware = hardware;
+  state.sensors = sensorData.sensors || [];
   $('metric-observations').textContent = stats.observations;
   $('metric-mapped').textContent = stats.mapped;
   $('metric-sessions').textContent = stats.sessions;
   $('metric-demo').textContent = stats.demo;
   $('runtime-pill').textContent = hardware.environment;
   $('scanner-connection-pill').textContent = hardware.wifi_one_shot?.possible ? 'ON-DEMAND WI-FI POSSIBLE' : 'NO LINUX WI-FI SCANNER';
-  renderDiscoveries(); renderSessions(); renderHardware(); renderSignals(); updateMap(); renderMapSurveyPanel();
+  renderDiscoveries(); renderSessions(); renderHardware(); renderSensorRegistry(); renderSignals(); updateMap(); renderMapSurveyPanel();
 }
 
 function openObservation(lat = '', lon = '') {
@@ -116,6 +117,14 @@ function renderSessions() {
     </div><div class="item-actions"><button class="btn mini outline" data-session-filter="${s.id}">Records</button>
     ${s.status === 'ACTIVE' ? `<button class="btn mini danger-outline" data-stop="${s.id}">Stop</button>` : ''}</div></article>`).join('') :
     '<div class="empty">No sessions started. You can record notes against a session, but no background collection occurs.</div>';
+}
+
+function renderSensorRegistry() {
+  const dest = $('sensor-registry-list');
+  dest.innerHTML = state.sensors.map(sensor => `<div class="sensor-row">
+    <div><strong>${escapeHTML(sensor.label)}</strong><div class="tiny">${escapeHTML(sensor.description)} · ${escapeHTML(sensor.sensor_id)}</div></div>
+    <span class="pill ${sensor.status === 'ready' ? 'green' : 'amber'}">${escapeHTML(sensor.status.replaceAll('_',' '))}</span>
+  </div>`).join('') || '<div class="empty">No sensor adapters registered.</div>';
 }
 
 function renderHardware() {
@@ -184,6 +193,8 @@ function renderMapSurveyPanel() {
   const all = mapVisibleObservations();
   const wireless = all.filter(o => ['WIFI','BLE','RF','CELLULAR'].includes(o.kind));
   $('map-layer-count').textContent = String(all.length);
+  $('map-layer-count').hidden = all.length === 0;
+  $('map-survey-toggle').setAttribute('aria-label', `Layers and scan (${all.length} mapped points)`);
   $('map-survey-summary').textContent = `${all.length} mapped survey point(s) visible · ${wireless.length} wireless-category record(s). Positions are where readings/notes were entered, not transmitter locations.`;
   const output = $('map-wifi-readings');
   const scan = state.wifiScan;
@@ -191,7 +202,7 @@ function renderMapSurveyPanel() {
   const entries = (scan.records || []).slice(0, 8);
   output.innerHTML = `<div class="map-live-heading"><strong>Last one-shot Wi-Fi scan</strong><span>${escapeHTML(stamp(scan.retrieved_at_utc))}</span></div>
     <p>${escapeHTML(scan.interface)} · ${escapeHTML(scan.freshness)} · ${scan.records?.length || 0} result(s) · <b>Not geolocated or mapped</b></p>
-    ${entries.map(n=>`<div class="map-live-row"><strong>${escapeHTML(n.ssid || 'Hidden SSID')}</strong><span>${escapeHTML(format(n.frequency_mhz,' MHz'))} · Quality ${escapeHTML(format(n.signal_quality_percent,'%'))}</span></div>`).join('')}
+    ${entries.map(n=>`<div class="map-live-row"><div><strong>${escapeHTML(n.ssid || 'Hidden SSID')}</strong><span>${escapeHTML(format(n.frequency_mhz,' MHz'))} · Quality ${escapeHTML(format(n.signal_quality_percent,'%'))}</span></div><button type="button" class="btn mini outline" data-save-wifi="${escapeHTML(n.bssid)}" ${scan.scan_id ? '' : 'disabled'}>Save</button></div>`).join('')}
     ${scan.records?.length > entries.length ? `<p>Showing first ${entries.length} networks; see Detailed analysis for all.</p>` : ''}`;
 }
 function setMapSurveyOpen(open) {
@@ -208,7 +219,7 @@ function renderWifiScan() {
   }
   const entries = scan.records || [];
   out.innerHTML = `<p class="tiny">${escapeHTML(scan.interface)} · Retrieved ${escapeHTML(stamp(scan.retrieved_at_utc))} · ${entries.length} access point(s). ${escapeHTML(scan.freshness)}. Quality % is not RSSI in dBm. No GPS or transmitter coordinates.</p>` +
-    (entries.length ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>SSID</th><th>BSSID</th><th>FREQ.</th><th>CHANNEL</th><th>QUALITY</th><th>SECURITY</th></tr></thead><tbody>${entries.map(n=>`<tr><td data-label="SSID">${escapeHTML(n.ssid)}</td><td data-label="BSSID">${escapeHTML(n.bssid)}</td><td data-label="Frequency">${format(n.frequency_mhz,' MHz')}</td><td data-label="Channel">${format(n.channel)}</td><td data-label="Quality">${format(n.signal_quality_percent,'%')}</td><td data-label="Security">${escapeHTML(n.security)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">NetworkManager returned no access points. This does not prove the area has no wireless signals.</div>');
+    (entries.length ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>SSID</th><th>BSSID</th><th>FREQ.</th><th>CHANNEL</th><th>QUALITY</th><th>SECURITY</th><th>SAVE</th></tr></thead><tbody>${entries.map(n=>`<tr><td data-label="SSID">${escapeHTML(n.ssid)}</td><td data-label="BSSID">${escapeHTML(n.bssid)}</td><td data-label="Frequency">${format(n.frequency_mhz,' MHz')}</td><td data-label="Channel">${format(n.channel)}</td><td data-label="Quality">${format(n.signal_quality_percent,'%')}</td><td data-label="Security">${escapeHTML(n.security)}</td><td data-label="Save"><button type="button" class="btn mini outline" data-save-wifi="${escapeHTML(n.bssid)}" ${scan.scan_id ? '' : 'disabled'}>Save</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">NetworkManager returned no access points. This does not prove the area has no wireless signals.</div>');
 }
 
 function drawHistory(grouped = null) {
@@ -238,11 +249,11 @@ function startMap() {
   if (!window.maplibregl) { const view = state.preferredView; state.preferredView = null; return startRasterMap('MapLibre is unavailable. Using the built-in raster/coordinate map.', view); }
   const attempt = ++state.mapAttempt;
   try {
-    const initial = state.preferredView || {center:[-98.5,39.8], zoom:4};
+    const initial = state.pendingLocationView || state.preferredView || {center:[-98.5,39.8], zoom:4};
     state.preferredView = null;
-    state.map = new maplibregl.Map({container:'map', style:`https://tiles.openfreemap.org/styles/${state.style}`, center:initial.center, zoom:initial.zoom, attributionControl:true});
+    state.map = new maplibregl.Map({container:'map', style:`https://tiles.openfreemap.org/styles/${state.style}`, center:initial.center, zoom:initial.zoom, attributionControl:false, maplibreLogo:false});
     state.map.addControl(new maplibregl.NavigationControl(), 'top-right');
-    state.map.on('style.load', () => { state.mapReady = true; $('map-error').hidden = true; installMarkerLayer(); updateMap(); updateBrowserLocationMarker(); });
+    state.map.on('style.load', () => { state.mapReady = true; $('map-error').hidden = true; installMarkerLayer(); updateMap(); updateBrowserLocationMarker(); applyPendingLocation(); });
     state.map.on('movestart', event => { if (event.originalEvent) state.mapNavigationEpoch++; });
     state.map.on('click', (evt) => {
       if (state.mapReady && state.map.getLayer('survey-points') && state.map.queryRenderedFeatures(evt.point,{layers:['survey-points']}).length) return;
@@ -283,6 +294,22 @@ function updateBrowserLocationMarker() {
   }
   state.rasterMap?.render();
 }
+function applyPendingLocation() {
+  const pending = state.pendingLocationView;
+  if (!pending) return;
+  // User gestures after a GPS request take precedence over automatic recentering.
+  if (!pending.manual && pending.epoch !== state.mapNavigationEpoch) { state.pendingLocationView = null; return; }
+  if (state.map && state.mapReady) {
+    state.map.jumpTo({center:pending.center, zoom:pending.zoom});
+    state.pendingLocationView = null;
+  } else if (state.rasterMap) {
+    state.rasterMap.flyTo({center:pending.center, zoom:pending.zoom});
+    state.pendingLocationView = null;
+  } else {
+    state.preferredView = {center:pending.center, zoom:pending.zoom};
+  }
+}
+
 function locateMap(manual = false) {
   if (!manual && state.autoLocateAttempted) return;
   state.autoLocateAttempted = true;
@@ -298,10 +325,11 @@ function locateMap(manual = false) {
     if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat)>90 || Math.abs(lon)>180) {
       status.textContent = 'Browser returned invalid coordinates. Map remains available manually.'; return;
     }
-    state.browserLocation = {lat, lon, accuracy};
+    state.browserLocation = {lat, lon, accuracy, capturedAt: Date.now()};
     updateBrowserLocationMarker();
     if (manual || epoch === state.mapNavigationEpoch) {
-      (state.map || state.rasterMap)?.flyTo({center:[lon,lat], zoom:locationZoom(accuracy)});
+      state.pendingLocationView = {center:[lon,lat], zoom:locationZoom(accuracy), epoch, manual};
+      applyPendingLocation();
     }
     const accuracyText = Number.isFinite(accuracy) ? `±${Math.round(accuracy)} m` : 'unknown accuracy';
     status.textContent = `Browser location: ${lat.toFixed(4)}, ${lon.toFixed(4)} (${accuracyText}). Not saved. Desktop/VPN locations can be approximate.`;
@@ -327,7 +355,7 @@ function updateMap() {
 }
 function switchToRasterMap(reason) {
   ++state.mapAttempt;
-  const camera = state.map ? {center:[state.map.getCenter().lng,state.map.getCenter().lat], zoom:state.map.getZoom()} : state.preferredView;
+  const camera = state.pendingLocationView || (state.map ? {center:[state.map.getCenter().lng,state.map.getCenter().lat], zoom:state.map.getZoom()} : state.preferredView);
   if (state.geoMarker) { try {state.geoMarker.remove();} catch(_) {} state.geoMarker = null; }
   if (state.map) { try { state.map.remove(); } catch(_) { /* partially initialized */ } }
   state.map = null;
@@ -357,15 +385,11 @@ function startRasterMap(reason, view = null) {
   const pins = document.createElement('div'); pins.className = 'raster-pins';
   const notice = document.createElement('div'); notice.className = 'raster-notice';
   notice.textContent = `${reason} Street tiles require internet; the coordinate grid and saved observations remain usable offline.`;
-  const attribution = document.createElement('div'); attribution.className = 'raster-attribution';
-  const attributionLink = document.createElement('a'); attributionLink.href = 'https://www.openstreetmap.org/copyright';
-  attributionLink.textContent = '© OpenStreetMap contributors'; attributionLink.target = '_blank'; attributionLink.rel = 'noopener noreferrer';
-  attribution.append(attributionLink);
   const controls = document.createElement('div'); controls.className = 'raster-control';
   const plus = document.createElement('button'); plus.type = 'button'; plus.textContent = '+'; plus.title = 'Zoom in';
   const minus = document.createElement('button'); minus.type = 'button'; minus.textContent = '−'; minus.title = 'Zoom out';
   controls.append(plus, minus); surface.append(tiles, pins);
-  root.replaceChildren(surface, notice, controls, attribution);
+  root.replaceChildren(surface, notice, controls);
   const raster = {center:view?.center || [-98.5,39.8], zoom:Math.max(2,Math.min(18,Math.round(view?.zoom || 4))), tileNodes:new Map(), failedTiles:new Set(),
     render() {
       const width = root.clientWidth, height = root.clientHeight;
@@ -429,6 +453,7 @@ function startRasterMap(reason, view = null) {
     resize() { raster.render(); }
   };
   state.rasterMap = raster;
+  applyPendingLocation();
   $('map-mode').textContent = 'Try vector map';
   plus.addEventListener('click',e=>{e.stopPropagation();state.mapNavigationEpoch++;raster.zoom=Math.min(18,raster.zoom+1);raster.render();});
   minus.addEventListener('click',e=>{e.stopPropagation();state.mapNavigationEpoch++;raster.zoom=Math.max(2,raster.zoom-1);raster.render();});
@@ -519,6 +544,30 @@ async function scanWifiOnce() {
     buttons.forEach(button => {button.disabled=false; button.textContent=button.dataset.oldText;});
   }
 }
+async function saveWifiReading(bssid, button) {
+  const scan = state.wifiScan;
+  if (!scan?.scan_id || !scan.records?.some(n => n.bssid === bssid)) return flash('No verified local scan receipt to save.', true);
+  let survey_location = null;
+  const loc = state.browserLocation;
+  if (loc && Date.now() - loc.capturedAt < 5 * 60 * 1000 && confirm('Attach your browser-reported survey location to this observation? It is NOT the access point location. Click Cancel to save without coordinates.')) {
+    survey_location = {latitude:loc.lat, longitude:loc.lon, accuracy_m:loc.accuracy};
+  }
+  button.disabled = true;
+  try {
+    const active = state.sessions.find(x => x.status === 'ACTIVE');
+    const saved = await api('/api/sensors/networkmanager-wifi/save', 'POST', {scan_id:scan.scan_id, bssid, survey_location, session_id:active?.id || null});
+    flash(`Saved verified Linux Wi-Fi retrieval: ${saved.label} (signal quality is not RSSI).`);
+    await refresh();
+  } catch (error) { flash(error.message, true); }
+  finally { button.disabled = false; }
+}
+for (const id of ['map-wifi-readings', 'live-wifi-results']) {
+  $(id).addEventListener('click', e => {
+    const button = e.target.closest('[data-save-wifi]');
+    if (button) saveWifiReading(button.dataset.saveWifi, button);
+  });
+}
+
 $('scan-wifi-once').addEventListener('click', scanWifiOnce);
 $('map-scan-wifi').addEventListener('click', scanWifiOnce);
 $('map-survey-toggle').addEventListener('click', () => setMapSurveyOpen($('map-survey-panel').hidden));
@@ -529,7 +578,7 @@ document.querySelectorAll('[data-map-kind]').forEach(input => input.addEventList
   updateMap(); renderMapSurveyPanel();
 }));
 $('refresh-hardware').addEventListener('click',()=>runAction(async()=>{
-  state.hardware = await api('/api/hardware'); renderHardware();
+  state.hardware = await api('/api/hardware'); state.sensors = (await api('/api/sensors')).sensors; renderHardware(); renderSensorRegistry();
   flash('Read-only Linux hardware inventory refreshed. This did not start an RF scan.');
 }));
 $('discovery-search').addEventListener('input',renderDiscoveries);

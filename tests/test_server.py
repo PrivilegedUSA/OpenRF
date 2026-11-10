@@ -42,7 +42,7 @@ class ApiTests(unittest.TestCase):
     def test_health_static_hardware_and_exports(self):
         s,data=self.call('GET','/api/health')
         self.assertEqual(s,200)
-        self.assertEqual(data['version'],'0.2.4')
+        self.assertEqual(data['version'],'0.2.5')
         for path in ('/','/static/app.css','/static/app.js','/api/export.csv','/api/export.geojson'):
             status,_=self.call('GET',path)
             self.assertEqual(status,200,path)
@@ -75,10 +75,44 @@ class ApiTests(unittest.TestCase):
     def test_wifi_scan_without_interface_does_not_fake_readings(self):
         from unittest.mock import patch
         from openrf.drivers.wifi_nmcli import WifiScanUnavailable
+        self.server.wifi_scan_last = float('-inf')
         with patch('openrf.server.scan_once', side_effect=WifiScanUnavailable('No Linux Wi-Fi interface is visible.')):
             status, data = self.call('POST', '/api/wifi/scan', {})
             self.assertEqual(status, 409)
             self.assertIn('No Linux Wi-Fi', data['error'])
+
+    def test_sensor_receipt_save_requires_server_side_real_scan(self):
+        from unittest.mock import patch
+        scan = {
+            'source': 'NETWORKMANAGER_WIFI', 'interface': 'wlan-test',
+            'retrieved_at_utc': '2026-11-10T19:01:00+00:00', 'freshness': 'UNVERIFIED',
+            'records': [{'ssid':'Test-only network','bssid':'AA:BB:CC:11:22:33',
+                         'channel': 6, 'frequency_mhz':2437,'signal_quality_percent':62,'security':'WPA2'}]
+        }
+        status, data = self.call('GET', '/api/sensors')
+        self.assertEqual(status, 200)
+        self.assertEqual(data['schema_version'], 1)
+        self.assertEqual(data['sensors'][1]['status'], 'not_implemented')
+        status, _ = self.call('POST', '/api/sensors/networkmanager-wifi/save',
+                              {'scan_id':'fake', 'bssid':'AA:BB:CC:11:22:33'})
+        self.assertEqual(status, 400)
+        self.server.wifi_scan_last = float('-inf')
+        with patch('openrf.server.scan_once', return_value=scan):
+            status, result = self.call('POST', '/api/wifi/scan', {})
+        self.assertEqual(status, 200)
+        self.assertIn('scan_id', result)
+        self.assertEqual(result['records'][0]['signal_quality_percent'], 62)
+        status, saved = self.call('POST', '/api/sensors/networkmanager-wifi/save',
+                {'scan_id':result['scan_id'], 'bssid':'AA:BB:CC:11:22:33',
+                 'survey_location': {'latitude':38.48, 'longitude':-120.63, 'accuracy_m':25}})
+        self.assertEqual(status, 201)
+        self.assertEqual(saved['source'], 'SENSOR')
+        self.assertEqual(saved['observed_at'], scan['retrieved_at_utc'])
+        self.assertIsNone(saved['rssi_dbm'])
+        self.assertEqual(saved['longitude'], -120.63)
+        status, _ = self.call('POST', '/api/sensors/networkmanager-wifi/save',
+                             {'scan_id':result['scan_id'], 'bssid':'AA:BB:CC:11:22:33'})
+        self.assertEqual(status, 400)
 
     def test_invalid_observation_rejected(self):
         status,data=self.call('POST','/api/observations',{'label':'invalid GPS','latitude':35})

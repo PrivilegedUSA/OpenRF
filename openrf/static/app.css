@@ -192,3 +192,49 @@
 @media (prefers-reduced-motion:reduce) {
   .sidebar {transition:none;}
 }
+
+/* v0.2.5: compact field map, attribution access and right-side navigation. */
+.map-survey-toggle {position:absolute!important;top:auto!important;left:auto!important;right:14px!important;bottom:14px!important;min-width:52px;width:52px;height:52px;padding:0!important;border-radius:13px!important;display:grid;place-items:center;z-index:12;background:#0f3039f0;border:1px solid #4acbb8;color:#b9fff0;box-shadow:0 5px 18px #0009;}
+.map-scan-symbol {font-size:29px;line-height:1;}
+.layer-count {position:absolute;top:-8px;right:-7px;font-size:10px;background:#3cdbc0;color:#071f1c;border-radius:11px;padding:3px 6px;min-width:18px;}
+.layer-count[hidden]{display:none!important;}
+.map-wrap .map-legend {right:auto!important;left:12px!important;bottom:12px;max-width:calc(100% - 90px);}
+.map-live-row > div {display:grid;gap:3px;min-width:0;}
+.map-live-row span {text-align:left;}
+.map-live-row .btn {flex-shrink:0;}
+.map-survey-save-help {font-size:11px;line-height:1.5;color:#9db9c5;margin:7px 0;}
+.sensor-registry {margin-top:15px;margin-bottom:15px;}
+.sensor-registry-list {display:grid;gap:9px;margin-top:14px;}
+.sensor-row {display:flex;align-items:center;justify-content:space-between;gap:9px;border:1px solid #2f4a54;padding:12px;border-radius:8px;background:#0c202a;}
+.sensor-row .tiny{font-size:11px;color:#8faebc;margin-top:5px;overflow-wrap:anywhere;}
+.maplibregl-ctrl-attrib {max-width:min(90%,300px)!important;}
+.maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-button{height:26px;width:26px;}
+@media (max-width:900px), (max-width:1400px) and (max-height:850px) and (pointer:coarse) {
+  .topbar {display:flex;align-items:center;justify-content:space-between;}
+  .topbar-heading{flex:1 1 auto;}
+  .menu-toggle{margin-left:auto;flex-shrink:0;}
+  .sidebar{left:auto;right:0;transform:translateX(110%);box-shadow:-12px 0 34px #0008;border-right:0;border-left:1px solid #34535c;}
+  body.menu-open .sidebar{transform:translateX(0);}
+  .map-survey-panel{bottom:calc(15px + env(safe-area-inset-bottom));}
+  .map-wrap .map-legend{display:none;}
+  .maplibregl-ctrl-bottom-right {right:auto!important;left:8px!important;}
+  .maplibregl-ctrl-bottom-left {bottom:0;}
+  .sensor-row{align-items:flex-start;flex-wrap:wrap;}
+}
+
+/* Keep the primary map control within the first visible handheld viewport. */
+@media (max-width:550px) {
+  .map-wrap{height:clamp(330px,calc(100dvh - 290px),800px)!important;}
+}
+@media (min-width:551px) and (max-width:900px) {
+  .map-wrap{height:clamp(360px,calc(100dvh - 290px),1000px)!important;}
+}
+
+/* Attribution is never removed: a small accessible credit disclosure sits in the map corner. */
+.map-credits {position:absolute;bottom:13px;left:13px;z-index:17;color:#dcf4f1;font-size:11px;max-width:min(265px,calc(100% - 88px));}
+.map-credits summary {list-style:none;display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:#0d2632ec;border:1px solid #48717b;cursor:pointer;font-size:19px;box-shadow:0 3px 13px #0008;}
+.map-credits summary::-webkit-details-marker {display:none;}
+.map-credits .map-credits-links {display:grid;gap:6px;margin-bottom:7px;padding:12px;background:#0b1c26f5;border:1px solid #375763;border-radius:10px;box-shadow:0 8px 18px #0009;line-height:1.5;}
+.map-credits[open] {display:flex;flex-direction:column-reverse;align-items:flex-start;}
+.map-credits a {color:#b8ebdc;text-decoration:underline;overflow-wrap:anywhere;}
+.map-wrap .map-legend{bottom:auto;top:12px;left:12px!important;right:auto!important;}

@@ -49,3 +49,14 @@ assert(src.includes('if (navigationOpen) {') && src.includes("$('page-title').fo
 assert(css.includes('.data-table td:before {content:attr(data-label)') && src.includes('data-label="BSSID"') && src.includes('data-label="RSSI"'), 'measurement tables become stacked labeled rows');
 assert(css.includes('.sidebar .nav {display:grid;grid-template-columns:minmax(0,1fr)') && css.includes('transform:translateX(-110%)'), 'mobile navigation is vertical rather than scrolling horizontally');
 console.log('v0.2.4 menu and non-scrolling table contract checks passed.');
+
+// v0.2.5 right-side field controls, map camera and server-backed sensor receipts.
+assert(html.indexOf('id="menu-toggle"') > html.indexOf('id="runtime-pill"'), 'hamburger belongs at top-right of header');
+assert(css.includes('right:0;transform:translateX(110%)'), 'mobile drawer should slide in from right');
+assert(html.includes('class="map-scan-symbol"') && !html.includes('Layers &amp; Scan <span'), 'icon-only map control');
+assert(css.includes('bottom:14px!important'), 'map control anchored at bottom-right');
+assert(src.includes('function applyPendingLocation()') && src.includes("state.map.on('style.load'"), 'apply location when map style loads');
+assert(src.includes('state.pendingLocationView') && src.includes('state.map.jumpTo({center:pending.center, zoom:pending.zoom})'), 'explicit camera jump at map ready');
+assert(src.includes('saveWifiReading(') && src.includes('/api/sensors/networkmanager-wifi/save'), 'verified scan result saves via server receipt');
+assert(html.includes('id="sensor-registry-list"'), 'sensor registry is visible');
+console.log('v0.2.5 map control, GPS and sensor pipeline checks passed.');
