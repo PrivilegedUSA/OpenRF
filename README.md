@@ -1,4 +1,4 @@
-# OpenRF v0.2.6 — Survey Snapshots & Sensor Diagnostics
+# OpenRF v0.2.7 — USB Sensor Transport & Observation Provenance
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.6.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.7.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.6 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.7 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,12 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.7 — USB serial interface and sensor snapshots
+
+A new **External USB sensor** section on Hardware allows explicit probing of an inventoried Linux `/dev/ttyUSB*` or `/dev/ttyACM*` endpoint. It will only communicate with firmware implementing `openrf.serial.v1` (see `docs/USB_SERIAL_PROTOCOL.md`). A successful probe verifies only protocol response, not hardware identity or RF correctness. **Capture one snapshot** asks a compatible module for one bounded set of measurements and saves it with unverified device provenance. No sensor firmware is included. Missing WSL USB passthrough is an expected unsupported state. No background scanning occurs.
+
+Previous saved Wi-Fi snapshot features remain described below.
 
 ## v0.2.6 — Saved surveys, measurement quality and readiness
 

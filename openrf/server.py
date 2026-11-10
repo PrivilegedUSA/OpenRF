@@ -13,8 +13,9 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from . import __version__
-from .hardware import status_report
+from .hardware import status_report, enumerate_serial_ports
 from .drivers.wifi_nmcli import scan_once, WifiScanUnavailable
+from .drivers.serial_openrf import query_port, SerialSensorError
 from .storage import Repository, to_csv, to_geojson
 from .sensor_connections import connections, ScanReceiptStore, verified_wifi_observation, browser_location_details
 
@@ -91,7 +92,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, status_report())
         if path == '/api/sensors':
             return self._json(200, {'schema_version': 2, 'sensors': connections(status_report()),
-                                   'wifi_last_scan': self.server.scan_receipts.summary()})
+                                   'wifi_last_scan': self.server.scan_receipts.summary(),
+                                   'serial_transport': {'protocol': 'openrf.serial.v1',
+                                     'ports': enumerate_serial_ports(), 'last_probe': self.server.serial_last_probe,
+                                     'mode': 'user-triggered probe and snapshot only; no background acquisition'}})
         if path == '/api/sensors/diagnostics':
             hardware = status_report()
             return self._json(200, {
@@ -99,7 +103,9 @@ class Handler(BaseHTTPRequestHandler):
                 'wifi': {'prerequisites': hardware['wifi_one_shot'],
                          'last_retrieval': self.server.scan_receipts.summary(),
                          'explanation': 'One-shot NetworkManager retrieval, possibly cached; never equivalent to passive packet capture'},
-                'receiver_status': 'No SDR, BLE, GPS, or cellular acquisition driver is active.',
+                'receiver_status': 'No standalone SDR, BLE, GPS, or cellular Linux driver is active. USB Serial v1 is a limited, opt-in protocol; no compatible module verified.',
+                'serial_transport': {'protocol': 'openrf.serial.v1', 'ports': enumerate_serial_ports(),
+                   'last_probe': self.server.serial_last_probe},
                 'hardware_is_measurement': False,
             })
         if path == '/api/export.geojson':
@@ -139,6 +145,37 @@ class Handler(BaseHTTPRequestHandler):
             if path.startswith('/api/sessions/') and path.endswith('/stop'):
                 session_id = int(path.split('/')[3])
                 return self._json(200, {'stopped': self.repo.stop_session(session_id)})
+            if path in ('/api/sensors/serial/probe', '/api/sensors/serial/snapshot'):
+                # Browser can choose a currently inventoried port, not send sensor
+                # values. One physical protocol exchange, initiated by the user.
+                allowed = {'port'} if path.endswith('/probe') else {'port', 'survey_location', 'session_id'}
+                if set(body) - allowed:
+                    raise ValueError('Unexpected fields: measured data cannot be submitted by the browser.')
+                if not self.server.serial_lock.acquire(blocking=False):
+                    return self._error(409, 'Another USB serial request is in progress.')
+                try:
+                    port = body.get('port')
+                    current_ports = enumerate_serial_ports()
+                    if port not in current_ports or not isinstance(port, str):
+                        return self._error(409, 'Selected USB serial port is unavailable; refresh hardware inventory.')
+                    try:
+                        result = query_port(port, current_ports, snapshot=path.endswith('/snapshot'))
+                    except SerialSensorError as exc:
+                        self.server.serial_last_probe = {'port': port, 'status': 'failed',
+                            'detail': str(exc), 'at_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
+                        return self._error(409, str(exc))
+                    self.server.serial_last_probe = {'port': port, 'status': 'responding',
+                        'hardware_id': result['hardware_id'],
+                        'at_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+                        'identity_verified': False}
+                    if path.endswith('/probe'):
+                        return self._json(200, result)
+                    details = browser_location_details(body.get('survey_location'))
+                    session_id = body.get('session_id')
+                    return self._json(201, {'capture': self.repo.store_serial_capture(result, session_id, details),
+                                             'snapshot': result})
+                finally:
+                    self.server.serial_lock.release()
             if path == '/api/wifi/scan':
                 # Explicit foreground scan only. No background process or sensor data storage.
                 if not self.server.wifi_scan_lock.acquire(blocking=False):
@@ -201,6 +238,8 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.wifi_scan_lock = threading.Lock()
     server.scan_receipts = ScanReceiptStore()
     server.wifi_scan_last = float("-inf")
+    server.serial_lock = threading.Lock()
+    server.serial_last_probe = None
     return server
 
 

@@ -42,13 +42,13 @@ class ApiTests(unittest.TestCase):
     def test_health_static_hardware_and_exports(self):
         s,data=self.call('GET','/api/health')
         self.assertEqual(s,200)
-        self.assertEqual(data['version'],'0.2.6')
+        self.assertEqual(data['version'],'0.2.7')
         for path in ('/','/static/app.css','/static/app.js','/api/export.csv','/api/export.geojson'):
             status,_=self.call('GET',path)
             self.assertEqual(status,200,path)
         s,data=self.call('GET','/api/hardware')
         self.assertEqual(s,200)
-        self.assertEqual(len(data['capabilities']),6)
+        self.assertEqual(len(data['capabilities']),7)
 
     def test_cannot_forge_sensor_source_via_manual_entry(self):
         s,data=self.call('POST','/api/observations', {'kind':'BLE','source':'SENSOR', 'source_device':'HackRF','label':'Unverified manual'})
@@ -92,7 +92,7 @@ class ApiTests(unittest.TestCase):
         status, data = self.call('GET', '/api/sensors')
         self.assertEqual(status, 200)
         self.assertEqual(data['schema_version'], 2)
-        self.assertEqual(data['sensors'][1]['status'], 'not_implemented')
+        self.assertEqual(data['sensors'][2]['status'], 'not_implemented')
         status, _ = self.call('POST', '/api/sensors/networkmanager-wifi/save',
                               {'scan_id':'fake', 'bssid':'AA:BB:CC:11:22:33'})
         self.assertEqual(status, 400)
@@ -113,6 +113,44 @@ class ApiTests(unittest.TestCase):
         status, _ = self.call('POST', '/api/sensors/networkmanager-wifi/save',
                              {'scan_id':result['scan_id'], 'bssid':'AA:BB:CC:11:22:33'})
         self.assertEqual(status, 400)
+
+    def test_usb_api_refuses_browser_sensor_values_and_unlisted_port(self):
+        from unittest.mock import patch
+        with patch('openrf.server.enumerate_serial_ports', return_value=[]):
+            status, data = self.call('POST', '/api/sensors/serial/probe', {'port':'ttyACM0'})
+            self.assertEqual(status,409)
+            self.assertIn('unavailable', data['error'])
+        with patch('openrf.server.enumerate_serial_ports', return_value=['ttyACM0']):
+            status, data = self.call('POST', '/api/sensors/serial/snapshot', {
+                'port':'ttyACM0','records':[{'kind':'RF','rssi_dbm':-42}]})
+            self.assertEqual(status,400)
+            self.assertIn('browser', data['error'])
+
+    def test_usb_api_one_shot_captures_only_backend_device_frames(self):
+        from unittest.mock import patch
+        from openrf.drivers.serial_openrf import parse_hello, parse_snapshot
+        from datetime import datetime, timezone
+        hello = {'type':'hello','protocol':'openrf.serial.v1','hardware_id':'TEST-SERVER-001',
+                 'capabilities':['RF']}
+        snapshot = {'type':'snapshot','protocol':'openrf.serial.v1','hardware_id':'TEST-SERVER-001',
+                    'records':[{'kind':'RF','identifier':'TEST-ONLY-433', 'label':'Test radio power',
+                                'frequency_mhz':433.92,'rssi_dbm':-71}]}
+        utc = datetime.now(timezone.utc).isoformat(timespec='seconds')
+        sensor_data = parse_snapshot(snapshot, parse_hello(hello), utc)
+        sensor_data['interface'] = 'ttyUSB0'
+        with patch('openrf.server.enumerate_serial_ports', return_value=['ttyUSB0']), \
+                patch('openrf.server.query_port', side_effect=[dict(parse_hello(hello), port='ttyUSB0'),sensor_data]) as mock:
+            status, probed = self.call('POST', '/api/sensors/serial/probe', {'port':'ttyUSB0'})
+            self.assertEqual(status,200)
+            self.assertFalse(probed['identity_verified'])
+            status, saved = self.call('POST', '/api/sensors/serial/snapshot', {'port':'ttyUSB0'})
+            self.assertEqual(status,201)
+            self.assertEqual(saved['capture']['saved_count'],1)
+            self.assertEqual(saved['snapshot']['records'][0]['rssi_dbm'],-71)
+            self.assertEqual(mock.call_count,2)
+            status, records = self.call('GET','/api/observations')
+            self.assertEqual(status,200)
+            self.assertTrue(any(x['source_device'].startswith('OpenRF Serial') for x in records['observations']))
 
     def test_invalid_observation_rejected(self):
         status,data=self.call('POST','/api/observations',{'label':'invalid GPS','latitude':35})

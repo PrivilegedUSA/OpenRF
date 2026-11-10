@@ -156,6 +156,15 @@ class Repository:
                 if name not in columns:
                     db.execute(f'ALTER TABLE observations ADD COLUMN {name} {ddl}')
             db.execute('CREATE INDEX IF NOT EXISTS idx_observations_capture ON observations(survey_capture_id)')
+            # v0.2.7: retain device clock/protocol provenance without altering older rows.
+            for table, additions in (
+                ('observations', [('timestamp_basis', 'TEXT'), ('device_reported_at_utc', 'TEXT'), ('hardware_id', 'TEXT')]),
+                ('survey_captures', [('timestamp_basis', 'TEXT'), ('device_reported_at_utc', 'TEXT'), ('hardware_id', 'TEXT')]),
+            ):
+                found = {row['name'] for row in db.execute(f'PRAGMA table_info({table})')}
+                for name, ddl in additions:
+                    if name not in found:
+                        db.execute(f'ALTER TABLE {table} ADD COLUMN {name} {ddl}')
             # A crashed server does not silently continue a previously active survey.
             db.execute("UPDATE sessions SET status='INTERRUPTED' WHERE status='ACTIVE'")
 
@@ -269,6 +278,97 @@ class Repository:
                            [*item.values(), timestamp])
         return next(c for c in self.captures() if c['id'] == capture_id)
 
+    def store_serial_capture(self, capture: dict, session_id: int | None, survey_details: dict) -> dict:
+        """Atomically persist one explicitly requested compatible serial module snapshot.
+
+        The caller must obtain capture from the USB serial transport. This method
+        validates ALL readings before writing, including the empty-scan case.
+        Device-reported identity/timestamps are unverified and labeled as such.
+        """
+        if capture.get('source') != 'OPENRF_SERIAL_V1' or not isinstance(capture.get('records'), list):
+            raise ValueError('Expected a retrieved OpenRF Serial v1 snapshot')
+        if len(capture['records']) > 128:
+            raise ValueError('Too many sensor readings')
+        if session_id is not None and (type(session_id) is not int or session_id < 1):
+            raise ValueError('Invalid investigation ID')
+        if not isinstance(survey_details, dict):
+            raise ValueError('Survey location details missing')
+        origin = survey_details.get('location_source')
+        lat = survey_details.get('latitude')
+        lon = survey_details.get('longitude')
+        accuracy = survey_details.get('accuracy_m')
+        age = survey_details.get('fix_age_seconds')
+        if origin == 'NONE':
+            if any(x is not None for x in (lat, lon, accuracy, age)):
+                raise ValueError('Unexpected coordinates for no survey location')
+        elif origin == 'BROWSER_REPORTED':
+            if any(_optional_float(v, n, lo, hi) is None for v, n, lo, hi in
+                   ((lat,'latitude',-90,90),(lon,'longitude',-180,180),(accuracy,'accuracy_m',0,1_000_000),
+                    (age,'fix_age_seconds',0,60))):
+                raise ValueError('Incomplete browser survey location')
+        else:
+            raise ValueError('Unsupported survey coordinate source')
+        retrieved = capture.get('retrieved_at_utc')
+        observed = capture.get('observed_at_utc')
+        for value in (retrieved, observed):
+            if not isinstance(value, str):
+                raise ValueError('Snapshot missing UTC timestamp')
+            try:
+                dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
+            except ValueError as exc:
+                raise ValueError('Invalid snapshot UTC timestamp') from exc
+            if dt.tzinfo is None:
+                raise ValueError('Snapshot time has no UTC offset')
+        basis = capture.get('timestamp_basis')
+        if basis not in ('HOST_RETRIEVAL_ONLY', 'DEVICE_REPORTED_UNVERIFIED'):
+            raise ValueError('Unknown snapshot timestamp basis')
+        device_time = capture.get('captured_at_utc')
+        if device_time is not None and not isinstance(device_time, str):
+            raise ValueError('Invalid device timestamp')
+        hardware_id = _string(capture.get('hardware_id'), 'hardware_id', 64, required=True)
+        interface = _string(capture.get('interface'), 'USB interface', 64, required=True)
+        freshness = _string(capture.get('freshness'), 'freshness', 160, required=True)
+        normalized = []
+        for row in capture['records']:
+            if not isinstance(row, dict):
+                raise ValueError('Sensor measurement must be an object')
+            signal = normalize_observation({
+                'kind': row.get('kind'), 'source': 'SENSOR', 'label': row.get('label'),
+                'identifier': row.get('identifier'), 'frequency_mhz': row.get('frequency_mhz'),
+                'rssi_dbm': row.get('rssi_dbm'), 'latitude': lat, 'longitude': lon,
+                'accuracy_m': accuracy, 'session_id': session_id,
+                'source_device': f'OpenRF Serial / {hardware_id} ({interface})'[:120],
+                'notes': (f'USB-serial module-reported radio observation; {freshness}. '
+                          f'Time: {basis}; device identity and calibration NOT independently verified. '
+                          + ('Location is a browser-reported survey position, never the transmitter position.'
+                             if origin == 'BROWSER_REPORTED' else 'No GPS/survey coordinates recorded.')),
+            })
+            if signal['kind'] not in {'BLE', 'WIFI', 'RF'} or (signal['frequency_mhz'] is None and signal['rssi_dbm'] is None):
+                raise ValueError('Unsupported or empty RF measurement')
+            signal.update({'survey_capture_id': None, 'location_source': origin,
+                           'fix_age_seconds': age, 'timestamp_basis': basis,
+                           'device_reported_at_utc': device_time, 'hardware_id': hardware_id})
+            normalized.append(signal)
+        with self._lock, self._connect() as db:
+            if session_id is not None:
+                session = db.execute('SELECT status FROM sessions WHERE id=?', (session_id,)).fetchone()
+                if not session or session['status'] != 'ACTIVE':
+                    raise ValueError('Session is missing or no longer active')
+            capture_id = db.execute("""
+                INSERT INTO survey_captures(sensor_id, interface, retrieved_at_utc, saved_at_utc,
+                  freshness, result_count, saved_count, session_id, location_source, latitude,
+                  longitude, accuracy_m, fix_age_seconds, timestamp_basis, device_reported_at_utc, hardware_id)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                ('openrf-serial-v1', interface, retrieved, now_iso(), freshness,
+                 len(capture['records']), len(normalized), session_id, origin, lat, lon,
+                 accuracy, age, basis, device_time, hardware_id)).lastrowid
+            for signal in normalized:
+                signal['survey_capture_id'] = capture_id
+                cols = [*signal, 'observed_at']
+                db.execute(f"INSERT INTO observations ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})",
+                           [*signal.values(), observed])
+        return next(c for c in self.captures() if c['id'] == capture_id)
+
     def sessions(self) -> list[dict]:
         with self._lock, self._connect() as db:
             return [dict(r) for r in db.execute("""
@@ -341,7 +441,7 @@ def to_geojson(items: list[dict]) -> dict:
 def to_csv(items: list[dict]) -> str:
     out = io.StringIO(newline="")
     cols = ["id", "kind", "source", "label", "identifier", "notes", "source_device", "frequency_mhz", "rssi_dbm", "latitude", "longitude", "accuracy_m", "observed_at", "session_id", "signal_quality_percent", "survey_capture_id", "location_source",
-            "fix_age_seconds", "coordinate_meaning"]
+            "fix_age_seconds", "timestamp_basis", "device_reported_at_utc", "hardware_id", "coordinate_meaning"]
     writer = csv.DictWriter(out, fieldnames=cols, extrasaction="ignore")
     writer.writeheader()
     for item in items:

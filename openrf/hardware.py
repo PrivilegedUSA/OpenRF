@@ -125,6 +125,11 @@ def status_report() -> dict:
         SensorCapability('sdr', 'Software-defined radio', 'not_connected',
             'USB devices are listed below, but no SDR driver or live RF capture is integrated yet.',
             'RTL-SDR/HackRF or other supported receiver and Linux driver'),
+        SensorCapability('usbserial', 'OpenRF USB serial v1',
+            'detected_unverified' if serial_ports else 'not_connected',
+            ('USB-serial endpoint(s) visible. Use the explicit protocol probe to determine if a compatible OpenRF controller responds.'
+             if serial_ports else 'No Linux USB-serial endpoints visible. WSL may need USB pass-through; nothing is connected.'),
+            'A controller with OpenRF Serial v1 firmware, correct permissions and a Linux ttyUSB/ttyACM device'),
         SensorCapability('subghz', 'Sub-GHz module', 'not_connected',
             'Potential USB serial endpoints are shown below, without assuming any is a CC1101.',
             'Compatible CC1101 controller/USB bridge and OpenRF protocol'),

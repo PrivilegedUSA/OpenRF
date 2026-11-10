@@ -30,6 +30,12 @@ def connections(hardware: dict) -> list[dict]:
             'ready' if wifi.get('possible') else 'unavailable',
             'One-shot scan; quality percentage is not RSSI. Interface: ' + str(wifi.get('interface') or 'none'),
             ('MHz', 'quality_percent')).__dict__,
+        SensorDescriptor('openrf-serial-v1', 'OpenRF USB-serial sensor v1',
+            'port_visible_unverified' if hardware.get('serial_ports') else 'not_connected',
+            'User-triggered USB handshake and snapshot capture supported for modules running OpenRF Serial v1 firmware. '
+            'A serial port alone does not prove a compatible module or genuine measurements. '
+            'Available ports: ' + (', '.join(hardware.get('serial_ports', [])[:8]) or 'none'),
+            ('MHz', 'dBm')).__dict__,
         SensorDescriptor('linux-ble', 'Linux Bluetooth LE', 'not_implemented',
             'Requires a BlueZ acquisition driver and supported controller. No BLE observations can be captured yet.').__dict__,
         SensorDescriptor('usb-sdr', 'USB software-defined radio', 'not_implemented',

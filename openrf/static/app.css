@@ -252,3 +252,12 @@
 .capture-entry p {font-size:11px;color:#a0bdc8;line-height:1.5;margin:4px 0 0;}
 .diagnostics-note {margin-top:12px;padding:12px;border:1px solid #31515a;border-radius:8px;line-height:1.6;font-size:12px;color:#accbd5;overflow-wrap:anywhere;}
 @media (max-width:550px){ .capture-actions{display:grid;grid-template-columns:minmax(0,1fr);}.capture-actions .btn{width:100%;} }
+
+/* v0.2.7 USB sensor: full-width, touch-friendly controls without horizontal scroll. */
+.usb-sensor-panel{margin-top:16px;}
+.usb-port-label{display:block;font-size:12px;font-weight:700;margin:13px 0 7px;color:#a4cbd3;}
+.usb-sensor-actions{display:grid;grid-template-columns:minmax(160px,1fr) auto auto;gap:9px;align-items:stretch;}
+.usb-sensor-actions select{min-width:0;width:100%;background:#09202b;border:1px solid #375764;border-radius:8px;color:#e3f5f8;padding:10px 12px;min-height:45px;}
+.usb-sensor-actions .btn{min-height:45px;white-space:normal;}
+.usb-location-option{margin:13px 0 0;min-height:38px;}
+@media(max-width:900px){.usb-sensor-actions{grid-template-columns:minmax(0,1fr);}.usb-sensor-actions .btn{width:100%;}}

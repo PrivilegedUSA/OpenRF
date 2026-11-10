@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], captures: [], diagnostics: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, filterSession: null, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], pendingLocationView: null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+const state = { observations: [], sessions: [], captures: [], diagnostics: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, filterSession: null, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -74,6 +74,7 @@ async function refresh() {
   state.sessions = sessions.sessions;
   state.hardware = hardware;
   state.sensors = sensorData.sensors || [];
+  state.serialTransport = sensorData.serial_transport || null;
   state.captures = captureData.captures || [];
   state.diagnostics = diagnostics;
   $('metric-observations').textContent = stats.observations;
@@ -82,7 +83,7 @@ async function refresh() {
   $('metric-demo').textContent = stats.demo;
   $('runtime-pill').textContent = hardware.environment;
   $('scanner-connection-pill').textContent = hardware.wifi_one_shot?.possible ? 'ON-DEMAND WI-FI POSSIBLE' : 'NO LINUX WI-FI SCANNER';
-  renderDiscoveries(); renderSessions(); renderCaptures(); renderHardware(); renderSensorRegistry(); renderSignals(); updateMap(); renderMapSurveyPanel();
+  renderDiscoveries(); renderSessions(); renderCaptures(); renderHardware(); renderSensorRegistry(); renderSerialPorts(); renderSignals(); updateMap(); renderMapSurveyPanel();
 }
 
 function openObservation(lat = '', lon = '') {
@@ -127,7 +128,7 @@ function renderCaptures() {
   const dest = $('captures-list');
   $('capture-count').textContent = `${state.captures.length} captures`;
   dest.innerHTML = state.captures.length ? state.captures.slice(0, 50).map(c => `
-    <div class="capture-entry"><div><strong>Wi-Fi survey #${escapeHTML(c.id)} · ${escapeHTML(c.saved_count)} saved of ${escapeHTML(c.result_count)} returned</strong>
+    <div class="capture-entry"><div><strong>${escapeHTML(c.sensor_id === 'openrf-serial-v1' ? 'USB sensor snapshot' : 'Wi-Fi survey')} #${escapeHTML(c.id)} · ${escapeHTML(c.saved_count)} saved of ${escapeHTML(c.result_count)} returned</strong>
     <p>Retrieved ${escapeHTML(stamp(c.retrieved_at_utc))} · ${escapeHTML(c.interface)} · ${escapeHTML(c.freshness)} · ${escapeHTML(c.location_source === 'BROWSER_REPORTED' ? `browser survey fix ±${c.accuracy_m} m; reported age ${c.fix_age_seconds}s` : 'no survey location')} · ${c.session_id ? `session #${escapeHTML(c.session_id)}` : 'not linked to a session'}</p></div><span class="badge">SENSOR</span></div>`).join('') :
     '<div class="empty">No wireless survey snapshots saved. Start a supported Wi-Fi scan from Map or Analysis, then choose Save scan snapshot.</div>';
 }
@@ -140,6 +141,53 @@ function renderSensorRegistry() {
     <div><strong>${escapeHTML(sensor.label)}</strong><div class="tiny">${escapeHTML(sensor.description)} · ${escapeHTML(sensor.sensor_id)}</div></div>
     <span class="pill ${sensor.status === 'ready' ? 'green' : 'amber'}">${escapeHTML(sensor.status.replaceAll('_',' '))}</span>
   </div>`).join('') || '<div class="empty">No sensor adapters registered.</div>';
+}
+
+function renderSerialPorts() {
+  const select = $('usb-sensor-port');
+  const previouslySelected = select.value;
+  const ports = state.serialTransport?.ports || state.hardware?.serial_ports || [];
+  select.replaceChildren();
+  if (!ports.length) {
+    const option = document.createElement('option'); option.value = ''; option.textContent = 'No Linux USB-serial ports visible'; select.append(option);
+    $('usb-sensor-status').textContent = 'No ttyUSB/ttyACM device is visible to Linux. On WSL, a physical USB board usually needs passthrough. This does not indicate RF coverage or a working receiver.';
+  } else {
+    for (const port of ports) { const option = document.createElement('option'); option.value = port; option.textContent = `/dev/${port} — not yet verified`; select.append(option); }
+    if (ports.includes(previouslySelected)) select.value = previouslySelected;
+  }
+  for (const id of ['usb-sensor-probe','usb-sensor-capture']) $(id).disabled = ports.length === 0;
+}
+function recentSerialSurveyLocation() {
+  if (!$('usb-sensor-location').checked) return null;
+  const loc = state.browserLocation;
+  const seconds = loc ? (Date.now() - loc.capturedAt) / 1000 : Infinity;
+  if (!loc || seconds < 0 || seconds > 60) throw Error('No recent browser fix. Open Map → My location, then capture within 60 seconds, or uncheck the location option.');
+  return {latitude:loc.lat, longitude:loc.lon, accuracy_m:loc.accuracy, fix_age_seconds:Math.round(seconds*10)/10};
+}
+async function runSerialSensor(snapshot) {
+  const button = $(snapshot ? 'usb-sensor-capture' : 'usb-sensor-probe');
+  const port = $('usb-sensor-port').value;
+  if (!port) return flash('No inventoried USB serial port is available.', true);
+  const survey_location = snapshot ? recentSerialSurveyLocation() : null;
+  if (snapshot && !confirm('Request and save ONE snapshot from the selected, device-reported OpenRF Serial v1 module? No location is attached unless selected. The sensor identity and readings are not independently verified.')) return;
+  const active = state.sessions.find(s=>s.status === 'ACTIVE');
+  const body = snapshot ? {port, survey_location, session_id: active?.id || null} : {port};
+  const buttons = [$('usb-sensor-probe'), $('usb-sensor-capture')];
+  buttons.forEach(b=>b.disabled=true);
+  $('usb-sensor-status').textContent = snapshot ? 'Requesting a single sensor snapshot over USB…' : 'Probing selected Linux USB serial port…';
+  try {
+    const result = await api(snapshot ? '/api/sensors/serial/snapshot' : '/api/sensors/serial/probe', 'POST', body);
+    if (snapshot) {
+      const cap = result.capture; const data = result.snapshot;
+      $('usb-sensor-status').textContent = `Saved snapshot #${cap.id}: ${cap.saved_count} device-reported records from ${data.hardware_id} at ${stamp(data.retrieved_at_utc)}. ${data.freshness}. Identity and calibration unverified. ${cap.location_source === 'BROWSER_REPORTED' ? 'Browser observer position attached.' : 'No GPS position attached.'}`;
+      flash(`USB snapshot saved: ${cap.saved_count} unverified device-reported observation(s).`);
+    } else {
+      $('usb-sensor-status').textContent = `Protocol ${result.protocol}; device-reported ID ${result.hardware_id}; declared measurements: ${result.capabilities.join(', ') || 'none'}. ${result.warning}`;
+      flash(`OpenRF serial protocol responded on /dev/${port}. This is not a measurement or hardware identity verification.`);
+    }
+    await refresh();
+  } catch(error) { $('usb-sensor-status').textContent = `USB sensor unavailable: ${error.message}`; flash(error.message,true); }
+  finally { buttons.forEach(b=>b.disabled=!($('usb-sensor-port').value)); }
 }
 
 function renderHardware() {
@@ -160,6 +208,7 @@ function renderHardware() {
     `NetworkManager utility: ${hw.command_availability.nmcli ? 'present' : 'not found'}`,
     `BlueZ utility: ${hw.command_availability.bluetoothctl ? 'present' : 'not found'}`,
     `RF tools: ${['iw','rtl_test','hackrf_info','gpsd'].filter(x=>hw.command_availability[x]).join(', ') || 'none found'}`,
+    `USB serial endpoints: ${(hw.serial_ports || []).join(', ') || 'none visible'}` ,
     `RF capture: INACTIVE — ${hw.scan_status}`
   ].join('\n');
   const inventory = $('device-inventory');
@@ -643,8 +692,10 @@ document.querySelectorAll('[data-map-kind]').forEach(input => input.addEventList
   else state.mapKinds.delete(input.dataset.mapKind);
   updateMap(); renderMapSurveyPanel();
 }));
+$('usb-sensor-probe').addEventListener('click',()=>runAction(()=>runSerialSensor(false)));
+$('usb-sensor-capture').addEventListener('click',()=>runAction(()=>runSerialSensor(true)));
 $('refresh-hardware').addEventListener('click',()=>runAction(async()=>{
-  state.hardware = await api('/api/hardware'); state.sensors = (await api('/api/sensors')).sensors; renderHardware(); renderSensorRegistry();
+  state.hardware = await api('/api/hardware'); const registry = await api('/api/sensors'); state.sensors = registry.sensors; state.serialTransport = registry.serial_transport; renderHardware(); renderSensorRegistry(); renderSerialPorts();
   flash('Read-only Linux hardware inventory refreshed. This did not start an RF scan.');
 }));
 $('discovery-search').addEventListener('input',renderDiscoveries);

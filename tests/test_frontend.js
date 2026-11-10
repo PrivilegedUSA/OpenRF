@@ -71,3 +71,11 @@ assert(src.includes('scan.scan_id = null'), 'frontend must disable replaying the
 assert(src.includes('signal_quality_percent') && src.includes("const unit = rssi.length ? 'dBm' : '% NetworkManager quality'"), 'plot only same-unit measurements');
 assert(css.includes('.capture-actions') && css.includes('.capture-actions .btn{width:100%;}'), 'touchscreen snapshot controls avoid horizontal overflow');
 console.log('v0.2.6 survey snapshot, quality units, and small-screen contract checks passed.');
+
+// v0.2.7 standardized external serial sensor handshake and snapshot UI.
+assert(html.includes('id="usb-sensor-port"') && html.includes('id="usb-sensor-probe"') && html.includes('id="usb-sensor-capture"'), 'explicit USB sensor controls required');
+assert(html.includes('id="usb-sensor-location"') && html.includes('USB sensor setup'), 'opt-in survey position and map path to hardware');
+assert(src.includes('async function runSerialSensor(snapshot)') && src.includes('/api/sensors/serial/snapshot'), 'hardware snapshot must be user-triggered');
+assert(src.includes('recentSerialSurveyLocation()') && src.includes('seconds > 60'), 'only recent observer position may be attached');
+assert(css.includes('@media(max-width:900px){.usb-sensor-actions{grid-template-columns:minmax(0,1fr)') , 'USB controls must stack on handheld display');
+console.log('v0.2.7 USB serial field controls and compact layout contract passed.');
