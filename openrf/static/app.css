@@ -238,3 +238,17 @@
 .map-credits[open] {display:flex;flex-direction:column-reverse;align-items:flex-start;}
 .map-credits a {color:#b8ebdc;text-decoration:underline;overflow-wrap:anywhere;}
 .map-wrap .map-legend{bottom:auto;top:12px;left:12px!important;right:auto!important;}
+
+/* v0.2.6 — explicit snapshot controls; no horizontal scroll on 5-inch displays. */
+.capture-actions {display:flex;align-items:center;flex-wrap:wrap;justify-content:space-between;gap:10px;margin:14px 0;max-width:100%;}
+.capture-locate {display:flex;gap:9px;align-items:center;color:#bfd5de;font-size:12px;min-width:0;max-width:100%;line-height:1.45;}
+.capture-locate input {width:19px;height:19px;flex-shrink:0;accent-color:#36c8b0;}
+.capture-actions .btn {white-space:normal;min-height:42px;}
+.capture-actions .btn:disabled {opacity:.45;cursor:not-allowed;}
+.captures-panel {margin-top:16px;}
+.capture-entry {display:flex;align-items:flex-start;gap:10px;justify-content:space-between;padding:12px 0;border-top:1px solid #28424c;min-width:0;}
+.capture-entry > div {min-width:0;overflow-wrap:anywhere;}
+.capture-entry strong {font-size:13px;}
+.capture-entry p {font-size:11px;color:#a0bdc8;line-height:1.5;margin:4px 0 0;}
+.diagnostics-note {margin-top:12px;padding:12px;border:1px solid #31515a;border-radius:8px;line-height:1.6;font-size:12px;color:#accbd5;overflow-wrap:anywhere;}
+@media (max-width:550px){ .capture-actions{display:grid;grid-template-columns:minmax(0,1fr);}.capture-actions .btn{width:100%;} }

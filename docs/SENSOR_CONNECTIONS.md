@@ -1,4 +1,4 @@
-# OpenRF Sensor Connection & Observation Contract (v0.2.5)
+# OpenRF Sensor Connection & Observation Contract (v0.2.6)
 
 OpenRF runs offline with no sensor hardware. WSL usually exposes no Linux Wi-Fi or BLE radio from the Windows host. Hardware inventory is **not** a scan. This release implements only one optional live Linux adapter: a user-triggered NetworkManager Wi-Fi AP list.
 
@@ -16,3 +16,12 @@ OpenRF runs offline with no sensor hardware. WSL usually exposes no Linux Wi-Fi 
 Each new driver should expose a stable ID, supported capabilities and bands, driver/firmware identity where available, connection status, instrument-specific units, UTC measurement timestamp, validity/freshness flags, GNSS fix age/accuracy, and provenance. An observation may be absent or unknown, but must never be manufactured. A receiver's survey location must never be equated with a transmitter position. BLE, rtl-sdr, CC1101 and modem sources are **not implemented** here.
 
 When physical sensors become available, test driver permission flows, disconnections, calibration, duplicate/stale behavior, and recorded-session integration separately before labeling them supported.
+
+## v0.2.6 survey capture API (implemented)
+
+- `GET /api/sensors/diagnostics`: read-only capability prerequisites and last *successful one-shot retrieval* metadata for this server process. No measurement or RF capability is inferred from inventory alone.
+- `POST /api/sensors/networkmanager-wifi/save-scan`: accept **only** a server-generated, unexpired `scan_id`, an optional active `session_id`, and an optional `survey_location`. The client cannot submit observation values. All as-yet-unsaved verified rows from the receipt are stored in one database transaction, and the receipt becomes single-use. A zero-result retrieval remains a capture with `saved_count=0`.
+- `GET /api/captures`: newest 500 saved survey captures, including source ID, Linux interface, UTC retrieval and persistence times, signal freshness warning, returned/saved counts, optional session link and observer-coordinate provenance. No spectrum samples or transmitter positions are invented.
+- `GET /api/observations`, CSV, GeoJSON: saved grouped rows carry `signal_quality_percent`, `survey_capture_id`, `location_source`, `fix_age_seconds`. `rssi_dbm` is **null** for NetworkManager readings because its SIGNAL field is quality percent, not received power. Existing records are preserved by additive SQLite columns.
+- For v0.2.6 snapshot capture only, browser coordinates must include `latitude`, `longitude`, `accuracy_m` and `fix_age_seconds` between 0 and 60. The frontend latches the browser position **at scan request time**; location obtained afterward cannot be attached retroactively. `location_source=BROWSER_REPORTED` does **not** claim a verified GNSS fix. No location attaches unless the user selects the checkbox and confirms.
+- On a machine with no Linux wireless interface, scanning returns an error and snapshot saving remains disabled. A scan may trigger normal Wi-Fi probes and NetworkManager may return cached data; readout time is not necessarily beacon reception time. Raw frame acquisition and continuous GPS logging remain unimplemented.

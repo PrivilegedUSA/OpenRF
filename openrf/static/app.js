@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, filterSession: null, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], pendingLocationView: null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+const state = { observations: [], sessions: [], captures: [], diagnostics: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, filterSession: null, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], pendingLocationView: null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -66,20 +66,23 @@ function showPage(page, options = {}) {
 }
 
 async function refresh() {
-  const [records, sessions, stats, hardware, sensorData] = await Promise.all([
-    api('/api/observations'), api('/api/sessions'), api('/api/stats'), api('/api/hardware'), api('/api/sensors')
+  const [records, sessions, stats, hardware, sensorData, captureData, diagnostics] = await Promise.all([
+    api('/api/observations'), api('/api/sessions'), api('/api/stats'), api('/api/hardware'), api('/api/sensors'),
+    api('/api/captures'), api('/api/sensors/diagnostics')
   ]);
   state.observations = records.observations;
   state.sessions = sessions.sessions;
   state.hardware = hardware;
   state.sensors = sensorData.sensors || [];
+  state.captures = captureData.captures || [];
+  state.diagnostics = diagnostics;
   $('metric-observations').textContent = stats.observations;
   $('metric-mapped').textContent = stats.mapped;
   $('metric-sessions').textContent = stats.sessions;
   $('metric-demo').textContent = stats.demo;
   $('runtime-pill').textContent = hardware.environment;
   $('scanner-connection-pill').textContent = hardware.wifi_one_shot?.possible ? 'ON-DEMAND WI-FI POSSIBLE' : 'NO LINUX WI-FI SCANNER';
-  renderDiscoveries(); renderSessions(); renderHardware(); renderSensorRegistry(); renderSignals(); updateMap(); renderMapSurveyPanel();
+  renderDiscoveries(); renderSessions(); renderCaptures(); renderHardware(); renderSensorRegistry(); renderSignals(); updateMap(); renderMapSurveyPanel();
 }
 
 function openObservation(lat = '', lon = '') {
@@ -104,6 +107,7 @@ function renderDiscoveries() {
     <p>${escapeHTML(o.notes || (o.identifier ? `Identifier: ${o.identifier}` : 'No notes'))}</p>
     <div class="tiny">${escapeHTML(stamp(o.observed_at))} · ${o.latitude === null ? 'No survey coordinates' : `${Number(o.latitude).toFixed(5)}, ${Number(o.longitude).toFixed(5)} — observer position`} · ${escapeHTML(o.source_device)}</div>
     ${o.rssi_dbm !== null ? `<div class="tiny">RSSI ${escapeHTML(o.rssi_dbm)} dBm ${o.frequency_mhz !== null ? `· ${escapeHTML(o.frequency_mhz)} MHz` : ''}</div>` : ''}
+    ${o.signal_quality_percent !== null && o.signal_quality_percent !== undefined ? `<div class="tiny">NetworkManager quality ${escapeHTML(o.signal_quality_percent)}% (not RSSI) · ${escapeHTML(o.location_source || 'UNSPECIFIED')} observer location ${o.fix_age_seconds !== null ? `· fix age ${escapeHTML(o.fix_age_seconds)} seconds` : ''}</div>` : ''}
     </div><div class="item-actions">${o.latitude !== null ? `<button class="btn mini outline" data-zoom="${o.id}">Map</button>` : ''}<button class="btn mini danger-outline" data-delete="${o.id}">Delete</button></div></article>`).join('') :
     '<div class="empty">No records match. Use “Add observation”, or enable the demo filter for the optional test fixtures.</div>';
 }
@@ -112,15 +116,26 @@ function renderSessions() {
   $('session-count').textContent = `${state.sessions.length} sessions`;
   $('session-list').innerHTML = state.sessions.length ? state.sessions.map(s => `
     <article class="item"><div><div class="item-top"><h4>${escapeHTML(s.name)}</h4><span class="badge ${s.status === 'ACTIVE' ? '' : 'manual'}">${escapeHTML(s.status)}</span></div>
-    <p>${escapeHTML(s.observation_count)} saved observations · Started ${escapeHTML(stamp(s.started_at))}</p>
+    <p>${escapeHTML(s.observation_count)} saved observations · ${escapeHTML(s.capture_count || 0)} survey snapshots · Started ${escapeHTML(stamp(s.started_at))}</p>
     <div class="tiny">${s.ended_at ? `Ended ${escapeHTML(stamp(s.ended_at))}` : 'No finish timestamp recorded'} · Records stay local</div>
     </div><div class="item-actions"><button class="btn mini outline" data-session-filter="${s.id}">Records</button>
     ${s.status === 'ACTIVE' ? `<button class="btn mini danger-outline" data-stop="${s.id}">Stop</button>` : ''}</div></article>`).join('') :
     '<div class="empty">No sessions started. You can record notes against a session, but no background collection occurs.</div>';
 }
 
+function renderCaptures() {
+  const dest = $('captures-list');
+  $('capture-count').textContent = `${state.captures.length} captures`;
+  dest.innerHTML = state.captures.length ? state.captures.slice(0, 50).map(c => `
+    <div class="capture-entry"><div><strong>Wi-Fi survey #${escapeHTML(c.id)} · ${escapeHTML(c.saved_count)} saved of ${escapeHTML(c.result_count)} returned</strong>
+    <p>Retrieved ${escapeHTML(stamp(c.retrieved_at_utc))} · ${escapeHTML(c.interface)} · ${escapeHTML(c.freshness)} · ${escapeHTML(c.location_source === 'BROWSER_REPORTED' ? `browser survey fix ±${c.accuracy_m} m; reported age ${c.fix_age_seconds}s` : 'no survey location')} · ${c.session_id ? `session #${escapeHTML(c.session_id)}` : 'not linked to a session'}</p></div><span class="badge">SENSOR</span></div>`).join('') :
+    '<div class="empty">No wireless survey snapshots saved. Start a supported Wi-Fi scan from Map or Analysis, then choose Save scan snapshot.</div>';
+}
+
 function renderSensorRegistry() {
   const dest = $('sensor-registry-list');
+  const diag = state.diagnostics;
+  if (diag) $('sensor-diagnostics').textContent = `Inventory ${stamp(diag.collected_at_utc)} · Wi-Fi ${diag.wifi.prerequisites.possible ? 'prerequisites visible; scan not guaranteed' : 'unavailable'} · Last retrieval: ${diag.wifi.last_retrieval.last_scan} · ${diag.receiver_status}`;
   dest.innerHTML = state.sensors.map(sensor => `<div class="sensor-row">
     <div><strong>${escapeHTML(sensor.label)}</strong><div class="tiny">${escapeHTML(sensor.description)} · ${escapeHTML(sensor.sensor_id)}</div></div>
     <span class="pill ${sensor.status === 'ready' ? 'green' : 'amber'}">${escapeHTML(sensor.status.replaceAll('_',' '))}</span>
@@ -165,7 +180,7 @@ function renderHardware() {
 function renderSignals() {
   const signals = state.observations.filter(o => ['WIFI','BLE','RF','CELLULAR'].includes(o.kind));
   const grouped = new Map();
-  signals.forEach(o => { if (o.identifier && o.rssi_dbm !== null) {
+  signals.forEach(o => { if (o.identifier && (o.rssi_dbm !== null || o.signal_quality_percent !== null && o.signal_quality_percent !== undefined)) {
     if (!grouped.has(o.identifier)) grouped.set(o.identifier, []);
     grouped.get(o.identifier).push(o);
   }});
@@ -177,7 +192,7 @@ function renderSignals() {
   const rows = signals.filter(o => o.source !== 'DEMO').slice(0, 100);
   $('scan-count').textContent = `${signals.length} recorded`;
   renderWifiScan();
-  $('signal-table').innerHTML = rows.length ? `<table class="data-table"><thead><tr><th>IDENTIFIER</th><th>KIND</th><th>RSSI</th><th>FREQUENCY</th><th>PROVENANCE</th><th>TIME</th></tr></thead><tbody>${rows.map(o=>`<tr><td data-label="Identifier">${escapeHTML(o.identifier || o.label)}</td><td data-label="Kind">${escapeHTML(o.kind)}</td><td data-label="RSSI">${format(o.rssi_dbm, ' dBm')}</td><td data-label="Frequency">${format(o.frequency_mhz, ' MHz')}</td><td data-label="Source">${escapeHTML(o.source)}</td><td data-label="Time">${escapeHTML(stamp(o.observed_at))}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No saved RF measurements yet. One-shot Wi-Fi results above are temporary and not stored automatically.</div>';
+  $('signal-table').innerHTML = rows.length ? `<table class="data-table"><thead><tr><th>IDENTIFIER</th><th>KIND</th><th>RSSI</th><th>QUALITY</th><th>FREQUENCY</th><th>PROVENANCE</th><th>TIME</th></tr></thead><tbody>${rows.map(o=>`<tr><td data-label="Identifier">${escapeHTML(o.identifier || o.label)}</td><td data-label="Kind">${escapeHTML(o.kind)}</td><td data-label="RSSI">${format(o.rssi_dbm, ' dBm')}</td><td data-label="Quality">${format(o.signal_quality_percent, '%')}</td><td data-label="Frequency">${format(o.frequency_mhz, ' MHz')}</td><td data-label="Source">${escapeHTML(o.source)}</td><td data-label="Time">${escapeHTML(stamp(o.observed_at))}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No saved RF measurements yet. One-shot Wi-Fi results above are temporary and not stored automatically.</div>';
   drawHistory(grouped);
 }
 
@@ -198,7 +213,7 @@ function renderMapSurveyPanel() {
   $('map-survey-summary').textContent = `${all.length} mapped survey point(s) visible · ${wireless.length} wireless-category record(s). Positions are where readings/notes were entered, not transmitter locations.`;
   const output = $('map-wifi-readings');
   const scan = state.wifiScan;
-  if (!scan) { output.innerHTML = ''; return; }
+  if (!scan) { output.innerHTML = ''; updateCaptureButtons(); return; }
   const entries = (scan.records || []).slice(0, 8);
   output.innerHTML = `<div class="map-live-heading"><strong>Last one-shot Wi-Fi scan</strong><span>${escapeHTML(stamp(scan.retrieved_at_utc))}</span></div>
     <p>${escapeHTML(scan.interface)} · ${escapeHTML(scan.freshness)} · ${scan.records?.length || 0} result(s) · <b>Not geolocated or mapped</b></p>
@@ -224,20 +239,26 @@ function renderWifiScan() {
 
 function drawHistory(grouped = null) {
   const id = $('signal-select').value;
-  const values = grouped?.get(id) || state.observations.filter(o => o.identifier === id && o.rssi_dbm !== null);
-  if (!id || !values.length) { $('history-graph').innerHTML = '<div class="empty">Choose an identifier with recorded RSSI measurements.</div>'; return; }
-  const sorted = values.slice().reverse();
-  const min = Math.min(...sorted.map(x => x.rssi_dbm)) - 5;
-  const max = Math.max(...sorted.map(x => x.rssi_dbm)) + 5;
-  const coords = sorted.map((p,i) => [32 + (sorted.length===1 ? 155 : i*310/(sorted.length-1)), 125 - (p.rssi_dbm-min)/(max-min)*105]);
-  const path = coords.map(([x,y],i)=>`${i===0?'M':'L'} ${x.toFixed(1)} ${y.toFixed(1)}`).join(' ');
-  $('history-graph').innerHTML = `<svg viewBox="0 0 380 155" role="img" aria-label="RSSI values from ${sorted.length} recorded observations">
+  const all = grouped?.get(id) || state.observations.filter(o => o.identifier === id &&
+    (o.rssi_dbm !== null || o.signal_quality_percent !== null && o.signal_quality_percent !== undefined));
+  if (!id || !all.length) { $('history-graph').innerHTML = '<div class="empty">Choose an identifier with measured signal strength or quality.</div>'; return; }
+  const rssi = all.filter(o => o.rssi_dbm !== null);
+  const quality = all.filter(o => o.signal_quality_percent !== null && o.signal_quality_percent !== undefined);
+  // Never mix dBm power measurements and NetworkManager signal-quality percentages.
+  const metric = rssi.length ? 'rssi_dbm' : 'signal_quality_percent';
+  const unit = rssi.length ? 'dBm' : '% NetworkManager quality';
+  const sorted = (rssi.length ? rssi : quality).slice().reverse();
+  const values = sorted.map(x => Number(x[metric]));
+  const min = Math.min(...values) - 5, max = Math.max(...values) + 5;
+  const coords = values.map((v, i) => [32 + (values.length === 1 ? 155 : i * 310 / (values.length - 1)), 125 - (v - min) / (max - min) * 105]);
+  const path = coords.map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`).join(' ');
+  $('history-graph').innerHTML = `<svg viewBox="0 0 380 155" role="img" aria-label="${escapeHTML(unit)} values from ${sorted.length} observations">
     <line x1="28" x2="352" y1="20" y2="20" class="gridline"/><line x1="28" x2="352" y1="125" y2="125" class="gridline"/>
     <text x="2" y="24">${max.toFixed(0)}</text><text x="2" y="129">${min.toFixed(0)}</text>
     <path d="${path}" fill="none" stroke="#41d8bd" stroke-width="3"/>
-    ${coords.map(([x,y])=>`<circle cx="${x}" cy="${y}" r="4" fill="#81f4dc"/>`).join('')}
+    ${coords.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="4" fill="#81f4dc"/>`).join('')}
     <text x="30" y="148">First record</text><text x="277" y="148">Last record</text></svg>
-    <p class="small muted">${sorted.length} stored measurement(s) · ${sorted.some(o=>o.source==='DEMO')?'Includes SYNTHETIC demo data · ':''}Not a distance estimate</p>`;
+    <p class="small muted">${sorted.length} reading(s) in ${escapeHTML(unit)} · ${sorted.some(o => o.source === 'DEMO') ? 'SYNTHETIC DEMO included · ' : ''}${metric === 'signal_quality_percent' ? 'May include cached results; ' : ''}not a distance or transmitter location estimate.</p>`;
 }
 
 // MapLibre is preferred, but remote JavaScript or tiles can be blocked by VPNs,
@@ -532,9 +553,17 @@ async function scanWifiOnce() {
   const buttons = [$('scan-wifi-once'), $('map-scan-wifi')];
   buttons.forEach(button => {button.disabled=true; button.dataset.oldText=button.textContent; button.textContent='Scanning…';});
   $('map-survey-status').textContent = 'Requesting Linux Wi-Fi scan…';
+  // Capture the observer position at scan request time only; a later browser
+  // location may be elsewhere and must not be attached retroactively.
+  const atRequest = state.browserLocation;
+  const ageAtRequest = atRequest ? (Date.now() - atRequest.capturedAt) / 1000 : Infinity;
+  const atScanPosition = atRequest && ageAtRequest >= 0 && ageAtRequest <= 60 ?
+    {latitude:atRequest.lat, longitude:atRequest.lon, accuracy_m:atRequest.accuracy,
+     fix_age_seconds:Math.round(ageAtRequest * 10) / 10} : null;
   try {
     state.wifiScan = await api('/api/wifi/scan', 'POST', {});
-    renderWifiScan(); renderMapSurveyPanel();
+    state.wifiScan.observerAtRequest = atScanPosition;
+    renderWifiScan(); renderMapSurveyPanel(); updateCaptureButtons();
     $('map-survey-status').textContent = `${state.wifiScan.records.length} access point(s) returned. Results may be cached; no source coordinates, RSSI dBm, or automatic map pins.`;
     flash(`Received ${state.wifiScan.records.length} Linux Wi-Fi entries. Freshness unverified; nothing stored or mapped.`);
   } catch (error) {
@@ -567,6 +596,43 @@ for (const id of ['map-wifi-readings', 'live-wifi-results']) {
     if (button) saveWifiReading(button.dataset.saveWifi, button);
   });
 }
+
+
+function updateCaptureButtons() {
+  for (const id of ['map-save-scan', 'scanner-save-scan']) $(id).disabled = !state.wifiScan?.scan_id;
+}
+function surveyLocationForCapture(attach) {
+  if (!attach) return null;
+  const position = state.wifiScan?.observerAtRequest;
+  if (!position) throw Error('No recent browser location existed when this scan was requested. Use My location and run a NEW Wi-Fi scan, or save without coordinates.');
+  return position;
+}
+async function saveScanSnapshot() {
+  const scan = state.wifiScan;
+  if (!scan?.scan_id) return flash('Run a new Linux Wi-Fi scan before saving a snapshot.', true);
+  const attach = $('map-capture-location').checked;
+  return runAction(async () => {
+    const survey_location = surveyLocationForCapture(attach);
+    if (!confirm(`Save this real NetworkManager retrieval (${scan.records.length} returned access point(s))?${attach ? ' Browser-reported survey location will be attached, not an access-point location.' : ' No coordinates will be stored.'}`)) return;
+    const active = state.sessions.find(x => x.status === 'ACTIVE');
+    const data = await api('/api/sensors/networkmanager-wifi/save-scan', 'POST', {
+      scan_id: scan.scan_id, session_id: active?.id || null, survey_location,
+    });
+    // A receipt can be captured only once. Leave the observed values visible but disable saves.
+    scan.scan_id = null;
+    renderWifiScan(); renderMapSurveyPanel(); updateCaptureButtons();
+    flash(`Saved snapshot #${data.id}: ${data.saved_count} Wi-Fi result(s) · ${data.location_source === 'BROWSER_REPORTED' ? 'browser survey position' : 'no position'} · cached results possible.`);
+    await refresh();
+  });
+}
+for (const checkbox of ['map-capture-location', 'scanner-capture-location']) {
+  $(checkbox).addEventListener('change', event => {
+    $('map-capture-location').checked = event.target.checked;
+    $('scanner-capture-location').checked = event.target.checked;
+  });
+}
+$('map-save-scan').addEventListener('click', saveScanSnapshot);
+$('scanner-save-scan').addEventListener('click', saveScanSnapshot);
 
 $('scan-wifi-once').addEventListener('click', scanWifiOnce);
 $('map-scan-wifi').addEventListener('click', scanWifiOnce);

@@ -45,6 +45,7 @@ class ScanReceipt:
     created_monotonic: float
     result: dict
     saved_bssids: set[str] = field(default_factory=set)
+    saved_all: bool = False
 
 
 class ScanReceiptStore:
@@ -62,6 +63,38 @@ class ScanReceiptStore:
             self._current = scan
         return {**result, 'scan_id': scan.scan_id, 'expires_in_seconds': self.ttl_seconds}
 
+    def _check(self, scan_id):
+        scan = self._current
+        if not isinstance(scan_id, str) or not scan or not secrets.compare_digest(scan.scan_id, scan_id):
+            raise ValueError('Scan receipt unknown. Run a fresh Wi-Fi scan.')
+        if time.monotonic() - scan.created_monotonic > self.ttl_seconds:
+            self._current = None
+            raise ValueError('Scan receipt expired. Run a fresh Wi-Fi scan.')
+        return scan
+
+    def summary(self) -> dict:
+        with self._lock:
+            scan = self._current
+            if not scan:
+                return {'last_scan': 'never', 'result_count': None, 'receipt_valid': False}
+            age = max(0.0, time.monotonic() - scan.created_monotonic)
+            return {'last_scan': scan.result.get('retrieved_at_utc'),
+                    'result_count': len(scan.result.get('records') or []),
+                    'receipt_valid': age <= self.ttl_seconds and not scan.saved_all,
+                    'age_seconds': round(age), 'freshness': scan.result.get('freshness', 'UNVERIFIED')}
+
+    def take_all(self, scan_id: str, save):
+        """One atomic save callback for the complete verified retrieval, including zero results."""
+        with self._lock:
+            scan = self._check(scan_id)
+            if scan.saved_all:
+                raise ValueError('This Wi-Fi scan was already saved as a snapshot.')
+            pending = [row for row in scan.result['records'] if row['bssid'] not in scan.saved_bssids]
+            response = save(scan.result, pending)
+            scan.saved_bssids.update(row['bssid'] for row in pending)
+            scan.saved_all = True
+            return response
+
     def take(self, scan_id: str, bssid: str, save):
         """Supply only a result from the actual scan to the trusted storage callback.
 
@@ -69,12 +102,9 @@ class ScanReceiptStore:
         the same BSSID; failures do not consume the receipt.
         """
         with self._lock:
-            scan = self._current
-            if not isinstance(scan_id, str) or not scan or not secrets.compare_digest(scan.scan_id, scan_id):
-                raise ValueError('Scan receipt unknown. Run a fresh Wi-Fi scan.')
-            if time.monotonic() - scan.created_monotonic > self.ttl_seconds:
-                self._current = None
-                raise ValueError('Scan receipt expired. Run a fresh Wi-Fi scan.')
+            scan = self._check(scan_id)
+            if scan.saved_all:
+                raise ValueError('This Wi-Fi scan was already saved as a snapshot.')
             if not isinstance(bssid, str):
                 raise ValueError('Invalid BSSID')
             if bssid in scan.saved_bssids:
@@ -91,14 +121,28 @@ def browser_survey_location(data) -> tuple[float | None, float | None, float | N
     """Client-reported survey coordinate, not independently verified GNSS data."""
     if data is None:
         return None, None, None
-    if not isinstance(data, dict) or set(data) - {'latitude', 'longitude', 'accuracy_m'}:
+    if not isinstance(data, dict) or set(data) - {'latitude', 'longitude', 'accuracy_m', 'fix_age_seconds'}:
         raise ValueError('Unexpected browser survey location format')
     def f(name, min_value, max_value):
         value = data.get(name)
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not min_value <= value <= max_value:
             raise ValueError('Invalid browser survey ' + name)
         return float(value)
+    age = data.get('fix_age_seconds')
+    if age is not None:
+        f('fix_age_seconds', 0, 60)
     return f('latitude', -90, 90), f('longitude', -180, 180), f('accuracy_m', 0, 1000000)
+
+
+def browser_location_details(data) -> dict:
+    lat, lon, accuracy = browser_survey_location(data)
+    if lat is None:
+        return {'location_source': 'NONE', 'latitude': None, 'longitude': None,
+                'accuracy_m': None, 'fix_age_seconds': None}
+    if data.get('fix_age_seconds') is None:
+        raise ValueError('Survey location requires a browser fix age')
+    return {'location_source': 'BROWSER_REPORTED', 'latitude': lat, 'longitude': lon,
+            'accuracy_m': accuracy, 'fix_age_seconds': float(data['fix_age_seconds'])}
 
 
 def verified_wifi_observation(scan: dict, network: dict, survey_location, session_id):
@@ -131,5 +175,5 @@ def verified_wifi_observation(scan: dict, network: dict, survey_location, sessio
         'source_device': f'Linux NetworkManager / {interface}',
         'frequency_mhz': frequency, 'rssi_dbm': None,
         'latitude': lat, 'longitude': lon, 'accuracy_m': accuracy,
-        'session_id': session_id,
+        'session_id': session_id, 'signal_quality_percent': quality,
     }, timestamp

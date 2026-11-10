@@ -1,4 +1,4 @@
-# OpenRF v0.2.5 — Non-scrolling Handheld Navigation
+# OpenRF v0.2.6 — Survey Snapshots & Sensor Diagnostics
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.5.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.6.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.5 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.6 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,17 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.6 — Saved surveys, measurement quality and readiness
+
+- **Save scan snapshot:** After requesting a real one-shot Linux Wi-Fi scan, choose **Save scan snapshot** on the Survey Map or Analysis screen. This saves the verified server-returned results **as one atomic capture**, including a zero-result retrieval. Individual AP saves from v0.2.5 still work. Scanning is never automatic or continuous.
+- **Optional survey coordinates:** Check **Attach observer position from scan time** before saving. The browser must already have returned a location fix **within 60 seconds before scan request**. If none was recent, save without coordinates or use **My location** and initiate a new scan. A coordinate is *where the browser reported the receiver*, never the AP/transmitter location, and is not independently verified as GNSS.
+- **Capture history:** Investigations now list saved Wi-Fi snapshots and show how many observations were attached to each session. Snapshots include source adapter, UTC retrieval time, freshness warnings, quality units, observer coordinate origin, optional fix age, and returned/saved counts. No-result scans are listed as events, never as detected signals.
+- **Signal analysis:** The chart can show repeated measured NetworkManager signal-quality percentages separately from manually entered **RSSI dBm**. These quantities are never merged or interpreted as distance. Cached AP results may still occur. CSV/GeoJSON include capture IDs, percent quality, and location provenance.
+- **Diagnostics:** Hardware now shows a read-only readiness/last-retrieval report. Visible interfaces are not evidence of an attached working SDR/BLE/GNSS sensor.
+- **Database migration:** Automatic additive SQLite schema upgrade preserves prior observations and sessions. Back up the private database if it contains valuable records. The release was tested on SQLite fixtures but not yet on your WSL data.
+
+On the WSL machine with only `eth0`, **Save scan snapshot remains disabled until a real Linux-visible Wi-Fi interface returns an actual scan**. There are no fabricated test readings; the optional existing DEMO set remains separately marked.
 
 ## v0.2.5 — Touchscreen map controls and sensor connections
 
@@ -52,11 +63,11 @@ Hardware planning: see **[docs/HARDWARE_SHOPPING_LIST.md](docs/HARDWARE_SHOPPING
 - **Dashboard:** Real counts from locally stored records and explicit environment status. No invented scan results.
 - **Map:** Automatically requests browser geolocation on first visit (requires explicit permission), adds separate location marker and accuracy-aware street-level zoom; never saves browser position. MapLibre 5 with OpenFreeMap street/dark vector maps when the resources load, or an independent built-in raster map if they do not. The fallback attempts OpenStreetMap raster street tiles online but can show manual survey pins and an interactive coordinate grid completely offline. The fallback is not an offline street basemap. Map clicks create manual observations at the survey coordinate.
 - **Discoveries:** Save/delete manually entered signal or infrastructure observations, with coordinates, source label, timestamps, optional RSSI/frequency/identifier, and provenance. Coordinates always refer to survey location.
-- **Investigations:** User-started local sessions; manually entered observations can be linked to an active session. Start/stop/review history; a prior ACTIVE session is marked INTERRUPTED after a process restart. No background capture or travel tracking.
-- **Native Linux Wi-Fi survey (new):** On-demand `nmcli` access-point list if a Linux Wi-Fi interface is visible. No background scans; NetworkManager may use active probe frames and may return cached entries. SSID/BSSID, channel, frequency, security, and signal **quality %** are shown temporarily. Results are not GPS positions or RSSI dBm. Individual returned access points may now be explicitly saved to local records with their scan retrieval timestamp and source. See `docs/NATIVE_WIFI_DRIVER.md`. WSL with no Linux radio returns a clear unavailable error.
-- **Signal analysis:** Inspect saved BLE/Wi-Fi/RF/cellular-labeled observations and plot RSSI history by recorded identifier. Manually entered RSSI values remain labeled `MANUAL`; they are not a true measurement from a connected device.
+- **Investigations:** User-started local sessions; manually entered observations and explicitly saved Wi-Fi snapshots can be linked to an active session. Start/stop/review history; a prior ACTIVE session is marked INTERRUPTED after a process restart. No background capture or travel tracking.
+- **Native Linux Wi-Fi survey:** On-demand `nmcli` access-point list if a Linux Wi-Fi interface is visible. No background scans; NetworkManager may use active probe frames and may return cached entries. SSID/BSSID, channel, frequency, security, and signal **quality %** are shown temporarily. Results are not GPS positions or RSSI dBm. Individual access points or an entire short-lived verified scan may be explicitly saved, with a UTC retrieval timestamp, source, and freshness caveat. Only captured one-shot snapshots preserve the separate quality-percent measurement column and group ID. See `docs/NATIVE_WIFI_DRIVER.md`. WSL with no Linux radio returns a clear unavailable error.
+- **Signal analysis:** Inspect saved BLE/Wi-Fi/RF/cellular-labeled observations and plot either RSSI dBm or NetworkManager quality-percent history by recorded identifier (never mix units). Manually entered RSSI values remain labeled `MANUAL`; they are not a true measurement from a connected device.
 - **Hardware:** Read-only visibility of real Linux USB descriptors, USB serial ports, network and Bluetooth interfaces, plus unconnected/planned sensor integrations (SDR, BLE, Wi-Fi, GNSS, CC1101 and external cellular modem). No driver availability is falsely inferred from an interface name.
-- **Exports:** Local CSV and GeoJSON with source and observer-location semantics. CSV escapes spreadsheet-formula injection. Nothing is uploaded automatically.
+- **Exports:** Local CSV and GeoJSON with source and observer-location semantics, including capture grouping and Wi-Fi quality-percent metadata. CSV escapes spreadsheet-formula injection. Nothing is uploaded automatically.
 - **Optional demo data:** A user-triggered synthetic sample set marked DEMO everywhere, hidden from map/discoveries by default; remove via Dashboard.
 
 ## Test the app before buying hardware

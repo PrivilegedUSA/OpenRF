@@ -60,3 +60,14 @@ assert(src.includes('state.pendingLocationView') && src.includes('state.map.jump
 assert(src.includes('saveWifiReading(') && src.includes('/api/sensors/networkmanager-wifi/save'), 'verified scan result saves via server receipt');
 assert(html.includes('id="sensor-registry-list"'), 'sensor registry is visible');
 console.log('v0.2.5 map control, GPS and sensor pipeline checks passed.');
+
+// v0.2.6: scan-time survey position, explicit snapshot recording and quality units.
+assert(html.includes('id="map-save-scan"') && html.includes('id="scanner-save-scan"'), 'explicit save-snapshot actions on Map and Analysis');
+assert(html.includes('id="map-capture-location"') && html.includes('id="scanner-capture-location"'), 'optional scan-time browser location opt-in');
+assert(html.includes('id="captures-list"') && html.includes('id="sensor-diagnostics"'), 'session capture history and sensor diagnostics');
+assert(src.includes('state.wifiScan.observerAtRequest = atScanPosition'), 'browser location is latched at time of scan request');
+assert(src.includes('async function saveScanSnapshot()') && src.includes('/api/sensors/networkmanager-wifi/save-scan'), 'batch save must use server-owned scan receipt');
+assert(src.includes('scan.scan_id = null'), 'frontend must disable replaying the saved receipt');
+assert(src.includes('signal_quality_percent') && src.includes("const unit = rssi.length ? 'dBm' : '% NetworkManager quality'"), 'plot only same-unit measurements');
+assert(css.includes('.capture-actions') && css.includes('.capture-actions .btn{width:100%;}'), 'touchscreen snapshot controls avoid horizontal overflow');
+console.log('v0.2.6 survey snapshot, quality units, and small-screen contract checks passed.');

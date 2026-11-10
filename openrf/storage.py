@@ -127,9 +127,35 @@ class Repository:
                     observed_at TEXT NOT NULL,
                     session_id INTEGER REFERENCES sessions(id) ON DELETE SET NULL
                 );
+                CREATE TABLE IF NOT EXISTS survey_captures (
+                    id INTEGER PRIMARY KEY,
+                    sensor_id TEXT NOT NULL,
+                    interface TEXT NOT NULL,
+                    retrieved_at_utc TEXT NOT NULL,
+                    saved_at_utc TEXT NOT NULL,
+                    freshness TEXT NOT NULL,
+                    result_count INTEGER NOT NULL,
+                    saved_count INTEGER NOT NULL,
+                    session_id INTEGER REFERENCES sessions(id) ON DELETE SET NULL,
+                    location_source TEXT NOT NULL DEFAULT 'NONE',
+                    latitude REAL, longitude REAL, accuracy_m REAL,
+                    fix_age_seconds REAL
+                );
+                CREATE INDEX IF NOT EXISTS idx_captures_time ON survey_captures(id DESC);
                 CREATE INDEX IF NOT EXISTS idx_observations_time ON observations(observed_at);
                 CREATE INDEX IF NOT EXISTS idx_observations_identifier ON observations(identifier);
             """)
+            # Additive migration from v0.2.5; never drop or rebuild saved observations.
+            columns = {row['name'] for row in db.execute('PRAGMA table_info(observations)')}
+            for name, ddl in (
+                ('signal_quality_percent', 'REAL'),
+                ('survey_capture_id', 'INTEGER REFERENCES survey_captures(id) ON DELETE SET NULL'),
+                ('location_source', "TEXT NOT NULL DEFAULT 'UNSPECIFIED'"),
+                ('fix_age_seconds', 'REAL'),
+            ):
+                if name not in columns:
+                    db.execute(f'ALTER TABLE observations ADD COLUMN {name} {ddl}')
+            db.execute('CREATE INDEX IF NOT EXISTS idx_observations_capture ON observations(survey_capture_id)')
             # A crashed server does not silently continue a previously active survey.
             db.execute("UPDATE sessions SET status='INTERRUPTED' WHERE status='ACTIVE'")
 
@@ -168,10 +194,86 @@ class Repository:
         with self._lock, self._connect() as db:
             return db.execute("DELETE FROM observations WHERE id=?", (record_id,)).rowcount > 0
 
+    def captures(self) -> list[dict]:
+        """Real, explicitly saved survey snapshots (including zero-result scans)."""
+        with self._lock, self._connect() as db:
+            return [dict(row) for row in db.execute(
+                'SELECT * FROM survey_captures ORDER BY id DESC LIMIT 500')]
+
+    def store_wifi_capture(self, scan: dict, validated_records: list[tuple[dict, str]],
+                           session_id: int | None, survey_details: dict) -> dict:
+        """Atomically record a server-verified scan retrieval. No ambient/auto capture.
+
+        Caller owns a short-lived, server-issued receipt. A zero-result capture is
+        still a real retrieval event, not a fabricated signal observation.
+        """
+        if scan.get('source') != 'NETWORKMANAGER_WIFI' or not isinstance(scan.get('records'), list):
+            raise ValueError('Expected a verified NetworkManager Wi-Fi scan')
+        if len(scan['records']) > 256 or len(validated_records) > 256:
+            raise ValueError('Too many Wi-Fi records in capture')
+        timestamp = scan.get('retrieved_at_utc')
+        try:
+            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            if dt.tzinfo is None:
+                raise ValueError()
+            timestamp = dt.astimezone(timezone.utc).isoformat(timespec='seconds')
+        except (TypeError, ValueError, AttributeError) as exc:
+            raise ValueError('Capture needs a UTC scan retrieval time') from exc
+        if session_id is not None and (type(session_id) is not int or session_id < 1):
+            raise ValueError('Invalid session ID')
+        if not isinstance(survey_details, dict):
+            raise ValueError('Survey details missing')
+        normalized = []
+        for record, read_time in validated_records:
+            entry = normalize_observation(record)
+            if entry['kind'] != 'WIFI' or entry['source'] != 'SENSOR' or entry['rssi_dbm'] is not None:
+                raise ValueError('Unexpected sensor measurements in Wi-Fi snapshot')
+            if read_time != timestamp:
+                raise ValueError('Inconsistent scan timestamp')
+            quality = record.get('signal_quality_percent')
+            if type(quality) is not int or not 0 <= quality <= 100:
+                raise ValueError('NetworkManager quality must be a percentage')
+            normalized.append((entry, quality))
+        lat, lon, accuracy = (survey_details.get('latitude'), survey_details.get('longitude'), survey_details.get('accuracy_m'))
+        origin = survey_details.get('location_source', 'NONE')
+        age = survey_details.get('fix_age_seconds')
+        if origin not in {'NONE', 'BROWSER_REPORTED'} or (origin == 'NONE') != (lat is None):
+            raise ValueError('Invalid survey coordinate provenance')
+        if origin == 'BROWSER_REPORTED':
+            _optional_float(lat, 'latitude', -90, 90)
+            _optional_float(lon, 'longitude', -180, 180)
+            _optional_float(accuracy, 'accuracy_m', 0, 1000000)
+            if type(age) not in (int, float) or not math.isfinite(age) or not 0 <= age <= 60:
+                raise ValueError('Browser location is too old for a survey')
+        with self._lock, self._connect() as db:
+            if session_id is not None:
+                session = db.execute('SELECT status FROM sessions WHERE id=?', (session_id,)).fetchone()
+                if not session or session['status'] != 'ACTIVE':
+                    raise ValueError('Session is missing or no longer active')
+            capture_id = db.execute("""
+                INSERT INTO survey_captures(sensor_id,interface,retrieved_at_utc,saved_at_utc,freshness,
+                result_count,saved_count,session_id,location_source,latitude,longitude,accuracy_m,fix_age_seconds)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                ('networkmanager-wifi', str(scan.get('interface') or 'unknown')[:32], timestamp,
+                 now_iso(), str(scan.get('freshness') or 'UNVERIFIED')[:160],
+                 len(scan['records']), len(normalized), session_id, origin, lat, lon, accuracy, age)
+            ).lastrowid
+            for item, quality in normalized:
+                item['session_id'] = session_id
+                item['survey_capture_id'] = capture_id
+                item['signal_quality_percent'] = quality
+                item['location_source'] = origin
+                item['fix_age_seconds'] = age
+                cols = list(item) + ['observed_at']
+                db.execute(f"INSERT INTO observations ({', '.join(cols)}) VALUES ({', '.join(['?']*len(cols))})",
+                           [*item.values(), timestamp])
+        return next(c for c in self.captures() if c['id'] == capture_id)
+
     def sessions(self) -> list[dict]:
         with self._lock, self._connect() as db:
             return [dict(r) for r in db.execute("""
-                SELECT sessions.*, COUNT(observations.id) AS observation_count
+                SELECT sessions.*, COUNT(observations.id) AS observation_count,
+                (SELECT COUNT(*) FROM survey_captures c WHERE c.session_id=sessions.id) AS capture_count
                 FROM sessions LEFT JOIN observations ON observations.session_id=sessions.id
                 GROUP BY sessions.id ORDER BY sessions.id DESC
             """)]
@@ -195,7 +297,9 @@ class Repository:
             demo = db.execute("SELECT COUNT(*) FROM observations WHERE source='DEMO'").fetchone()[0]
             position_count = db.execute("SELECT COUNT(*) FROM observations WHERE latitude IS NOT NULL").fetchone()[0]
             sessions = db.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
-            return {"observations": total, "demo": demo, "mapped": position_count, "sessions": sessions}
+            captures = db.execute('SELECT COUNT(*) FROM survey_captures').fetchone()[0]
+            return {"observations": total, "demo": demo, "mapped": position_count, "sessions": sessions,
+                    "captures": captures}
 
     def load_demo(self) -> int:
         # Clearly synthetic, for UI testing only; intentionally not claimed as radio measurements.
@@ -236,7 +340,8 @@ def to_geojson(items: list[dict]) -> dict:
 
 def to_csv(items: list[dict]) -> str:
     out = io.StringIO(newline="")
-    cols = ["id", "kind", "source", "label", "identifier", "notes", "source_device", "frequency_mhz", "rssi_dbm", "latitude", "longitude", "accuracy_m", "observed_at", "session_id", "coordinate_meaning"]
+    cols = ["id", "kind", "source", "label", "identifier", "notes", "source_device", "frequency_mhz", "rssi_dbm", "latitude", "longitude", "accuracy_m", "observed_at", "session_id", "signal_quality_percent", "survey_capture_id", "location_source",
+            "fix_age_seconds", "coordinate_meaning"]
     writer = csv.DictWriter(out, fieldnames=cols, extrasaction="ignore")
     writer.writeheader()
     for item in items:

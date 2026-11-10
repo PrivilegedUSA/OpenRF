@@ -16,7 +16,7 @@ from . import __version__
 from .hardware import status_report
 from .drivers.wifi_nmcli import scan_once, WifiScanUnavailable
 from .storage import Repository, to_csv, to_geojson
-from .sensor_connections import connections, ScanReceiptStore, verified_wifi_observation
+from .sensor_connections import connections, ScanReceiptStore, verified_wifi_observation, browser_location_details
 
 STATIC_DIR = Path(__file__).resolve().parent / 'static'
 DEFAULT_DB = Path.home() / '.local' / 'share' / 'openrf' / 'openrf.sqlite3'
@@ -83,12 +83,25 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, {'observations': self.repo.list_observations()})
         if path == '/api/sessions':
             return self._json(200, {'sessions': self.repo.sessions()})
+        if path == '/api/captures':
+            return self._json(200, {'captures': self.repo.captures()})
         if path == '/api/stats':
             return self._json(200, self.repo.stats())
         if path == '/api/hardware':
             return self._json(200, status_report())
         if path == '/api/sensors':
-            return self._json(200, {'schema_version': 1, 'sensors': connections(status_report())})
+            return self._json(200, {'schema_version': 2, 'sensors': connections(status_report()),
+                                   'wifi_last_scan': self.server.scan_receipts.summary()})
+        if path == '/api/sensors/diagnostics':
+            hardware = status_report()
+            return self._json(200, {
+                'collected_at_utc': hardware['inventory_collected_utc'],
+                'wifi': {'prerequisites': hardware['wifi_one_shot'],
+                         'last_retrieval': self.server.scan_receipts.summary(),
+                         'explanation': 'One-shot NetworkManager retrieval, possibly cached; never equivalent to passive packet capture'},
+                'receiver_status': 'No SDR, BLE, GPS, or cellular acquisition driver is active.',
+                'hardware_is_measurement': False,
+            })
         if path == '/api/export.geojson':
             raw = json.dumps(to_geojson(self.repo.list_observations()), ensure_ascii=False, indent=2).encode('utf-8')
             return self._send(200, raw, 'application/geo+json; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.geojson"'})
@@ -141,6 +154,15 @@ class Handler(BaseHTTPRequestHandler):
                         return self._error(409, str(exc))
                 finally:
                     self.server.wifi_scan_lock.release()
+            if path == '/api/sensors/networkmanager-wifi/save-scan':
+                # Only server-retrieved network records are accepted; browser does
+                # not supply signal values, device identifiers, or capture timestamps.
+                def save_capture(scan, rows):
+                    details = browser_location_details(body.get('survey_location'))
+                    checked = [verified_wifi_observation(scan, row,
+                               body.get('survey_location'), body.get('session_id')) for row in rows]
+                    return self.repo.store_wifi_capture(scan, checked, body.get('session_id'), details)
+                return self._json(201, self.server.scan_receipts.take_all(body.get('scan_id'), save_capture))
             if path == '/api/sensors/networkmanager-wifi/save':
                 # The client supplies only a reference to a server-observed AP;
                 # it cannot submit arbitrary measurements or SENSOR provenance.
