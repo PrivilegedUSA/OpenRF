@@ -12,6 +12,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Protocol
+from .drivers.wifi_nmcli import linux_wifi_interfaces
 
 
 @dataclass(frozen=True)
@@ -107,14 +108,15 @@ def status_report() -> dict:
     wifi_device = any(n['wireless'] for n in network)
     bluez = shutil.which('bluetoothctl') is not None
     nmcli = shutil.which('nmcli') is not None
+    wifi_scan_available = wifi_device and nmcli
 
     capabilities = [
         SensorCapability('wifi', 'Wi-Fi investigation',
             'detected_unverified' if wifi_device else ('unavailable' if wsl else 'not_connected'),
-            'A Linux wireless interface is visible, but OpenRF does not yet have a capture driver.' if wifi_device else
+            'A Linux Wi-Fi interface is visible. One-shot NetworkManager surveys can be requested if nmcli is installed; passive frame capture is not implemented.' if wifi_device else
             ('WSL does not expose the Windows built-in Wi-Fi adapter as a Linux scan/monitor interface.' if wsl else
              'No Linux wireless interface is visible to this process.'),
-            'Compatible Linux Wi-Fi adapter, driver, and future OpenRF sensor plugin'),
+            'For one-shot surveys: a managed Linux Wi-Fi interface and NetworkManager nmcli; raw frame analysis needs a future driver'),
         SensorCapability('ble', 'Bluetooth LE',
             'detected_unverified' if bluetooth_adapters else ('unavailable' if wsl else 'not_connected'),
             'A Bluetooth controller is visible; BLE scanning is not implemented yet.' if bluetooth_adapters else
@@ -150,6 +152,9 @@ def status_report() -> dict:
             'hackrf_info': shutil.which('hackrf_info') is not None,
             'gpsd': shutil.which('gpsd') is not None,
         },
+        'wifi_one_shot': {'possible': bool(wifi_scan_available), 'interface': linux_wifi_interfaces()[0] if wifi_scan_available else None,
+                          'reason': ('Linux Wi-Fi interface and nmcli detected; scan permissions and results unverified' if wifi_scan_available
+                                     else ('No Linux Wi-Fi interface visible' if not wifi_device else 'NetworkManager nmcli missing'))},
         'capabilities': [asdict(c) for c in capabilities],
-        'scan_status': 'No Linux RF scanner backend active. Inventory is read-only; no measurements are generated.',
+        'scan_status': 'No continuous RF capture is active. Explicit one-shot Wi-Fi survey available only on supported Linux hosts.',
     }

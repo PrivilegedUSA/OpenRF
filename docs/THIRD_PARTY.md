@@ -8,3 +8,6 @@
 - Archived Android libraries carry their own licensing requirements (see `legacy/android-v0.1.6/docs/THIRD_PARTY.md`).
 
 The standalone application's final open-source license has **not** yet been chosen.
+
+- NetworkManager `nmcli`: optional **system-provided** Linux command-line utility; no Python package dependency. Available only on compatible installed Linux distributions, subject to NetworkManager licensing/packaging. Consult distribution terms.
+- Browser Geolocation API: native browser feature requiring permission; no third-party location service is bundled.

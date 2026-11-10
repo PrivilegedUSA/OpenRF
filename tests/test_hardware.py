@@ -34,7 +34,7 @@ class HardwareInventoryTests(unittest.TestCase):
     def test_inventory_never_reports_active_rf_scan(self):
         report = status_report()
         self.assertFalse(any(cap['status'] == 'ready' for cap in report['capabilities']))
-        self.assertIn('No Linux RF scanner backend active', report['scan_status'])
+        self.assertIn('No continuous RF capture is active', report['scan_status'])
         self.assertIn('usb_devices', report)
         self.assertIn('network_details', report)
         self.assertIn('inventory_collected_utc', report)

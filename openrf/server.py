@@ -5,6 +5,8 @@ import argparse
 import json
 import logging
 import os
+import threading
+import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -12,6 +14,7 @@ from urllib.parse import urlparse
 
 from . import __version__
 from .hardware import status_report
+from .drivers.wifi_nmcli import scan_once, WifiScanUnavailable
 from .storage import Repository, to_csv, to_geojson
 
 STATIC_DIR = Path(__file__).resolve().parent / 'static'
@@ -120,6 +123,21 @@ class Handler(BaseHTTPRequestHandler):
             if path.startswith('/api/sessions/') and path.endswith('/stop'):
                 session_id = int(path.split('/')[3])
                 return self._json(200, {'stopped': self.repo.stop_session(session_id)})
+            if path == '/api/wifi/scan':
+                # Explicit foreground scan only. No background process or sensor data storage.
+                if not self.server.wifi_scan_lock.acquire(blocking=False):
+                    return self._error(409, 'A Wi-Fi scan is already in progress.')
+                try:
+                    now = time.monotonic()
+                    if now - self.server.wifi_scan_last < 15:
+                        return self._error(429, 'Wait at least 15 seconds before requesting another scan.')
+                    self.server.wifi_scan_last = now
+                    try:
+                        return self._json(200, scan_once())
+                    except WifiScanUnavailable as exc:
+                        return self._error(409, str(exc))
+                finally:
+                    self.server.wifi_scan_lock.release()
             if path == '/api/demo/load':
                 return self._json(200, {'created': self.repo.load_demo()})
             if path == '/api/demo/clear':
@@ -147,6 +165,8 @@ class Handler(BaseHTTPRequestHandler):
 def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServer:
     server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
     server.repository = repository
+    server.wifi_scan_lock = threading.Lock()
+    server.wifi_scan_last = float("-inf")
     return server
 
 
@@ -161,7 +181,7 @@ def main():
     server = create_server(repo, port=args.port)
     print(f'OpenRF v{__version__} — http://localhost:{args.port}')
     print(f'Private database: {repo.path}')
-    print('Loopback only; press Ctrl+C to stop. Live RF scanning is not active in v0.2.1.', flush=True)
+    print('Loopback only; press Ctrl+C to stop. On-demand Linux Wi-Fi scans require a visible compatible adapter; continuous RF capture is inactive.', flush=True)
     try:
         server.serve_forever(poll_interval=0.25)
     except KeyboardInterrupt:

@@ -42,7 +42,7 @@ class ApiTests(unittest.TestCase):
     def test_health_static_hardware_and_exports(self):
         s,data=self.call('GET','/api/health')
         self.assertEqual(s,200)
-        self.assertEqual(data['version'],'0.2.1')
+        self.assertEqual(data['version'],'0.2.2')
         for path in ('/','/static/app.css','/static/app.js','/api/export.csv','/api/export.geojson'):
             status,_=self.call('GET',path)
             self.assertEqual(status,200,path)
@@ -71,6 +71,14 @@ class ApiTests(unittest.TestCase):
         self.assertTrue(response['stopped'])
         s,response=self.call('GET','/api/sessions')
         self.assertEqual(response['sessions'][0]['observation_count'],1)
+
+    def test_wifi_scan_without_interface_does_not_fake_readings(self):
+        from unittest.mock import patch
+        from openrf.drivers.wifi_nmcli import WifiScanUnavailable
+        with patch('openrf.server.scan_once', side_effect=WifiScanUnavailable('No Linux Wi-Fi interface is visible.')):
+            status, data = self.call('POST', '/api/wifi/scan', {})
+            self.assertEqual(status, 409)
+            self.assertIn('No Linux Wi-Fi', data['error'])
 
     def test_invalid_observation_rejected(self):
         status,data=self.call('POST','/api/observations',{'label':'invalid GPS','latitude':35})

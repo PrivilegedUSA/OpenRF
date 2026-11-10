@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, filterSession: null };
+const state = { observations: [], sessions: [], hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, filterSession: null, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -18,12 +18,12 @@ async function api(url, method = 'GET', body = null) {
 function flash(message, error = false) {
   const el = $('flash'); el.textContent = message; el.hidden = false; el.classList.toggle('error', error);
 }
-function showPage(page) {
+function showPage(page, options = {}) {
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.toggle('active', el.dataset.page === page));
   document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === `page-${page}`));
   const titles = {overview:'Field overview',map:'Survey map',scanner:'Signal analysis',discoveries:'Saved discoveries',sessions:'Investigations',hardware:'Hardware manager'};
   $('page-title').textContent = titles[page] || 'OpenRF'; $('page-crumb').textContent = page.toUpperCase();
-  if (page === 'map') { startMap(); setTimeout(() => { state.map?.resize(); state.rasterMap?.resize(); }, 80); }
+  if (page === 'map') { startMap(); if (options.autoLocate !== false) locateMap(false); setTimeout(() => { state.map?.resize(); state.rasterMap?.resize(); }, 80); }
   window.scrollTo(0, 0);
 }
 
@@ -39,6 +39,7 @@ async function refresh() {
   $('metric-sessions').textContent = stats.sessions;
   $('metric-demo').textContent = stats.demo;
   $('runtime-pill').textContent = hardware.environment;
+  $('scanner-connection-pill').textContent = hardware.wifi_one_shot?.possible ? 'ON-DEMAND WI-FI POSSIBLE' : 'NO LINUX WI-FI SCANNER';
   renderDiscoveries(); renderSessions(); renderHardware(); renderSignals(); updateMap();
 }
 
@@ -85,6 +86,9 @@ function renderHardware() {
   $('hardware-cards').innerHTML = hw.capabilities.map(c => `
     <div class="hardware-card"><div class="panel-title"><h3>${escapeHTML(c.title)}</h3><span class="pill ${c.status === 'ready'?'green':'amber'}">${escapeHTML(c.status.replaceAll('_',' '))}</span></div>
     <p>${escapeHTML(c.description)}</p><small>Requires: ${escapeHTML(c.requires)}</small></div>`).join('');
+  $('wifi-driver-status').textContent = hw.wifi_one_shot?.possible ?
+    `Adapter ${hw.wifi_one_shot.interface} and nmcli found. A user-started survey is possible; actual operation unverified.` :
+    `Not ready: ${hw.wifi_one_shot?.reason || 'No supported Linux interface'}. No WSL internal Wi-Fi passthrough.`;
   $('environment-info').textContent = [
     `Runtime: ${hw.environment}`, `Python: ${hw.python}`,
     `Inventory collected (UTC): ${hw.inventory_collected_utc || 'unknown'}`,
@@ -125,8 +129,22 @@ function renderSignals() {
   $('signal-select').value = grouped.has(current) ? current : '';
   const rows = signals.filter(o => o.source !== 'DEMO').slice(0, 100);
   $('scan-count').textContent = `${signals.length} recorded`;
-  $('signal-table').innerHTML = rows.length ? `<table class="data-table"><thead><tr><th>IDENTIFIER</th><th>KIND</th><th>RSSI</th><th>FREQUENCY</th><th>PROVENANCE</th><th>TIME</th></tr></thead><tbody>${rows.map(o=>`<tr><td>${escapeHTML(o.identifier || o.label)}</td><td>${escapeHTML(o.kind)}</td><td>${format(o.rssi_dbm, ' dBm')}</td><td>${format(o.frequency_mhz, ' MHz')}</td><td>${escapeHTML(o.source)}</td><td>${escapeHTML(stamp(o.observed_at))}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No non-demo RF readings stored. No live RF scanning available in this release.</div>';
+  renderWifiScan();
+  $('signal-table').innerHTML = rows.length ? `<table class="data-table"><thead><tr><th>IDENTIFIER</th><th>KIND</th><th>RSSI</th><th>FREQUENCY</th><th>PROVENANCE</th><th>TIME</th></tr></thead><tbody>${rows.map(o=>`<tr><td>${escapeHTML(o.identifier || o.label)}</td><td>${escapeHTML(o.kind)}</td><td>${format(o.rssi_dbm, ' dBm')}</td><td>${format(o.frequency_mhz, ' MHz')}</td><td>${escapeHTML(o.source)}</td><td>${escapeHTML(stamp(o.observed_at))}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No saved RF measurements yet. One-shot Wi-Fi results above are temporary and not stored automatically.</div>';
   drawHistory(grouped);
+}
+
+function renderWifiScan() {
+  const out = $('live-wifi-results');
+  if (!out) return;
+  const scan = state.wifiScan;
+  if (!scan) {
+    out.innerHTML = '<div class="empty">No one-shot Wi-Fi survey has been requested. Results are shown only when a real Linux interface responds.</div>';
+    return;
+  }
+  const entries = scan.records || [];
+  out.innerHTML = `<p class="tiny">${escapeHTML(scan.interface)} · Retrieved ${escapeHTML(stamp(scan.retrieved_at_utc))} · ${entries.length} access point(s). ${escapeHTML(scan.freshness)}. Quality % is not RSSI in dBm. No GPS or transmitter coordinates.</p>` +
+    (entries.length ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>SSID</th><th>BSSID</th><th>FREQ.</th><th>CHANNEL</th><th>QUALITY</th><th>SECURITY</th></tr></thead><tbody>${entries.map(n=>`<tr><td>${escapeHTML(n.ssid)}</td><td>${escapeHTML(n.bssid)}</td><td>${format(n.frequency_mhz,' MHz')}</td><td>${format(n.channel)}</td><td>${format(n.signal_quality_percent,'%')}</td><td>${escapeHTML(n.security)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">NetworkManager returned no access points. This does not prove the area has no wireless signals.</div>');
 }
 
 function drawHistory(grouped = null) {
@@ -153,14 +171,18 @@ function drawHistory(grouped = null) {
 // while retaining an offline coordinate grid and fully interactive survey pins.
 function startMap() {
   if (state.map || state.rasterMap) return;
-  if (!window.maplibregl) return startRasterMap('MapLibre is unavailable. Using the built-in raster/coordinate map.');
+  if (!window.maplibregl) { const view = state.preferredView; state.preferredView = null; return startRasterMap('MapLibre is unavailable. Using the built-in raster/coordinate map.', view); }
   const attempt = ++state.mapAttempt;
   try {
-    state.map = new maplibregl.Map({container:'map', style:`https://tiles.openfreemap.org/styles/${state.style}`, center:[-98.5,39.8], zoom:3.5, attributionControl:true});
+    const initial = state.preferredView || {center:[-98.5,39.8], zoom:4};
+    state.preferredView = null;
+    state.map = new maplibregl.Map({container:'map', style:`https://tiles.openfreemap.org/styles/${state.style}`, center:initial.center, zoom:initial.zoom, attributionControl:true});
     state.map.addControl(new maplibregl.NavigationControl(), 'top-right');
-    state.map.on('style.load', () => { state.mapReady = true; $('map-error').hidden = true; installMarkerLayer(); updateMap(); });
+    state.map.on('style.load', () => { state.mapReady = true; $('map-error').hidden = true; installMarkerLayer(); updateMap(); updateBrowserLocationMarker(); });
+    state.map.on('movestart', event => { if (event.originalEvent) state.mapNavigationEpoch++; });
     state.map.on('click', (evt) => {
       if (state.mapReady && state.map.getLayer('survey-points') && state.map.queryRenderedFeatures(evt.point,{layers:['survey-points']}).length) return;
+      if (state.browserLocation && Math.abs(evt.lngLat.lat-state.browserLocation.lat) < 0.0001 && Math.abs(evt.lngLat.lng-state.browserLocation.lon) < 0.0001) return;
       openObservation(evt.lngLat.lat.toFixed(6), evt.lngLat.lng.toFixed(6));
     });
     state.map.on('click', 'survey-points', (evt) => {
@@ -180,6 +202,50 @@ function startMap() {
     switchToRasterMap('Vector map startup failed; using built-in raster map.');
   }
 }
+function locationZoom(accuracyMeters) {
+  if (!Number.isFinite(accuracyMeters)) return 12;
+  return accuracyMeters <= 1000 ? 15 : accuracyMeters <= 5000 ? 13 : 11;
+}
+function updateBrowserLocationMarker() {
+  if (!state.browserLocation) return;
+  if (state.map && window.maplibregl?.Marker) {
+    if (!state.geoMarker) {
+      const marker = document.createElement('div'); marker.className = 'browser-location-marker';
+      marker.setAttribute('role','img'); marker.setAttribute('aria-label','Browser-reported location (not a transmitter)');
+      marker.title = 'Browser-reported device location; approximate, not a transmitter or saved survey point';
+      state.geoMarker = new maplibregl.Marker({element:marker,anchor:'center'})
+        .setLngLat([state.browserLocation.lon,state.browserLocation.lat]).addTo(state.map);
+    } else state.geoMarker.setLngLat([state.browserLocation.lon,state.browserLocation.lat]);
+  }
+  state.rasterMap?.render();
+}
+function locateMap(manual = false) {
+  if (!manual && state.autoLocateAttempted) return;
+  state.autoLocateAttempted = true;
+  const status = $('map-location-status');
+  if (!navigator.geolocation) {
+    status.textContent = 'Your browser does not offer geolocation. Use the map manually.';
+    return;
+  }
+  const epoch = state.mapNavigationEpoch;
+  status.textContent = 'Getting browser location (permission may be requested)…';
+  navigator.geolocation.getCurrentPosition(pos => {
+    const {latitude: lat, longitude: lon, accuracy} = pos.coords;
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat)>90 || Math.abs(lon)>180) {
+      status.textContent = 'Browser returned invalid coordinates. Map remains available manually.'; return;
+    }
+    state.browserLocation = {lat, lon, accuracy};
+    updateBrowserLocationMarker();
+    if (manual || epoch === state.mapNavigationEpoch) {
+      (state.map || state.rasterMap)?.flyTo({center:[lon,lat], zoom:locationZoom(accuracy)});
+    }
+    const accuracyText = Number.isFinite(accuracy) ? `±${Math.round(accuracy)} m` : 'unknown accuracy';
+    status.textContent = `Browser location: ${lat.toFixed(4)}, ${lon.toFixed(4)} (${accuracyText}). Not saved. Desktop/VPN locations can be approximate.`;
+  }, err => {
+    const detail = err.code === 1 ? 'permission denied' : err.code === 3 ? 'request timed out' : 'position unavailable';
+    status.textContent = `Browser location ${detail}; the map remains usable. Try “My browser location” or enter survey coordinates manually.`;
+  }, {timeout:15000, maximumAge:60000, enableHighAccuracy:false});
+}
 function installMarkerLayer() {
   if (!state.map || state.map.getSource('survey-data')) return;
   state.map.addSource('survey-data', {type:'geojson',data:{type:'FeatureCollection',features:[]}});
@@ -197,10 +263,12 @@ function updateMap() {
 }
 function switchToRasterMap(reason) {
   ++state.mapAttempt;
+  const camera = state.map ? {center:[state.map.getCenter().lng,state.map.getCenter().lat], zoom:state.map.getZoom()} : state.preferredView;
+  if (state.geoMarker) { try {state.geoMarker.remove();} catch(_) {} state.geoMarker = null; }
   if (state.map) { try { state.map.remove(); } catch(_) { /* partially initialized */ } }
   state.map = null;
   state.mapReady = false;
-  startRasterMap(reason);
+  startRasterMap(reason, camera);
 }
 function worldPixel(lon, lat, zoom) {
   const size = 256 * (2 ** zoom);
@@ -214,7 +282,7 @@ function pixelWorld(x, y, zoom) {
   const lat = (180 / Math.PI) * Math.atan(Math.sinh(Math.PI * (1 - 2 * y / size)));
   return [lon, lat];
 }
-function startRasterMap(reason) {
+function startRasterMap(reason, view = null) {
   if (state.rasterMap) return;
   $('map-error').hidden = true;
   const root = $('map');
@@ -234,7 +302,7 @@ function startRasterMap(reason) {
   const minus = document.createElement('button'); minus.type = 'button'; minus.textContent = '−'; minus.title = 'Zoom out';
   controls.append(plus, minus); surface.append(tiles, pins);
   root.replaceChildren(surface, notice, controls, attribution);
-  const raster = {center:[-98.5,39.8], zoom:4, tileNodes:new Map(), failedTiles:new Set(),
+  const raster = {center:view?.center || [-98.5,39.8], zoom:Math.max(2,Math.min(18,Math.round(view?.zoom || 4))), tileNodes:new Map(), failedTiles:new Set(),
     render() {
       const width = root.clientWidth, height = root.clientHeight;
       if (!width || !height) return;
@@ -280,6 +348,17 @@ function startRasterMap(reason) {
         pin.addEventListener('click',e=>{e.stopPropagation(); flash(`${o.label} — ${o.kind} · ${o.source} · OBSERVATION LOCATION, not transmitter location.`);});
         nextPins.append(pin);
       });
+      if (state.browserLocation) {
+        const p = worldPixel(state.browserLocation.lon,state.browserLocation.lat,raster.zoom);
+        const dx = ((p[0]-center[0]+size*1.5)%size)-size/2;
+        const dy = p[1]-center[1];
+        if (Math.abs(dx)<=width/2+15 && Math.abs(dy)<=height/2+15) {
+          const marker=document.createElement('div'); marker.className='browser-location-marker raster-location';
+          marker.style.left=`${width/2+dx}px`; marker.style.top=`${height/2+dy}px`;
+          marker.title='Browser-reported location (not a transmitter or survey observation)';
+          nextPins.append(marker);
+        }
+      }
       pins.replaceChildren(nextPins);
     },
     flyTo({center, zoom}) { raster.center = [...center]; if (Number.isFinite(zoom)) raster.zoom = Math.max(2,Math.min(18,Math.round(zoom))); raster.render(); },
@@ -287,8 +366,8 @@ function startRasterMap(reason) {
   };
   state.rasterMap = raster;
   $('map-mode').textContent = 'Try vector map';
-  plus.addEventListener('click',e=>{e.stopPropagation();raster.zoom=Math.min(18,raster.zoom+1);raster.render();});
-  minus.addEventListener('click',e=>{e.stopPropagation();raster.zoom=Math.max(2,raster.zoom-1);raster.render();});
+  plus.addEventListener('click',e=>{e.stopPropagation();state.mapNavigationEpoch++;raster.zoom=Math.min(18,raster.zoom+1);raster.render();});
+  minus.addEventListener('click',e=>{e.stopPropagation();state.mapNavigationEpoch++;raster.zoom=Math.max(2,raster.zoom-1);raster.render();});
   if (!root.dataset.rasterBound) {
     root.dataset.rasterBound = 'true';
     let start = null;
@@ -302,6 +381,7 @@ function startRasterMap(reason) {
       const dx=e.clientX-start.x, dy=e.clientY-start.y;
       if (Math.abs(dx)+Math.abs(dy)>6) start.moved=true;
       if (start.moved) {
+        state.mapNavigationEpoch++;
         const from=worldPixel(start.center[0],start.center[1],state.rasterMap.zoom);
         state.rasterMap.center=pixelWorld(from[0]-dx,from[1]-dy,state.rasterMap.zoom);
         state.rasterMap.render();
@@ -319,7 +399,7 @@ function startRasterMap(reason) {
     root.addEventListener('pointercancel',()=>{start=null;});
     root.addEventListener('wheel',e=>{
       if (!state.rasterMap) return;
-      e.preventDefault(); state.rasterMap.zoom=Math.max(2,Math.min(18,state.rasterMap.zoom+(e.deltaY<0?1:-1)));
+      e.preventDefault(); state.mapNavigationEpoch++; state.rasterMap.zoom=Math.max(2,Math.min(18,state.rasterMap.zoom+(e.deltaY<0?1:-1)));
       state.rasterMap.render();
     },{passive:false});
   }
@@ -327,7 +407,7 @@ function startRasterMap(reason) {
 }
 function zoomToRecord(id) {
   const item = state.observations.find(o=>o.id===id); if (!item || item.latitude === null) return;
-  showPage('map'); setTimeout(()=> (state.map || state.rasterMap)?.flyTo({center:[item.longitude,item.latitude],zoom:15}),100);
+  showPage('map', {autoLocate:false}); setTimeout(()=> (state.map || state.rasterMap)?.flyTo({center:[item.longitude,item.latitude],zoom:15}),100);
 }
 
 async function runAction(fn, fallback='Could not complete operation') {
@@ -341,14 +421,25 @@ $('manual-entry').addEventListener('click',()=>openObservation());
 $('add-discovery').addEventListener('click',()=>openObservation());
 $('new-session').addEventListener('click',()=>$('session-dialog').showModal());
 $('show-demo-map').addEventListener('change',e => {state.showDemo = e.target.checked;updateMap();});
-$('map-style').addEventListener('click',()=>{if(!state.map)return;state.style = state.style==='liberty'?'dark':'liberty';state.mapReady=false;state.map.setStyle(`https://tiles.openfreemap.org/styles/${state.style}`);$('map-style').textContent=state.style==='dark'?'Street map':'Dark map';});
-$('map-geolocate').addEventListener('click',()=>{
-  if (!navigator.geolocation) return flash('Your browser does not provide geolocation.',true);
-  navigator.geolocation.getCurrentPosition(pos=>{
-    (state.map || state.rasterMap)?.flyTo({center:[pos.coords.longitude,pos.coords.latitude],zoom:13});
-    flash(`Browser-reported location shown (±${Math.round(pos.coords.accuracy)} m). Not stored.`);
-  },()=>flash('Location unavailable or permission denied. You can pan the map manually.',true),{timeout:15000,enableHighAccuracy:false});
+$('map-style').addEventListener('click',()=>{
+  state.style = state.style==='liberty'?'dark':'liberty';
+  if (state.map) {state.mapReady=false;state.map.setStyle(`https://tiles.openfreemap.org/styles/${state.style}`);}
+  if (state.rasterMap) {$('map').classList.toggle('raster-dark',state.style==='dark');}
+  $('map-style').textContent=state.style==='dark'?'Street map':'Dark map';
 });
+$('map-geolocate').addEventListener('click',()=>locateMap(true));
+$('map-mode').addEventListener('click',()=>{
+  if (!state.rasterMap) {switchToRasterMap('Raster mode selected. Online street tiles will be attempted.');return;}
+  state.preferredView={center:[...state.rasterMap.center],zoom:state.rasterMap.zoom};
+  state.rasterMap=null;
+  $('map').replaceChildren(); $('map').classList.remove('raster-mode','raster-dark');
+  startMap();
+});
+$('scan-wifi-once').addEventListener('click',()=>runAction(async()=>{
+  const button=$('scan-wifi-once'); button.disabled=true; button.textContent='Scanning Linux Wi-Fi…';
+  try {state.wifiScan=await api('/api/wifi/scan','POST',{});renderWifiScan();flash(`Received ${state.wifiScan.records.length} network entries from ${state.wifiScan.interface}. Freshness is unverified; nothing was saved.`);}
+  finally {button.disabled=false;button.textContent='Scan Wi-Fi once';}
+}));
 $('refresh-hardware').addEventListener('click',()=>runAction(async()=>{
   state.hardware = await api('/api/hardware'); renderHardware();
   flash('Read-only Linux hardware inventory refreshed. This did not start an RF scan.');
