@@ -13,6 +13,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from . import __version__
+from .offline_maps import available_maps, tile_bytes, MapNotFound, TileMissing
 from .hardware import status_report, enumerate_serial_ports, serial_port_diagnostics
 from .drivers.wifi_nmcli import scan_once, WifiScanUnavailable
 from .drivers.serial_openrf import query_port, SerialSensorError
@@ -30,15 +31,15 @@ class Handler(BaseHTTPRequestHandler):
     def repo(self):
         return self.server.repository
 
-    def _send(self, status, raw: bytes, mime: str, extra_headers: dict | None = None):
+    def _send(self, status, raw: bytes, mime: str, extra_headers: dict | None = None, cache_control='no-store'):
         self.send_response(status)
         self.send_header('Content-Type', mime)
         self.send_header('Content-Length', str(len(raw)))
-        self.send_header('Cache-Control', 'no-store')
+        self.send_header('Cache-Control', cache_control)
         self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('X-Frame-Options', 'DENY')
         self.send_header('Referrer-Policy', 'no-referrer')
-        self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' https://unpkg.com 'unsafe-inline'; connect-src 'self' https://tiles.openfreemap.org https://unpkg.com https://*.openfreemap.org; img-src 'self' data: blob: https://*.openfreemap.org https://tile.openstreetmap.org; font-src 'self' data: https://*.openfreemap.org; worker-src 'self' blob:")
+        self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' https://unpkg.com 'unsafe-inline'; connect-src 'self' https://tiles.openfreemap.org https://unpkg.com https://*.openfreemap.org; img-src 'self' data: blob: https://*.openfreemap.org; font-src 'self' data: https://*.openfreemap.org; worker-src 'self' blob:")
         for key, value in (extra_headers or {}).items():
             self.send_header(key, value)
         self.end_headers()
@@ -76,10 +77,43 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host():
             return self._error(HTTPStatus.FORBIDDEN, 'Loopback-only service')
         path = urlparse(self.path).path
+        if path in ('/static/vendor/maplibre-gl.js', '/static/vendor/maplibre-gl.css'):
+            suffix = '.js' if path.endswith('.js') else '.css'
+            asset = self.server.map_asset_directory / ('maplibre-gl-5.24.0' + suffix)
+            if asset.is_file() and not asset.is_symlink():
+                try:
+                    raw = asset.read_bytes()
+                except OSError:
+                    return self._error(500, 'Local map library could not be read')
+                return self._send(200, raw, 'text/javascript; charset=utf-8' if suffix == '.js' else 'text/css; charset=utf-8', cache_control='private, max-age=86400')
+            # Preserve the existing online vector map for users who have not
+            # installed the optional offline library; raster needs neither.
+            url = f'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl{suffix}'
+            return self._send(302, b'', 'text/plain', {'Location': url})
         if path == '/api/meta':
             return self._json(200, {'version': __version__, 'platform': 'Linux / Raspberry Pi', 'mode': 'local-only', 'scan_active': False})
         if path == '/api/health':
             return self._json(200, {'status': 'ok', 'version': __version__})
+        if path == '/api/maps':
+            return self._json(200, {'maps': available_maps(self.server.map_directory),
+                                    'storage': 'local-raster-mbtiles',
+                                    'downloads_enabled': False})
+        if path.startswith('/api/maps/') and '/tiles/' in path:
+            pieces = path.split('/')
+            if len(pieces) != 8 or pieces[:3] != ['', 'api', 'maps'] or pieces[4] != 'tiles':
+                return self._error(404, 'Not found')
+            try:
+                zoom, x = int(pieces[5]), int(pieces[6])
+                if not pieces[7].endswith('.png'):
+                    return self._error(404, 'Not found')
+                y = int(pieces[7][:-4])
+                raw, mime = tile_bytes(self.server.map_directory, pieces[3], zoom, x, y)
+                return self._send(200, raw, mime, cache_control='private, max-age=3600')
+            except (MapNotFound, TileMissing, ValueError, OSError):
+                return self._error(404, 'Tile unavailable in local offline package')
+            except Exception:
+                logging.exception('Invalid local map file')
+                return self._error(404, 'Tile unavailable in local offline package')
         if path == '/api/observations':
             return self._json(200, {'observations': self.repo.list_observations()})
         if path == '/api/sessions':
@@ -237,6 +271,8 @@ class Handler(BaseHTTPRequestHandler):
 def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServer:
     server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
     server.repository = repository
+    server.map_directory = repository.path.parent / 'maps'
+    server.map_asset_directory = repository.path.parent / 'assets'
     server.wifi_scan_lock = threading.Lock()
     server.scan_receipts = ScanReceiptStore()
     server.wifi_scan_last = float("-inf")

@@ -261,3 +261,12 @@
 .usb-sensor-actions .btn{min-height:45px;white-space:normal;}
 .usb-location-option{margin:13px 0 0;min-height:38px;}
 @media(max-width:900px){.usb-sensor-actions{grid-template-columns:minmax(0,1fr);}.usb-sensor-actions .btn{width:100%;}}
+
+/* v0.2.9 — offline raster package selector; never overlaps the map. */
+.offline-map-manager{display:grid;grid-template-columns:auto minmax(170px,1fr) auto;gap:9px;align-items:center;margin:0 0 12px;border:1px solid #28444d;background:#10242e;padding:10px 12px;border-radius:8px;max-width:100%}
+.offline-map-manager label{font-size:12px;font-weight:700;color:#c8e9e6}
+.offline-map-manager .field{min-width:0;width:100%;margin:0}
+.offline-map-manager #offline-map-status{grid-column:1/-1;font-size:11px;color:#99b7c2;line-height:1.4}
+@media(max-width:650px){.offline-map-manager{grid-template-columns:minmax(0,1fr) auto}.offline-map-manager label{grid-column:1/-1}.offline-map-manager .btn{min-height:43px}.offline-map-manager .field{min-height:43px}}
+
+#online-map-credits{display:grid;gap:6px}#online-map-credits[hidden]{display:none}#offline-map-attribution{overflow-wrap:anywhere}#offline-map-attribution[hidden]{display:none}

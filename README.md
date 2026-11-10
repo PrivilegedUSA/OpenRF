@@ -1,4 +1,4 @@
-# OpenRF v0.2.8 — ESP32-S3 Firmware and USB Diagnostics
+# OpenRF v0.2.9 — Offline Mapping Foundation
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.8.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.9.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.8 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.9 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,13 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.9 — Local raster basemaps, offline grid and optional cached MapLibre
+
+- **Raster fallback no longer calls OpenStreetMap's public tile servers**, which reject some restricted requests and prohibit offline-area prefetching. If no local basemap is selected, the existing draggable Web Mercator grid, geolocation dot and recorded survey pins remain interactive without a network.
+- Copy a licensed prebuilt **raster MBTiles** file (PNG/JPEG/WebP) to `~/.local/share/openrf/maps/` on Linux/WSL. Select it in the Survey Map **Offline basemap** dropdown and use **Refresh maps**. Tiles are read read-only from this separate local folder, with no request to an external server. No map downloads or tile uploads are implemented. See [Offline Mapping](docs/OFFLINE_MAPS.md).
+- Optional one-time `python3 tools/cache-maplibre.py` copies MapLibre v5.24.0 JavaScript and CSS from the pinned upstream release to `~/.local/share/openrf/assets/`. When not cached, the server redirects those resources to the existing CDN for online vector-map mode; the grid/MBTiles renderer works independently of MapLibre. **OpenFreeMap vector tiles remain online**, even if JS/CSS assets are cached.
+- Local map packages remain outside Git and the release ZIP, and are never published by the updater. No existing observation database schema changes, recording logic changes, or hardware firmware changes.
 
 ## v0.2.8 — Experimental ESP32-S3 USB sensor firmware
 
@@ -73,7 +80,7 @@ Hardware planning: see **[docs/HARDWARE_SHOPPING_LIST.md](docs/HARDWARE_SHOPPING
 ## Working features
 
 - **Dashboard:** Real counts from locally stored records and explicit environment status. No invented scan results.
-- **Map:** Automatically requests browser geolocation on first visit (requires explicit permission), adds separate location marker and accuracy-aware street-level zoom; never saves browser position. MapLibre 5 with OpenFreeMap street/dark vector maps when the resources load, or an independent built-in raster map if they do not. The fallback attempts OpenStreetMap raster street tiles online but can show manual survey pins and an interactive coordinate grid completely offline. The fallback is not an offline street basemap. Map clicks create manual observations at the survey coordinate.
+- **Map:** Automatically requests browser geolocation on first visit (requires explicit permission), adds separate location marker and accuracy-aware street-level zoom; never saves browser position. MapLibre 5 with OpenFreeMap street/dark vector maps when the resources load, or an independent built-in raster map if they do not. The fallback shows a fully offline coordinate grid and can render a separately supplied raster MBTiles package; it no longer requests OpenStreetMap raster tile servers. Map clicks create manual observations at the survey coordinate.
 - **Discoveries:** Save/delete manually entered signal or infrastructure observations, with coordinates, source label, timestamps, optional RSSI/frequency/identifier, and provenance. Coordinates always refer to survey location.
 - **Investigations:** User-started local sessions; manually entered observations and explicitly saved Wi-Fi snapshots can be linked to an active session. Start/stop/review history; a prior ACTIVE session is marked INTERRUPTED after a process restart. No background capture or travel tracking.
 - **Native Linux Wi-Fi survey:** On-demand `nmcli` access-point list if a Linux Wi-Fi interface is visible. No background scans; NetworkManager may use active probe frames and may return cached entries. SSID/BSSID, channel, frequency, security, and signal **quality %** are shown temporarily. Results are not GPS positions or RSSI dBm. Individual access points or an entire short-lived verified scan may be explicitly saved, with a UTC retrieval timestamp, source, and freshness caveat. Only captured one-shot snapshots preserve the separate quality-percent measurement column and group ID. See `docs/NATIVE_WIFI_DRIVER.md`. WSL with no Linux radio returns a clear unavailable error.
@@ -85,7 +92,7 @@ Hardware planning: see **[docs/HARDWARE_SHOPPING_LIST.md](docs/HARDWARE_SHOPPING
 ## Test the app before buying hardware
 
 1. Visit Overview; confirm all counts initially zero on a fresh WSL install.
-2. Visit Survey Map. An online map library and tiles provide street detail; if unavailable, use the built-in raster/coordinate fallback. Click a point or use **Add observation manually**; save a labeled note. Confirm map marker and Discoveries list. On first opening Map, the browser asks for location permission (if not previously granted/denied); with a usable fix it centers automatically. If location is blocked, unavailable, or coarse on desktop/VPN, you can still pan or use “My browser location”.
+2. Visit Survey Map. Online OpenFreeMap vector tiles provide street detail; if unavailable, use the built-in grid or select an installed local raster MBTiles package. Click a point or use **Add observation manually**; save a labeled note. Confirm map marker and Discoveries list. On first opening Map, the browser asks for location permission (if not previously granted/denied); with a usable fix it centers automatically. If location is blocked, unavailable, or coarse on desktop/VPN, you can still pan or use “My browser location”.
 3. Start an Investigation; create another observation and confirm it appears in the session's Records view. Stop the session. Refresh the page and verify persistence.
 4. Download CSV and GeoJSON; verify the saved note and the explicit `coordinate_meaning` field. Check the private database exists under `~/.local/share/openrf/openrf.sqlite3` on Linux. It is **not** inside the Git repository.
 5. Check Hardware for `WSL 2 / Linux` and explicit unavailable/not-connected states. Do not expect Linux WSL to capture built-in Wi-Fi or Bluetooth devices.
@@ -96,7 +103,7 @@ Hardware planning: see **[docs/HARDWARE_SHOPPING_LIST.md](docs/HARDWARE_SHOPPING
 
 - Backend uses Python standard library + SQLite only. GitHub Actions tests Python 3.11 and 3.14 and checks JavaScript syntax. It does **not** build an APK.
 - The server binds only to 127.0.0.1 and validates request Host/Origin. It is not an authenticated multi-user server or a safe public internet service. Do not expose its port to untrusted networks.
-- Street names and detailed basemaps still need internet for MapLibre/OpenFreeMap or OSM raster tiles. The built-in fallback draws an interactive coordinate grid and survey markers without internet or external JavaScript. There is no downloaded offline street atlas yet. Data storage and API do not need network access.
+- OpenFreeMap street vector tiles require internet. The built-in coordinate grid and any operator-installed licensed raster MBTiles package work without internet or third-party JavaScript. MapLibre JS/CSS may be cached separately. OpenRF does not itself download map areas. Data storage and API do not need network access.
 - Continuous/background Wi-Fi capture, raw frame monitoring, BLE, SDR, cellular modem integration, hardware GPS, RF heatmaps, advanced localization, road navigation, and a Raspberry Pi kiosk installer are future work; no unverified detection or hardware capability is claimed.
 - Current sessions store manually entered observations, not automatically collected scan cycles. Data is not migrated from the Android Room database automatically; the prior Android app and its local phone database are left untouched.
 - The old Android workflow is retired on deployment, but the old source is preserved. To continue Android development later, use that archived source, not the Linux application bundle.
@@ -115,7 +122,7 @@ Detailed architecture: `docs/ARCHITECTURE.md`. License selection is pending; do 
 ## v0.2.1 layout/map fixes retained
 
 - The old map was using the wrong kind of MapLibre 6 script. This release references a compatible classic MapLibre 5 distribution.
-- If browser extensions, VPN, or network policies block MapLibre, the raster fallback appears automatically; use **Raster fallback**/**Try vector map** to switch manually. In raster mode the city/street map imagery is loaded from `tile.openstreetmap.org`; if that is blocked, a grid and saved survey markers still work.
+- If browser extensions, VPN, or network policies block MapLibre, the raster fallback appears automatically; use **Offline / raster**/**Try online vector** to switch manually. Raster mode uses only a coordinate grid or locally installed MBTiles tiles; it never contacts OSM public raster tile servers.
 - Opening Survey Map automatically requests browser location once; the button can retry manually. Neither stores GPS coordinates. WSL cannot supply actual GPS fixes without appropriate hardware.
 - All page headers now top-align; the scanner's records panel has 20px separation from the two panels above it.
 - Open **Hardware → Detected host devices** to inspect USB descriptors and Linux-visible interfaces. These read-only entries do not prove that a radio device is supported or operational. `Refresh inventory` doesn't run a wireless scan.

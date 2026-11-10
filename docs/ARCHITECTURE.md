@@ -1,4 +1,4 @@
-# OpenRF Linux architecture — 0.2.5
+# OpenRF Linux architecture — 0.2.9
 
 ```
 Windows browser / Pi Chromium kiosk (planned)
@@ -12,7 +12,7 @@ openrf.server (stdlib HTTP server, read-only static asset hosting)
 ```
 
 - **Backend** runs in Ubuntu WSL or Linux on Raspberry Pi OS. Python 3.11+ standard library only.
-- **Frontend** uses HTML/CSS/JS, MapLibre GL JS 5.24.0 and OpenFreeMap styles (online CDN + tiles for now). No credentials or paid map keys.
+- **Frontend** uses HTML/CSS/JS, MapLibre GL JS 5.24.0 and OpenFreeMap styles (optionally locally cached JS/CSS; online vector tiles). No credentials or paid map keys.
 - **Storage**: `~/.local/share/openrf/openrf.sqlite3`, not tracked by Git. Has source, survey position, RSSI/frequency (nullable), UTC timestamp, notes, kind, identifiers, accuracy, and sessions.
 - **Instrument contract**: Hardware drivers will implement `SensorBackend`, advertise capabilities, produce typed readings with original source/timestamp/units, and reject stale/partial measurements. v0.2.2 adds one optional NetworkManager AP discovery adapter; no raw RF capture drivers or automatic session measurements.
 - **Security**: localhost-only, Host and Origin checks, JSON body limits, no authentication, no uploads. Do not open to a network until security design changes. Hardware integration must remain lawful and opt-in.
@@ -21,7 +21,7 @@ openrf.server (stdlib HTTP server, read-only static asset hosting)
 
 ## v0.2.1 reliability and inventory
 
-- The browser uses MapLibre GL JS 5.24.0 classic bundle to load OpenFreeMap vector street styles. If unavailable or explicitly requested, a self-contained Web Mercator raster/coordinate fallback still supports pan/zoom, manual observation placement and saved survey markers. Tiles are fetched online from OpenStreetMap only when available; this is not an offline tile cache.
+- The browser uses MapLibre GL JS 5.24.0 classic bundle to load OpenFreeMap vector street styles. If unavailable or explicitly requested, a self-contained Web Mercator raster/coordinate fallback still supports pan/zoom, manual observation placement and saved survey markers. The fallback never fetches OSM public raster tiles: it draws a local coordinate grid or uses user-provided raster MBTiles files read-only via openrf.offline_maps. See OFFLINE_MAPS.md.
 - UI layout uses a top-aligned Grid child (`margin: 0 auto`, `align-self: stretch`) rather than auto centering. Navigation also resets page scroll position.
 - `hardware.status_report()` reads Linux sysfs USB descriptor IDs (not serial numbers), network and Bluetooth interface names, and device serial endpoint names. A driver contract exists but no sensor backend captures live RF. The inventory is evidence about system visibility, not radio capability or live measurements.
 
@@ -48,7 +48,7 @@ A top-left hamburger opens an accessible fixed vertical drawer on compact/touch 
 - `POST /api/sensors/networkmanager-wifi/save` accepts `{scan_id, bssid, survey_location?, session_id?}` and saves only a matching BSSID in that server-owned scan. One save per BSSID per scan. Errors and scan expiry do not produce observations. No automatic scanning or record writing occurs.
 - Records use source `SENSOR`, source device `Linux NetworkManager / <interface>`, and the original UTC **retrieval** timestamp. NetworkManager `SIGNAL` is **quality percent**, and remains in notes, not the `rssi_dbm` column. Cached beacon age is unknown; stale flags and GPS fix are not asserted. Optional browser coordinates are observer positions and explicitly marked as client-reported, not independently verified GNSS.
 - The current typed record format is a compatibility boundary for future dedicated modules. New drivers must prove their hardware identity, timestamp, unit, freshness and survey location quality before being allowed to save measured values. See `docs/SENSOR_CONNECTIONS.md`.
-- Map credits remain on-map in an accessible disclosure. OpenFreeMap/OpenMapTiles/OSM attribution cannot be removed just to save space. The map has not yet been packaged for offline street tiles.
+- Map credits remain on-map in an accessible disclosure. OpenFreeMap/OpenMapTiles/OSM attribution cannot be removed just to save space. MapLibre uses online vector tiles; local raster MBTiles are user-supplied and have their own attribution.
 
 ## v0.2.6 — atomic survey snapshots
 

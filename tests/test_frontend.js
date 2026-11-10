@@ -16,7 +16,7 @@ for (const position of [[-120.5, 38.1], [0, 0], [179.5, -15], [22.4, 71]]) {
 }
 assert(/margin:0 auto;align-self:stretch/.test(css), 'page header must top-align');
 assert(/#page-scanner > \.two-columns \{ margin-bottom: 20px; \}/.test(css), 'scanner panel gap');
-assert(html.includes('maplibre-gl@5.24.0/dist/maplibre-gl.js'), 'must load compatible UMD MapLibre release');
+assert(html.includes('/static/vendor/maplibre-gl.js'), 'must prefer optional local MapLibre release');
 assert(html.includes('id="map-mode"'), 'explicit raster fallback');
 assert(html.includes('id="device-inventory"'), 'hardware device inventory');
 assert(html.includes('id="map-location-status"'), 'map auto-location status notice');
@@ -79,3 +79,12 @@ assert(src.includes('async function runSerialSensor(snapshot)') && src.includes(
 assert(src.includes('recentSerialSurveyLocation()') && src.includes('seconds > 60'), 'only recent observer position may be attached');
 assert(css.includes('@media(max-width:900px){.usb-sensor-actions{grid-template-columns:minmax(0,1fr)') , 'USB controls must stack on handheld display');
 console.log('v0.2.7 USB serial field controls and compact layout contract passed.');
+
+// v0.2.9: no OSM public raster fetches, offline map package and local asset hooks.
+assert(!src.includes('https://tile.openstreetmap.org/'), 'public OSM raster service must never be requested by fallback');
+assert(src.includes('/api/maps/') && src.includes('tiles/${tileZoom}/'), 'offline raster tiles must come from local API');
+assert(src.includes('mapVisibleObservations().forEach'), 'offline view keeps survey pins');
+assert(html.includes('id="offline-map-select"') && html.includes('id="offline-map-status"'), 'touchscreen local map selector exists');
+assert(html.includes('/static/vendor/maplibre-gl.css'), 'optional local MapLibre CSS hook');
+assert(css.includes('.offline-map-manager') && css.includes('grid-template-columns:minmax(0,1fr) auto'), 'compact offline selector layout');
+console.log('v0.2.9 local mapping controls, offline tiles, and OSM policy checks passed.');

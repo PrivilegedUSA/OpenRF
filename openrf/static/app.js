@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], captures: [], diagnostics: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, filterSession: null, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+const state = { observations: [], sessions: [], captures: [], diagnostics: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, filterSession: null, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -313,9 +313,9 @@ function drawHistory(grouped = null) {
 }
 
 // MapLibre is preferred, but remote JavaScript or tiles can be blocked by VPNs,
-// network rules, or browser extensions. The independent raster map below never
-// needs an external JavaScript library. It uses online OSM tiles if available,
-// while retaining an offline coordinate grid and fully interactive survey pins.
+// network rules, or browser extensions. This independent local raster/coordinate
+// map needs no external JavaScript library and never requests OSM public tiles.
+// A user-provided, licensed MBTiles raster basemap is optional.
 function startMap() {
   if (state.map || state.rasterMap) return;
   if (!window.maplibregl) { const view = state.preferredView; state.preferredView = null; return startRasterMap('MapLibre is unavailable. Using the built-in raster/coordinate map.', view); }
@@ -325,7 +325,7 @@ function startMap() {
     state.preferredView = null;
     state.map = new maplibregl.Map({container:'map', style:`https://tiles.openfreemap.org/styles/${state.style}`, center:initial.center, zoom:initial.zoom, attributionControl:false, maplibreLogo:false});
     state.map.addControl(new maplibregl.NavigationControl(), 'top-right');
-    state.map.on('style.load', () => { state.mapReady = true; $('map-error').hidden = true; installMarkerLayer(); updateMap(); updateBrowserLocationMarker(); applyPendingLocation(); });
+    state.map.on('style.load', () => { updateOfflineAttribution(); state.mapReady = true; $('map-error').hidden = true; installMarkerLayer(); updateMap(); updateBrowserLocationMarker(); applyPendingLocation(); });
     state.map.on('movestart', event => { if (event.originalEvent) state.mapNavigationEpoch++; });
     state.map.on('click', (evt) => {
       if (state.mapReady && state.map.getLayer('survey-points') && state.map.queryRenderedFeatures(evt.point,{layers:['survey-points']}).length) return;
@@ -340,7 +340,7 @@ function startMap() {
     state.map.on('error', evt => { if (evt.error && !state.mapReady) setTimeout(() => {
       if (attempt === state.mapAttempt && !state.mapReady && !state.rasterMap) switchToRasterMap('Vector style failed; showing raster map instead.');
     }, 500); });
-    $('map-mode').textContent = 'Raster fallback';
+    $('map-mode').textContent = 'Offline / raster';
     setTimeout(() => {
       if (attempt === state.mapAttempt && !state.mapReady && !state.rasterMap) switchToRasterMap('Vector map timed out; showing raster map instead.');
     }, 12000);
@@ -456,7 +456,7 @@ function startRasterMap(reason, view = null) {
   const tiles = document.createElement('div'); tiles.className = 'raster-tiles';
   const pins = document.createElement('div'); pins.className = 'raster-pins';
   const notice = document.createElement('div'); notice.className = 'raster-notice';
-  notice.textContent = `${reason} Street tiles require internet; the coordinate grid and saved observations remain usable offline.`;
+  notice.textContent = `${reason} ${state.offlineMap ? `Local raster package: ${state.offlineMap.name}. Tiles outside its coverage remain blank.` : 'Coordinate grid only. Install a licensed MBTiles raster package for offline streets.'}`;
   const controls = document.createElement('div'); controls.className = 'raster-control';
   const plus = document.createElement('button'); plus.type = 'button'; plus.textContent = '+'; plus.title = 'Zoom in';
   const minus = document.createElement('button'); minus.type = 'button'; minus.textContent = '−'; minus.title = 'Zoom out';
@@ -471,25 +471,38 @@ function startRasterMap(reason, view = null) {
       const left = center[0] - width/2, top = center[1] - height/2;
       const startX = Math.floor(left/256), endX = Math.floor((left + width)/256);
       const startY = Math.floor(top/256), endY = Math.floor((top + height)/256);
-      const visible = new Set(); const n = 2 ** raster.zoom;
-      for (let ty=Math.max(0,startY); ty<=Math.min(n-1,endY); ty++) {
-        for (let tx=startX; tx<=endX; tx++) {
-          const wrapped = ((tx % n) + n) % n;
-          const key = `${raster.zoom}/${wrapped}/${ty}`;
-          if (raster.failedTiles.has(key)) continue;
-          visible.add(key);
-          let image = raster.tileNodes.get(key);
-          if (!image) {
-            image = document.createElement('img');
-            image.alt = ''; image.setAttribute('aria-hidden','true');
-            image.referrerPolicy = 'no-referrer'; image.loading = 'lazy';
-            image.addEventListener('error',()=>{
-              raster.failedTiles.add(key); raster.tileNodes.delete(key); image.remove();
-            });
-            image.src = `https://tile.openstreetmap.org/${key}.png`;
-            raster.tileNodes.set(key,image); tiles.append(image);
+      // Read only local MBTiles over the loopback API. Overzoom scales the
+      // nearest available package level; do not reach for a remote tile server.
+      const pack = state.offlineMap;
+      const tileZoom = pack ? Math.min(raster.zoom, pack.maxzoom) : -1;
+      const canShowTiles = pack && tileZoom >= pack.minzoom && raster.zoom - tileZoom <= 4;
+      const factor = canShowTiles ? 2 ** (raster.zoom - tileZoom) : 1;
+      const tileSize = 256 * factor;
+      const tileCount = canShowTiles ? 2 ** tileZoom : 0;
+      const visible = new Set();
+      if (canShowTiles) {
+        const firstX = Math.floor(left / tileSize), lastX = Math.floor((left + width) / tileSize);
+        const firstY = Math.floor(top / tileSize), lastY = Math.floor((top + height) / tileSize);
+        for (let ty = Math.max(0,firstY); ty <= Math.min(tileCount-1,lastY); ty++) {
+          for (let tx=firstX; tx<=lastX; tx++) {
+            const wrapped = ((tx % tileCount) + tileCount) % tileCount;
+            const key = `${pack.id}/${tileZoom}/${wrapped}/${ty}`;
+            if (raster.failedTiles.has(key)) continue;
+            visible.add(key);
+            let image = raster.tileNodes.get(key);
+            if (!image) {
+              image = document.createElement('img');
+              image.alt = ''; image.setAttribute('aria-hidden', 'true');
+              image.loading = 'lazy';
+              image.addEventListener('error', () => {
+                raster.failedTiles.add(key); raster.tileNodes.delete(key); image.remove();
+              });
+              image.src = `/api/maps/${encodeURIComponent(pack.id)}/tiles/${tileZoom}/${wrapped}/${ty}.png`;
+              raster.tileNodes.set(key, image); tiles.append(image);
+            }
+            image.style.width = `${tileSize}px`; image.style.height = `${tileSize}px`;
+            image.style.left = `${tx * tileSize-left}px`; image.style.top = `${ty * tileSize-top}px`;
           }
-          image.style.left = `${tx*256-left}px`; image.style.top = `${ty*256-top}px`;
         }
       }
       for (const [key,image] of raster.tileNodes) {
@@ -525,8 +538,9 @@ function startRasterMap(reason, view = null) {
     resize() { raster.render(); }
   };
   state.rasterMap = raster;
+  updateOfflineAttribution();
   applyPendingLocation();
-  $('map-mode').textContent = 'Try vector map';
+  $('map-mode').textContent = 'Try online vector';
   plus.addEventListener('click',e=>{e.stopPropagation();state.mapNavigationEpoch++;raster.zoom=Math.min(18,raster.zoom+1);raster.render();});
   minus.addEventListener('click',e=>{e.stopPropagation();state.mapNavigationEpoch++;raster.zoom=Math.max(2,raster.zoom-1);raster.render();});
   if (!root.dataset.rasterBound) {
@@ -575,6 +589,55 @@ async function runAction(fn, fallback='Could not complete operation') {
   try { await fn(); } catch(err) { flash(err.message || fallback, true); }
 }
 
+function updateOfflineAttribution() {
+  const local = $('offline-map-attribution');
+  const online = $('online-map-credits');
+  const offlineActive = !!state.rasterMap;
+  const text = state.offlineMap
+    ? `Local package: ${state.offlineMap.name}. ${state.offlineMap.attribution || 'Attribution not specified in package; verify source license.'}`
+    : 'Offline coordinate grid: no basemap data.';
+  local.hidden = !offlineActive;
+  local.textContent = text;
+  online.hidden = offlineActive;
+}
+// Offline map files are operator-supplied and live outside the Git repository.
+// Selecting one never causes internet downloads or saves a GPS position.
+async function refreshOfflineMaps() {
+  const response = await api('/api/maps');
+  state.offlineMaps = response.maps || [];
+  if (state.offlineMap) state.offlineMap = state.offlineMaps.find(m => m.id === state.offlineMap.id) || null;
+  const select = $('offline-map-select');
+  const currentId = state.offlineMap?.id || '';
+  select.replaceChildren(new Option('Coordinate grid · no map package', ''));
+  for (const pack of state.offlineMaps) {
+    select.add(new Option(`${pack.name} (z${pack.minzoom}–${pack.maxzoom})`, pack.id));
+  }
+  select.value = currentId;
+  updateOfflineAttribution();
+  $('offline-map-status').textContent = state.offlineMap
+    ? `LOCAL · ${state.offlineMap.name} · ${(state.offlineMap.size_bytes / 1048576).toFixed(1)} MB · no network required`
+    : `${state.offlineMaps.length} local raster package(s). Grid and survey pins work offline; online streets need internet.`;
+  if (state.rasterMap) state.rasterMap.render();
+}
+$('offline-map-refresh').addEventListener('click', () => runAction(refreshOfflineMaps));
+$('offline-map-select').addEventListener('change', event => {
+  state.offlineMap = state.offlineMaps.find(m => m.id === event.target.value) || null;
+  updateOfflineAttribution();
+  updateOfflineAttribution();
+  $('offline-map-status').textContent = state.offlineMap
+    ? `LOCAL · ${state.offlineMap.name} · Offline raster tiles; outside coverage shows coordinate grid.`
+    : 'Local coordinate grid selected. No external raster tile requests.';
+  if (state.rasterMap) {
+    for (const image of state.rasterMap.tileNodes.values()) image.remove();
+    state.rasterMap.tileNodes.clear(); state.rasterMap.failedTiles.clear();
+    const camera = {center:[...state.rasterMap.center], zoom:state.rasterMap.zoom};
+    state.rasterMap = null;
+    $('map').replaceChildren();
+    startRasterMap('Offline map selection changed.', camera);
+  } else if (state.map) switchToRasterMap('Offline map selected.');
+  else startRasterMap('Offline map selected.');
+});
+
 document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
 document.querySelectorAll('[data-jump]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.jump)));
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
@@ -594,7 +657,7 @@ $('map-style-sheet').addEventListener('click',()=>$('map-style').click());
 $('map-mode-sheet').addEventListener('click',()=>$('map-mode').click());
 $('show-demo-map-sheet').addEventListener('change',e=>{ $('show-demo-map').checked=e.target.checked;$('show-demo-map').dispatchEvent(new Event('change')); });
 $('map-mode').addEventListener('click',()=>{
-  if (!state.rasterMap) {switchToRasterMap('Raster mode selected. Online street tiles will be attempted.');return;}
+  if (!state.rasterMap) {switchToRasterMap('Offline raster/coordinate mode selected.');return;}
   state.preferredView={center:[...state.rasterMap.center],zoom:state.rasterMap.zoom};
   state.rasterMap=null;
   $('map').replaceChildren(); $('map').classList.remove('raster-mode','raster-dark');
@@ -736,3 +799,4 @@ $('clear-demo').addEventListener('click',()=>runAction(async()=>{const out=await
 // Desktop preserves the original overview landing page.
 if (window.matchMedia('(max-width: 900px), (max-width: 1400px) and (max-height: 850px) and (pointer: coarse)').matches) showPage('map');
 refresh().catch(e=>flash(`Unable to reach local OpenRF server: ${e.message}`,true));
+refreshOfflineMaps().catch(e=>{ $('offline-map-status').textContent = `Unable to list local maps: ${e.message}`; });

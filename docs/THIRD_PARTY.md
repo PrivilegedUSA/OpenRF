@@ -1,9 +1,9 @@
 # Third-party components and attributions
 
-- MapLibre GL JS v5.24.0: BSD-3-Clause, loaded from https://unpkg.com/maplibre-gl@5.24.0/ (requires connectivity for the UI map until packaged locally).
-- OpenStreetMap raster tiles (fallback): https://tile.openstreetmap.org/ — online only; follow OSM tile usage policy (no bulk or offline bulk downloading).
+- MapLibre GL JS v5.24.0: BSD-3-Clause, optionally downloaded explicitly by `tools/cache-maplibre.py` into local private data from https://unpkg.com/maplibre-gl@5.24.0/; otherwise redirected to upstream CDN. No library binary is included in this release. Cached JavaScript/CSS do not include vector basemap tiles.
+- OpenStreetMap public raster tiles: **not accessed** by OpenRF raster fallback. Offline prefetching from https://tile.openstreetmap.org/ is forbidden by the [OSM tile policy](https://operations.osmfoundation.org/policies/tiles/).
 - OpenFreeMap street/dark styles and tiles: https://openfreemap.org/ (OpenStreetMap-derived geographic data; attribution displayed in the map).
-- Map data © OpenStreetMap contributors under ODbL, via OpenFreeMap. Verify style/tiles usage conditions before distribution or bundling offline data.
+- Map data © OpenStreetMap contributors under ODbL, via OpenFreeMap for online vectors. Operator-supplied raster MBTiles must carry their own licensing and attribution; OpenRF does not provide offline map data. Verify redistribution/offline rights before using third-party archives.
 - Python standard library: Python Software Foundation License.
 - Archived Android libraries carry their own licensing requirements (see `legacy/android-v0.1.6/docs/THIRD_PARTY.md`).
 

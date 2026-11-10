@@ -42,7 +42,7 @@ class ApiTests(unittest.TestCase):
     def test_health_static_hardware_and_exports(self):
         s,data=self.call('GET','/api/health')
         self.assertEqual(s,200)
-        self.assertEqual(data['version'],'0.2.8')
+        self.assertEqual(data['version'],'0.2.9')
         for path in ('/','/static/app.css','/static/app.js','/api/export.csv','/api/export.geojson'):
             status,_=self.call('GET',path)
             self.assertEqual(status,200,path)
@@ -156,3 +156,24 @@ class ApiTests(unittest.TestCase):
         status,data=self.call('POST','/api/observations',{'label':'invalid GPS','latitude':35})
         self.assertEqual(status,400)
         self.assertIn('together',data['error'])
+
+
+    def test_local_maps_http_tiles_and_missing_paths(self):
+        from test_offline_maps import fixture, PNG
+        maps_dir = self.server.map_directory
+        maps_dir.mkdir(exist_ok=True)
+        fixture(maps_dir,'testcase')
+        try:
+            status, data = self.call('GET','/api/maps')
+            self.assertEqual(status,200)
+            self.assertEqual(data['maps'][0]['id'],'testcase')
+            self.assertFalse(data['downloads_enabled'])
+            status, raw = self.call('GET','/api/maps/testcase/tiles/2/1/1.png')
+            self.assertEqual(status,200)
+            self.assertEqual(raw,PNG)
+            status, _ = self.call('GET','/api/maps/testcase/tiles/2/1/9.png')
+            self.assertEqual(status,404)
+            status, _ = self.call('GET','/api/maps/../tiles/2/1/1.png')
+            self.assertEqual(status,404)
+        finally:
+            (maps_dir/'testcase.mbtiles').unlink()
