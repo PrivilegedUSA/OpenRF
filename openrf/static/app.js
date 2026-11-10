@@ -147,12 +147,13 @@ function renderSerialPorts() {
   const select = $('usb-sensor-port');
   const previouslySelected = select.value;
   const ports = state.serialTransport?.ports || state.hardware?.serial_ports || [];
+  const diagnostics = state.hardware?.serial_port_diagnostics || [];
   select.replaceChildren();
   if (!ports.length) {
     const option = document.createElement('option'); option.value = ''; option.textContent = 'No Linux USB-serial ports visible'; select.append(option);
     $('usb-sensor-status').textContent = 'No ttyUSB/ttyACM device is visible to Linux. On WSL, a physical USB board usually needs passthrough. This does not indicate RF coverage or a working receiver.';
   } else {
-    for (const port of ports) { const option = document.createElement('option'); option.value = port; option.textContent = `/dev/${port} — not yet verified`; select.append(option); }
+    for (const port of ports) { const option = document.createElement('option'); option.value = port; const info = diagnostics.find(d=>d.port===port); option.textContent = `/dev/${port} — ${info?.access === 'permission_denied' ? 'permission denied' : 'protocol unverified'}`; select.append(option); }
     if (ports.includes(previouslySelected)) select.value = previouslySelected;
   }
   for (const id of ['usb-sensor-probe','usb-sensor-capture']) $(id).disabled = ports.length === 0;
@@ -214,6 +215,7 @@ function renderHardware() {
   const inventory = $('device-inventory');
   const usb = hw.usb_devices || [];
   const ports = hw.serial_ports || [];
+  const portDetails = hw.serial_port_diagnostics || [];
   const nets = hw.network_details || [];
   inventory.innerHTML = `
     <div class="device-group"><h4>USB descriptors (${usb.length})</h4>
@@ -221,7 +223,7 @@ function renderHardware() {
     </div>
     <div class="device-group"><h4>Network and serial interfaces</h4>
       ${nets.map(d=>`<div class="device-line">${escapeHTML(d.name)} <small>${d.wireless ? 'Linux wireless interface visible; scan unverified' : 'Not identified as Linux wireless'}</small></div>`).join('')}
-      ${ports.map(d=>`<div class="device-line">/dev/${escapeHTML(d)}<small>Unclassified serial endpoint; no driver attached by OpenRF</small></div>`).join('')}
+      ${ports.map(d=>{ const info=portDetails.find(p=>p.port===d); return `<div class="device-line">/dev/${escapeHTML(d)}<small>${escapeHTML(info?.access || 'unverified')} · ${escapeHTML(info?.device_type || 'unknown')} · group ${escapeHTML(info?.group || 'unknown')}<br>${escapeHTML(info?.guidance || 'No sensor protocol verified')}</small></div>`; }).join('')}
       ${!(nets.length || ports.length) ? '<div class="device-empty">No relevant interfaces visible.</div>' : ''}
     </div>`;
 }

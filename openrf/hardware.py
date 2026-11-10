@@ -6,6 +6,9 @@ No scans are initiated and no radios are reconfigured by this module.
 from __future__ import annotations
 
 import platform
+import os
+import stat
+import grp
 import re
 import shutil
 from dataclasses import asdict, dataclass
@@ -89,6 +92,32 @@ def enumerate_serial_ports(root: Path = Path('/dev')) -> list[str]:
     return sorted(set(ports))[:64]
 
 
+def serial_port_diagnostics(root: Path = Path('/dev')) -> list[dict]:
+    """Read-only advisory for Linux-visible ttyACM/ttyUSB nodes.
+
+    Permission checks reflect this process only; they cannot identify firmware or
+    establish a working USB connection. Do not follow arbitrary caller paths.
+    """
+    details = []
+    for name in enumerate_serial_ports(root):
+        path = root / name
+        try:
+            mode = path.stat()
+            owner = grp.getgrgid(mode.st_gid).gr_name
+            accessible = os.access(path, os.R_OK | os.W_OK)
+            device_type = 'character_device' if stat.S_ISCHR(mode.st_mode) else 'other'
+            status = 'permission_ok_unverified' if accessible else 'permission_denied'
+            recommendation = ('Port is accessible; probe explicitly to check firmware compatibility.'
+                              if accessible else
+                              f'Linux process cannot read/write this node (group: {owner}). Check USB passthrough, group permissions and relogin; avoid chmod 666.')
+            details.append({'port': name, 'device_type': device_type, 'group': owner,
+                            'access': status, 'guidance': recommendation})
+        except (OSError, KeyError) as exc:
+            details.append({'port': name, 'device_type': 'unknown', 'group': None,
+                            'access': 'stat_failed', 'guidance': 'Port disappeared or Linux metadata is unavailable. Refresh the inventory.'})
+    return details
+
+
 def status_report() -> dict:
     wsl = is_wsl()
     net = Path('/sys/class/net')
@@ -149,6 +178,8 @@ def status_report() -> dict:
         'bluetooth_adapters': bluetooth_adapters,
         'usb_devices': usb_devices,
         'serial_ports': serial_ports,
+        'serial_port_diagnostics': serial_port_diagnostics(),
+        'serial_port_details': serial_port_diagnostics(),
         'command_availability': {
             'nmcli': nmcli, 'bluetoothctl': bluez,
             'iw': shutil.which('iw') is not None,

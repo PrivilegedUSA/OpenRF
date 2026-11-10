@@ -1,6 +1,6 @@
-# OpenRF Serial v1 — experimental module interface (v0.2.7)
+# OpenRF Serial v1 — experimental module interface (v0.2.8)
 
-**Status:** host implementation only, no physical module or firmware verified. No scan occurs until the operator explicitly requests a snapshot. This protocol operates over a USB serial cable; it does not transmit over RF. This is a compatibility protocol, **not authentication**. Device-reported readings may be bogus, stale, or uncalibrated.
+**Status:** host implementation plus experimental ESP32-S3 source firmware; no physical module verified. No scan occurs until the operator explicitly requests a snapshot. This protocol operates over a USB serial cable; it does not transmit over RF. This is a compatibility protocol, **not authentication**. Device-reported readings may be bogus, stale, or uncalibrated.
 
 ## Transport
 
@@ -18,4 +18,10 @@ An explicit capture opens the port again, performs HELLO, sends `OPENRF SNAPSHOT
 
 These JSON examples define framing only and **are not real RF readings**. `captured_at_utc` may be omitted; then the host retrieval time is used and freshness remains unknown. Reported timestamps are untrusted; significant future skew falls back to host time, and old captures are marked stale. Only negotiated kinds (`WIFI`, `BLE`, `RF`) and finite, bounded numeric frequency MHz / RSSI dBm fields are accepted. Values are not automatically taken as calibrated. An empty records array is valid and yields a zero-result capture.
 
-**Important:** generic USB receivers, GPS dongles, and ESP32 boards without OpenRF-compatible firmware will not answer this protocol. No firmware is included in this release. No user-provided measurements can be inserted through these endpoints; the server must obtain them from a currently inventoried USB serial port. The optional browser coordinate is a survey position, never a transmitter location. The local server stays on loopback. For WSL USB forwarding consult Microsoft's usbipd instructions; do not expose the local development API to a LAN.
+**Important:** generic USB receivers, GPS dongles, and ESP32 boards without OpenRF-compatible firmware will not answer this protocol. Experimental ESP32-S3 firmware is included under `firmware/esp32-s3-openrf-serial-v1/`; it requires explicit flashing and has not been compiled or tested on physical hardware. No user-provided measurements can be inserted through these endpoints; the server must obtain them from a currently inventoried USB serial port. The optional browser coordinate is a survey position, never a transmitter location. The local server stays on loopback. For WSL USB forwarding consult Microsoft's usbipd instructions; do not expose the local development API to a LAN.
+
+## v0.2.8 firmware extension and failure handling
+
+The ESP32-S3 responds to `HELLO` with `capabilities:["WIFI"]`, optional `firmware_version:"0.2.8"`, and `scan_mode:"passive_2g4"`. Only a requested SNAPSHOT triggers a passive, 2.4 GHz-only Wi-Fi survey. Device output has no trustworthy UTC clock, so the `captured_at_utc` field is omitted and the host stores host retrieval time with `UNKNOWN` freshness. The 32-AP maximum is a firmware cap, not a guarantee of completeness. RSSI is device-reported, uncalibrated dBm, not signal quality percentage.
+
+A firmware scan failure uses `{"type":"error","protocol":"openrf.serial.v1","code":"WIFI_SCAN_FAILED"}` (other uppercase underscore error codes also possible). Such errors are rejected and do **not** create a saved snapshot. A real zero-result scan instead returns an empty `records` array. An ESP32 board that is present in Linux inventory but lacks correct firmware is not a connected OpenRF sensor.

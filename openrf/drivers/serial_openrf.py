@@ -10,7 +10,9 @@ No device is opened automatically, and this module does not continuously scan.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import errno
 import json
+import errno
 import math
 import os
 from pathlib import Path
@@ -27,13 +29,16 @@ MAX_LINE = 32768
 
 
 class SerialSensorError(ValueError):
-    """Unavailable port, incompatible firmware, timeout, or unsafe response."""
+    """User-facing USB failure with a stable diagnostic code (not proof of cause)."""
+    def __init__(self, message: str, code: str = 'serial_error'):
+        super().__init__(message)
+        self.code = code
 
 
 def eligible_port(name: str, available: list[str]) -> Path:
     """Reject arbitrary filesystem paths; permit only inventoried ttyUSB/ttyACM."""
     if not isinstance(name, str) or not PORT_NAME.fullmatch(name) or name not in available:
-        raise SerialSensorError('Select an inventoried Linux USB-serial port; arbitrary paths are not allowed.')
+        raise SerialSensorError('Select an inventoried Linux USB-serial port; arbitrary paths are not allowed.', 'not_in_inventory')
     return Path('/dev') / name
 
 
@@ -51,7 +56,7 @@ def _configure(fd: int) -> None:
         termios.tcsetattr(fd, termios.TCSANOW, attrs)
         termios.tcflush(fd, termios.TCIFLUSH)
     except (OSError, termios.error) as exc:
-        raise SerialSensorError('Could not configure USB serial at 115200 baud.') from exc
+        raise SerialSensorError('Could not configure USB serial at 115200 baud. Check Linux driver and port state.', 'configure_failed') from exc
 
 
 def _exchange(fd: int, command: bytes, timeout_s: float = 3.0) -> dict:
@@ -59,7 +64,7 @@ def _exchange(fd: int, command: bytes, timeout_s: float = 3.0) -> dict:
     try:
         while command:
             if time.monotonic() >= deadline:
-                raise SerialSensorError('USB serial write timed out.')
+                raise SerialSensorError('USB serial write timed out; check connection and whether the device has rebooted.', 'write_timeout')
             _, writable, _ = select.select([], [fd], [], max(0, deadline - time.monotonic()))
             if writable:
                 command = command[os.write(fd, command):]
@@ -73,19 +78,19 @@ def _exchange(fd: int, command: bytes, timeout_s: float = 3.0) -> dict:
                 continue
             received.extend(chunk)
             if len(received) > MAX_LINE:
-                raise SerialSensorError('USB sensor response exceeds the maximum frame size.')
+                raise SerialSensorError('USB sensor response exceeds the maximum frame size.', 'frame_too_large')
             if b'\n' in received:
                 raw = bytes(received).split(b'\n', 1)[0].strip()
                 try:
                     obj = json.loads(raw.decode('utf-8'))
                 except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-                    raise SerialSensorError('USB sensor returned invalid JSON framing.') from exc
+                    raise SerialSensorError('USB sensor returned invalid JSON framing. Confirm ESP32 firmware, USB CDC settings, and 115200 baud.', 'invalid_frame') from exc
                 if not isinstance(obj, dict):
-                    raise SerialSensorError('USB response must be a JSON object.')
+                    raise SerialSensorError('USB response must be a JSON object.', 'invalid_frame')
                 return obj
     except OSError as exc:
-        raise SerialSensorError('USB serial device disconnected or is not accessible.') from exc
-    raise SerialSensorError('No compatible OpenRF serial response before timeout; this may be a different type of USB device.')
+        raise SerialSensorError('USB serial device disconnected or stopped responding. Refresh inventory and reconnect the board.', 'disconnected') from exc
+    raise SerialSensorError('No OpenRF response before timeout. Check that the firmware is running, close Serial Monitor, and retry after any USB reset.', 'no_response')
 
 
 def _safe_text(value, field: str, limit=100, required=True) -> str:
@@ -96,9 +101,23 @@ def _safe_text(value, field: str, limit=100, required=True) -> str:
     return value.strip()
 
 
+def _raise_device_error(packet: dict) -> None:
+    """A compatible firmware error is not an empty/valid measurement snapshot."""
+    if packet.get('type') != 'error':
+        return
+    if packet.get('protocol') != PROTOCOL:
+        raise SerialSensorError('Device sent an incompatible protocol error.', 'protocol_mismatch')
+    code = _safe_text(packet.get('code'), 'error code', 40)
+    if not re.fullmatch(r'[A-Z_]{2,40}', code):
+        raise SerialSensorError('Invalid firmware error code.', 'invalid_frame')
+    message = _safe_text(packet.get('message', 'Firmware reported an error'), 'error message', 120)
+    raise SerialSensorError(f'Firmware reported {code}: {message}', 'firmware_' + code.lower())
+
+
 def parse_hello(packet: dict) -> dict:
+    _raise_device_error(packet)
     if packet.get('type') != 'hello' or packet.get('protocol') != PROTOCOL:
-        raise SerialSensorError('USB device does not implement OpenRF Serial v1.')
+        raise SerialSensorError('USB device does not implement OpenRF Serial v1.', 'protocol_mismatch')
     hardware_id = _safe_text(packet.get('hardware_id'), 'hardware_id', 64)
     capabilities = packet.get('capabilities')
     if not isinstance(capabilities, list) or len(capabilities) > 12 or any(not isinstance(k, str) for k in capabilities):
@@ -106,7 +125,10 @@ def parse_hello(packet: dict) -> dict:
     supported = sorted(set(capabilities) & KNOWN_KINDS)
     return {'protocol': PROTOCOL, 'hardware_id': hardware_id,
             'label': _safe_text(packet.get('label', 'Unverified OpenRF serial device'), 'label', 100),
-            'capabilities': supported, 'identity_verified': False,
+            'capabilities': supported,
+            'firmware_version': _safe_text(packet['firmware_version'], 'firmware_version', 32) if 'firmware_version' in packet else None,
+            'scan_mode': _safe_text(packet['scan_mode'], 'scan_mode', 32) if 'scan_mode' in packet else None,
+            'identity_verified': False,
             'warning': 'Identity and capabilities are device-reported, not cryptographically verified. No RF measurements were taken by this probe.'}
 
 
@@ -133,8 +155,9 @@ def _utc_time(value: str | None) -> str | None:
 
 
 def parse_snapshot(packet: dict, hello: dict, received_at_utc: str) -> dict:
+    _raise_device_error(packet)
     if packet.get('type') != 'snapshot' or packet.get('protocol') != PROTOCOL:
-        raise SerialSensorError('Device did not return an OpenRF Serial v1 snapshot.')
+        raise SerialSensorError('Device did not return an OpenRF Serial v1 snapshot.', 'protocol_mismatch')
     if packet.get('hardware_id') != hello['hardware_id']:
         raise SerialSensorError('USB device identity changed during snapshot.')
     rows = packet.get('records')
@@ -192,7 +215,13 @@ def query_port(port: str, allowed_ports: list[str], *, snapshot=False, timeout_s
         flags = os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK | getattr(os, 'O_NOFOLLOW', 0)
         fd = os.open(str(path), flags)
     except OSError as exc:
-        raise SerialSensorError('USB serial device is busy or access was denied. Check permissions and device connection.') from exc
+        if exc.errno in (errno.EACCES, errno.EPERM):
+            raise SerialSensorError('USB serial access denied. Check Linux dialout/uucp group membership and udev permissions.', 'permission_denied') from exc
+        if exc.errno in (errno.ENOENT, errno.ENODEV, errno.EIO):
+            raise SerialSensorError('USB serial device disappeared or disconnected. Refresh Linux inventory.', 'disconnected') from exc
+        if exc.errno in (errno.EBUSY, errno.EAGAIN):
+            raise SerialSensorError('USB serial device is busy. Close Serial Monitor or another process using it.', 'port_busy') from exc
+        raise SerialSensorError('USB serial device could not be opened; check host driver and USB connection.', 'open_failed') from exc
     try:
         _configure(fd)
         hello = parse_hello(_exchange(fd, b'OPENRF HELLO 1\n', timeout_s))

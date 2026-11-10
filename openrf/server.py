@@ -13,7 +13,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from . import __version__
-from .hardware import status_report, enumerate_serial_ports
+from .hardware import status_report, enumerate_serial_ports, serial_port_diagnostics
 from .drivers.wifi_nmcli import scan_once, WifiScanUnavailable
 from .drivers.serial_openrf import query_port, SerialSensorError
 from .storage import Repository, to_csv, to_geojson
@@ -48,8 +48,8 @@ class Handler(BaseHTTPRequestHandler):
         raw = json.dumps(obj, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
         self._send(status, raw, 'application/json; charset=utf-8')
 
-    def _error(self, status, message):
-        self._json(status, {'error': message})
+    def _error(self, status, message, error_code=None):
+        self._json(status, {'error': message, **({'error_code': error_code} if error_code else {})})
 
     def _allowed_host(self):
         # Prevent DNS-rebinding attacks; only loopback access is intended.
@@ -91,10 +91,12 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/hardware':
             return self._json(200, status_report())
         if path == '/api/sensors':
-            return self._json(200, {'schema_version': 2, 'sensors': connections(status_report()),
+            hardware = status_report()
+            return self._json(200, {'schema_version': 2, 'sensors': connections(hardware),
                                    'wifi_last_scan': self.server.scan_receipts.summary(),
                                    'serial_transport': {'protocol': 'openrf.serial.v1',
-                                     'ports': enumerate_serial_ports(), 'last_probe': self.server.serial_last_probe,
+                                     'ports': hardware['serial_ports'], 'port_details': hardware['serial_port_details'],
+                                     'last_probe': self.server.serial_last_probe,
                                      'mode': 'user-triggered probe and snapshot only; no background acquisition'}})
         if path == '/api/sensors/diagnostics':
             hardware = status_report()
@@ -104,8 +106,8 @@ class Handler(BaseHTTPRequestHandler):
                          'last_retrieval': self.server.scan_receipts.summary(),
                          'explanation': 'One-shot NetworkManager retrieval, possibly cached; never equivalent to passive packet capture'},
                 'receiver_status': 'No standalone SDR, BLE, GPS, or cellular Linux driver is active. USB Serial v1 is a limited, opt-in protocol; no compatible module verified.',
-                'serial_transport': {'protocol': 'openrf.serial.v1', 'ports': enumerate_serial_ports(),
-                   'last_probe': self.server.serial_last_probe},
+                'serial_transport': {'protocol': 'openrf.serial.v1', 'ports': hardware['serial_ports'],
+                   'port_details': hardware['serial_port_details'], 'last_probe': self.server.serial_last_probe, 'port_diagnostics': serial_port_diagnostics()},
                 'hardware_is_measurement': False,
             })
         if path == '/api/export.geojson':
@@ -162,10 +164,10 @@ class Handler(BaseHTTPRequestHandler):
                         result = query_port(port, current_ports, snapshot=path.endswith('/snapshot'))
                     except SerialSensorError as exc:
                         self.server.serial_last_probe = {'port': port, 'status': 'failed',
-                            'detail': str(exc), 'at_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
-                        return self._error(409, str(exc))
+                            'detail': str(exc), 'error_code': exc.code, 'at_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
+                        return self._error(409, str(exc), error_code=exc.code)
                     self.server.serial_last_probe = {'port': port, 'status': 'responding',
-                        'hardware_id': result['hardware_id'],
+                        'hardware_id': result['hardware_id'], 'firmware_version': result.get('firmware_version'),
                         'at_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
                         'identity_verified': False}
                     if path.endswith('/probe'):
@@ -188,7 +190,7 @@ class Handler(BaseHTTPRequestHandler):
                     try:
                         return self._json(200, self.server.scan_receipts.remember(scan_once()))
                     except WifiScanUnavailable as exc:
-                        return self._error(409, str(exc))
+                        return self._error(409, str(exc), error_code=exc.code)
                 finally:
                     self.server.wifi_scan_lock.release()
             if path == '/api/sensors/networkmanager-wifi/save-scan':

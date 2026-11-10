@@ -18,6 +18,9 @@ from pathlib import Path
 
 class WifiScanUnavailable(RuntimeError):
     """No usable Linux Wi-Fi scan source (or tool/permission failure)."""
+    def __init__(self, message: str, code: str = "wifi_unavailable"):
+        super().__init__(message)
+        self.code = code
 
 
 def linux_wifi_interfaces(net_root: Path = Path('/sys/class/net')) -> list[str]:

@@ -1,4 +1,4 @@
-# OpenRF v0.2.7 — USB Sensor Transport & Observation Provenance
+# OpenRF v0.2.8 — ESP32-S3 Firmware and USB Diagnostics
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.7.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.8.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.7 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.8 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -31,9 +31,15 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
 
+## v0.2.8 — Experimental ESP32-S3 USB sensor firmware
+
+Includes source-only Arduino-ESP32 3.x firmware under `firmware/esp32-s3-openrf-serial-v1/` for an ESP32-S3 device **you flash separately**. A manually requested OpenRF Serial v1 snapshot runs a passive 2.4 GHz Wi-Fi AP scan and returns up to 32 observed AP identifiers, frequency MHz, and ESP32-reported RSSI dBm. The firmware offers WIFI only; it does not claim BLE, 5/6 GHz, SDR or GPS. No board, compiler toolchain or USB port was available here; firmware flashing and live measurements are **not physically verified**. See its README for build/USB instructions and limits.
+
+Hardware inventory now displays Linux serial port access/group hints and error messaging for firmware errors, disconnections and permission failures. Port presence or a successful handshake remains **unverified**, never proof of an authentic or calibrated sensor. No background scans or external uploads. The SQLite schema is unchanged.
+
 ## v0.2.7 — USB serial interface and sensor snapshots
 
-A new **External USB sensor** section on Hardware allows explicit probing of an inventoried Linux `/dev/ttyUSB*` or `/dev/ttyACM*` endpoint. It will only communicate with firmware implementing `openrf.serial.v1` (see `docs/USB_SERIAL_PROTOCOL.md`). A successful probe verifies only protocol response, not hardware identity or RF correctness. **Capture one snapshot** asks a compatible module for one bounded set of measurements and saves it with unverified device provenance. No sensor firmware is included. Missing WSL USB passthrough is an expected unsupported state. No background scanning occurs.
+A new **External USB sensor** section on Hardware allows explicit probing of an inventoried Linux `/dev/ttyUSB*` or `/dev/ttyACM*` endpoint. It will only communicate with firmware implementing `openrf.serial.v1` (see `docs/USB_SERIAL_PROTOCOL.md`). A successful probe verifies only protocol response, not hardware identity or RF correctness. **Capture one snapshot** asks a compatible module for one bounded set of measurements and saves it with unverified device provenance. Experimental ESP32-S3 firmware is included in v0.2.8, but is not flashed automatically or physically tested. Missing WSL USB passthrough is an expected unsupported state. No background scanning occurs.
 
 Previous saved Wi-Fi snapshot features remain described below.
 

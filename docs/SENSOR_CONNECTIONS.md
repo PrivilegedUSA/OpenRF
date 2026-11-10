@@ -1,6 +1,6 @@
-# OpenRF Sensor Connection & Observation Contract (v0.2.7)
+# OpenRF Sensor Connection & Observation Contract (v0.2.8)
 
-OpenRF runs offline with no sensor hardware. WSL usually exposes no Linux Wi-Fi or BLE radio from the Windows host. Hardware inventory is **not** a scan. Implemented adapters are a user-triggered NetworkManager Wi-Fi AP list and an **opt-in USB-serial protocol** requiring separately developed OpenRF-compatible firmware. No compatible serial hardware has been verified.
+OpenRF runs offline with no sensor hardware. WSL usually exposes no Linux Wi-Fi or BLE radio from the Windows host. Hardware inventory is **not** a scan. Implemented adapters are a user-triggered NetworkManager Wi-Fi AP list and an **opt-in USB-serial protocol** requiring separately developed OpenRF-compatible firmware. An experimental, unverified ESP32-S3 firmware sketch is now included; no physical sensor has been verified.
 
 ## API and source states
 
@@ -28,4 +28,4 @@ When physical sensors become available, test driver permission flows, disconnect
 
 ## v0.2.7 OpenRF Serial v1
 
-A selected inventoried Linux USB-serial port can be probed and queried for one snapshot, strictly on user request. The protocol specification and cautionary notes are in [USB_SERIAL_PROTOCOL.md](USB_SERIAL_PROTOCOL.md). A successful handshake does not verify vendor identity or prove the data are genuine live RF observations. One-shot saved records are marked unverified and use observer coordinates only when the browser has a recent fix explicitly selected. No module firmware is supplied or tested.
+A selected inventoried Linux USB-serial port can be probed and queried for one snapshot, strictly on user request. The protocol specification and cautionary notes are in [USB_SERIAL_PROTOCOL.md](USB_SERIAL_PROTOCOL.md). A successful handshake does not verify vendor identity or prove the data are genuine live RF observations. One-shot saved records are marked unverified and use observer coordinates only when the browser has a recent fix explicitly selected. Experimental ESP32-S3 2.4 GHz Wi-Fi sketch source is supplied but not flashed or physically tested.

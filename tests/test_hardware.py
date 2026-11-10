@@ -38,3 +38,15 @@ class HardwareInventoryTests(unittest.TestCase):
         self.assertIn('usb_devices', report)
         self.assertIn('network_details', report)
         self.assertIn('inventory_collected_utc', report)
+
+class SerialPortDiagnosticsTests(unittest.TestCase):
+    def test_read_only_permission_advisory_and_no_serial_number(self):
+        from openrf.hardware import serial_port_diagnostics
+        with tempfile.TemporaryDirectory() as tmp:
+            node = Path(tmp) / 'ttyACM0'; node.touch()
+            report = serial_port_diagnostics(Path(tmp))
+            self.assertEqual(len(report), 1)
+            self.assertEqual(report[0]['port'], 'ttyACM0')
+            self.assertEqual(report[0]['device_type'], 'other')
+            self.assertIn(report[0]['access'], ('permission_ok_unverified', 'permission_denied'))
+            self.assertNotIn('serial_number', report[0])
