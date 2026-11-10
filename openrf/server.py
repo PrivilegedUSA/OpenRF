@@ -33,7 +33,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('X-Frame-Options', 'DENY')
         self.send_header('Referrer-Policy', 'no-referrer')
-        self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' https://unpkg.com 'unsafe-inline'; connect-src 'self' https://tiles.openfreemap.org https://unpkg.com https://*.openfreemap.org; img-src 'self' data: blob: https://*.openfreemap.org; font-src 'self' data: https://*.openfreemap.org; worker-src 'self' blob:")
+        self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' https://unpkg.com 'unsafe-inline'; connect-src 'self' https://tiles.openfreemap.org https://unpkg.com https://*.openfreemap.org; img-src 'self' data: blob: https://*.openfreemap.org https://tile.openstreetmap.org; font-src 'self' data: https://*.openfreemap.org; worker-src 'self' blob:")
         for key, value in (extra_headers or {}).items():
             self.send_header(key, value)
         self.end_headers()
@@ -161,7 +161,7 @@ def main():
     server = create_server(repo, port=args.port)
     print(f'OpenRF v{__version__} — http://localhost:{args.port}')
     print(f'Private database: {repo.path}')
-    print('Loopback only; press Ctrl+C to stop. Live RF scanning is not active in v0.2.0.', flush=True)
+    print('Loopback only; press Ctrl+C to stop. Live RF scanning is not active in v0.2.1.', flush=True)
     try:
         server.serve_forever(poll_interval=0.25)
     except KeyboardInterrupt:

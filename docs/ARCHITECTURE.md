@@ -1,4 +1,4 @@
-# OpenRF Linux architecture — 0.2.0
+# OpenRF Linux architecture — 0.2.1
 
 ```
 Windows browser / Pi Chromium kiosk (planned)
@@ -16,3 +16,9 @@ openrf.server (stdlib HTTP server, read-only static asset hosting)
 - **Security**: localhost-only, Host and Origin checks, JSON body limits, no authentication, no uploads. Do not open to a network until security design changes. Hardware integration must remain lawful and opt-in.
 - **Future**: Linux wireless adapters through appropriate drivers / Kismet integration, BLE BlueZ, RTL-SDR, GNSS, cellular modem, optional ESP32-S3/CC1101, automatic survey correlation, heatmaps, and a touchscreen kiosk image. Preserve separation between observation location and estimated source location; do not place transmitter pins from single RSSI readings.
 - **Legacy Android**: archived under `legacy/android-v0.1.6/`; no migration of the phone's Room database (private). Old APK workflow removed from active `.github/workflows`.
+
+## v0.2.1 reliability and inventory
+
+- The browser uses MapLibre GL JS 5.24.0 classic bundle to load OpenFreeMap vector street styles. If unavailable or explicitly requested, a self-contained Web Mercator raster/coordinate fallback still supports pan/zoom, manual observation placement and saved survey markers. Tiles are fetched online from OpenStreetMap only when available; this is not an offline tile cache.
+- UI layout uses a top-aligned Grid child (`margin: 0 auto`, `align-self: stretch`) rather than auto centering. Navigation also resets page scroll position.
+- `hardware.status_report()` reads Linux sysfs USB descriptor IDs (not serial numbers), network and Bluetooth interface names, and device serial endpoint names. A driver contract exists but no sensor backend captures live RF. The inventory is evidence about system visibility, not radio capability or live measurements.

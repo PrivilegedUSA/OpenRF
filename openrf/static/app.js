@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], hardware: null, map: null, mapReady: false, style: 'liberty', showDemo: false, filterSession: null };
+const state = { observations: [], sessions: [], hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, filterSession: null };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -23,7 +23,8 @@ function showPage(page) {
   document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === `page-${page}`));
   const titles = {overview:'Field overview',map:'Survey map',scanner:'Signal analysis',discoveries:'Saved discoveries',sessions:'Investigations',hardware:'Hardware manager'};
   $('page-title').textContent = titles[page] || 'OpenRF'; $('page-crumb').textContent = page.toUpperCase();
-  if (page === 'map') { startMap(); if (state.map) setTimeout(() => state.map.resize(), 80); }
+  if (page === 'map') { startMap(); setTimeout(() => { state.map?.resize(); state.rasterMap?.resize(); }, 80); }
+  window.scrollTo(0, 0);
 }
 
 async function refresh() {
@@ -86,11 +87,28 @@ function renderHardware() {
     <p>${escapeHTML(c.description)}</p><small>Requires: ${escapeHTML(c.requires)}</small></div>`).join('');
   $('environment-info').textContent = [
     `Runtime: ${hw.environment}`, `Python: ${hw.python}`,
+    `Inventory collected (UTC): ${hw.inventory_collected_utc || 'unknown'}`,
     `Network interfaces: ${hw.network_interfaces.join(', ') || 'none'}`,
+    `Linux Wi-Fi interfaces: ${hw.network_details?.filter(n=>n.wireless).map(n=>n.name).join(', ') || 'none visible'}`,
+    `Bluetooth controller interfaces: ${hw.bluetooth_adapters?.join(', ') || 'none visible'}`,
     `NetworkManager utility: ${hw.command_availability.nmcli ? 'present' : 'not found'}`,
     `BlueZ utility: ${hw.command_availability.bluetoothctl ? 'present' : 'not found'}`,
+    `RF tools: ${['iw','rtl_test','hackrf_info','gpsd'].filter(x=>hw.command_availability[x]).join(', ') || 'none found'}`,
     `RF capture: INACTIVE — ${hw.scan_status}`
   ].join('\n');
+  const inventory = $('device-inventory');
+  const usb = hw.usb_devices || [];
+  const ports = hw.serial_ports || [];
+  const nets = hw.network_details || [];
+  inventory.innerHTML = `
+    <div class="device-group"><h4>USB descriptors (${usb.length})</h4>
+      ${usb.length ? usb.map(d=>`<div class="device-line">${escapeHTML(d.product || 'Unnamed USB device')} <small>${escapeHTML(d.manufacturer || 'Unknown manufacturer')} · ${escapeHTML(d.vendor_id)}:${escapeHTML(d.product_id)} · Port ${escapeHTML(d.port)}</small></div>`).join('') : '<div class="device-empty">No USB device descriptors visible. WSL USB passthrough may not be configured.</div>'}
+    </div>
+    <div class="device-group"><h4>Network and serial interfaces</h4>
+      ${nets.map(d=>`<div class="device-line">${escapeHTML(d.name)} <small>${d.wireless ? 'Linux wireless interface visible; scan unverified' : 'Not identified as Linux wireless'}</small></div>`).join('')}
+      ${ports.map(d=>`<div class="device-line">/dev/${escapeHTML(d)}<small>Unclassified serial endpoint; no driver attached by OpenRF</small></div>`).join('')}
+      ${!(nets.length || ports.length) ? '<div class="device-empty">No relevant interfaces visible.</div>' : ''}
+    </div>`;
 }
 
 function renderSignals() {
@@ -129,15 +147,18 @@ function drawHistory(grouped = null) {
     <p class="small muted">${sorted.length} stored measurement(s) · ${sorted.some(o=>o.source==='DEMO')?'Includes SYNTHETIC demo data · ':''}Not a distance estimate</p>`;
 }
 
+// MapLibre is preferred, but remote JavaScript or tiles can be blocked by VPNs,
+// network rules, or browser extensions. The independent raster map below never
+// needs an external JavaScript library. It uses online OSM tiles if available,
+// while retaining an offline coordinate grid and fully interactive survey pins.
 function startMap() {
-  if (state.map) return;
-  if (!window.maplibregl) {
-    $('map-error').hidden = false; return;
-  }
+  if (state.map || state.rasterMap) return;
+  if (!window.maplibregl) return startRasterMap('MapLibre is unavailable. Using the built-in raster/coordinate map.');
+  const attempt = ++state.mapAttempt;
   try {
-    state.map = new maplibregl.Map({container:'map', style:'https://tiles.openfreemap.org/styles/liberty', center:[-98.5,39.8], zoom:3.5, attributionControl:true});
+    state.map = new maplibregl.Map({container:'map', style:`https://tiles.openfreemap.org/styles/${state.style}`, center:[-98.5,39.8], zoom:3.5, attributionControl:true});
     state.map.addControl(new maplibregl.NavigationControl(), 'top-right');
-    state.map.on('style.load', () => { state.mapReady = true; installMarkerLayer(); updateMap(); });
+    state.map.on('style.load', () => { state.mapReady = true; $('map-error').hidden = true; installMarkerLayer(); updateMap(); });
     state.map.on('click', (evt) => {
       if (state.mapReady && state.map.getLayer('survey-points') && state.map.queryRenderedFeatures(evt.point,{layers:['survey-points']}).length) return;
       openObservation(evt.lngLat.lat.toFixed(6), evt.lngLat.lng.toFixed(6));
@@ -147,11 +168,20 @@ function startMap() {
       const p = evt.features[0].properties;
       new maplibregl.Popup().setLngLat(evt.lngLat).setHTML(`<strong>${escapeHTML(p.label)}</strong><br>${escapeHTML(p.kind)} · ${escapeHTML(p.source)}<br><small>Observation position only</small>`).addTo(state.map);
     });
-    state.map.on('error', evt => { if (evt.error && !state.mapReady) $('map-error').hidden = false; });
-  } catch (error) { console.warn('Map error',error); $('map-error').hidden = false; }
+    state.map.on('error', evt => { if (evt.error && !state.mapReady) setTimeout(() => {
+      if (attempt === state.mapAttempt && !state.mapReady && !state.rasterMap) switchToRasterMap('Vector style failed; showing raster map instead.');
+    }, 500); });
+    $('map-mode').textContent = 'Raster fallback';
+    setTimeout(() => {
+      if (attempt === state.mapAttempt && !state.mapReady && !state.rasterMap) switchToRasterMap('Vector map timed out; showing raster map instead.');
+    }, 12000);
+  } catch (error) {
+    console.warn('MapLibre startup failed:', error);
+    switchToRasterMap('Vector map startup failed; using built-in raster map.');
+  }
 }
 function installMarkerLayer() {
-  if (!state.map) return;
+  if (!state.map || state.map.getSource('survey-data')) return;
   state.map.addSource('survey-data', {type:'geojson',data:{type:'FeatureCollection',features:[]}});
   state.map.addLayer({id:'survey-points',type:'circle',source:'survey-data',paint:{
     'circle-color':['case',['==',['get','source'],'DEMO'],'#efa947','#30dec0'],
@@ -159,14 +189,145 @@ function installMarkerLayer() {
   }});
 }
 function updateMap() {
+  if (state.rasterMap) return state.rasterMap.render();
   if (!state.mapReady || !state.map?.getSource('survey-data')) return;
   const observations = state.observations.filter(o => o.latitude !== null && (state.showDemo || o.source !== 'DEMO'));
   const features = observations.map(o => ({type:'Feature',geometry:{type:'Point',coordinates:[o.longitude,o.latitude]},properties:{id:o.id,label:o.label,kind:o.kind,source:o.source}}));
   state.map.getSource('survey-data').setData({type:'FeatureCollection',features});
 }
+function switchToRasterMap(reason) {
+  ++state.mapAttempt;
+  if (state.map) { try { state.map.remove(); } catch(_) { /* partially initialized */ } }
+  state.map = null;
+  state.mapReady = false;
+  startRasterMap(reason);
+}
+function worldPixel(lon, lat, zoom) {
+  const size = 256 * (2 ** zoom);
+  const safeLat = Math.max(-85.05112878, Math.min(85.05112878, lat));
+  const sin = Math.sin(safeLat * Math.PI / 180);
+  return [(lon + 180) / 360 * size, (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * size];
+}
+function pixelWorld(x, y, zoom) {
+  const size = 256 * (2 ** zoom);
+  const lon = ((((x / size) * 360) % 360) + 360) % 360 - 180;
+  const lat = (180 / Math.PI) * Math.atan(Math.sinh(Math.PI * (1 - 2 * y / size)));
+  return [lon, lat];
+}
+function startRasterMap(reason) {
+  if (state.rasterMap) return;
+  $('map-error').hidden = true;
+  const root = $('map');
+  root.classList.add('raster-mode');
+  root.classList.toggle('raster-dark', state.style === 'dark');
+  const surface = document.createElement('div'); surface.className = 'raster-surface';
+  const tiles = document.createElement('div'); tiles.className = 'raster-tiles';
+  const pins = document.createElement('div'); pins.className = 'raster-pins';
+  const notice = document.createElement('div'); notice.className = 'raster-notice';
+  notice.textContent = `${reason} Street tiles require internet; the coordinate grid and saved observations remain usable offline.`;
+  const attribution = document.createElement('div'); attribution.className = 'raster-attribution';
+  const attributionLink = document.createElement('a'); attributionLink.href = 'https://www.openstreetmap.org/copyright';
+  attributionLink.textContent = '© OpenStreetMap contributors'; attributionLink.target = '_blank'; attributionLink.rel = 'noopener noreferrer';
+  attribution.append(attributionLink);
+  const controls = document.createElement('div'); controls.className = 'raster-control';
+  const plus = document.createElement('button'); plus.type = 'button'; plus.textContent = '+'; plus.title = 'Zoom in';
+  const minus = document.createElement('button'); minus.type = 'button'; minus.textContent = '−'; minus.title = 'Zoom out';
+  controls.append(plus, minus); surface.append(tiles, pins);
+  root.replaceChildren(surface, notice, controls, attribution);
+  const raster = {center:[-98.5,39.8], zoom:4, tileNodes:new Map(), failedTiles:new Set(),
+    render() {
+      const width = root.clientWidth, height = root.clientHeight;
+      if (!width || !height) return;
+      const center = worldPixel(raster.center[0], raster.center[1], raster.zoom);
+      const size = 256 * 2 ** raster.zoom;
+      const left = center[0] - width/2, top = center[1] - height/2;
+      const startX = Math.floor(left/256), endX = Math.floor((left + width)/256);
+      const startY = Math.floor(top/256), endY = Math.floor((top + height)/256);
+      const visible = new Set(); const n = 2 ** raster.zoom;
+      for (let ty=Math.max(0,startY); ty<=Math.min(n-1,endY); ty++) {
+        for (let tx=startX; tx<=endX; tx++) {
+          const wrapped = ((tx % n) + n) % n;
+          const key = `${raster.zoom}/${wrapped}/${ty}`;
+          if (raster.failedTiles.has(key)) continue;
+          visible.add(key);
+          let image = raster.tileNodes.get(key);
+          if (!image) {
+            image = document.createElement('img');
+            image.alt = ''; image.setAttribute('aria-hidden','true');
+            image.referrerPolicy = 'no-referrer'; image.loading = 'lazy';
+            image.addEventListener('error',()=>{
+              raster.failedTiles.add(key); raster.tileNodes.delete(key); image.remove();
+            });
+            image.src = `https://tile.openstreetmap.org/${key}.png`;
+            raster.tileNodes.set(key,image); tiles.append(image);
+          }
+          image.style.left = `${tx*256-left}px`; image.style.top = `${ty*256-top}px`;
+        }
+      }
+      for (const [key,image] of raster.tileNodes) {
+        if (!visible.has(key)) { image.remove(); raster.tileNodes.delete(key); }
+      }
+      const nextPins = document.createDocumentFragment();
+      state.observations.filter(o => o.latitude !== null && (state.showDemo || o.source !== 'DEMO')).forEach(o=>{
+        const position = worldPixel(o.longitude, o.latitude, raster.zoom);
+        const dx = ((position[0] - center[0] + size * 1.5) % size) - size/2;
+        const dy = position[1] - center[1];
+        if (Math.abs(dx) > width/2 + 15 || Math.abs(dy) > height/2 + 15) return;
+        const pin = document.createElement('button'); pin.type = 'button';
+        pin.className = `raster-pin${o.source === 'DEMO' ? ' demo' : ''}`;
+        pin.style.left = `${width/2+dx}px`; pin.style.top = `${height/2+dy}px`;
+        pin.title = `${o.label} (${o.kind}, ${o.source}) — observer position`;
+        pin.addEventListener('click',e=>{e.stopPropagation(); flash(`${o.label} — ${o.kind} · ${o.source} · OBSERVATION LOCATION, not transmitter location.`);});
+        nextPins.append(pin);
+      });
+      pins.replaceChildren(nextPins);
+    },
+    flyTo({center, zoom}) { raster.center = [...center]; if (Number.isFinite(zoom)) raster.zoom = Math.max(2,Math.min(18,Math.round(zoom))); raster.render(); },
+    resize() { raster.render(); }
+  };
+  state.rasterMap = raster;
+  $('map-mode').textContent = 'Try vector map';
+  plus.addEventListener('click',e=>{e.stopPropagation();raster.zoom=Math.min(18,raster.zoom+1);raster.render();});
+  minus.addEventListener('click',e=>{e.stopPropagation();raster.zoom=Math.max(2,raster.zoom-1);raster.render();});
+  if (!root.dataset.rasterBound) {
+    root.dataset.rasterBound = 'true';
+    let start = null;
+    root.addEventListener('pointerdown',e=>{
+      if (!state.rasterMap || e.button !== 0 || e.target.closest('button, a')) return;
+      start = {x:e.clientX,y:e.clientY,center:[...state.rasterMap.center], moved:false};
+      root.setPointerCapture(e.pointerId);
+    });
+    root.addEventListener('pointermove',e=>{
+      if (!start || !state.rasterMap) return;
+      const dx=e.clientX-start.x, dy=e.clientY-start.y;
+      if (Math.abs(dx)+Math.abs(dy)>6) start.moved=true;
+      if (start.moved) {
+        const from=worldPixel(start.center[0],start.center[1],state.rasterMap.zoom);
+        state.rasterMap.center=pixelWorld(from[0]-dx,from[1]-dy,state.rasterMap.zoom);
+        state.rasterMap.render();
+      }
+    });
+    root.addEventListener('pointerup',e=>{
+      if (!start || !state.rasterMap) return;
+      const previous=start; start=null;
+      if (previous.moved) return;
+      const rect=root.getBoundingClientRect();
+      const cp=worldPixel(state.rasterMap.center[0],state.rasterMap.center[1],state.rasterMap.zoom);
+      const ll=pixelWorld(cp[0]+e.clientX-rect.left-rect.width/2, cp[1]+e.clientY-rect.top-rect.height/2,state.rasterMap.zoom);
+      openObservation(ll[1].toFixed(6), ll[0].toFixed(6));
+    });
+    root.addEventListener('pointercancel',()=>{start=null;});
+    root.addEventListener('wheel',e=>{
+      if (!state.rasterMap) return;
+      e.preventDefault(); state.rasterMap.zoom=Math.max(2,Math.min(18,state.rasterMap.zoom+(e.deltaY<0?1:-1)));
+      state.rasterMap.render();
+    },{passive:false});
+  }
+  raster.render();
+}
 function zoomToRecord(id) {
   const item = state.observations.find(o=>o.id===id); if (!item || item.latitude === null) return;
-  showPage('map'); setTimeout(()=>state.map?.flyTo({center:[item.longitude,item.latitude],zoom:15}),100);
+  showPage('map'); setTimeout(()=> (state.map || state.rasterMap)?.flyTo({center:[item.longitude,item.latitude],zoom:15}),100);
 }
 
 async function runAction(fn, fallback='Could not complete operation') {
@@ -184,10 +345,14 @@ $('map-style').addEventListener('click',()=>{if(!state.map)return;state.style = 
 $('map-geolocate').addEventListener('click',()=>{
   if (!navigator.geolocation) return flash('Your browser does not provide geolocation.',true);
   navigator.geolocation.getCurrentPosition(pos=>{
-    state.map?.flyTo({center:[pos.coords.longitude,pos.coords.latitude],zoom:13});
+    (state.map || state.rasterMap)?.flyTo({center:[pos.coords.longitude,pos.coords.latitude],zoom:13});
     flash(`Browser-reported location shown (±${Math.round(pos.coords.accuracy)} m). Not stored.`);
   },()=>flash('Location unavailable or permission denied. You can pan the map manually.',true),{timeout:15000,enableHighAccuracy:false});
 });
+$('refresh-hardware').addEventListener('click',()=>runAction(async()=>{
+  state.hardware = await api('/api/hardware'); renderHardware();
+  flash('Read-only Linux hardware inventory refreshed. This did not start an RF scan.');
+}));
 $('discovery-search').addEventListener('input',renderDiscoveries);
 $('discovery-kind').addEventListener('change',renderDiscoveries);
 $('show-demo-list').addEventListener('change',renderDiscoveries);
