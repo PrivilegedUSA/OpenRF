@@ -464,6 +464,7 @@ function startRasterMap(reason, view = null) {
   root.replaceChildren(surface, notice, controls);
   const raster = {center:view?.center || [-98.5,39.8], zoom:Math.max(2,Math.min(18,Math.round(view?.zoom || 4))), tileNodes:new Map(), failedTiles:new Set(),
     render() {
+      notice.textContent = `${reason} ${state.offlineMap ? `Local raster package: ${state.offlineMap.name}. Tiles outside its coverage remain blank.` : 'Coordinate grid only. Install a licensed MBTiles raster package for offline streets.'}`;
       const width = root.clientWidth, height = root.clientHeight;
       if (!width || !height) return;
       const center = worldPixel(raster.center[0], raster.center[1], raster.zoom);
@@ -617,16 +618,17 @@ async function refreshOfflineMaps() {
   $('offline-map-status').textContent = state.offlineMap
     ? `LOCAL · ${state.offlineMap.name} · ${(state.offlineMap.size_bytes / 1048576).toFixed(1)} MB · no network required`
     : `${state.offlineMaps.length} local raster package(s). Grid and survey pins work offline; online streets need internet.`;
+  renderOfflineAreaDetail();
   if (state.rasterMap) state.rasterMap.render();
 }
 $('offline-map-refresh').addEventListener('click', () => runAction(refreshOfflineMaps));
 $('offline-map-select').addEventListener('change', event => {
   state.offlineMap = state.offlineMaps.find(m => m.id === event.target.value) || null;
   updateOfflineAttribution();
-  updateOfflineAttribution();
   $('offline-map-status').textContent = state.offlineMap
     ? `LOCAL · ${state.offlineMap.name} · Offline raster tiles; outside coverage shows coordinate grid.`
     : 'Local coordinate grid selected. No external raster tile requests.';
+  renderOfflineAreaDetail();
   if (state.rasterMap) {
     for (const image of state.rasterMap.tileNodes.values()) image.remove();
     state.rasterMap.tileNodes.clear(); state.rasterMap.failedTiles.clear();
@@ -637,6 +639,85 @@ $('offline-map-select').addEventListener('change', event => {
   } else if (state.map) switchToRasterMap('Offline map selected.');
   else startRasterMap('Offline map selected.');
 });
+
+
+function renderOfflineAreaDetail() {
+  const pack = state.offlineMap;
+  const detail = $('offline-map-detail');
+  $('offline-map-zoom').disabled = !pack?.bounds;
+  $('offline-map-remove').disabled = !pack;
+  if (!pack) {
+    detail.textContent = 'No area selected. Import a licensed raster MBTiles package, or choose a map from Offline basemap. Observations remain saved even when a basemap is removed.';
+    return;
+  }
+  const bounds = pack.bounds;
+  const coverage = bounds
+    ? `Coverage: west ${bounds[0].toFixed(4)}°, south ${bounds[1].toFixed(4)}°, east ${bounds[2].toFixed(4)}°, north ${bounds[3].toFixed(4)}° (declared package bounds; actual tile coverage may vary).`
+    : 'Coverage: not declared in this package. Area zoom is unavailable.';
+  detail.textContent = `${pack.name} · ${pack.id}.mbtiles\n${coverage}\nZoom: ${pack.minzoom}–${pack.maxzoom}; image: ${pack.format.toUpperCase()}; size: ${(pack.size_bytes/1048576).toFixed(1)} MiB.\nAttribution: ${pack.attribution || 'Not supplied — check the map data license.'}`;
+}
+
+function zoomToOfflineArea(pack) {
+  if (!pack?.bounds) return;
+  const [west, south, east, north] = pack.bounds;
+  const center = [(west+east)/2, (south+north)/2];
+  const root = $('map');
+  const width = Math.max(240, root.clientWidth || 400), height = Math.max(200, root.clientHeight || 300);
+  let zoom = 2;
+  for (let z = 2; z <= 18; z++) {
+    const tl = worldPixel(west, north, z), br = worldPixel(east, south, z);
+    if (br[0]-tl[0] > width*0.8 || br[1]-tl[1] > height*0.8) break;
+    zoom = z;
+  }
+  zoom = Math.max(2, Math.min(18, Math.max(pack.minzoom, zoom)));
+  state.mapNavigationEpoch++;
+  if (!state.rasterMap) switchToRasterMap('Viewing selected local map coverage.');
+  state.rasterMap?.flyTo({center, zoom});
+  $('offline-map-operation').textContent = `Centered on ${pack.name}; bounds are declared by the package, not independently verified.`;
+}
+
+$('offline-map-zoom').addEventListener('click', () => zoomToOfflineArea(state.offlineMap));
+$('offline-map-remove').addEventListener('click', () => runAction(async () => {
+  const pack = state.offlineMap;
+  if (!pack || !confirm(`Remove the local map file ${pack.id}.mbtiles? Survey observations and investigations will be preserved.`)) return;
+  const button = $('offline-map-remove'); button.disabled = true;
+  try {
+    await api(`/api/maps/${encodeURIComponent(pack.id)}`, 'DELETE');
+    state.offlineMap = null;
+    await refreshOfflineMaps();
+    if (state.rasterMap) {
+      for (const image of state.rasterMap.tileNodes.values()) image.remove();
+      state.rasterMap.tileNodes.clear(); state.rasterMap.failedTiles.clear();
+      state.rasterMap.render();
+    }
+    $('offline-map-operation').textContent = 'Map file removed. Survey records and investigations were not modified.';
+  } finally { renderOfflineAreaDetail(); }
+}));
+
+$('offline-map-import').addEventListener('click', () => runAction(async () => {
+  const file = $('offline-map-file').files?.[0];
+  if (!file) throw Error('Choose a local .mbtiles file first.');
+  const match = /^([A-Za-z0-9][A-Za-z0-9_.-]{0,127})\.mbtiles$/i.exec(file.name);
+  if (!match || match[1].endsWith('.')) throw Error('Rename the file with ASCII letters, digits, dashes, dots or underscores, ending in .mbtiles.');
+  if (file.size < 100 || file.size > 1073741824) throw Error('File must be between 100 bytes and 1 GiB.');
+  const button = $('offline-map-import'); button.disabled = true;
+  $('offline-map-operation').textContent = `Importing ${file.name} (${(file.size/1048576).toFixed(1)} MiB). Keep this page open; no public tile service is contacted.`;
+  try {
+    const response = await fetch('/api/maps/import', {
+      method: 'POST', headers: {'Content-Type':'application/octet-stream', 'X-OpenRF-Map-Id':match[1]}, body: file
+    });
+    const result = await response.json();
+    if (!response.ok) throw Error(result.error || `Import failed (${response.status})`);
+    await refreshOfflineMaps();
+    $('offline-map-select').value = result.map.id;
+    $('offline-map-select').dispatchEvent(new Event('change'));
+    $('offline-map-file').value = '';
+    $('offline-map-operation').textContent = `Imported ${result.map.name} (${(result.map.size_bytes/1048576).toFixed(1)} MiB) into private local storage.`;
+  } catch (err) {
+    $('offline-map-operation').textContent = `Import failed: ${err.message}. The previous maps were preserved.`;
+    throw err;
+  } finally { button.disabled = false; }
+}));
 
 document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
 document.querySelectorAll('[data-jump]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.jump)));

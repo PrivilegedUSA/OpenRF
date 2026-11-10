@@ -1,4 +1,4 @@
-# OpenRF v0.2.9 — Offline Mapping Foundation
+# OpenRF v0.2.10 — Offline Mapping Foundation
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.9.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.10.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.9 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.10 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,13 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.10 — Offline map area manager
+
+- **Survey Map → Manage offline map areas** can now import raster MBTiles from the browser, inspect the declared map boundaries, zoom range, size and provider attribution, center on the selected region, and explicitly remove that local map package. Streams up to 1 GiB to a private staging file without loading the entire archive into RAM. Rejects unsupported/corrupted files and duplicate names; no existing local map or observation database is overwritten. See [Offline Maps](docs/OFFLINE_MAPS.md).
+- **No automatic tile-area downloads:** Public OpenStreetMap tile servers remain off-limits for offline prefetching; only previously licensed local MBTiles packages may be imported. Vector basemap remains online. Offline grid and observation pins work without internet.
+- Hardware and sensor inventory now explicitly list the radar receiver module as **NOT IMPLEMENTED**, rather than silently implying generic RF hardware can detect it. Added a [long-range receive-only police radar module roadmap](docs/RADAR_RECEIVER_ROADMAP.md) for future X/K/Ka and LIDAR detection. **No radar hardware, radar detection, range, or laser sensor is implemented in this release.**
+- Preserved previous map behavior, SQLite data, USB diagnostics, one-shot Wi-Fi, investigations, archived Android project, and ESP32 firmware. No schema migration or required new Python packages.
 
 ## v0.2.9 — Local raster basemaps, offline grid and optional cached MapLibre
 

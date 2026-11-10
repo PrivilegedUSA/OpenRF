@@ -57,8 +57,8 @@ class RasterMBTilesTests(unittest.TestCase):
         fixture(self.folder, 'vector',fmt='pbf')
         fixture(self.folder, 'invalid',fmt='png',png=b'<html>bogus</html>')
         (self.folder / 'corrupt.mbtiles').write_bytes(b'not sqlite')
-        self.assertEqual([m['id'] for m in available_maps(self.folder)],['invalid'])
-        with self.assertRaises(TileMissing):
+        self.assertEqual([m['id'] for m in available_maps(self.folder)],[])
+        with self.assertRaises(MapNotFound):
             tile_bytes(self.folder,'invalid',2,1,1)
         with self.assertRaises(MapNotFound):
             map_info(self.folder,'vector')

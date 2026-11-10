@@ -57,3 +57,8 @@ Manufacturer references:
 5. Design and power-test the portable battery case last.
 
 No purchases or compatibility tests have been carried out by OpenRF yet. This document is a provisional bill of materials and should be re-priced against official sellers when ready to order. No hardware can receive *every* RF band; the Pi alone cannot measure specialized microwave radar or full cellular air-interface data.
+
+
+## Must-have future module: long-range police radar receiver (not purchased)
+
+OpenRF must eventually integrate a lawful **receive-only** radar detector subsystem for X/K/Ka, with separately supported laser/LIDAR optical receiving as feasible. This requires **specialized microwave/optical hardware**; no existing ESP32/RTL-SDR/HackRF accessory in this plan can directly cover all police radar bands. Evaluate a tested high-sensitivity commercial detector with an accessible documented output before building custom RF front ends. No range, cost, accuracy or availability is verified yet. See [radar receiver roadmap](RADAR_RECEIVER_ROADMAP.md). This remains an unimplemented future feature, not a promised capability of this release.

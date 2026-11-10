@@ -1,4 +1,4 @@
-# OpenRF Linux architecture — 0.2.9
+# OpenRF Linux architecture — 0.2.10
 
 ```
 Windows browser / Pi Chromium kiosk (planned)

@@ -13,7 +13,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from . import __version__
-from .offline_maps import available_maps, tile_bytes, MapNotFound, TileMissing
+from .offline_maps import (available_maps, tile_bytes, import_map, remove_map,
+                           MapNotFound, MapExists, MapBusy, TileMissing, MAX_IMPORT_BYTES)
 from .hardware import status_report, enumerate_serial_ports, serial_port_diagnostics
 from .drivers.wifi_nmcli import scan_once, WifiScanUnavailable
 from .drivers.serial_openrf import query_port, SerialSensorError
@@ -97,7 +98,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/maps':
             return self._json(200, {'maps': available_maps(self.server.map_directory),
                                     'storage': 'local-raster-mbtiles',
-                                    'downloads_enabled': False})
+                                    'downloads_enabled': False, 'imports_enabled': True, 'max_import_bytes': MAX_IMPORT_BYTES})
         if path.startswith('/api/maps/') and '/tiles/' in path:
             pieces = path.split('/')
             if len(pieces) != 8 or pieces[:3] != ['', 'api', 'maps'] or pieces[4] != 'tiles':
@@ -108,7 +109,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self._error(404, 'Not found')
                 y = int(pieces[7][:-4])
                 raw, mime = tile_bytes(self.server.map_directory, pieces[3], zoom, x, y)
-                return self._send(200, raw, mime, cache_control='private, max-age=3600')
+                return self._send(200, raw, mime, cache_control='no-store')
             except (MapNotFound, TileMissing, ValueError, OSError):
                 return self._error(404, 'Tile unavailable in local offline package')
             except Exception:
@@ -167,6 +168,32 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host() or not self._allowed_origin():
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
+        if path == '/api/maps/import':
+            # A browser-selected file only. Never fetch a remote URL, traverse
+            # arbitrary local filesystem paths, or decode the whole file in RAM.
+            if self.headers.get('Content-Type', '').lower().split(';')[0] != 'application/octet-stream':
+                return self._error(415, 'Select a local .mbtiles file for upload')
+            try:
+                declared = int(self.headers.get('Content-Length', '0'))
+            except ValueError:
+                return self._error(400, 'Invalid upload size')
+            if not 100 <= declared <= MAX_IMPORT_BYTES:
+                self.close_connection = True
+                return self._error(413, 'Upload must be between 100 bytes and 1 GiB')
+            map_id = self.headers.get('X-OpenRF-Map-Id', '')
+            try:
+                installed = import_map(self.server.map_directory, map_id,
+                                       self.rfile, declared, self.server.map_lock)
+                return self._json(201, {'map': installed})
+            except MapExists as exc:
+                self.close_connection = True
+                return self._error(409, str(exc))
+            except MapBusy as exc:
+                self.close_connection = True
+                return self._error(409, str(exc))
+            except (MapNotFound, ValueError, OSError) as exc:
+                self.close_connection = True
+                return self._error(400, str(exc))
         try:
             body = self._decode_body()
             if not isinstance(body, dict):
@@ -259,6 +286,16 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host() or not self._allowed_origin():
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
+        if path.startswith('/api/maps/') and path.count('/') == 3:
+            try:
+                remove_map(self.server.map_directory, path.split('/')[3], self.server.map_lock)
+                return self._json(200, {'removed': True})
+            except MapBusy as exc:
+                return self._error(409, str(exc))
+            except MapNotFound:
+                return self._error(404, 'Offline map not available')
+            except OSError:
+                return self._error(500, 'Could not remove local map file')
         if not path.startswith('/api/observations/'):
             return self._error(404, 'Not found')
         try:
@@ -272,6 +309,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
     server.repository = repository
     server.map_directory = repository.path.parent / 'maps'
+    server.map_lock = threading.Lock()
     server.map_asset_directory = repository.path.parent / 'assets'
     server.wifi_scan_lock = threading.Lock()
     server.scan_receipts = ScanReceiptStore()

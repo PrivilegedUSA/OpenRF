@@ -42,6 +42,8 @@ def connections(hardware: dict) -> list[dict]:
             'Receiver drivers and spectrum sample pipeline are not yet connected.').__dict__,
         SensorDescriptor('external-gnss', 'External GPS / GNSS', 'not_implemented',
             'No validated GNSS fix parser or fix-age quality negotiation yet.').__dict__,
+        SensorDescriptor('police-radar-receiver', 'Police radar X/K/Ka + LIDAR', 'not_implemented',
+            'Future long-range receive-only dedicated microwave and optical hardware required. No detector, alert, or range verified.').__dict__,
     ]
 
 

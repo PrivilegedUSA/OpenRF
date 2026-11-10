@@ -42,13 +42,14 @@ class ApiTests(unittest.TestCase):
     def test_health_static_hardware_and_exports(self):
         s,data=self.call('GET','/api/health')
         self.assertEqual(s,200)
-        self.assertEqual(data['version'],'0.2.9')
+        self.assertEqual(data['version'],'0.2.10')
         for path in ('/','/static/app.css','/static/app.js','/api/export.csv','/api/export.geojson'):
             status,_=self.call('GET',path)
             self.assertEqual(status,200,path)
         s,data=self.call('GET','/api/hardware')
         self.assertEqual(s,200)
-        self.assertEqual(len(data['capabilities']),7)
+        self.assertEqual(len(data['capabilities']),8)
+        self.assertTrue(any(c['key'] == 'police_radar' and c['status'] == 'not_implemented' for c in data['capabilities']))
 
     def test_cannot_forge_sensor_source_via_manual_entry(self):
         s,data=self.call('POST','/api/observations', {'kind':'BLE','source':'SENSOR', 'source_device':'HackRF','label':'Unverified manual'})

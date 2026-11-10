@@ -270,3 +270,14 @@
 @media(max-width:650px){.offline-map-manager{grid-template-columns:minmax(0,1fr) auto}.offline-map-manager label{grid-column:1/-1}.offline-map-manager .btn{min-height:43px}.offline-map-manager .field{min-height:43px}}
 
 #online-map-credits{display:grid;gap:6px}#online-map-credits[hidden]{display:none}#offline-map-attribution{overflow-wrap:anywhere}#offline-map-attribution[hidden]{display:none}
+
+/* v0.2.10: tactile offline map area manager stays outside the map viewport. */
+.map-area-manager{margin:0 0 12px;padding:11px 12px;border:1px solid #2d5055;border-radius:9px;background:#0c222c;max-width:100%}
+.map-area-manager>summary{cursor:pointer;font-weight:700;color:#d7f3ee;min-height:28px;line-height:28px}
+.map-area-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding-top:14px}
+.map-area-controls>label{width:100%;font-size:12px;font-weight:700;color:#c8e9e6}
+.map-area-controls>input{flex:1 1 180px;min-width:0;max-width:100%}
+.offline-map-detail{white-space:pre-line;line-height:1.6;border-top:1px solid #31545c;padding:11px 0;margin-top:12px;overflow-wrap:anywhere}
+.offline-area-actions{margin:10px 0}.map-area-manager button{min-height:42px}
+#offline-map-operation{overflow-wrap:anywhere}
+@media(max-width:620px){.map-area-controls{display:grid;grid-template-columns:minmax(0,1fr)}.map-area-controls>label{width:auto}.offline-area-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.offline-area-actions .btn{white-space:normal}}

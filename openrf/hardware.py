@@ -22,7 +22,7 @@ from .drivers.wifi_nmcli import linux_wifi_interfaces
 class SensorCapability:
     key: str
     title: str
-    status: str  # unavailable / not_connected / detected_unverified
+    status: str  # unavailable / not_connected / detected_unverified / not_implemented
     description: str
     requires: str
 
@@ -168,6 +168,9 @@ def status_report() -> dict:
         SensorCapability('cellular', 'Cellular / 5G', 'not_connected',
             'A modem must expose supported measurements; ordinary network connectivity is not cellular RF telemetry.',
             'Compatible 4G/5G modem and diagnostic interface'),
+        SensorCapability('police_radar', 'Long-range radar / laser receiver', 'not_implemented',
+            'PLANNED ONLY: No X/K/Ka microwave or LIDAR optical receiver is integrated. No radar warnings or detection range are available.',
+            'Specialized receive-only X/K/Ka microwave front end and optional separate LIDAR optical sensor; validated driver and alerts'),
     ]
     return {
         'environment': 'WSL 2 / Linux' if wsl else 'Linux',

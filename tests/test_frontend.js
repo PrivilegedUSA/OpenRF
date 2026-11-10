@@ -88,3 +88,13 @@ assert(html.includes('id="offline-map-select"') && html.includes('id="offline-ma
 assert(html.includes('/static/vendor/maplibre-gl.css'), 'optional local MapLibre CSS hook');
 assert(css.includes('.offline-map-manager') && css.includes('grid-template-columns:minmax(0,1fr) auto'), 'compact offline selector layout');
 console.log('v0.2.9 local mapping controls, offline tiles, and OSM policy checks passed.');
+
+// v0.2.10: only operator-selected local files are imported; do not enable remote tile download.
+assert(html.includes('id="map-area-manager"') && html.includes('id="offline-map-import"') && html.includes('id="offline-map-file"'), 'compact browser-based local MBTiles import');
+assert(html.includes('id="offline-map-zoom"') && html.includes('id="offline-map-remove"'), 'coverage view and explicit removal controls');
+assert(src.includes("fetch('/api/maps/import'") && src.includes('application/octet-stream'), 'stream browser-selected file to loopback API');
+assert(src.includes('function renderOfflineAreaDetail()') && src.includes('function zoomToOfflineArea(pack)'), 'package coverage and zoom functions');
+assert(src.includes('confirm(`Remove the local map file') && src.includes("'/api/maps'"), 'deletion is explicitly confirmed and catalog is refreshed');
+assert(!src.includes('tile.openstreetmap.org'), 'public OSM tile downloads remain disabled');
+assert(css.includes('.map-area-manager') && css.includes('grid-template-columns:minmax(0,1fr)'), 'area manager responsive handheld layout');
+console.log('v0.2.10 map area manager import, removal, local-only and touch layout contract passed.');
