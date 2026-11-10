@@ -1,4 +1,4 @@
-# OpenRF Linux architecture — 0.2.3
+# OpenRF Linux architecture — 0.2.4
 
 ```
 Windows browser / Pi Chromium kiosk (planned)
@@ -35,3 +35,7 @@ openrf.server (stdlib HTTP server, read-only static asset hosting)
 - `mapVisibleObservations()` requires finite, stored survey latitude/longitude and a selected category before creating vector GeoJSON or raster markers. `DEMO` records require explicit opt-in. Marker colors are category labels, not classification confidence or probable source locations.
 - NetworkManager's one-shot result list is ephemeral and unlocated; the shared scan function renders it either in Analysis or the map drawer, **never as map pins**. GPS browser geolocation is local to the browser and is never implicitly attached to scan results.
 - No driver API, session storage, SQLite schema, backend capture or API authorization changed.
+
+## v0.2.4 handheld navigation
+
+A top-left hamburger opens an accessible fixed vertical drawer on compact/touch layouts, leaving desktop persistent navigation unchanged. Measurement tables are rendered as labeled cards on small viewports. No API or database change.

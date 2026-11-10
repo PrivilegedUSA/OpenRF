@@ -18,7 +18,45 @@ async function api(url, method = 'GET', body = null) {
 function flash(message, error = false) {
   const el = $('flash'); el.textContent = message; el.hidden = false; el.classList.toggle('error', error);
 }
+// The five-inch UI uses a real, accessible drawer, not a horizontally scrolling tab bar.
+const compactNavigation = window.matchMedia('(max-width:900px), (max-width:1400px) and (max-height:850px) and (pointer:coarse)');
+const menuButton = $('menu-toggle');
+const menuBackdrop = $('menu-backdrop');
+const mainSidebar = $('main-sidebar');
+let navigationOpen = false;
+function syncNavigation() {
+  const compact = compactNavigation.matches;
+  if (!compact) navigationOpen = false;
+  document.body.classList.toggle('menu-open', compact && navigationOpen);
+  menuBackdrop.hidden = !(compact && navigationOpen);
+  menuButton.setAttribute('aria-expanded', String(compact && navigationOpen));
+  menuButton.setAttribute('aria-label', navigationOpen ? 'Close navigation menu' : 'Open navigation menu');
+  mainSidebar.inert = compact && !navigationOpen;
+  document.querySelector('.main').inert = compact && navigationOpen;
+}
+function setNavigationOpen(open, restoreFocus = true) {
+  const wasOpen = navigationOpen;
+  navigationOpen = !!open && compactNavigation.matches;
+  syncNavigation();
+  if (navigationOpen) mainSidebar.querySelector('.nav-btn.active')?.focus();
+  else if (wasOpen && restoreFocus) menuButton.focus();
+}
+menuButton.addEventListener('click', () => setNavigationOpen(!navigationOpen));
+$('menu-close').addEventListener('click', () => setNavigationOpen(false));
+menuBackdrop.addEventListener('click', () => setNavigationOpen(false));
+window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && navigationOpen) { event.preventDefault(); setNavigationOpen(false); }
+});
+if (compactNavigation.addEventListener) compactNavigation.addEventListener('change', syncNavigation);
+else compactNavigation.addListener(syncNavigation);
+syncNavigation();
+
 function showPage(page, options = {}) {
+  if (navigationOpen) {
+    setNavigationOpen(false, false);
+    $('page-title').setAttribute('tabindex', '-1');
+    $('page-title').focus({preventScroll: true});
+  }
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.toggle('active', el.dataset.page === page));
   document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === `page-${page}`));
   const titles = {overview:'Field overview',map:'Survey map',scanner:'Signal analysis',discoveries:'Saved discoveries',sessions:'Investigations',hardware:'Hardware manager'};
@@ -130,7 +168,7 @@ function renderSignals() {
   const rows = signals.filter(o => o.source !== 'DEMO').slice(0, 100);
   $('scan-count').textContent = `${signals.length} recorded`;
   renderWifiScan();
-  $('signal-table').innerHTML = rows.length ? `<table class="data-table"><thead><tr><th>IDENTIFIER</th><th>KIND</th><th>RSSI</th><th>FREQUENCY</th><th>PROVENANCE</th><th>TIME</th></tr></thead><tbody>${rows.map(o=>`<tr><td>${escapeHTML(o.identifier || o.label)}</td><td>${escapeHTML(o.kind)}</td><td>${format(o.rssi_dbm, ' dBm')}</td><td>${format(o.frequency_mhz, ' MHz')}</td><td>${escapeHTML(o.source)}</td><td>${escapeHTML(stamp(o.observed_at))}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No saved RF measurements yet. One-shot Wi-Fi results above are temporary and not stored automatically.</div>';
+  $('signal-table').innerHTML = rows.length ? `<table class="data-table"><thead><tr><th>IDENTIFIER</th><th>KIND</th><th>RSSI</th><th>FREQUENCY</th><th>PROVENANCE</th><th>TIME</th></tr></thead><tbody>${rows.map(o=>`<tr><td data-label="Identifier">${escapeHTML(o.identifier || o.label)}</td><td data-label="Kind">${escapeHTML(o.kind)}</td><td data-label="RSSI">${format(o.rssi_dbm, ' dBm')}</td><td data-label="Frequency">${format(o.frequency_mhz, ' MHz')}</td><td data-label="Source">${escapeHTML(o.source)}</td><td data-label="Time">${escapeHTML(stamp(o.observed_at))}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No saved RF measurements yet. One-shot Wi-Fi results above are temporary and not stored automatically.</div>';
   drawHistory(grouped);
 }
 
@@ -170,7 +208,7 @@ function renderWifiScan() {
   }
   const entries = scan.records || [];
   out.innerHTML = `<p class="tiny">${escapeHTML(scan.interface)} · Retrieved ${escapeHTML(stamp(scan.retrieved_at_utc))} · ${entries.length} access point(s). ${escapeHTML(scan.freshness)}. Quality % is not RSSI in dBm. No GPS or transmitter coordinates.</p>` +
-    (entries.length ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>SSID</th><th>BSSID</th><th>FREQ.</th><th>CHANNEL</th><th>QUALITY</th><th>SECURITY</th></tr></thead><tbody>${entries.map(n=>`<tr><td>${escapeHTML(n.ssid)}</td><td>${escapeHTML(n.bssid)}</td><td>${format(n.frequency_mhz,' MHz')}</td><td>${format(n.channel)}</td><td>${format(n.signal_quality_percent,'%')}</td><td>${escapeHTML(n.security)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">NetworkManager returned no access points. This does not prove the area has no wireless signals.</div>');
+    (entries.length ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>SSID</th><th>BSSID</th><th>FREQ.</th><th>CHANNEL</th><th>QUALITY</th><th>SECURITY</th></tr></thead><tbody>${entries.map(n=>`<tr><td data-label="SSID">${escapeHTML(n.ssid)}</td><td data-label="BSSID">${escapeHTML(n.bssid)}</td><td data-label="Frequency">${format(n.frequency_mhz,' MHz')}</td><td data-label="Channel">${format(n.channel)}</td><td data-label="Quality">${format(n.signal_quality_percent,'%')}</td><td data-label="Security">${escapeHTML(n.security)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">NetworkManager returned no access points. This does not prove the area has no wireless signals.</div>');
 }
 
 function drawHistory(grouped = null) {

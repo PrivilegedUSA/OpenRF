@@ -38,6 +38,14 @@ assert(src.includes('mapVisibleObservations().forEach') && src.includes('const o
 assert(src.includes('async function scanWifiOnce()') && src.includes("$('map-scan-wifi').addEventListener('click', scanWifiOnce)"), 'shared scan action');
 assert(src.includes('Not geolocated or mapped'), 'Wi-Fi scan list must never imply transmitter pins');
 assert(css.includes('.map-survey-panel {position:fixed') && css.includes('env(safe-area-inset-bottom)'), 'handheld drawer and nav safe areas');
-assert(css.includes('grid-template-columns:repeat(6,minmax(0,1fr))'), 'six-button bottom navigation');
+assert(html.includes('id="menu-toggle"') && html.includes('id="menu-backdrop"') && html.includes('id="menu-close"'), 'hamburger drawer controls');
 assert(html.includes('id="map-geolocate-sheet"') && src.includes("$('map-geolocate-sheet').addEventListener('click',()=>locateMap(true))"), 'handheld geolocation preserved');
 console.log('v0.2.3 map-first and touchscreen contract checks passed.');
+
+// v0.2.4: no horizontally scrolling tabs/tables on compact touchscreen widths.
+assert(src.includes('function setNavigationOpen(') && src.includes("event.key === 'Escape'"), 'drawer can be opened and dismissed with Escape');
+assert(src.includes('mainSidebar.inert = compact && !navigationOpen') && src.includes("document.querySelector('.main').inert = compact && navigationOpen"), 'closed drawer and background are non-focusable as appropriate');
+assert(src.includes('if (navigationOpen) {') && src.includes("$('page-title').focus({preventScroll: true})"), 'drawer closes and moves focus to destination on navigation');
+assert(css.includes('.data-table td:before {content:attr(data-label)') && src.includes('data-label="BSSID"') && src.includes('data-label="RSSI"'), 'measurement tables become stacked labeled rows');
+assert(css.includes('.sidebar .nav {display:grid;grid-template-columns:minmax(0,1fr)') && css.includes('transform:translateX(-110%)'), 'mobile navigation is vertical rather than scrolling horizontally');
+console.log('v0.2.4 menu and non-scrolling table contract checks passed.');
