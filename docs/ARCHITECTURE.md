@@ -1,4 +1,4 @@
-# OpenRF Linux architecture — 0.2.2
+# OpenRF Linux architecture — 0.2.3
 
 ```
 Windows browser / Pi Chromium kiosk (planned)
@@ -28,3 +28,10 @@ openrf.server (stdlib HTTP server, read-only static asset hosting)
 
 - Browser geolocation is permission-gated and kept in browser memory. Map auto-centers when opening for the first time; accuracy determines zoom. A blue dot indicates only browser position, never a transmitter or a persisted observation. Raster/vector switching now preserves camera position.
 - `POST /api/wifi/scan` triggers exactly one explicit NetworkManager Wi-Fi discovery if Linux exposes a wireless interface. Returns ephemeral AP listing with SSID/BSSID/frequency/channel/security/quality %, not RSSI dBm. Result freshness is unverified; NetworkManager may return cache and may send ordinary probe requests. Scans rate-limited 15s. No GPS, passive packet sniffing, background capture or automatic persistence. Tests use a stubbed `nmcli`. See `docs/NATIVE_WIFI_DRIVER.md`.
+
+## v0.2.3 touchscreen and map layer separation
+
+- Responsive frontend adds a 5-inch bottom application navigation and a map-sheet UI. Saved survey category filters are local view state only, not SQLite changes. Desktop Overview and detailed Analysis remain available.
+- `mapVisibleObservations()` requires finite, stored survey latitude/longitude and a selected category before creating vector GeoJSON or raster markers. `DEMO` records require explicit opt-in. Marker colors are category labels, not classification confidence or probable source locations.
+- NetworkManager's one-shot result list is ephemeral and unlocated; the shared scan function renders it either in Analysis or the map drawer, **never as map pins**. GPS browser geolocation is local to the browser and is never implicitly attached to scan results.
+- No driver API, session storage, SQLite schema, backend capture or API authorization changed.

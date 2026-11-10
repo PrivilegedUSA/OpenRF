@@ -27,3 +27,17 @@ assert(src.includes("$('map-mode').addEventListener('click'"), 'raster fallback 
 assert(src.includes('state.browserLocation') && src.includes('updateBrowserLocationMarker'), 'browser position marker');
 assert(css.includes('.browser-location-marker'), 'browser position styling');
 console.log('Frontend regressions passed: projection, shared header alignment, scanner spacing, map and inventory controls.');
+
+// v0.2.3: embedded scanner/map layer and handheld requirements.
+assert(html.includes('id="map-survey-toggle"') && html.includes('id="map-survey-panel"'), 'map-first wireless drawer');
+assert(html.includes('id="map-scan-wifi"') && html.includes('id="scan-wifi-once"'), 'same one-shot driver available in Map and Analysis');
+assert(html.includes('data-map-kind="WIFI"') && html.includes('data-map-kind="BLE"'), 'map wireless layer checkboxes');
+assert(src.includes('function mapVisibleObservations()') && src.includes('Number.isFinite(o.latitude)'), 'only geolocated observations may be pinned');
+assert(src.includes('state.mapKinds.has(o.kind)') && src.includes("o.source !== 'DEMO'"), 'per-kind filters and DEMO default exclusion');
+assert(src.includes('mapVisibleObservations().forEach') && src.includes('const observations = mapVisibleObservations();'), 'vector and raster filters agree');
+assert(src.includes('async function scanWifiOnce()') && src.includes("$('map-scan-wifi').addEventListener('click', scanWifiOnce)"), 'shared scan action');
+assert(src.includes('Not geolocated or mapped'), 'Wi-Fi scan list must never imply transmitter pins');
+assert(css.includes('.map-survey-panel {position:fixed') && css.includes('env(safe-area-inset-bottom)'), 'handheld drawer and nav safe areas');
+assert(css.includes('grid-template-columns:repeat(6,minmax(0,1fr))'), 'six-button bottom navigation');
+assert(html.includes('id="map-geolocate-sheet"') && src.includes("$('map-geolocate-sheet').addEventListener('click',()=>locateMap(true))"), 'handheld geolocation preserved');
+console.log('v0.2.3 map-first and touchscreen contract checks passed.');

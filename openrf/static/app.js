@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, filterSession: null, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null };
+const state = { observations: [], sessions: [], hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, filterSession: null, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -23,7 +23,7 @@ function showPage(page, options = {}) {
   document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === `page-${page}`));
   const titles = {overview:'Field overview',map:'Survey map',scanner:'Signal analysis',discoveries:'Saved discoveries',sessions:'Investigations',hardware:'Hardware manager'};
   $('page-title').textContent = titles[page] || 'OpenRF'; $('page-crumb').textContent = page.toUpperCase();
-  if (page === 'map') { startMap(); if (options.autoLocate !== false) locateMap(false); setTimeout(() => { state.map?.resize(); state.rasterMap?.resize(); }, 80); }
+  if (page === 'map') { startMap(); if (options.autoLocate !== false) locateMap(false); renderMapSurveyPanel(); setTimeout(() => { state.map?.resize(); state.rasterMap?.resize(); }, 80); }
   window.scrollTo(0, 0);
 }
 
@@ -40,7 +40,7 @@ async function refresh() {
   $('metric-demo').textContent = stats.demo;
   $('runtime-pill').textContent = hardware.environment;
   $('scanner-connection-pill').textContent = hardware.wifi_one_shot?.possible ? 'ON-DEMAND WI-FI POSSIBLE' : 'NO LINUX WI-FI SCANNER';
-  renderDiscoveries(); renderSessions(); renderHardware(); renderSignals(); updateMap();
+  renderDiscoveries(); renderSessions(); renderHardware(); renderSignals(); updateMap(); renderMapSurveyPanel();
 }
 
 function openObservation(lat = '', lon = '') {
@@ -134,6 +134,32 @@ function renderSignals() {
   drawHistory(grouped);
 }
 
+// Map-first workflow: display stored observations only at actual survey coordinates.
+// A one-shot NetworkManager result has no coordinates; keep its temporary list
+// in the sheet, never plot it at a presumed transmitter position.
+function mapVisibleObservations() {
+  return state.observations.filter(o =>
+    Number.isFinite(o.latitude) && Number.isFinite(o.longitude) &&
+    state.mapKinds.has(o.kind) && (state.showDemo || o.source !== 'DEMO'));
+}
+function renderMapSurveyPanel() {
+  const all = mapVisibleObservations();
+  const wireless = all.filter(o => ['WIFI','BLE','RF','CELLULAR'].includes(o.kind));
+  $('map-layer-count').textContent = String(all.length);
+  $('map-survey-summary').textContent = `${all.length} mapped survey point(s) visible · ${wireless.length} wireless-category record(s). Positions are where readings/notes were entered, not transmitter locations.`;
+  const output = $('map-wifi-readings');
+  const scan = state.wifiScan;
+  if (!scan) { output.innerHTML = ''; return; }
+  const entries = (scan.records || []).slice(0, 8);
+  output.innerHTML = `<div class="map-live-heading"><strong>Last one-shot Wi-Fi scan</strong><span>${escapeHTML(stamp(scan.retrieved_at_utc))}</span></div>
+    <p>${escapeHTML(scan.interface)} · ${escapeHTML(scan.freshness)} · ${scan.records?.length || 0} result(s) · <b>Not geolocated or mapped</b></p>
+    ${entries.map(n=>`<div class="map-live-row"><strong>${escapeHTML(n.ssid || 'Hidden SSID')}</strong><span>${escapeHTML(format(n.frequency_mhz,' MHz'))} · Quality ${escapeHTML(format(n.signal_quality_percent,'%'))}</span></div>`).join('')}
+    ${scan.records?.length > entries.length ? `<p>Showing first ${entries.length} networks; see Detailed analysis for all.</p>` : ''}`;
+}
+function setMapSurveyOpen(open) {
+  $('map-survey-panel').hidden = !open;
+  $('map-survey-toggle').setAttribute('aria-expanded', String(open));
+}
 function renderWifiScan() {
   const out = $('live-wifi-results');
   if (!out) return;
@@ -250,14 +276,14 @@ function installMarkerLayer() {
   if (!state.map || state.map.getSource('survey-data')) return;
   state.map.addSource('survey-data', {type:'geojson',data:{type:'FeatureCollection',features:[]}});
   state.map.addLayer({id:'survey-points',type:'circle',source:'survey-data',paint:{
-    'circle-color':['case',['==',['get','source'],'DEMO'],'#efa947','#30dec0'],
+    'circle-color':['case',['==',['get','source'],'DEMO'],'#efa947',['match',['get','kind'],'WIFI','#53a9ff','BLE','#ae8cff','RF','#efaa53','CELLULAR','#f07b8d','INFRASTRUCTURE','#e9f0f1','#30dec0']],
     'circle-radius':8,'circle-stroke-color':'#09252c','circle-stroke-width':2,'circle-opacity':0.9
   }});
 }
 function updateMap() {
   if (state.rasterMap) return state.rasterMap.render();
   if (!state.mapReady || !state.map?.getSource('survey-data')) return;
-  const observations = state.observations.filter(o => o.latitude !== null && (state.showDemo || o.source !== 'DEMO'));
+  const observations = mapVisibleObservations();
   const features = observations.map(o => ({type:'Feature',geometry:{type:'Point',coordinates:[o.longitude,o.latitude]},properties:{id:o.id,label:o.label,kind:o.kind,source:o.source}}));
   state.map.getSource('survey-data').setData({type:'FeatureCollection',features});
 }
@@ -336,13 +362,13 @@ function startRasterMap(reason, view = null) {
         if (!visible.has(key)) { image.remove(); raster.tileNodes.delete(key); }
       }
       const nextPins = document.createDocumentFragment();
-      state.observations.filter(o => o.latitude !== null && (state.showDemo || o.source !== 'DEMO')).forEach(o=>{
+      mapVisibleObservations().forEach(o=>{
         const position = worldPixel(o.longitude, o.latitude, raster.zoom);
         const dx = ((position[0] - center[0] + size * 1.5) % size) - size/2;
         const dy = position[1] - center[1];
         if (Math.abs(dx) > width/2 + 15 || Math.abs(dy) > height/2 + 15) return;
         const pin = document.createElement('button'); pin.type = 'button';
-        pin.className = `raster-pin${o.source === 'DEMO' ? ' demo' : ''}`;
+        pin.className = `raster-pin kind-${o.kind.toLowerCase()}${o.source === 'DEMO' ? ' demo' : ''}`;
         pin.style.left = `${width/2+dx}px`; pin.style.top = `${height/2+dy}px`;
         pin.title = `${o.label} (${o.kind}, ${o.source}) — observer position`;
         pin.addEventListener('click',e=>{e.stopPropagation(); flash(`${o.label} — ${o.kind} · ${o.source} · OBSERVATION LOCATION, not transmitter location.`);});
@@ -420,7 +446,7 @@ document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',
 $('manual-entry').addEventListener('click',()=>openObservation());
 $('add-discovery').addEventListener('click',()=>openObservation());
 $('new-session').addEventListener('click',()=>$('session-dialog').showModal());
-$('show-demo-map').addEventListener('change',e => {state.showDemo = e.target.checked;updateMap();});
+$('show-demo-map').addEventListener('change',e => {state.showDemo = e.target.checked;$('show-demo-map-sheet').checked=e.target.checked;updateMap();renderMapSurveyPanel();});
 $('map-style').addEventListener('click',()=>{
   state.style = state.style==='liberty'?'dark':'liberty';
   if (state.map) {state.mapReady=false;state.map.setStyle(`https://tiles.openfreemap.org/styles/${state.style}`);}
@@ -428,6 +454,10 @@ $('map-style').addEventListener('click',()=>{
   $('map-style').textContent=state.style==='dark'?'Street map':'Dark map';
 });
 $('map-geolocate').addEventListener('click',()=>locateMap(true));
+$('map-geolocate-sheet').addEventListener('click',()=>locateMap(true));
+$('map-style-sheet').addEventListener('click',()=>$('map-style').click());
+$('map-mode-sheet').addEventListener('click',()=>$('map-mode').click());
+$('show-demo-map-sheet').addEventListener('change',e=>{ $('show-demo-map').checked=e.target.checked;$('show-demo-map').dispatchEvent(new Event('change')); });
 $('map-mode').addEventListener('click',()=>{
   if (!state.rasterMap) {switchToRasterMap('Raster mode selected. Online street tiles will be attempted.');return;}
   state.preferredView={center:[...state.rasterMap.center],zoom:state.rasterMap.zoom};
@@ -435,10 +465,30 @@ $('map-mode').addEventListener('click',()=>{
   $('map').replaceChildren(); $('map').classList.remove('raster-mode','raster-dark');
   startMap();
 });
-$('scan-wifi-once').addEventListener('click',()=>runAction(async()=>{
-  const button=$('scan-wifi-once'); button.disabled=true; button.textContent='Scanning Linux Wi-Fi…';
-  try {state.wifiScan=await api('/api/wifi/scan','POST',{});renderWifiScan();flash(`Received ${state.wifiScan.records.length} network entries from ${state.wifiScan.interface}. Freshness is unverified; nothing was saved.`);}
-  finally {button.disabled=false;button.textContent='Scan Wi-Fi once';}
+async function scanWifiOnce() {
+  const buttons = [$('scan-wifi-once'), $('map-scan-wifi')];
+  buttons.forEach(button => {button.disabled=true; button.dataset.oldText=button.textContent; button.textContent='Scanning…';});
+  $('map-survey-status').textContent = 'Requesting Linux Wi-Fi scan…';
+  try {
+    state.wifiScan = await api('/api/wifi/scan', 'POST', {});
+    renderWifiScan(); renderMapSurveyPanel();
+    $('map-survey-status').textContent = `${state.wifiScan.records.length} access point(s) returned. Results may be cached; no source coordinates, RSSI dBm, or automatic map pins.`;
+    flash(`Received ${state.wifiScan.records.length} Linux Wi-Fi entries. Freshness unverified; nothing stored or mapped.`);
+  } catch (error) {
+    $('map-survey-status').textContent = `Scan unavailable: ${error.message}`;
+    flash(error.message, true);
+  } finally {
+    buttons.forEach(button => {button.disabled=false; button.textContent=button.dataset.oldText;});
+  }
+}
+$('scan-wifi-once').addEventListener('click', scanWifiOnce);
+$('map-scan-wifi').addEventListener('click', scanWifiOnce);
+$('map-survey-toggle').addEventListener('click', () => setMapSurveyOpen($('map-survey-panel').hidden));
+$('map-survey-close').addEventListener('click', () => setMapSurveyOpen(false));
+document.querySelectorAll('[data-map-kind]').forEach(input => input.addEventListener('change', () => {
+  if (input.checked) state.mapKinds.add(input.dataset.mapKind);
+  else state.mapKinds.delete(input.dataset.mapKind);
+  updateMap(); renderMapSurveyPanel();
 }));
 $('refresh-hardware').addEventListener('click',()=>runAction(async()=>{
   state.hardware = await api('/api/hardware'); renderHardware();
@@ -476,4 +526,7 @@ $('load-demo').addEventListener('click',()=>runAction(async()=>{
 }));
 $('clear-demo').addEventListener('click',()=>runAction(async()=>{const out=await api('/api/demo/clear','POST',{});flash(`Removed ${out.removed} synthetic record(s).`);await refresh();}));
 
+// Handheld/touchscreen widths open directly to the primary map workspace.
+// Desktop preserves the original overview landing page.
+if (window.matchMedia('(max-width: 900px), (max-width: 1400px) and (max-height: 850px) and (pointer: coarse)').matches) showPage('map');
 refresh().catch(e=>flash(`Unable to reach local OpenRF server: ${e.message}`,true));

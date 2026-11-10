@@ -13,6 +13,7 @@ Build OpenRF as a free, open-source, offline-first, general-purpose **portable R
 
 ## Software architecture
 - Primary app: Python 3.11+ backend with local HTTP/JSON API and SQLite; portable, touchscreen-friendly HTML/CSS/JavaScript UI. For first releases prefer Python stdlib to avoid ABI issues with Python 3.14 or ARM64.
+- Design for 5-inch Raspberry Pi Touch Display 2 (720×1280 portrait; optional landscape) first: large touch targets, map-first handheld view, bottom app navigation, easy-to-dismiss map layers/sensor panel. Preserve a good desktop WSL layout and detailed Analysis view. Scanner readings with no defensible survey coordinates must never be plotted as transmitter pins.
 - Maps: MapLibre + OpenStreetMap-derived datasets (OpenFreeMap for early online tiles); plan reproducible offline area caching for field use. Navigation and routing (Valhalla etc.) are later phases.
 - Keep boundaries for map, wireless discovery, hardware drivers, observations, investigations, alarms, and export. Define a common typed observation format that records source device, time, evidence/quality, frequency/unit, optional RSSI, coordinates + accuracy, and survey-vs-estimated-source meaning.
 - The backend works on WSL and Raspberry Pi OS; hardware drivers are optional plugins. Plan USB SDR, ESP32-S3, RTL-SDR, HackRF, CC1101/sub-GHz, GPS, compatible 4G/5G modems, optical sensors and directional antennas. Report supported, unsupported, connected, stale and failed states clearly.

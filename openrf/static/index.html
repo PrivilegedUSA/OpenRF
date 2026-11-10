@@ -13,15 +13,15 @@
 <body>
   <div class="app">
     <aside class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.2</small></div></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.3</small></div></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
-        <button class="nav-btn active" data-page="overview"><span>▦</span> Overview</button>
-        <button class="nav-btn" data-page="map"><span>⌖</span> Survey Map</button>
-        <button class="nav-btn" data-page="scanner"><span>≋</span> Scanner</button>
-        <button class="nav-btn" data-page="discoveries"><span>◈</span> Discoveries</button>
-        <button class="nav-btn" data-page="sessions"><span>◷</span> Investigations</button>
-        <button class="nav-btn" data-page="hardware"><span>▤</span> Hardware</button>
+        <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
+        <button class="nav-btn" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
+        <button class="nav-btn" data-page="scanner"><span class="nav-icon" aria-hidden="true">≋</span><span class="nav-label">Analysis</span></button>
+        <button class="nav-btn" data-page="discoveries"><span class="nav-icon" aria-hidden="true">◈</span><span class="nav-label">Saved</span></button>
+        <button class="nav-btn" data-page="sessions"><span class="nav-icon" aria-hidden="true">◷</span><span class="nav-label">Sessions</span></button>
+        <button class="nav-btn" data-page="hardware"><span class="nav-icon" aria-hidden="true">▤</span><span class="nav-label">Hardware</span></button>
       </nav>
       <div class="sidebar-bottom">
         <div class="status-chip"><span class="dot green"></span> Local server connected</div>
@@ -38,12 +38,29 @@
         <div class="two-columns"><div class="panel"><div class="panel-title"><h3>Development console</h3><span class="pill amber">FOUNDATION RELEASE</span></div><p>Core mapping, survey storage, session history and hardware discovery are working. Real Linux RF drivers are not yet connected. OpenRF never fabricates live readings.</p><div class="button-line"><button class="btn outline" id="load-demo">Load synthetic test records</button><button class="btn danger-outline" id="clear-demo">Remove demo records</button></div><p class="muted small">The demonstration dataset is optional and prominently labeled. It is hidden from the map unless you enable its layer.</p></div><div class="panel"><div class="panel-title"><h3>Quick export</h3><span class="pill">LOCAL</span></div><p>Save a private copy of your observations, including GPS accuracy and source information.</p><div class="button-line"><a class="btn outline" href="/api/export.csv" download>Download CSV</a><a class="btn outline" href="/api/export.geojson" download>Download GeoJSON</a></div><p class="muted small">Maps and their JavaScript libraries still require an internet connection. Your records and the rest of OpenRF run offline.</p></div></div>
       </section>
       <section class="page" id="page-map">
-        <div class="section-heading"><div><h2>Geographic survey</h2><p>Map pins show where observations were made, not where transmitters are located.</p></div><div class="button-line"><label class="switchline"><input id="show-demo-map" type="checkbox"> Show demo</label><button class="btn outline" id="map-geolocate">My browser location</button><button class="btn outline" id="map-style">Dark map</button><button class="btn outline" id="map-mode">Raster fallback</button></div></div>
+        <div class="section-heading"><div><h2>Geographic survey</h2><p>Map wireless survey points, view recorded signal layers, and launch supported on-demand scans. Pins are observer locations, not transmitter positions.</p></div><div class="button-line"><label class="switchline"><input id="show-demo-map" type="checkbox"> Show demo</label><button class="btn outline" id="map-geolocate">My browser location</button><button class="btn outline" id="map-style">Dark map</button><button class="btn outline" id="map-mode">Raster fallback</button></div></div>
         <p id="map-location-status" class="muted small map-location-status" role="status" aria-live="polite">Location will be requested when you open the map. Coordinates are not saved.</p>
-        <div class="map-wrap"><div id="map"></div><div id="map-error" class="map-error" hidden><strong>Map could not load.</strong><p>The vector map failed. A locally implemented coordinate map will start automatically, and street tiles will be attempted separately.</p></div><div class="map-legend"><span><i class="legend-dot man"></i> Manual survey</span><span><i class="legend-dot dem"></i> DEMO (hidden by default)</span></div></div>
+        <div class="map-wrap"><div id="map"></div><div id="map-error" class="map-error" hidden><strong>Map could not load.</strong><p>The vector map failed. A locally implemented coordinate map will start automatically, and street tiles will be attempted separately.</p></div><div class="map-legend"><span><i class="legend-dot man"></i> Survey location</span><span><i class="legend-dot dem"></i> DEMO (optional)</span></div>
+          <button type="button" id="map-survey-toggle" class="map-survey-toggle" aria-expanded="false" aria-controls="map-survey-panel"><span aria-hidden="true">≋</span> Layers &amp; Scan <span id="map-layer-count" class="layer-count">0</span></button>
+          <section id="map-survey-panel" class="map-survey-panel" aria-label="Wireless survey map layers" hidden>
+            <div class="map-sheet-head"><div><strong>Wireless survey</strong><small>Mapped phone/receiver observation positions</small></div><button type="button" class="map-sheet-close" id="map-survey-close" aria-label="Close map layers">×</button></div>
+            <div class="map-layer-options" role="group" aria-label="Show saved survey categories">
+              <label><input type="checkbox" data-map-kind="WIFI" checked> <i class="layer-dot wifi"></i> Wi-Fi</label>
+              <label><input type="checkbox" data-map-kind="BLE" checked> <i class="layer-dot ble"></i> BLE</label>
+              <label><input type="checkbox" data-map-kind="RF" checked> <i class="layer-dot rf"></i> RF</label>
+              <label><input type="checkbox" data-map-kind="CELLULAR" checked> <i class="layer-dot cellular"></i> Cellular</label>
+              <label><input type="checkbox" data-map-kind="INFRASTRUCTURE" checked> <i class="layer-dot infrastructure"></i> Infrastructure</label>
+              <label><input type="checkbox" data-map-kind="MANUAL" checked> <i class="layer-dot manual"></i> Manual</label>
+            </div>
+            <div class="map-sheet-tools" aria-label="Map controls"><button type="button" class="btn outline" id="map-geolocate-sheet">⌖ My location</button><button type="button" class="btn outline" id="map-style-sheet">Change style</button><button type="button" class="btn outline" id="map-mode-sheet">Raster / vector</button><label class="switchline"><input type="checkbox" id="show-demo-map-sheet"> Show DEMO</label></div>
+            <div class="map-sheet-meta" id="map-survey-summary" role="status" aria-live="polite">No mapped observations yet.</div>
+            <div class="map-sheet-scan"><button class="btn primary" id="map-scan-wifi" type="button">Scan Linux Wi-Fi once</button><button class="btn outline" type="button" data-jump="scanner">Detailed analysis</button></div>
+            <div id="map-survey-status" class="map-sheet-status" role="status" aria-live="polite">Wi-Fi scans are on demand and require a Linux-visible compatible adapter. Nothing is mapped without recorded coordinates.</div>
+            <div id="map-wifi-readings" class="map-wifi-readings" aria-live="polite"></div>
+          </section></div>
         <div class="map-actions"><p class="muted small">Click anywhere on the map to create a manual survey observation at that coordinate. Coordinates are not automatically captured or uploaded.</p><button class="btn primary" id="manual-entry">Add observation manually</button></div>
       </section>
-      <section class="page" id="page-scanner"><div class="section-heading"><div><h2>Scanner and signal analysis</h2><p>Review saved signal records, prepare sensor sources, and analyze measurement history.</p></div><span id="scanner-connection-pill" class="pill amber">CHECKING RADIO SUPPORT</span></div>
+      <section class="page" id="page-scanner"><div class="section-heading"><div><h2>Detailed signal analysis</h2><p>Inspect saved measurements and signal history. For mapping and quick scans, use Layers &amp; Scan on the Survey Map.</p></div><span id="scanner-connection-pill" class="pill amber">CHECKING RADIO SUPPORT</span></div>
         <div class="two-columns"><div class="panel"><div class="panel-title"><h3>Radio source status</h3><span class="pill amber">INACTIVE</span></div><p class="scanner-message">No continuous RF capture is running. A user-started Wi-Fi access-point survey can use NetworkManager on a Linux host with a compatible visible adapter; WSL normally cannot use Windows built-in Wi-Fi.</p><button class="btn outline" data-jump="hardware">Inspect detected hardware</button></div><div class="panel"><div class="panel-title"><h3>Signal history</h3><span class="pill">RECORDED DATA</span></div><label for="signal-select" class="fieldlabel">Select an observed identifier</label><select id="signal-select" class="field"><option value="">No identifiers recorded</option></select><div id="history-graph" class="chart-wrap"><div class="empty">No RSSI measurements yet. Add manual survey readings or load synthetic demo records.</div></div><p class="muted small">RSSI is a received-power measurement—not distance. A graph does not establish transmitter location.</p></div></div>
         <div class="panel wifi-survey"><div class="panel-title"><h3>Linux Wi-Fi survey (on demand)</h3><span class="pill">NO BACKGROUND SCANS</span></div><p class="muted small">Uses NetworkManager on a visible Linux Wi-Fi interface. A requested scan may send standard Wi-Fi probe frames; results may be cached. Nothing is recorded automatically. Quality % is not RSSI or distance.</p><button class="btn outline" id="scan-wifi-once">Scan Wi-Fi once</button><div id="live-wifi-results" class="wifi-results"><div class="empty">No one-shot Wi-Fi survey has been requested.</div></div></div>
         <div class="panel scanner-records"><div class="panel-title"><h3>Available measurement records</h3><span id="scan-count" class="pill">0 readings</span></div><div id="signal-table" class="table-scroll"></div></div>
