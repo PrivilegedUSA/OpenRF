@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 from . import __version__
 from .offline_maps import (available_maps, tile_bytes, import_map, remove_map,
                            MapNotFound, MapExists, MapBusy, TileMissing, MAX_IMPORT_BYTES)
+from .map_areas import (list_areas, get_area, save_area, remove_area, area_geojson, build_subset, AreaError)
 from .hardware import status_report, enumerate_serial_ports, serial_port_diagnostics
 from .drivers.wifi_nmcli import scan_once, WifiScanUnavailable
 from .drivers.serial_openrf import query_port, SerialSensorError
@@ -95,6 +96,21 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, {'version': __version__, 'platform': 'Linux / Raspberry Pi', 'mode': 'local-only', 'scan_active': False})
         if path == '/api/health':
             return self._json(200, {'status': 'ok', 'version': __version__})
+        if path == '/api/maps/areas':
+            try:
+                return self._json(200, {'areas': list_areas(self.server.map_directory),
+                    'source': 'user-planned-regions', 'downloads_enabled': False})
+            except AreaError as exc:
+                return self._error(409, str(exc))
+        if path.startswith('/api/maps/areas/') and path.endswith('.geojson'):
+            ident = path[len('/api/maps/areas/'):-len('.geojson')]
+            try:
+                plan = get_area(self.server.map_directory, ident)
+                raw = json.dumps(area_geojson(plan), ensure_ascii=False, indent=2).encode('utf-8')
+                return self._send(200, raw, 'application/geo+json; charset=utf-8',
+                                  {'Content-Disposition': 'attachment; filename="openrf-area-' + ident + '.geojson"'})
+            except AreaError as exc:
+                return self._error(404, str(exc))
         if path == '/api/maps':
             return self._json(200, {'maps': available_maps(self.server.map_directory),
                                     'storage': 'local-raster-mbtiles',
@@ -198,6 +214,20 @@ class Handler(BaseHTTPRequestHandler):
             body = self._decode_body()
             if not isinstance(body, dict):
                 raise ValueError('Expected a JSON object')
+            if path == '/api/maps/areas':
+                if set(body) - {'name', 'bounds', 'minzoom', 'maxzoom'}:
+                    raise ValueError('Unexpected map area fields')
+                created = save_area(self.server.map_directory, body.get('name'), body.get('bounds'),
+                                    body.get('minzoom'), body.get('maxzoom'), self.server.map_lock)
+                return self._json(201, {'area': created})
+            if path.startswith('/api/maps/areas/') and path.endswith('/build'):
+                if set(body) - {'source_map_id', 'output_map_id', 'rights_confirmed'}:
+                    raise ValueError('Unexpected map build fields; remote URLs are not supported')
+                area_id = path[len('/api/maps/areas/'):-len('/build')]
+                built = build_subset(self.server.map_directory, area_id,
+                    body.get('source_map_id'), body.get('output_map_id'),
+                    body.get('rights_confirmed'), self.server.map_lock)
+                return self._json(201, built)
             if path == '/api/observations':
                 # Do not let a manual browser entry falsely claim a measured hardware source.
                 body['source'] = 'MANUAL'
@@ -276,8 +306,10 @@ class Handler(BaseHTTPRequestHandler):
             if path == '/api/demo/clear':
                 return self._json(200, {'removed': self.repo.clear_demo()})
             self._error(404, 'Not found')
-        except (ValueError, TypeError) as exc:
+        except (AreaError, ValueError, TypeError) as exc:
             self._error(400, str(exc))
+        except (MapBusy, MapExists) as exc:
+            self._error(409, str(exc))
         except Exception:
             logging.exception('Request failed')
             self._error(500, 'Internal server error')
@@ -286,6 +318,15 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host() or not self._allowed_origin():
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
+        if path.startswith('/api/maps/areas/') and path.count('/') == 4:
+            try:
+                area_id = path.rsplit('/', 1)[1]
+                remove_area(self.server.map_directory, area_id, self.server.map_lock)
+                return self._json(200, {'removed': True})
+            except MapBusy as exc:
+                return self._error(409, str(exc))
+            except AreaError as exc:
+                return self._error(404, str(exc))
         if path.startswith('/api/maps/') and path.count('/') == 3:
             try:
                 remove_map(self.server.map_directory, path.split('/')[3], self.server.map_lock)

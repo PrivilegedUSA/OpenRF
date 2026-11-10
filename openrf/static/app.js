@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], captures: [], diagnostics: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, filterSession: null, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+const state = { observations: [], sessions: [], captures: [], diagnostics: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, filterSession: null, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -325,15 +325,17 @@ function startMap() {
     state.preferredView = null;
     state.map = new maplibregl.Map({container:'map', style:`https://tiles.openfreemap.org/styles/${state.style}`, center:initial.center, zoom:initial.zoom, attributionControl:false, maplibreLogo:false});
     state.map.addControl(new maplibregl.NavigationControl(), 'top-right');
-    state.map.on('style.load', () => { updateOfflineAttribution(); state.mapReady = true; $('map-error').hidden = true; installMarkerLayer(); updateMap(); updateBrowserLocationMarker(); applyPendingLocation(); });
+    state.map.on('style.load', () => { updateOfflineAttribution(); state.mapReady = true; $('map-error').hidden = true; installMarkerLayer(); updateMap(); updateBrowserLocationMarker(); applyPendingLocation(); renderAreaOverlay(); });
     state.map.on('movestart', event => { if (event.originalEvent) state.mapNavigationEpoch++; });
+    state.map.on('move', renderAreaOverlay);
     state.map.on('click', (evt) => {
+      if (consumeAreaClick(evt.lngLat.lng, evt.lngLat.lat)) return;
       if (state.mapReady && state.map.getLayer('survey-points') && state.map.queryRenderedFeatures(evt.point,{layers:['survey-points']}).length) return;
       if (state.browserLocation && Math.abs(evt.lngLat.lat-state.browserLocation.lat) < 0.0001 && Math.abs(evt.lngLat.lng-state.browserLocation.lon) < 0.0001) return;
       openObservation(evt.lngLat.lat.toFixed(6), evt.lngLat.lng.toFixed(6));
     });
     state.map.on('click', 'survey-points', (evt) => {
-      if (!evt.features?.length) return;
+      if (state.areaChoosing || !evt.features?.length) return;
       const p = evt.features[0].properties;
       new maplibregl.Popup().setLngLat(evt.lngLat).setHTML(`<strong>${escapeHTML(p.label)}</strong><br>${escapeHTML(p.kind)} · ${escapeHTML(p.source)}<br><small>Observation position only</small>`).addTo(state.map);
     });
@@ -534,6 +536,7 @@ function startRasterMap(reason, view = null) {
         }
       }
       pins.replaceChildren(nextPins);
+      renderAreaOverlay();
     },
     flyTo({center, zoom}) { raster.center = [...center]; if (Number.isFinite(zoom)) raster.zoom = Math.max(2,Math.min(18,Math.round(zoom))); raster.render(); },
     resize() { raster.render(); }
@@ -570,6 +573,7 @@ function startRasterMap(reason, view = null) {
       const rect=root.getBoundingClientRect();
       const cp=worldPixel(state.rasterMap.center[0],state.rasterMap.center[1],state.rasterMap.zoom);
       const ll=pixelWorld(cp[0]+e.clientX-rect.left-rect.width/2, cp[1]+e.clientY-rect.top-rect.height/2,state.rasterMap.zoom);
+      if (consumeAreaClick(ll[0], ll[1])) return;
       openObservation(ll[1].toFixed(6), ll[0].toFixed(6));
     });
     root.addEventListener('pointercancel',()=>{start=null;});
@@ -619,6 +623,7 @@ async function refreshOfflineMaps() {
     ? `LOCAL · ${state.offlineMap.name} · ${(state.offlineMap.size_bytes / 1048576).toFixed(1)} MB · no network required`
     : `${state.offlineMaps.length} local raster package(s). Grid and survey pins work offline; online streets need internet.`;
   renderOfflineAreaDetail();
+  refreshAreaBuildSources();
   if (state.rasterMap) state.rasterMap.render();
 }
 $('offline-map-refresh').addEventListener('click', () => runAction(refreshOfflineMaps));
@@ -640,6 +645,251 @@ $('offline-map-select').addEventListener('change', event => {
   else startRasterMap('Offline map selected.');
 });
 
+
+
+// v0.2.11: user-planned bounding boxes. These are geographic selection aids,
+// never RF measurement positions, and no external tile API is contacted.
+function draftNumbers() {
+  const coords = ['west','south','east','north'].map(k => Number($(`area-plan-${k}`).value));
+  if (coords.some((v,i) => !$(`area-plan-${['west','south','east','north'][i]}`).value.trim() || !Number.isFinite(v))) return null;
+  const [w,s,e,n] = coords;
+  if (!(w >= -180 && w < e && e <= 180 && s >= -85.05112878 && s < n && n <= 85.05112878)) return null;
+  return coords;
+}
+function areaFormBounds(bounds) {
+  state.areaDraftBounds = bounds;
+  ['west','south','east','north'].forEach((key,i) => { $(`area-plan-${key}`).value = bounds[i].toFixed(6); });
+  updateAreaEstimate();
+  renderAreaOverlay();
+}
+function updateAreaEstimate() {
+  const bounds = draftNumbers();
+  state.areaDraftBounds = bounds;
+  const lo = Number($('area-plan-minzoom').value), hi = Number($('area-plan-maxzoom').value);
+  if (!bounds || !Number.isInteger(lo) || !Number.isInteger(hi) || lo < 0 || hi > 18 || lo > hi) {
+    $('area-plan-estimate').textContent = 'Enter valid non-dateline-crossing bounds and zooms (0–18, min ≤ max).';
+    renderAreaOverlay(); return;
+  }
+  let count = 0;
+  const [w,s,e,n] = bounds;
+  const tileY=(lat,z)=> (1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2*(2**z);
+  for (let z=lo;z<=hi;z++) {
+    const edge=2**z;
+    const x0=Math.max(0,Math.min(edge-1,Math.floor((w+180)/360*edge)));
+    const x1=Math.max(0,Math.min(edge-1,Math.ceil((e+180)/360*edge-1e-12)-1));
+    const y0=Math.max(0,Math.min(edge-1,Math.floor(tileY(n,z))));
+    const y1=Math.max(0,Math.min(edge-1,Math.ceil(tileY(s,z)-1e-12)-1));
+    count+=(x1-x0+1)*(y1-y0+1);
+    if(count>10000) break;
+  }
+  $('area-plan-estimate').textContent = count > 10000
+    ? 'More than 10,000 tile slots. Narrow the bounds or decrease maximum zoom.'
+    : `Up to ${count.toLocaleString()} candidate tiles at zoom ${lo}–${hi}. This is NOT a download or a size/coverage guarantee.`;
+  renderAreaOverlay();
+}
+function areaModeStatus(message) {
+  $('area-plan-selection-status').textContent = message;
+  $('area-plan-cancel').disabled = !state.areaChoosing;
+  $('map').classList.toggle('area-selecting', state.areaChoosing);
+  renderAreaOverlay();
+}
+function cancelAreaChoosing() {
+  state.areaChoosing = false;
+  state.areaFirstCorner = null;
+  areaModeStatus('Area selection stopped; coordinate fields remain editable.');
+}
+function consumeAreaClick(lon, lat) {
+  if (!state.areaChoosing) return false;
+  if (!Number.isFinite(lon) || !Number.isFinite(lat)) return true;
+  lon=((lon+180)%360+360)%360-180;
+  lat=Math.min(85.05112878,Math.max(-85.05112878,lat));
+  if (!state.areaFirstCorner) {
+    state.areaFirstCorner=[lon,lat];
+    areaModeStatus('First corner chosen. Click the opposite corner; pan and zoom if needed.');
+    return true;
+  }
+  const first=state.areaFirstCorner;
+  const w=Math.min(first[0],lon), e=Math.max(first[0],lon);
+  const s=Math.min(first[1],lat), n=Math.max(first[1],lat);
+  state.areaChoosing=false; state.areaFirstCorner=null;
+  if (e-w <= 1e-8 || n-s <= 1e-8 || e-w>180) {
+    areaModeStatus('Area is too narrow or crosses the dateline. Try a smaller rectangle.');
+    return true;
+  }
+  areaFormBounds([w,s,e,n]);
+  areaModeStatus('Two corners selected. Set your zoom range, enter a name, then save the plan.');
+  $('map-area-manager').open=true;
+  return true;
+}
+function areaViewportBounds() {
+  if(state.map) {
+    const b=state.map.getBounds();
+    return [b.getWest(),b.getSouth(),b.getEast(),b.getNorth()];
+  }
+  if(state.rasterMap) {
+    const root=$('map'), m=state.rasterMap, center=worldPixel(m.center[0],m.center[1],m.zoom);
+    const west=pixelWorld(center[0]-root.clientWidth/2,center[1],m.zoom)[0];
+    const east=pixelWorld(center[0]+root.clientWidth/2,center[1],m.zoom)[0];
+    const north=pixelWorld(center[0],center[1]-root.clientHeight/2,m.zoom)[1];
+    const south=pixelWorld(center[0],center[1]+root.clientHeight/2,m.zoom)[1];
+    return [west,south,east,north];
+  }
+  return null;
+}
+function renderAreaOverlay() {
+  const root=$('map');
+  if (!root || (!state.map && !state.rasterMap)) return;
+  let overlay=root.querySelector('.area-draw-overlay');
+  if(!overlay) {
+    overlay=document.createElement('div'); overlay.className='area-draw-overlay';
+    overlay.style.cssText='position:absolute;inset:0;pointer-events:none;z-index:2;overflow:hidden';
+    root.append(overlay);
+  }
+  overlay.replaceChildren();
+  function project(lon,lat) {
+    if(state.map) return state.map.project([lon,lat]);
+    const r=state.rasterMap, center=worldPixel(r.center[0],r.center[1],r.zoom);
+    const point=worldPixel(lon,lat,r.zoom), size=256*2**r.zoom;
+    const dx=((point[0]-center[0]+size*1.5)%size)-size/2;
+    return {x:root.clientWidth/2+dx, y:root.clientHeight/2+point[1]-center[1]};
+  }
+  if (state.areaDraftBounds) {
+    const [w,s,e,n]=state.areaDraftBounds;
+    const a=project(w,n),b=project(e,s);
+    if ([a.x,a.y,b.x,b.y].every(Number.isFinite)) {
+      const rect=document.createElement('div');rect.className='area-preview-outline';
+      rect.style.left=`${Math.min(a.x,b.x)}px`;rect.style.top=`${Math.min(a.y,b.y)}px`;
+      rect.style.width=`${Math.abs(b.x-a.x)}px`;rect.style.height=`${Math.abs(b.y-a.y)}px`;
+      overlay.append(rect);
+    }
+  }
+  if (state.areaFirstCorner) {
+    const pt=project(...state.areaFirstCorner), dot=document.createElement('div');
+    dot.className='area-preview-corner';dot.style.left=`${pt.x}px`;dot.style.top=`${pt.y}px`;overlay.append(dot);
+  }
+  if (state.areaChoosing) {
+    const note=document.createElement('div');note.className='area-map-instruction';
+    note.textContent=state.areaFirstCorner?'AREA SELECTION · Choose opposite corner':'AREA SELECTION · Choose first corner';
+    note.style.cssText='position:absolute;top:10px;left:50%;transform:translateX(-50%);background:#07362ff2;color:#d5fff4;border:1px solid #54d1b7;border-radius:6px;padding:7px 10px;font-weight:700;font-size:12px;max-width:65%;text-align:center;';
+    overlay.append(note);
+  }
+}
+function focusAreaBounds(bounds) {
+  const [w,s,e,n] = bounds;
+  state.mapNavigationEpoch++;
+  if(state.map && state.mapReady) state.map.fitBounds([[w,s],[e,n]],{padding:50,maxZoom:16,duration:450});
+  else {
+    if (!state.rasterMap) switchToRasterMap('Viewing saved local area plan.');
+    const root=$('map'),width=Math.max(240,root.clientWidth),height=Math.max(200,root.clientHeight);
+    let zoom=2;
+    for(let z=2;z<=18;z++) {
+      const nw=worldPixel(w,n,z),se=worldPixel(e,s,z);
+      if(se[0]-nw[0]>width*.78 || se[1]-nw[1]>height*.78) break;
+      zoom=z;
+    }
+    state.rasterMap?.flyTo({center:[(w+e)/2,(s+n)/2],zoom});
+  }
+}
+function refreshAreaBuildSources() {
+  const el=$('area-build-source');const current=el.value;
+  el.replaceChildren(new Option('Choose an installed source map', ''));
+  state.offlineMaps.forEach(m=>el.add(new Option(`${m.name} (${m.id})`,m.id)));
+  el.value=state.offlineMaps.some(m=>m.id===current) ? current : '';
+}
+function renderSavedArea() {
+  const p=state.selectedArea;
+  $('area-saved-view').disabled=!p;
+  $('area-saved-remove').disabled=!p;
+  $('area-build').disabled=!p;
+  const exportLink=$('area-saved-export');
+  if(p) {
+    exportLink.href=`/api/maps/areas/${p.id}.geojson`;
+    exportLink.setAttribute('aria-disabled','false');exportLink.removeAttribute('tabindex');
+    $('area-saved-detail').textContent=`${p.name}: ${p.bounds.map(v=>v.toFixed(4)).join(', ')} · zoom ${p.minzoom}–${p.maxzoom} · up to ${p.candidate_tiles.toLocaleString()} tile slots (not guaranteed data).`;
+  } else {
+    exportLink.removeAttribute('href');exportLink.setAttribute('aria-disabled','true');exportLink.tabIndex=-1;
+    $('area-saved-detail').textContent='No saved plan selected; existing map packages are unaffected.';
+  }
+}
+async function refreshAreaPlans(selectId=null) {
+  const response=await api('/api/maps/areas');
+  state.areaPlans=response.areas || [];
+  const choose=selectId || state.selectedArea?.id || '';
+  const el=$('area-saved-select');el.replaceChildren(new Option('Select a saved area', ''));
+  state.areaPlans.forEach(a=>el.add(new Option(`${a.name} (z${a.minzoom}–${a.maxzoom})`,a.id)));
+  state.selectedArea=state.areaPlans.find(a=>a.id===choose)||null;
+  el.value=state.selectedArea?.id||'';
+  renderSavedArea();
+}
+$('area-plan-choose').addEventListener('click',()=>{
+  if (!state.map && !state.rasterMap) startMap();
+  state.areaChoosing=true;state.areaFirstCorner=null;
+  areaModeStatus('Click two opposite corners on the map. Map clicks will NOT create observations until selection ends.');
+  $('map').scrollIntoView({block:'center',behavior:'smooth'});
+});
+$('area-plan-cancel').addEventListener('click',cancelAreaChoosing);
+$('area-plan-viewport').addEventListener('click',()=>{
+  try {
+    cancelAreaChoosing();
+    const bounds=areaViewportBounds();
+    if (!bounds || bounds.some(v=>!Number.isFinite(v))) throw Error('Map has not loaded yet.');
+    const [w,s,e,n]=bounds;
+    if (!(w>=-180 && w<e && e<=180 && s>=-85.05112878 && s<n && n<=85.05112878)) throw Error('Viewport crosses the dateline or map limits. Zoom in and try again.');
+    areaFormBounds(bounds);areaModeStatus('Used visible map extent; choose zooms and a name to save.');
+  } catch(err) {flash(err.message,true);}
+});
+for(const k of ['west','south','east','north','minzoom','maxzoom']) $('area-plan-'+k).addEventListener('input',updateAreaEstimate);
+$('area-plan-save').addEventListener('click',()=>runAction(async()=>{
+  const bounds=draftNumbers();if (!bounds) throw Error('Enter valid west/south/east/north bounds first.');
+  const name=$('area-plan-name').value.trim();
+  const minzoom=Number($('area-plan-minzoom').value),maxzoom=Number($('area-plan-maxzoom').value);
+  const response=await api('/api/maps/areas','POST',{name,bounds,minzoom,maxzoom});
+  await refreshAreaPlans(response.area.id);
+  $('area-plan-selection-status').textContent=`Saved ${response.area.name} locally. No tiles downloaded.`;
+  flash('Saved geographic map plan locally; no map download or RF observation was made.');
+}));
+$('area-saved-select').addEventListener('change',event=>{
+  state.selectedArea=state.areaPlans.find(a=>a.id===event.target.value)||null;
+  if(state.selectedArea) {
+    const p=state.selectedArea;areaFormBounds(p.bounds);
+    $('area-plan-minzoom').value=p.minzoom;$('area-plan-maxzoom').value=p.maxzoom;$('area-plan-name').value=p.name;
+    updateAreaEstimate();
+    $('area-build-name').value=p.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,65)||`region-${p.id}`;
+  }
+  renderSavedArea();
+});
+$('area-saved-view').addEventListener('click',()=>{
+  if(state.selectedArea) {areaFormBounds(state.selectedArea.bounds);focusAreaBounds(state.selectedArea.bounds);}
+});
+$('area-saved-remove').addEventListener('click',()=>runAction(async()=>{
+  const p=state.selectedArea;
+  if(!p||!confirm(`Delete the saved area plan "${p.name}"? Installed maps and saved observations will not be deleted.`))return;
+  await api(`/api/maps/areas/${p.id}`,'DELETE');
+  state.selectedArea=null;await refreshAreaPlans();
+  $('area-build-status').textContent='Saved area plan deleted. Map packages were not changed.';
+}));
+$('area-build').addEventListener('click',()=>runAction(async()=>{
+  const plan=state.selectedArea,source=$('area-build-source').value,dest=$('area-build-name').value.trim();
+  if(!plan) throw Error('Select a saved area.');
+  if(!source) throw Error('Choose a locally installed raster source map.');
+  if(!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(dest)||dest.endsWith('.')) throw Error('Use a safe new package filename without .mbtiles.');
+  if(!$('area-license-confirm').checked) throw Error('You must confirm that the source license permits local derivatives.');
+  if(!confirm(`Create ${dest}.mbtiles from local source ${source} for ${plan.name}? Only existing local tiles are copied. This will not contact a public map service.`))return;
+  const button=$('area-build');button.disabled=true;
+  $('area-build-status').textContent='Creating bounded local MBTiles subset; leave OpenRF open. No network downloads.';
+  try {
+    const result=await api(`/api/maps/areas/${plan.id}/build`,'POST',{
+      source_map_id:source,output_map_id:dest,rights_confirmed:true
+    });
+    await refreshOfflineMaps();
+    $('offline-map-select').value=result.map.id;
+    $('offline-map-select').dispatchEvent(new Event('change'));
+    $('area-build-status').textContent=`Created ${dest}.mbtiles locally: ${result.tiles_copied} existing tile(s), ${(result.map.size_bytes/1048576).toFixed(1)} MiB. Missing source tiles remain missing. Source and observations preserved.`;
+    flash(`Offline subset ${dest}.mbtiles created with ${result.tiles_copied} local tiles.`);
+  } catch(err) { $('area-build-status').textContent=`Local subset failed: ${err.message}. No source map modified.`;throw err; }
+  finally{ button.disabled=!state.selectedArea; }
+}));
+window.addEventListener('keydown',event=>{if(event.key==='Escape'&&state.areaChoosing)cancelAreaChoosing();});
 
 function renderOfflineAreaDetail() {
   const pack = state.offlineMap;
@@ -881,3 +1131,4 @@ $('clear-demo').addEventListener('click',()=>runAction(async()=>{const out=await
 if (window.matchMedia('(max-width: 900px), (max-width: 1400px) and (max-height: 850px) and (pointer: coarse)').matches) showPage('map');
 refresh().catch(e=>flash(`Unable to reach local OpenRF server: ${e.message}`,true));
 refreshOfflineMaps().catch(e=>{ $('offline-map-status').textContent = `Unable to list local maps: ${e.message}`; });
+refreshAreaPlans().catch(e=>{ $('area-saved-detail').textContent = `Saved area plans unavailable: ${e.message}`; });

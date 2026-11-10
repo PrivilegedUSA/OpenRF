@@ -1,6 +1,6 @@
 # Long-range police radar and laser detection — required OpenRF roadmap
 
-**Status: DESIGN ONLY as of v0.2.10. No X/K/Ka or LIDAR sensor, live detector, warning range, or detection accuracy is implemented or tested.** This is a required future feature for OpenRF, not a feature in the current release.
+**Status: DESIGN ONLY as of v0.2.11. No X/K/Ka or LIDAR sensor, live detector, warning range, or detection accuracy is implemented or tested.** This is a required future feature for OpenRF, not a feature in the current release.
 
 ## Goal
 

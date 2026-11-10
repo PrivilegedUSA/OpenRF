@@ -13,7 +13,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.10</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.11</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -47,6 +47,30 @@
           <div id="offline-map-detail" class="offline-map-detail muted small" aria-live="polite">Choose an installed map to see its geographic coverage, zoom range, and local file size.</div>
           <div class="button-line offline-area-actions"><button type="button" class="btn outline" id="offline-map-zoom" disabled>View area on map</button><button type="button" class="btn danger-outline" id="offline-map-remove" disabled>Remove selected map</button></div>
           <p id="offline-map-operation" class="muted small" role="status" aria-live="polite">No import in progress. Removing a map does not delete observations or investigations.</p>
+          <div class="area-planning-section" aria-label="Plan and build an offline region">
+            <h3>Plan a geographic area <span class="pill">NO DOWNLOADS</span></h3>
+            <p class="muted small">Select two opposite corners on the map, use its current visible extent, or enter bounds manually. Planning an area does not acquire tiles or collect RF data. Areas are saved locally outside Git.</p>
+            <div class="area-plan-tools"><button type="button" class="btn outline" id="area-plan-choose">Select 2 corners</button><button type="button" class="btn outline" id="area-plan-viewport">Use visible map</button><button type="button" class="btn ghost" id="area-plan-cancel" disabled>Cancel selection</button></div>
+            <p id="area-plan-selection-status" class="muted small" role="status" aria-live="polite">No geographic bounds selected yet.</p>
+            <div class="area-coordinate-grid" aria-label="Area geographic bounds">
+              <label>West longitude<input class="field" type="number" id="area-plan-west" min="-180" max="180" step="any" placeholder="-121.1"></label>
+              <label>South latitude<input class="field" type="number" id="area-plan-south" min="-85.05112878" max="85.05112878" step="any" placeholder="38.2"></label>
+              <label>East longitude<input class="field" type="number" id="area-plan-east" min="-180" max="180" step="any" placeholder="-120.5"></label>
+              <label>North latitude<input class="field" type="number" id="area-plan-north" min="-85.05112878" max="85.05112878" step="any" placeholder="38.8"></label>
+              <label>Minimum zoom<input class="field" type="number" id="area-plan-minzoom" min="0" max="18" step="1" value="6"></label>
+              <label>Maximum zoom<input class="field" type="number" id="area-plan-maxzoom" min="0" max="18" step="1" value="12"></label>
+            </div>
+            <div class="area-plan-create"><label>Area name<input class="field" id="area-plan-name" maxlength="80" placeholder="e.g. Amador County field area"></label><button type="button" id="area-plan-save" class="btn primary">Save area plan</button></div>
+            <p id="area-plan-estimate" class="muted small">Candidate tiles are estimated from map bounds and zooms; actual source coverage, file size and detail can vary.</p>
+            <div class="area-saved-manager"><label for="area-saved-select">Saved area plans</label><select class="field" id="area-saved-select"><option value="">Select a saved area</option></select><button type="button" class="btn outline" id="area-saved-view" disabled>View plan</button><a id="area-saved-export" class="btn outline" aria-disabled="true" tabindex="-1">Export GeoJSON</a><button type="button" class="btn danger-outline" id="area-saved-remove" disabled>Delete plan</button></div>
+            <p id="area-saved-detail" class="muted small">No plan selected.</p>
+            <h3>Build a smaller map from an installed package</h3>
+            <p class="muted small">This copies only tiles already present in a local raster MBTiles source; it never downloads tiles. You must have permission to make derivatives. Sources remain untouched. Missing tiles stay missing.</p>
+            <div class="area-build-controls"><label>Source raster map<select class="field" id="area-build-source"><option value="">Choose an installed source map</option></select></label><label>New package filename (without .mbtiles)<input class="field" id="area-build-name" maxlength="80" placeholder="my-region"></label></div>
+            <label class="switchline area-license-confirm"><input type="checkbox" id="area-license-confirm"> I have checked the source license and have permission to create a local derivative package.</label>
+            <button type="button" class="btn primary" id="area-build" disabled>Create local MBTiles subset</button>
+            <p id="area-build-status" class="muted small" role="status" aria-live="polite">Select a saved area and source map first.</p>
+          </div>
         </details>
         <p id="map-location-status" class="muted small map-location-status" role="status" aria-live="polite">Location will be requested when you open the map. Coordinates are not saved.</p>
         <div class="map-wrap"><div id="map"></div><details class="map-credits" id="map-credits"><summary aria-label="Map attributions" title="Map data credits">ⓘ</summary><div class="map-credits-links"><strong>Map credits</strong><span id="offline-map-attribution" hidden></span><div id="online-map-credits"><span>Online vector basemap:</span><a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a><a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">© OpenMapTiles</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors (ODbL)</a></div></div></details><div id="map-error" class="map-error" hidden><strong>Map could not load.</strong><p>Online vector map unavailable. Offline coordinates and any installed local raster package remain accessible.</p></div><div class="map-legend"><span><i class="legend-dot man"></i> Survey location</span><span><i class="legend-dot dem"></i> DEMO (optional)</span></div>

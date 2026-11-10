@@ -281,3 +281,23 @@
 .offline-area-actions{margin:10px 0}.map-area-manager button{min-height:42px}
 #offline-map-operation{overflow-wrap:anywhere}
 @media(max-width:620px){.map-area-controls{display:grid;grid-template-columns:minmax(0,1fr)}.map-area-controls>label{width:auto}.offline-area-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.offline-area-actions .btn{white-space:normal}}
+
+/* v0.2.11: touchscreen-friendly, explicitly local geographic area planning. */
+.area-planning-section{margin-top:19px;padding-top:14px;border-top:1px solid #31545c;min-width:0}
+.area-planning-section h3{font-size:15px;margin:10px 0 8px;color:#d2f7ef}
+.area-planning-section h3 .pill{font-size:10px;vertical-align:middle;margin-left:6px}
+.area-plan-tools,.area-plan-create,.area-saved-manager{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin:12px 0}
+.area-plan-tools .btn{flex:1 1 148px;white-space:normal}
+.area-coordinate-grid,.area-build-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
+.area-coordinate-grid label,.area-build-controls label,.area-plan-create label,.area-saved-manager>label{font-size:12px;color:#c9e5e3;font-weight:700;min-width:0}
+.area-coordinate-grid input,.area-build-controls input,.area-plan-create input,.area-build-controls select{display:block;width:100%;margin-top:5px}
+.area-plan-create label{flex:1 1 190px}.area-saved-manager>label{width:100%}
+.area-saved-manager select{flex:1 1 210px;min-width:0}
+.area-saved-manager .btn{white-space:normal;text-align:center}
+#area-saved-export[aria-disabled="true"]{pointer-events:none;opacity:.45}
+.area-license-confirm{align-items:start;margin:15px 0;font-size:12px!important;line-height:1.5}
+#area-plan-selection-status,#area-plan-estimate,#area-saved-detail,#area-build-status{overflow-wrap:anywhere}
+#map.area-selecting{cursor:crosshair!important}
+.area-preview-outline{position:absolute;pointer-events:none;z-index:2;border:2px dashed #65f6d0;background:#35e8bc22;box-shadow:0 0 0 1px #12342e;min-width:2px;min-height:2px}
+.area-preview-corner{position:absolute;pointer-events:none;z-index:2;width:12px;height:12px;border:2px solid #69f9dc;border-radius:50%;background:#164b46;transform:translate(-50%,-50%)}
+@media(max-width:620px){.area-coordinate-grid,.area-build-controls{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.area-saved-manager{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.area-saved-manager>label,.area-saved-manager select{grid-column:1/-1;width:100%}.area-plan-create{display:grid;grid-template-columns:minmax(0,1fr)}.area-plan-tools{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.area-plan-tools .btn:last-child{grid-column:1/-1}}

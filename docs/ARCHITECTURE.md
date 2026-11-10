@@ -1,10 +1,12 @@
-# OpenRF Linux architecture — 0.2.10
+# OpenRF Linux architecture — 0.2.11
 
 ```
 Windows browser / Pi Chromium kiosk (planned)
    ↕ Local HTTP / JSON (127.0.0.1)
 openrf.server (stdlib HTTP server, read-only static asset hosting)
    ├── openrf.storage (SQLite sessions / observations / export)
+   ├── openrf.offline_maps (private raster MBTiles import and tile read)
+   ├── openrf.map_areas (private area plans, GeoJSON, local-only map subsetting)
    ├── openrf.hardware (read-only host inventory / capability negotiation)
    ├── openrf.sensor_connections (driver registry, scan receipts, validated observations)
    └── openrf.drivers.wifi_nmcli (on-demand NetworkManager AP list only)
@@ -53,3 +55,7 @@ A top-left hamburger opens an accessible fixed vertical drawer on compact/touch 
 ## v0.2.6 — atomic survey snapshots
 
 `openrf.sensor_connections.ScanReceiptStore` holds short-lived, single-use server scan receipts in memory. Only `wifi_nmcli.scan_once()` can issue a receipt. A save-scan request is resolved to server-owned records and converted using `verified_wifi_observation()`, then persisted through `Repository.store_wifi_capture()` in one SQLite transaction. The database has additive `survey_captures` and observation quality/provenance columns. An interrupted or invalid save cannot write half a batch. Captures may have zero signal observations, which records only that a scan retrieval occurred. Browser survey position is optional, origin-labeled and sampled before the request; transmitter positions are not inferred. See `docs/SENSOR_CONNECTIONS.md`.
+
+## v0.2.11 map area planning
+
+Area plans are independent of observation SQLite. API `/api/maps/areas` saves bounded user-selected geography to private JSON; `/api/maps/areas/<id>.geojson` exports an optional area polygon and `/api/maps/areas/<id>/build` creates an atomic, no-overwrite local raster MBTiles subset from a licensed installed source. No map fetching is performed. Source tile rows are MBTiles TMS; UI map bounds are Web Mercator and XYZ. Bounds are selected regions, not RF source location estimates. See `docs/OFFLINE_MAPS.md`.

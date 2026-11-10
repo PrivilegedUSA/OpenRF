@@ -1,4 +1,4 @@
-# OpenRF v0.2.10 — Offline Mapping Foundation
+# OpenRF v0.2.11 — Offline Area Planning and Local Package Builder
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.10.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.11.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.10 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.11 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,12 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.11 — Geographic area planner and local MBTiles subset builder
+
+- **Survey Map → Manage offline map areas → Plan a geographic area**: choose two opposite corners directly on the map (online vector or offline raster grid), capture the visible map extent, or enter west/south/east/north coordinates manually. Plan zooms 0–18 and save named areas locally outside Git, separate from observations. During two-corner selection, map clicks do not add observations. Saved plans can be viewed, exported as GeoJSON or deleted without removing maps or investigations.
+- **Create local MBTiles subset**: select a previously installed and licensed *raster* MBTiles map and a saved area. With explicit confirmation that the source license permits derivatives, create a new package containing **only existing local tiles** intersecting that area/zoom range. Includes source attribution; no automatic download, no remote tile requests, no overwritten source, no promise of complete geographic coverage. Bound to 10,000 candidate tiles and 512 MiB tile payload per subset; existing 1 GiB browser import limit unchanged. A plan works even without source tiles, but a basemap requires a source package.
+- See [Offline Maps](docs/OFFLINE_MAPS.md) for privacy, Web Mercator, license, zoom/extent limitations. All existing v0.2.10 features and Android archive are preserved. No SQLite investigation database changes, extra Python packages, new ESP32 driver, radar detection, or external RF scanning.
 
 ## v0.2.10 — Offline map area manager
 

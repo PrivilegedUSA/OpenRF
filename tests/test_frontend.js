@@ -98,3 +98,13 @@ assert(src.includes('confirm(`Remove the local map file') && src.includes("'/api
 assert(!src.includes('tile.openstreetmap.org'), 'public OSM tile downloads remain disabled');
 assert(css.includes('.map-area-manager') && css.includes('grid-template-columns:minmax(0,1fr)'), 'area manager responsive handheld layout');
 console.log('v0.2.10 map area manager import, removal, local-only and touch layout contract passed.');
+
+// v0.2.11: two-click planned region and local-only offline subset generation.
+assert(html.includes('id="area-plan-choose"') && html.includes('id="area-plan-viewport"') && html.includes('id="area-plan-cancel"'), 'two-corner / viewport / cancel controls');
+assert(html.includes('id="area-plan-west"') && html.includes('id="area-plan-north"') && html.includes('id="area-saved-select"'), 'manual bounds and saved plans');
+assert(html.includes('id="area-build-source"') && html.includes('id="area-license-confirm"'), 'explicit source and derivative license check');
+assert(src.includes('function consumeAreaClick(lon, lat)') && src.includes('function renderAreaOverlay()'), 'shared vector and offline raster region selection');
+assert(src.includes('if (consumeAreaClick(evt.lngLat.lng, evt.lngLat.lat)) return;') && src.includes('if (consumeAreaClick(ll[0], ll[1])) return;'), 'planning clicks cannot create survey observations');
+assert(src.includes("'/api/maps/areas'") && src.includes('rights_confirmed:true') && src.includes('.geojson'), 'private area API, acknowledged local subset, GeoJSON');
+assert(css.includes('.area-coordinate-grid') && css.includes('@media(max-width:620px){.area-coordinate-grid'), 'touch-friendly area editor');
+console.log('v0.2.11 user-planned regions, local subset rights check, and dual-map interaction contracts passed.');
