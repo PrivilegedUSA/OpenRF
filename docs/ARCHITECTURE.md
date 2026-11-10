@@ -1,29 +1,18 @@
-# OpenRF architecture v0.1.6
+# OpenRF Linux architecture — 0.2.0
 
-- **MainActivity:** Compose app shell, tab navigation; Scanner takes an explicit-save callback into `OpenRfViewModel`.
-- **`data/`:** Room v1 `Observation` table/DAO/repository; retained schema protects existing installs. `MANUAL` records stay distinct from `BLE_SCAN`/`WIFI_SCAN` with `UNIDENTIFIED` verification.
-- **`location/`:** one-shot foreground GPS/network location; no background location or route collection.
-- **`feature/map/`:** MapLibre, OpenFreeMap street/dark styles, foreground auto-center, manual pin entry; radio survey markers always mean the phone's observation point (not emitter position).
-- **`scanner/WirelessReading.kt`:** platform-independent record/status and timestamp freshness helpers with JVM tests.
-- **`scanner/WirelessScanController.kt`:** Android BLE and Wi-Fi callback adapters. User-initiated and bounded to the visible Scanner screen/activity; stops on disposal / background, surfaces failures and throttling, rejects stale Wi-Fi cache.
-- **`feature/scanner/`:** radio/permission UI, scan snapshots, one-shot user-selected saving at a current phone fix.
-- **`feature/discoveries/`:** list/search/delete and source/verification details; both manual and explicit radio captures.
-- **`feature/settings/`:** on-device CSV export and permission/privacy explanations.
-- **`feature/investigations/`:** honest inactive session state.
-- **`sensor/`, `alerts/`:** future hardware and alert contracts, no fake detections.
+```
+Windows browser / Pi Chromium kiosk (planned)
+   ↕ Local HTTP / JSON (127.0.0.1)
+openrf.server (stdlib HTTP server, read-only static asset hosting)
+   ├── openrf.storage (SQLite sessions / observations / export)
+   └── openrf.hardware (read-only runtime and radio capability inventory)
+       └── SensorBackend interface [implemented drivers: none]
+```
 
-## Accuracy and privacy
-
-Wi-Fi scans need `ACCESS_FINE_LOCATION`, `CHANGE_WIFI_STATE`, `ACCESS_WIFI_STATE` and device Location services enabled (Android 10+); BLE requires fine location and on Android 12+ runtime Nearby Devices permissions. This application does not assert `neverForLocation` because survey readings may be attached to coordinates. Scan results never establish transmitter coordinates, direction, identity, or distance. Only explicit Save persists radio metadata; leaving Scanner clears unsaved snapshots. Scan capture time and GPS save time can differ, and are labeled.
-
-## Next
-
-- Verify scanning and permission flows across Android versions and manufacturers; fix any build or runtime errors.
-- Consider an opt-in local investigation session model and time-windowed history with well-defined provenance.
-- Model deduplication over sessions and stronger stale-data rules before broader collection.
-- Explore permitted passive ESP32 USB/BLE accessory communication and external SDR after phone scanning is proven.
-- Explore true offline maps under compatible licensing; no unsupported navigation claims.
-
-## v0.1.6: investigation sessions
-
-`SessionRepository` isolates the Room `SessionDao` from the ViewModel. Database v2 adds sessions, successful scan cycles and their reading snapshots (FK cascade), with a v1-to-v2 additive migration. `ScannerScreen` captures a completed, explicitly requested scan only if a foreground user-started session is active. The database write is transactional per scan. One optional single phone location fix annotates each scan, not each device location. `InvestigationsScreen` reviews these private records and `SessionCsvExporter` produces a user-chosen CSV. No background service or scheduled RF scan is involved. See `docs/SESSION_RECORDING.md`.
+- **Backend** runs in Ubuntu WSL or Linux on Raspberry Pi OS. Python 3.11+ standard library only.
+- **Frontend** uses HTML/CSS/JS, MapLibre GL JS 6.16.0 and OpenFreeMap styles (online CDN + tiles for now). No credentials or paid map keys.
+- **Storage**: `~/.local/share/openrf/openrf.sqlite3`, not tracked by Git. Has source, survey position, RSSI/frequency (nullable), UTC timestamp, notes, kind, identifiers, accuracy, and sessions.
+- **Instrument contract**: Hardware drivers will implement `SensorBackend`, advertise capabilities, produce typed readings with original source/timestamp/units, and reject stale/partial measurements. v0.2.0 intentionally registers no RF drivers.
+- **Security**: localhost-only, Host and Origin checks, JSON body limits, no authentication, no uploads. Do not open to a network until security design changes. Hardware integration must remain lawful and opt-in.
+- **Future**: Linux wireless adapters through appropriate drivers / Kismet integration, BLE BlueZ, RTL-SDR, GNSS, cellular modem, optional ESP32-S3/CC1101, automatic survey correlation, heatmaps, and a touchscreen kiosk image. Preserve separation between observation location and estimated source location; do not place transmitter pins from single RSSI readings.
+- **Legacy Android**: archived under `legacy/android-v0.1.6/`; no migration of the phone's Room database (private). Old APK workflow removed from active `.github/workflows`.

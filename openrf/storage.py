@@ -1,0 +1,244 @@
+"""Local SQLite storage; coordinates are observer/survey positions, never inferred transmitters."""
+from __future__ import annotations
+
+import csv
+import io
+import json
+import math
+import sqlite3
+import threading
+from contextlib import contextmanager
+from datetime import datetime, timezone
+from pathlib import Path
+
+KINDS = {"MANUAL", "WIFI", "BLE", "RF", "CELLULAR", "INFRASTRUCTURE"}
+SOURCES = {"MANUAL", "DEMO", "IMPORTED", "SENSOR"}
+
+
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _optional_float(value, label: str, minimum: float, maximum: float):
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        raise ValueError(f"{label} must be numeric")
+    try:
+        number = float(value)
+    except (ValueError, TypeError) as exc:
+        raise ValueError(f"{label} must be numeric") from exc
+    if not math.isfinite(number) or not minimum <= number <= maximum:
+        raise ValueError(f"{label} outside allowed range")
+    return number
+
+
+def _string(value, label: str, maximum: int, required=False):
+    if value is None:
+        value = ""
+    if not isinstance(value, str):
+        raise ValueError(f"{label} must be text")
+    value = value.strip()
+    if len(value) > maximum or (required and not value):
+        raise ValueError(f"{label} must be 1–{maximum} characters" if required else f"{label} too long")
+    return value
+
+
+def normalize_observation(data: dict) -> dict:
+    if not isinstance(data, dict):
+        raise ValueError("Observation must be an object")
+    kind = _string(data.get("kind", "MANUAL"), "kind", 24, True).upper()
+    if kind not in KINDS:
+        raise ValueError("Unsupported observation category")
+    source = _string(data.get("source", "MANUAL"), "source", 24, True).upper()
+    if source not in SOURCES:
+        raise ValueError("Unsupported observation source")
+    lat = _optional_float(data.get("latitude"), "latitude", -90, 90)
+    lon = _optional_float(data.get("longitude"), "longitude", -180, 180)
+    if (lat is None) != (lon is None):
+        raise ValueError("Latitude and longitude must be provided together")
+    acc = _optional_float(data.get("accuracy_m"), "accuracy_m", 0, 1_000_000)
+    if acc is not None and lat is None:
+        raise ValueError("Coordinate accuracy requires coordinates")
+    session_id = data.get("session_id")
+    if session_id is not None:
+        if isinstance(session_id, bool) or not isinstance(session_id, int) or session_id < 1:
+            raise ValueError("Invalid session ID")
+    return {
+        "kind": kind,
+        "source": source,
+        "label": _string(data.get("label"), "label", 120, True),
+        "identifier": _string(data.get("identifier"), "identifier", 200),
+        "notes": _string(data.get("notes"), "notes", 3000),
+        "frequency_mhz": _optional_float(data.get("frequency_mhz"), "frequency_mhz", 0, 100_000),
+        "rssi_dbm": _optional_float(data.get("rssi_dbm"), "rssi_dbm", -200, 50),
+        "latitude": lat,
+        "longitude": lon,
+        "accuracy_m": acc,
+        "session_id": session_id,
+        "source_device": _string(data.get("source_device", "Manual entry"), "source_device", 120),
+    }
+
+
+class Repository:
+    def __init__(self, path: str | Path):
+        self.path = Path(path).expanduser()
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._lock = threading.RLock()
+        self._initialize()
+
+    @contextmanager
+    def _connect(self):
+        conn = sqlite3.connect(str(self.path), timeout=10)
+        try:
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA foreign_keys=ON")
+            conn.execute("PRAGMA busy_timeout=10000")
+            with conn:
+                yield conn
+        finally:
+            conn.close()
+
+    def _initialize(self):
+        with self._connect() as db:
+            db.executescript("""
+                PRAGMA journal_mode=WAL;
+                CREATE TABLE IF NOT EXISTS sessions (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    ended_at TEXT,
+                    status TEXT NOT NULL DEFAULT 'ACTIVE'
+                      CHECK (status IN ('ACTIVE','COMPLETED','INTERRUPTED'))
+                );
+                CREATE TABLE IF NOT EXISTS observations (
+                    id INTEGER PRIMARY KEY,
+                    kind TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    label TEXT NOT NULL,
+                    identifier TEXT NOT NULL DEFAULT '',
+                    notes TEXT NOT NULL DEFAULT '',
+                    source_device TEXT NOT NULL DEFAULT '',
+                    frequency_mhz REAL,
+                    rssi_dbm REAL,
+                    latitude REAL,
+                    longitude REAL,
+                    accuracy_m REAL,
+                    observed_at TEXT NOT NULL,
+                    session_id INTEGER REFERENCES sessions(id) ON DELETE SET NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_observations_time ON observations(observed_at);
+                CREATE INDEX IF NOT EXISTS idx_observations_identifier ON observations(identifier);
+            """)
+            # A crashed server does not silently continue a previously active survey.
+            db.execute("UPDATE sessions SET status='INTERRUPTED' WHERE status='ACTIVE'")
+
+    def list_observations(self) -> list[dict]:
+        with self._lock, self._connect() as db:
+            return [dict(r) for r in db.execute("SELECT * FROM observations ORDER BY id DESC LIMIT 10000")]
+
+    def get_observation(self, record_id: int):
+        with self._lock, self._connect() as db:
+            row = db.execute("SELECT * FROM observations WHERE id=?", (record_id,)).fetchone()
+            return dict(row) if row else None
+
+    def add_observation(self, data: dict) -> dict:
+        item = normalize_observation(data)
+        with self._lock, self._connect() as db:
+            if item["session_id"] is not None:
+                row = db.execute("SELECT status FROM sessions WHERE id=?", (item["session_id"],)).fetchone()
+                if not row or row["status"] != "ACTIVE":
+                    raise ValueError("Session is missing or no longer active")
+            columns = list(item) + ["observed_at"]
+            values = [*item.values(), now_iso()]
+            cols = ", ".join(columns)
+            placeholders = ", ".join("?" for _ in columns)
+            record_id = db.execute(
+                f"INSERT INTO observations ({cols}) VALUES ({placeholders})", values
+            ).lastrowid
+        return self.get_observation(record_id)
+
+    def delete_observation(self, record_id: int) -> bool:
+        with self._lock, self._connect() as db:
+            return db.execute("DELETE FROM observations WHERE id=?", (record_id,)).rowcount > 0
+
+    def sessions(self) -> list[dict]:
+        with self._lock, self._connect() as db:
+            return [dict(r) for r in db.execute("""
+                SELECT sessions.*, COUNT(observations.id) AS observation_count
+                FROM sessions LEFT JOIN observations ON observations.session_id=sessions.id
+                GROUP BY sessions.id ORDER BY sessions.id DESC
+            """)]
+
+    def begin_session(self, name: str) -> dict:
+        name = _string(name, "name", 120, required=True)
+        with self._lock, self._connect() as db:
+            running = db.execute("SELECT id FROM sessions WHERE status='ACTIVE'").fetchone()
+            if running:
+                raise ValueError("Stop the active session before starting another")
+            session_id = db.execute("INSERT INTO sessions(name, started_at) VALUES(?,?)", (name, now_iso())).lastrowid
+        return next(s for s in self.sessions() if s["id"] == session_id)
+
+    def stop_session(self, session_id: int) -> bool:
+        with self._lock, self._connect() as db:
+            return db.execute("UPDATE sessions SET ended_at=?, status='COMPLETED' WHERE id=? AND status='ACTIVE'", (now_iso(), session_id)).rowcount > 0
+
+    def stats(self) -> dict:
+        with self._lock, self._connect() as db:
+            total = db.execute("SELECT COUNT(*) FROM observations").fetchone()[0]
+            demo = db.execute("SELECT COUNT(*) FROM observations WHERE source='DEMO'").fetchone()[0]
+            position_count = db.execute("SELECT COUNT(*) FROM observations WHERE latitude IS NOT NULL").fetchone()[0]
+            sessions = db.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
+            return {"observations": total, "demo": demo, "mapped": position_count, "sessions": sessions}
+
+    def load_demo(self) -> int:
+        # Clearly synthetic, for UI testing only; intentionally not claimed as radio measurements.
+        entries = [
+            ("WIFI", "DEMO Wi-Fi beacon", "DEMO-AP-01", -81, 2412, 38.5801, -121.5008),
+            ("WIFI", "DEMO Wi-Fi beacon", "DEMO-AP-01", -69, 2412, 38.5818, -121.4975),
+            ("WIFI", "DEMO Wi-Fi beacon", "DEMO-AP-01", -56, 2412, 38.5829, -121.4938),
+            ("BLE", "DEMO BLE advertiser", "DEMO-BLE-02", -73, 2440, 38.5799, -121.4930),
+            ("RF", "DEMO RF observation", "DEMO-RF-03", -64, 433.92, 38.5843, -121.4891),
+        ]
+        with self._lock, self._connect() as db:
+            if db.execute("SELECT EXISTS(SELECT 1 FROM observations WHERE source='DEMO')").fetchone()[0]:
+                return 0
+            for kind, label, ident, rssi, freq, lat, lon in entries:
+                db.execute("""
+                    INSERT INTO observations(kind,source,label,identifier,notes,source_device,
+                    frequency_mhz,rssi_dbm,latitude,longitude,accuracy_m,observed_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                """, (kind,"DEMO",label,ident,"SYNTHETIC EXAMPLE — NOT OBSERVED", "Fixture (not hardware)",
+                       freq,rssi,lat,lon,None,now_iso()))
+        return len(entries)
+
+    def clear_demo(self) -> int:
+        with self._lock, self._connect() as db:
+            return db.execute("DELETE FROM observations WHERE source='DEMO'").rowcount
+
+
+def to_geojson(items: list[dict]) -> dict:
+    features = []
+    for item in items:
+        if item["latitude"] is None or item["longitude"] is None:
+            continue
+        props = {k: v for k, v in item.items() if k not in ("latitude", "longitude")}
+        props["coordinate_meaning"] = "observer_position_not_transmitter_position"
+        features.append({"type":"Feature", "geometry":{"type":"Point", "coordinates":[item["longitude"], item["latitude"]]}, "properties":props})
+    return {"type":"FeatureCollection", "features": features}
+
+
+def to_csv(items: list[dict]) -> str:
+    out = io.StringIO(newline="")
+    cols = ["id", "kind", "source", "label", "identifier", "notes", "source_device", "frequency_mhz", "rssi_dbm", "latitude", "longitude", "accuracy_m", "observed_at", "session_id", "coordinate_meaning"]
+    writer = csv.DictWriter(out, fieldnames=cols, extrasaction="ignore")
+    writer.writeheader()
+    for item in items:
+        record = dict(item)
+        # Protect spreadsheet apps against formula injection from untrusted observation text.
+        for key, val in record.items():
+            if isinstance(val, str) and val.lstrip().startswith(("=", "+", "-", "@")):
+                record[key] = "'" + val
+        record["coordinate_meaning"] = "observer_position_not_transmitter_position"
+        writer.writerow(record)
+    return out.getvalue()

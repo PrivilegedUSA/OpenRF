@@ -1,0 +1,24 @@
+name: OpenRF Linux Tests
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.11', '3.14']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Verify Python source and run tests
+        run: |
+          python -m compileall -q openrf
+          python -m unittest discover -s tests -v
+      - name: Check JavaScript syntax
+        run: node --check openrf/static/app.js
