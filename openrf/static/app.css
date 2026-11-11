@@ -404,3 +404,9 @@
 .map-add-observation svg {width:23px;height:23px;display:block;}
 .map-add-observation:hover,.map-survey-toggle:hover {background:#19434a;}
 .map-add-observation:focus-visible,.map-survey-toggle:focus-visible {outline:3px solid #98f5df;outline-offset:2px;}
+
+/* v0.2.22: explicit browser-location shortcut in the manual observation dialog. */
+.observation-location-tools{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:-3px 0 15px;min-width:0}
+.observation-location-tools .btn{min-height:44px;white-space:normal}
+.observation-location-tools p{margin:0;min-width:0;flex:1 1 220px;overflow-wrap:anywhere}
+@media(max-width:620px){.observation-location-tools{display:grid;grid-template-columns:minmax(0,1fr)}.observation-location-tools .btn{width:100%}}

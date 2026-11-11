@@ -29,3 +29,4 @@ jobs:
           node tests/test_signal_explorer.js
           node tests/test_reports_frontend.js
           node tests/test_readiness_frontend.js
+          node tests/test_manual_location_frontend.js

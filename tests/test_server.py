@@ -42,7 +42,7 @@ class ApiTests(unittest.TestCase):
     def test_health_static_hardware_and_exports(self):
         s,data=self.call('GET','/api/health')
         self.assertEqual(s,200)
-        self.assertEqual(data['version'],'0.2.21')
+        self.assertEqual(data['version'],'0.2.22')
         for path in ('/','/static/app.css','/static/app.js','/static/history-analysis.js','/api/export.csv','/api/export.geojson'):
             status,_=self.call('GET',path)
             self.assertEqual(status,200,path)
@@ -73,6 +73,19 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(s,201)
         self.assertEqual(data['source'],'MANUAL')
         self.assertEqual(data['source_device'],'Manual browser entry')
+
+    def test_manual_observation_with_browser_coordinates_retains_unverified_source(self):
+        status, data = self.call('POST', '/api/observations', {
+            'kind':'INFRASTRUCTURE','label':'Observed location via browser',
+            'source':'SENSOR','source_device':'Fake receiver',
+            'latitude':'38.486', 'longitude':'-120.623', 'accuracy_m':'105',
+            'location_source':'BROWSER_REPORTED', 'fix_age_seconds':'2.1'
+        })
+        self.assertEqual(status, 201)
+        self.assertEqual(data['source'], 'MANUAL')
+        self.assertEqual(data['source_device'], 'Manual browser entry')
+        self.assertEqual(data['location_source'], 'BROWSER_REPORTED')
+        self.assertAlmostEqual(data['fix_age_seconds'],2.1)
 
     def test_invalid_origin_and_host_rejected(self):
         status,_=self.call('POST','/api/demo/load',{}, {'Origin':'https://attacker.example'})

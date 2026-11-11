@@ -60,6 +60,17 @@ def normalize_observation(data: dict) -> dict:
     acc = _optional_float(data.get("accuracy_m"), "accuracy_m", 0, 1_000_000)
     if acc is not None and lat is None:
         raise ValueError("Coordinate accuracy requires coordinates")
+    location_source = _string(data.get('location_source', 'UNSPECIFIED'), 'location_source', 32, True).upper()
+    if location_source not in {'UNSPECIFIED', 'MANUAL_ENTRY', 'BROWSER_REPORTED'}:
+        raise ValueError('Unsupported manual coordinate source')
+    fix_age = _optional_float(data.get('fix_age_seconds'), 'fix_age_seconds', 0, 60)
+    if location_source == 'BROWSER_REPORTED':
+        if lat is None or acc is None or fix_age is None:
+            raise ValueError('Browser-reported coordinates require position, accuracy and fix age')
+    elif fix_age is not None:
+        raise ValueError('Fix age requires browser-reported coordinates')
+    if location_source == 'MANUAL_ENTRY' and lat is None:
+        raise ValueError('Manual coordinate source requires coordinates')
     session_id = data.get("session_id")
     if session_id is not None:
         if isinstance(session_id, bool) or not isinstance(session_id, int) or session_id < 1:
@@ -75,6 +86,8 @@ def normalize_observation(data: dict) -> dict:
         "latitude": lat,
         "longitude": lon,
         "accuracy_m": acc,
+        "location_source": location_source,
+        "fix_age_seconds": fix_age,
         "session_id": session_id,
         "source_device": _string(data.get("source_device", "Manual entry"), "source_device", 120),
     }

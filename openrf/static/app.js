@@ -66,7 +66,7 @@ function showPage(page, options = {}) {
 }
 
 async function refresh() {
-  const [records, sessions, stats, hardware, sensorData, captureData, diagnostics, waypointData] = await Promise.all([
+  const [records, sessions, stats, hardware, sensorData, captureData, diagnostics, readiness, waypointData] = await Promise.all([
     api('/api/observations'), api('/api/sessions'), api('/api/stats'), api('/api/hardware'), api('/api/sensors'),
     api('/api/captures'), api('/api/sensors/diagnostics'), api('/api/hardware/readiness'), api('/api/survey/waypoints')
   ]);
@@ -89,11 +89,79 @@ async function refresh() {
   refreshDiscoverySessions(); renderDiscoveries(); renderSessions(); renderCaptures(); renderHardware(); renderSensorRegistry(); renderSerialPorts(); renderHardwareReadiness(); renderSignals(); updateMap(); renderMapSurveyPanel(); renderWaypoints();
 }
 
+// Browser geolocation is used only at the operator's request in the manual
+// observation dialog. Coordinates are the observer's approximate position,
+// never an automatically detected camera/transmitter position.
+let observationLocationRequestId = 0;
+let observationLocationFix = null;
 function openObservation(lat = '', lon = '') {
-  $('observation-form').reset();
-  $('observation-form').elements.latitude.value = lat;
-  $('observation-form').elements.longitude.value = lon;
+  ++observationLocationRequestId; // invalidate callbacks from any previous dialog
+  observationLocationFix = null;
+  const form = $('observation-form');
+  form.reset();
+  form.elements.latitude.value = lat;
+  form.elements.longitude.value = lon;
+  form.elements.location_source.value = lat !== '' && lon !== '' ? 'MANUAL_ENTRY' : 'UNSPECIFIED';
+  form.elements.fix_age_seconds.value = '';
+  $('observation-use-location').disabled = false;
+  $('observation-location-status').textContent = lat !== '' && lon !== ''
+    ? 'Coordinates selected on map. Use my location will replace them with a fresh browser-reported observer position.'
+    : 'No location selected. Use my location only when you are at the observation site, or enter coordinates manually.';
   $('observation-dialog').showModal();
+}
+function observationCoordinateEdited() {
+  // A manual edit wins over a pending asynchronous geolocation callback.
+  ++observationLocationRequestId;
+  $('observation-use-location').disabled = false;
+  const form = $('observation-form');
+  if (form.elements.location_source.value === 'BROWSER_REPORTED') {
+    form.elements.accuracy_m.value = ''; // old accuracy no longer applies to edited coordinates
+    form.elements.fix_age_seconds.value = '';
+    observationLocationFix = null;
+  }
+  form.elements.location_source.value = form.elements.latitude.value && form.elements.longitude.value
+    ? 'MANUAL_ENTRY' : 'UNSPECIFIED';
+  $('observation-location-status').textContent = 'Coordinates entered manually; browser accuracy and fix age are not attached.';
+}
+function useLocationForObservation() {
+  const status = $('observation-location-status');
+  const button = $('observation-use-location');
+  if (!navigator.geolocation) {
+    status.textContent = 'Browser location is unavailable. Enter coordinates or choose a map point.';
+    return;
+  }
+  const requestId = ++observationLocationRequestId;
+  button.disabled = true;
+  status.textContent = 'Requesting a fresh browser location… Nothing is saved yet.';
+  const finish = () => {
+    if (requestId !== observationLocationRequestId || !$('observation-dialog').open) return false;
+    button.disabled = false;
+    return true;
+  };
+  navigator.geolocation.getCurrentPosition(pos => {
+    if (!finish()) return;
+    const {latitude, longitude, accuracy} = pos.coords || {};
+    const ageSeconds = (Date.now() - pos.timestamp) / 1000;
+    if (!Number.isFinite(latitude) || Math.abs(latitude) > 90 ||
+        !Number.isFinite(longitude) || Math.abs(longitude) > 180 ||
+        !Number.isFinite(accuracy) || accuracy < 0 || accuracy > 1000000 ||
+        !Number.isFinite(ageSeconds) || ageSeconds < -5 || ageSeconds > 60) {
+      status.textContent = 'Browser location was invalid or stale. Retry or enter coordinates manually.';
+      return;
+    }
+    const form = $('observation-form');
+    form.elements.latitude.value = latitude.toFixed(7);
+    form.elements.longitude.value = longitude.toFixed(7);
+    form.elements.accuracy_m.value = accuracy.toFixed(1);
+    form.elements.location_source.value = 'BROWSER_REPORTED';
+    form.elements.fix_age_seconds.value = Math.max(0,ageSeconds).toFixed(1);
+    observationLocationFix = {reportedAt: pos.timestamp};
+    status.textContent = `Browser observer position filled (±${Math.round(accuracy)} m; fix age ${Math.round(Math.max(0,ageSeconds))} s). Check the coordinates before saving. Desktop/VPN location may be approximate.`;
+  }, err => {
+    if (!finish()) return;
+    const reason = err.code === 1 ? 'permission denied' : err.code === 3 ? 'request timed out' : 'position unavailable';
+    status.textContent = `Location ${reason}. Existing coordinates were not changed; retry or enter them manually.`;
+  }, {enableHighAccuracy:true, maximumAge:0, timeout:15000});
 }
 
 // v0.2.16: browse only stored observations. Filters do not request hardware,
@@ -1598,9 +1666,25 @@ $('session-list').addEventListener('click',e=>{
   if(stop) runAction(async()=>{await api(`/api/sessions/${stop.dataset.stop}/stop`,'POST',{});flash('Session stopped.');await refresh();});
   if(view) {const selected = String(view.dataset.sessionFilter);resetDiscoveryFilters();$('discovery-session').value=selected; $('discovery-refine').open=true;renderDiscoveries();showPage('discoveries');flash(`Showing saved observations from investigation #${selected}. Choose Clear filters to return to all records.`);}
 });
+$('observation-use-location').addEventListener('click', useLocationForObservation);
+$('observation-dialog').addEventListener('close', () => {
+  ++observationLocationRequestId;
+  observationLocationFix = null;
+  $('observation-use-location').disabled = false;
+});
+for (const name of ['latitude','longitude']) {
+  $('observation-form').elements[name].addEventListener('input', observationCoordinateEdited);
+}
 $('observation-form').addEventListener('submit',e=>{
   e.preventDefault();runAction(async()=>{
     const values=Object.fromEntries(new FormData(e.target).entries());
+    if (values.location_source === 'BROWSER_REPORTED') {
+      const age = observationLocationFix ? (Date.now()-observationLocationFix.reportedAt)/1000 : Infinity;
+      if (!Number.isFinite(age) || age < -5 || age > 60) {
+        throw Error('Browser location is now over 60 seconds old. Press Use my location again before saving, or enter the coordinates manually.');
+      }
+      values.fix_age_seconds = Math.max(0,age).toFixed(1);
+    }
     const active=state.sessions.find(s=>s.status==='ACTIVE');
     if(active) values.session_id=active.id;
     await api('/api/observations','POST',values);
@@ -1619,6 +1703,6 @@ $('clear-demo').addEventListener('click',()=>runAction(async()=>{const out=await
 // Handheld/touchscreen widths open directly to the primary map workspace.
 // Desktop preserves the original overview landing page.
 if (window.matchMedia('(max-width: 900px), (max-width: 1400px) and (max-height: 850px) and (pointer: coarse)').matches) showPage('map');
-refresh().catch(e=>flash(`Unable to reach local OpenRF server: ${e.message}`,true));
+refresh().catch(e=>flash(`OpenRF data refresh failed: ${e.message}. The server may still be running.`,true));
 refreshOfflineMaps().catch(e=>{ $('offline-map-status').textContent = `Unable to list local maps: ${e.message}`; });
 refreshAreaPlans().catch(e=>{ $('area-saved-detail').textContent = `Saved area plans unavailable: ${e.message}`; });

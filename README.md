@@ -1,4 +1,4 @@
-# OpenRF v0.2.21 — Hardware Readiness & Compact Map Actions
+# OpenRF v0.2.22 — Observation Location Shortcut & Startup Fix
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.21.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.22.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.21 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.22 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,13 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.22 — Observation location shortcut and reliable startup
+
+- **Bug fix:** The initial browser refresh requested a hardware-readiness result but failed to assign the returned value. Fixed the client-side `Readiness is not defined` error; the banner no longer incorrectly identifies all refresh errors as a local-server disconnection. The Hardware readiness checklist remains read-only.
+- **Use my location:** Open Map → + (or Saved → Add observation) and press **Use my location** beneath the latitude/longitude fields. The browser requests a fresh location only at that moment and fills the coordinates and reported accuracy. Nothing is saved until you press **Save locally**. When geolocation is denied or unavailable, use manual coordinates or tap a map point.
+- Location data is labeled **BROWSER_REPORTED**, and optional fix age is recorded using existing storage columns. Desktop/VPN location may be inaccurate; a browser position is an **observer location**, not proof of a camera, transmitter or police vehicle location. Manually edited coordinates are not mislabeled as GPS. Stale fixes must be refreshed before saving.
+- No new Python dependencies, background location tracking, RF capabilities or database migration. See [v0.2.22 test guide](docs/RELEASE_0.2.22_TESTS.md).
 
 ## v0.2.21 — Hardware readiness and map actions
 
