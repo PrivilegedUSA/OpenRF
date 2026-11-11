@@ -1,4 +1,4 @@
-# OpenRF v0.2.11 — Offline Area Planning and Local Package Builder
+# OpenRF v0.2.12 — Licensed Offline Tile ZIP Preparation
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.11.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.12.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.11 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.12 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,13 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.12 — Licensed raster tile ZIP → offline MBTiles
+
+- **Survey Map → Manage offline map areas**: export a saved area as a **provider-neutral XYZ tile plan JSON** with geographic bounds and per-zoom x/y ranges. This is an acquisition *plan*, not map data, a download, an API endpoint for a provider, or a coverage guarantee.
+- **Import local tile ZIP to MBTiles**: choose a ZIP containing tiles in `z/x/y.png` / `.jpg` / `.webp` paths (optionally inside `tiles/` or one root folder). Select an existing saved area, enter a new map name, original provider/source name and required attribution, pick the archive's XYZ or TMS row numbering, and confirm actual offline/archive rights. OpenRF validates and clips the ZIP to your area, converts selected tiles to standard TMS MBTiles, and installs it into private local storage. It cannot fetch or generate source map tiles; **provider permission is required**. Never use bulk raster requests to public OpenStreetMap tile servers for this.
+- **Safety:** no overwriting existing packages; no extraction to filesystem paths; rejects traversal, symlinks, malicious path layouts, corrupt images, duplicates and mixed image formats; bounded 512 MiB input/output and 10,000 selected tiles. Source ZIP stays on the user's computer and is not changed. No migration to user investigation SQLite, new dependency, automatic upload, live RF scan, or radar implementation.
+- See [Tile ZIP workflow](docs/TILE_ZIP_IMPORT.md), [Offline Maps](docs/OFFLINE_MAPS.md) and [release tests](docs/RELEASE_0.2.12_TESTS.md).
 
 ## v0.2.11 — Geographic area planner and local MBTiles subset builder
 

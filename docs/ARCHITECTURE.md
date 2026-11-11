@@ -1,4 +1,4 @@
-# OpenRF Linux architecture — 0.2.11
+# OpenRF Linux architecture — 0.2.12
 
 ```
 Windows browser / Pi Chromium kiosk (planned)
@@ -6,7 +6,8 @@ Windows browser / Pi Chromium kiosk (planned)
 openrf.server (stdlib HTTP server, read-only static asset hosting)
    ├── openrf.storage (SQLite sessions / observations / export)
    ├── openrf.offline_maps (private raster MBTiles import and tile read)
-   ├── openrf.map_areas (private area plans, GeoJSON, local-only map subsetting)
+   ├── openrf.map_areas (private area plans, GeoJSON/XYZ planning, local subsetting)
+   ├── openrf.tile_archive (licensed user ZIP import → private raster MBTiles)
    ├── openrf.hardware (read-only host inventory / capability negotiation)
    ├── openrf.sensor_connections (driver registry, scan receipts, validated observations)
    └── openrf.drivers.wifi_nmcli (on-demand NetworkManager AP list only)
@@ -17,7 +18,7 @@ openrf.server (stdlib HTTP server, read-only static asset hosting)
 - **Frontend** uses HTML/CSS/JS, MapLibre GL JS 5.24.0 and OpenFreeMap styles (optionally locally cached JS/CSS; online vector tiles). No credentials or paid map keys.
 - **Storage**: `~/.local/share/openrf/openrf.sqlite3`, not tracked by Git. Has source, survey position, RSSI/frequency (nullable), UTC timestamp, notes, kind, identifiers, accuracy, and sessions.
 - **Instrument contract**: Hardware drivers will implement `SensorBackend`, advertise capabilities, produce typed readings with original source/timestamp/units, and reject stale/partial measurements. v0.2.2 adds one optional NetworkManager AP discovery adapter; no raw RF capture drivers or automatic session measurements.
-- **Security**: localhost-only, Host and Origin checks, JSON body limits, no authentication, no uploads. Do not open to a network until security design changes. Hardware integration must remain lawful and opt-in.
+- **Security**: localhost-only, Host and Origin checks, JSON and local map-upload limits, no authentication, no external uploads. Do not open to a network until security design changes. Hardware integration must remain lawful and opt-in.
 - **Future**: Linux wireless adapters through appropriate drivers / Kismet integration, BLE BlueZ, RTL-SDR, GNSS, cellular modem, optional ESP32-S3/CC1101, automatic survey correlation, heatmaps, and a touchscreen kiosk image. Preserve separation between observation location and estimated source location; do not place transmitter pins from single RSSI readings.
 - **Legacy Android**: archived under `legacy/android-v0.1.6/`; no migration of the phone's Room database (private). Old APK workflow removed from active `.github/workflows`.
 
@@ -59,3 +60,7 @@ A top-left hamburger opens an accessible fixed vertical drawer on compact/touch 
 ## v0.2.11 map area planning
 
 Area plans are independent of observation SQLite. API `/api/maps/areas` saves bounded user-selected geography to private JSON; `/api/maps/areas/<id>.geojson` exports an optional area polygon and `/api/maps/areas/<id>/build` creates an atomic, no-overwrite local raster MBTiles subset from a licensed installed source. No map fetching is performed. Source tile rows are MBTiles TMS; UI map bounds are Web Mercator and XYZ. Bounds are selected regions, not RF source location estimates. See `docs/OFFLINE_MAPS.md`.
+
+## v0.2.12 local tile source boundary
+
+`POST /api/maps/areas/{id}/import-xyz` consumes only a browser-selected `application/zip` (or `application/octet-stream`) file body; it never accepts remote URLs or fetches map tiles. Fields are local request headers and the previously saved plan ID. Files are bounded and staged outside source control, validated without extracting paths, clipped, translated to MBTiles TMS row numbering, and atomically linked to a new name. A confirmation checkbox is an operator attestation, **not** automated map-provider license verification. `GET /api/maps/areas/{id}.plan.json` returns a provider-neutral planning descriptor without remote URLs or map tiles. Maps and plans are stored separately from investigations.

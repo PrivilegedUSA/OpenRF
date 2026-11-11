@@ -801,12 +801,17 @@ function renderSavedArea() {
   $('area-saved-view').disabled=!p;
   $('area-saved-remove').disabled=!p;
   $('area-build').disabled=!p;
+  $('area-zip-import').disabled=!p;
+  const tilePlanLink=$('area-saved-tile-plan');
   const exportLink=$('area-saved-export');
   if(p) {
+    tilePlanLink.href=`/api/maps/areas/${p.id}.plan.json`;
+    tilePlanLink.setAttribute('aria-disabled','false');tilePlanLink.removeAttribute('tabindex');
     exportLink.href=`/api/maps/areas/${p.id}.geojson`;
     exportLink.setAttribute('aria-disabled','false');exportLink.removeAttribute('tabindex');
     $('area-saved-detail').textContent=`${p.name}: ${p.bounds.map(v=>v.toFixed(4)).join(', ')} · zoom ${p.minzoom}–${p.maxzoom} · up to ${p.candidate_tiles.toLocaleString()} tile slots (not guaranteed data).`;
   } else {
+    tilePlanLink.removeAttribute('href');tilePlanLink.setAttribute('aria-disabled','true');tilePlanLink.tabIndex=-1;
     exportLink.removeAttribute('href');exportLink.setAttribute('aria-disabled','true');exportLink.tabIndex=-1;
     $('area-saved-detail').textContent='No saved plan selected; existing map packages are unaffected.';
   }
@@ -855,6 +860,7 @@ $('area-saved-select').addEventListener('change',event=>{
     $('area-plan-minzoom').value=p.minzoom;$('area-plan-maxzoom').value=p.maxzoom;$('area-plan-name').value=p.name;
     updateAreaEstimate();
     $('area-build-name').value=p.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,65)||`region-${p.id}`;
+    $('area-zip-map-id').value=($('area-build-name').value+'-tiles').slice(0,100);
   }
   renderSavedArea();
 });
@@ -889,6 +895,44 @@ $('area-build').addEventListener('click',()=>runAction(async()=>{
   } catch(err) { $('area-build-status').textContent=`Local subset failed: ${err.message}. No source map modified.`;throw err; }
   finally{ button.disabled=!state.selectedArea; }
 }));
+// Licensed local ZIP → MBTiles conversion. Browser-selected file only, and the
+// request goes to OpenRF on loopback. A plan JSON contains no tile source URL.
+$('area-zip-import').addEventListener('click',()=>runAction(async()=>{
+  const plan=state.selectedArea;
+  const file=$('area-zip-file').files?.[0];
+  const mapId=$('area-zip-map-id').value.trim();
+  const source=$('area-zip-source').value.trim();
+  const credit=$('area-zip-attribution').value.trim();
+  const scheme=$('area-zip-scheme').value;
+  if(!plan) throw Error('Select a saved map area first.');
+  if(!file || !file.name.toLowerCase().endsWith('.zip')) throw Error('Select a raster tile ZIP from your computer.');
+  if(file.size < 100 || file.size > 512*1024*1024) throw Error('ZIP must be between 100 bytes and 512 MiB.');
+  if(!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(mapId)||mapId.endsWith('.')) throw Error('Choose a safe output name without .mbtiles.');
+  if(!source || !credit) throw Error('Provide the original tile source and its required attribution.');
+  if(!$('area-zip-rights').checked) throw Error('Confirm the provider explicitly allows offline map package creation.');
+  if(!confirm(`Create ${mapId}.mbtiles locally from ${file.name} for area ${plan.name}? No tile servers will be contacted.`))return;
+  const button=$('area-zip-import');button.disabled=true;
+  $('area-zip-status').textContent='Reading the local ZIP, validating tiles and building a private raster MBTiles package. Keep this tab open.';
+  try {
+    const response=await fetch(`/api/maps/areas/${plan.id}/import-xyz`,{
+      method:'POST',headers:{'Content-Type':'application/zip','X-OpenRF-Map-Id':mapId,
+        'X-OpenRF-Source-Name':encodeURIComponent(source),
+        'X-OpenRF-Attribution':encodeURIComponent(credit),
+        'X-OpenRF-Tile-Scheme':scheme,'X-OpenRF-Rights-Confirmed':'true'},body:file
+    });
+    const data=await response.json();
+    if(!response.ok) throw Error(data.error||`ZIP import failed (HTTP ${response.status})`);
+    await refreshOfflineMaps();
+    $('offline-map-select').value=data.map.id;
+    $('offline-map-select').dispatchEvent(new Event('change'));
+    $('area-zip-status').textContent=`Installed ${data.map.id}.mbtiles with ${data.tiles_imported.toLocaleString()} local tile(s). ${data.tiles_ignored.toLocaleString()} tiles outside the plan were skipped. Actual coverage may be incomplete. Source ZIP and observations preserved.`;
+    flash(`Imported licensed raster ZIP to ${data.map.id}.mbtiles. Verify map attribution and actual coverage.`);
+  } catch(error) {
+    $('area-zip-status').textContent=`Import failed: ${error.message}. Original ZIP and saved observations remain untouched.`;
+    throw error;
+  } finally { button.disabled=!state.selectedArea; }
+}));
+
 window.addEventListener('keydown',event=>{if(event.key==='Escape'&&state.areaChoosing)cancelAreaChoosing();});
 
 function renderOfflineAreaDetail() {

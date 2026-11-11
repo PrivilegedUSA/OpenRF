@@ -108,3 +108,12 @@ assert(src.includes('if (consumeAreaClick(evt.lngLat.lng, evt.lngLat.lat)) retur
 assert(src.includes("'/api/maps/areas'") && src.includes('rights_confirmed:true') && src.includes('.geojson'), 'private area API, acknowledged local subset, GeoJSON');
 assert(css.includes('.area-coordinate-grid') && css.includes('@media(max-width:620px){.area-coordinate-grid'), 'touch-friendly area editor');
 console.log('v0.2.11 user-planned regions, local subset rights check, and dual-map interaction contracts passed.');
+
+// v0.2.12: offline-authorized raster tile ZIP acquisition, never public tile scraping.
+assert(html.includes('id="area-saved-tile-plan"') && html.includes('id="area-zip-file"'), 'provider-neutral tile plan export and local archive picker');
+assert(html.includes('id="area-zip-source"') && html.includes('id="area-zip-attribution"') && html.includes('id="area-zip-rights"'), 'source, attribution, license controls');
+assert(src.includes('/api/maps/areas/${plan.id}/import-xyz'), 'local import uses plan endpoint');
+assert(src.includes("'X-OpenRF-Rights-Confirmed':'true'") && src.includes('body:file'), 'raw file upload requires explicit license acknowledgement');
+assert(css.includes('.area-zip-fields') && css.includes('@media(max-width:620px){.area-zip-fields'), 'new ZIP controls stack on touchscreen widths');
+assert(!src.includes('tile.openstreetmap.org'), 'no public raster prefetching');
+console.log('v0.2.12 offline tile ZIP creation and license-aware UI contracts passed.');

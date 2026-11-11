@@ -162,6 +162,28 @@ def area_geojson(plan):
     }]}
 
 
+def area_tile_manifest(plan):
+    """Provider-neutral compact XYZ acquisition plan; **not** a download list.
+
+    The count describes tile *slots*, not actual coverage. Only a small range
+    per zoom is exported, not thousands of filenames or remote tile URLs.
+    """
+    bounds = _valid_bounds(plan['bounds'])
+    lo, hi = _valid_zooms(plan['minzoom'], plan['maxzoom'])
+    zooms = []
+    for z in range(lo, hi + 1):
+        x0, x1, y0, y1 = _ranges(bounds, z)
+        zooms.append({'z': z, 'x_min': x0, 'x_max': x1,
+                      'y_min_xyz': y0, 'y_max_xyz': y1,
+                      'candidate_tiles': (x1-x0+1)*(y1-y0+1)})
+    return {'schema': 'openrf.offline-area-plan.v1', 'title': plan['name'],
+            'area_id': plan['id'], 'bounds_wgs84': bounds,
+            'scheme': 'XYZ', 'minzoom': lo, 'maxzoom': hi,
+            'candidate_tile_slots': sum(z['candidate_tiles'] for z in zooms),
+            'tile_ranges': zooms, 'provider': None, 'tile_urls': None,
+            'warning': 'NOT a map or proof of coverage. No tile requests made. Obtain tiles only from a provider permitting offline use and archive creation. Acknowledgement does not grant rights.'}
+
+
 def build_subset(folder: Path, area_id: str, source_id: str, dest_id: str,
                  rights_confirmed: bool, lock: threading.Lock):
     """Copy only locally available, allowed raster tiles; no network or overwrite.

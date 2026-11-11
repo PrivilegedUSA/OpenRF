@@ -10,12 +10,13 @@ import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 
 from . import __version__
 from .offline_maps import (available_maps, tile_bytes, import_map, remove_map,
                            MapNotFound, MapExists, MapBusy, TileMissing, MAX_IMPORT_BYTES)
-from .map_areas import (list_areas, get_area, save_area, remove_area, area_geojson, build_subset, AreaError)
+from .map_areas import (list_areas, get_area, save_area, remove_area, area_geojson, area_tile_manifest, build_subset, AreaError)
+from .tile_archive import import_xyz_zip, TileArchiveError, MAX_ZIP_BYTES
 from .hardware import status_report, enumerate_serial_ports, serial_port_diagnostics
 from .drivers.wifi_nmcli import scan_once, WifiScanUnavailable
 from .drivers.serial_openrf import query_port, SerialSensorError
@@ -111,6 +112,15 @@ class Handler(BaseHTTPRequestHandler):
                                   {'Content-Disposition': 'attachment; filename="openrf-area-' + ident + '.geojson"'})
             except AreaError as exc:
                 return self._error(404, str(exc))
+        if path.startswith('/api/maps/areas/') and path.endswith('.plan.json'):
+            ident = path[len('/api/maps/areas/'):-len('.plan.json')]
+            try:
+                plan = get_area(self.server.map_directory, ident)
+                raw = json.dumps(area_tile_manifest(plan), ensure_ascii=False, indent=2).encode('utf-8')
+                return self._send(200, raw, 'application/json; charset=utf-8',
+                                  {'Content-Disposition': 'attachment; filename="openrf-tile-plan-' + ident + '.json"'})
+            except AreaError as exc:
+                return self._error(404, str(exc))
         if path == '/api/maps':
             return self._json(200, {'maps': available_maps(self.server.map_directory),
                                     'storage': 'local-raster-mbtiles',
@@ -184,6 +194,34 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host() or not self._allowed_origin():
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
+        if path.startswith('/api/maps/areas/') and path.endswith('/import-xyz'):
+            # Locally selected raster tile ZIP only. Never fetch provider URLs,
+            # download tiles, or accept arbitrary target paths from the client.
+            area_id = path[len('/api/maps/areas/'):-len('/import-xyz')]
+            if self.headers.get('Content-Type', '').lower().split(';')[0] not in ('application/zip', 'application/octet-stream'):
+                return self._error(415, 'Select a local .zip raster tile archive')
+            try:
+                declared = int(self.headers.get('Content-Length', '0'))
+            except ValueError:
+                return self._error(400, 'Invalid ZIP size')
+            if not 100 <= declared <= MAX_ZIP_BYTES:
+                self.close_connection = True
+                return self._error(413, 'ZIP size must be 100 bytes–512 MiB')
+            try:
+                result = import_xyz_zip(self.server.map_directory, area_id,
+                    self.headers.get('X-OpenRF-Map-Id', ''), self.rfile, declared,
+                    unquote(self.headers.get('X-OpenRF-Attribution', '')),
+                    unquote(self.headers.get('X-OpenRF-Source-Name', '')),
+                    self.headers.get('X-OpenRF-Tile-Scheme', 'xyz').lower(),
+                    self.headers.get('X-OpenRF-Rights-Confirmed', '') == 'true',
+                    self.server.map_lock)
+                return self._json(201, result)
+            except (MapBusy, MapExists) as exc:
+                self.close_connection = True
+                return self._error(409, str(exc))
+            except (AreaError, TileArchiveError, ValueError, OSError) as exc:
+                self.close_connection = True
+                return self._error(400, str(exc))
         if path == '/api/maps/import':
             # A browser-selected file only. Never fetch a remote URL, traverse
             # arbitrary local filesystem paths, or decode the whole file in RAM.

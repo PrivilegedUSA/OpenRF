@@ -13,7 +13,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.11</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.12</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -62,7 +62,7 @@
             </div>
             <div class="area-plan-create"><label>Area name<input class="field" id="area-plan-name" maxlength="80" placeholder="e.g. Amador County field area"></label><button type="button" id="area-plan-save" class="btn primary">Save area plan</button></div>
             <p id="area-plan-estimate" class="muted small">Candidate tiles are estimated from map bounds and zooms; actual source coverage, file size and detail can vary.</p>
-            <div class="area-saved-manager"><label for="area-saved-select">Saved area plans</label><select class="field" id="area-saved-select"><option value="">Select a saved area</option></select><button type="button" class="btn outline" id="area-saved-view" disabled>View plan</button><a id="area-saved-export" class="btn outline" aria-disabled="true" tabindex="-1">Export GeoJSON</a><button type="button" class="btn danger-outline" id="area-saved-remove" disabled>Delete plan</button></div>
+            <div class="area-saved-manager"><label for="area-saved-select">Saved area plans</label><select class="field" id="area-saved-select"><option value="">Select a saved area</option></select><button type="button" class="btn outline" id="area-saved-view" disabled>View plan</button><a id="area-saved-export" class="btn outline" aria-disabled="true" tabindex="-1">Export GeoJSON</a><a class="btn outline" id="area-saved-tile-plan" aria-disabled="true" tabindex="-1">Export tile plan JSON</a><button type="button" class="btn danger-outline" id="area-saved-remove" disabled>Delete plan</button></div>
             <p id="area-saved-detail" class="muted small">No plan selected.</p>
             <h3>Build a smaller map from an installed package</h3>
             <p class="muted small">This copies only tiles already present in a local raster MBTiles source; it never downloads tiles. You must have permission to make derivatives. Sources remain untouched. Missing tiles stay missing.</p>
@@ -70,6 +70,20 @@
             <label class="switchline area-license-confirm"><input type="checkbox" id="area-license-confirm"> I have checked the source license and have permission to create a local derivative package.</label>
             <button type="button" class="btn primary" id="area-build" disabled>Create local MBTiles subset</button>
             <p id="area-build-status" class="muted small" role="status" aria-live="polite">Select a saved area and source map first.</p>
+            <div class="area-zip-section" aria-label="Import a licensed XYZ raster tile archive">
+              <h3>Prepare a map from a licensed tile ZIP <span class="pill">v0.2.12</span></h3>
+              <p class="muted small">Choose a <strong>saved area</strong> above. The tile plan JSON lists XYZ x/y ranges to use with an offline-authorized provider or your own tile renderer; it makes <strong>no network requests</strong>. Import a ZIP that contains raster tiles named <code>z/x/y.png</code> (or JPG/WebP), optionally inside a <code>tiles/</code> or single folder. The original ZIP is not changed. Provider permissions and attribution are required.</p>
+              <div class="area-zip-fields">
+                <label>Licensed raster tile ZIP<input type="file" id="area-zip-file" class="field" accept=".zip,application/zip"></label>
+                <label>New offline map filename (without .mbtiles)<input id="area-zip-map-id" class="field" maxlength="100" placeholder="my-area-tiles"></label>
+                <label>Provider or tile source name<input id="area-zip-source" class="field" maxlength="120" placeholder="Name of my permitted source"></label>
+                <label>Tile rows in ZIP<select id="area-zip-scheme" class="field"><option value="xyz">XYZ · y from north (most ZIP tiles)</option><option value="tms">TMS · y from south</option></select></label>
+                <label class="area-zip-wide">Required visible attribution / map credit<input id="area-zip-attribution" class="field" maxlength="240" placeholder="As required by the map's license"></label>
+              </div>
+              <label class="switchline area-license-confirm"><input type="checkbox" id="area-zip-rights"> I checked the tile provider's terms and confirm offline storage and package creation are permitted. I will retain required attribution.</label>
+              <button type="button" class="btn primary" id="area-zip-import" disabled>Import local ZIP to MBTiles</button>
+              <p id="area-zip-status" class="muted small" role="status" aria-live="polite">Save or select an area first. Maximum ZIP upload 512 MiB, up to 10,000 selected raster tiles. No external downloads.</p>
+            </div>
           </div>
         </details>
         <p id="map-location-status" class="muted small map-location-status" role="status" aria-live="polite">Location will be requested when you open the map. Coordinates are not saved.</p>

@@ -301,3 +301,14 @@
 .area-preview-outline{position:absolute;pointer-events:none;z-index:2;border:2px dashed #65f6d0;background:#35e8bc22;box-shadow:0 0 0 1px #12342e;min-width:2px;min-height:2px}
 .area-preview-corner{position:absolute;pointer-events:none;z-index:2;width:12px;height:12px;border:2px solid #69f9dc;border-radius:50%;background:#164b46;transform:translate(-50%,-50%)}
 @media(max-width:620px){.area-coordinate-grid,.area-build-controls{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.area-saved-manager{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.area-saved-manager>label,.area-saved-manager select{grid-column:1/-1;width:100%}.area-plan-create{display:grid;grid-template-columns:minmax(0,1fr)}.area-plan-tools{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.area-plan-tools .btn:last-child{grid-column:1/-1}}
+
+/* v0.2.12: licensed local tile ZIP source, compact plan JSON export and touch input. */
+.area-zip-section{margin-top:22px;border-top:1px solid #31545c;padding-top:13px;min-width:0}
+.area-zip-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
+.area-zip-fields label{min-width:0;font-size:12px;font-weight:700;color:#c9e5e3}
+.area-zip-fields .field{display:block;min-width:0;width:100%;margin-top:6px}
+.area-zip-wide{grid-column:1/-1}
+.area-zip-section code{color:#b2f6e8}
+#area-saved-tile-plan[aria-disabled="true"]{pointer-events:none;opacity:.45}
+#area-zip-status{overflow-wrap:anywhere}
+@media(max-width:620px){.area-zip-fields{grid-template-columns:minmax(0,1fr)}.area-zip-wide{grid-column:auto}.area-zip-section .btn{width:100%;white-space:normal}}
