@@ -184,3 +184,63 @@ assert.deepEqual(noMotionRaster.center,[-121,38]);
 assert.equal(noMotionRaster.zoom,12);
 assert.equal(noMotionFrames.length,0, 'reduced motion must not schedule animation frames');
 console.log('v0.2.15 raster frame interpolation, completion, interruption and accessibility passed.');
+
+// v0.2.16: saved-observation filtering and export are local and provenance-aware.
+for (const id of ['discovery-source','discovery-session','discovery-age','discovery-sort','discovery-mapped','discovery-refine','discovery-results-count','discovery-export','discovery-reset']) {
+  assert(html.includes(`id="${id}"`), `${id} must be available on Saved screen`);
+}
+assert(src.includes('refreshDiscoverySessions(); renderDiscoveries()'), 'investigation choices refresh with persisted sessions');
+assert(src.includes("$('discovery-session').value=selected"), 'session Records button opens the matching filter');
+assert(src.includes('discoveriesCsv(items)') && src.includes('URL.createObjectURL(blob)'), 'filtered CSV must be made only in the browser');
+const explorerStart = src.indexOf('// v0.2.16: browse only stored observations.');
+const explorerEnd = src.indexOf('\nfunction renderSessions()', explorerStart);
+assert(explorerStart > 0 && explorerEnd > explorerStart);
+const controls = {
+  'discovery-search': {value:''}, 'discovery-kind': {value:'ALL'}, 'discovery-source': {value:'ALL'},
+  'discovery-session': {value:'ALL'}, 'discovery-age': {value:'ALL'},
+  'discovery-sort': {value:'NEWEST'}, 'discovery-mapped': {checked:false},
+  'show-demo-list': {checked:false}, 'discovery-refine': {open:false},
+  'discovery-results-count': {textContent:''}, 'discovery-export': {disabled:false},
+  'discoveries-list': {innerHTML:''}
+};
+const now = Date.parse('2026-11-11T10:00:00Z');
+const stored = [
+  {id:1,observed_at:'2026-11-10T10:00:00Z',kind:'WIFI',source:'SENSOR',label:'Observed AP',identifier:'aa',notes:'test',source_device:'ESP test fixture',rssi_dbm:-55,latitude:38,longitude:-120,session_id:12},
+  {id:2,observed_at:'2026-10-01T10:00:00Z',kind:'MANUAL',source:'MANUAL',label:'Old candidate',identifier:'',notes:'a note',source_device:'Manual entry',rssi_dbm:null,latitude:null,longitude:null,session_id:null},
+  {id:3,observed_at:'2026-11-11T09:00:00Z',kind:'WIFI',source:'DEMO',label:'SYNTHETIC',identifier:'d',notes:'DEMO',source_device:'Demo fixture',latitude:38,longitude:-120,session_id:null},
+  {id:4,observed_at:'2026-11-11T09:30:00Z',kind:'RF',source:'IMPORTED',label:'Import',identifier:'rf',notes:'Unverified',source_device:'Imported file',latitude:38,longitude:-120,session_id:12}
+];
+const explorerState = {observations:stored,sessions:[{id:12,name:'Survey <one>'}]};
+const select = {...controls['discovery-session'],options:[],replaceChildren(){this.options=[];},append(el){this.options.push(el);}};
+controls['discovery-session']=select;
+const documentStub = {createElement(name){assert.equal(name,'option');return {value:'',textContent:''};}};
+const explorer = Function('state','$','document','escapeHTML','stamp', `${src.slice(explorerStart,explorerEnd)}; return {filteredDiscoveries,refreshDiscoverySessions,discoveriesCsv,renderDiscoveries,resetDiscoveryFilters};`)(
+  explorerState, id=>controls[id], documentStub, s=>String(s), s=>String(s));
+explorer.refreshDiscoverySessions();
+assert.equal(controls['discovery-session'].options.length,3);
+assert.equal(controls['discovery-session'].options[2].textContent,'Survey <one> (#12)');
+assert.deepEqual(explorer.filteredDiscoveries(now).map(o=>o.id),[4,1,2], 'demo records must be opt-in');
+controls['discovery-source'].value='SENSOR';
+assert.deepEqual(explorer.filteredDiscoveries(now).map(o=>o.id),[1], 'source filter');
+controls['discovery-source'].value='ALL';
+controls['discovery-session'].value='12';
+assert.deepEqual(explorer.filteredDiscoveries(now).map(o=>o.id),[4,1], 'session filter');
+controls['discovery-mapped'].checked=true;
+controls['discovery-age'].value='1';
+assert.deepEqual(explorer.filteredDiscoveries(now).map(o=>o.id),[4,1], 'date and location filter');
+controls['discovery-sort'].value='OLDEST';
+assert.deepEqual(explorer.filteredDiscoveries(now).map(o=>o.id),[1,4], 'historical ascending sort');
+controls['discovery-search'].value='import';
+assert.deepEqual(explorer.filteredDiscoveries(now).map(o=>o.id),[4], 'case-insensitive search');
+controls['discovery-search'].value='';
+controls['discovery-session'].value='ALL';
+controls['discovery-source'].value='DEMO';
+assert.equal(explorer.filteredDiscoveries(now).length,0, 'DEMO source selection cannot silently enable demo');
+controls['show-demo-list'].checked=true;
+assert.deepEqual(explorer.filteredDiscoveries(now).map(o=>o.id),[3], 'explicit DEMO opt in');
+const safeCsv=explorer.discoveriesCsv([{id:7,label:'=SUM(1,1)',notes:'hello,"world"\n=1',rssi_dbm:-48,source:'SENSOR'}]);
+assert(safeCsv.startsWith('\uFEFFid,observed_at'), 'CSV includes UTF-8 BOM and provenance columns');
+assert(safeCsv.includes('"\'=SUM(1,1)"'), 'spreadsheet formula injection neutralized for user text');
+assert(safeCsv.includes('"hello,""world""\n=1"'), 'embedded quotes and newlines escaped');
+assert(safeCsv.includes(',-48,'), 'negative measured numbers must not gain a text prefix');
+console.log('v0.2.16 source/session/age/mapped/demo filters and safe local CSV contract passed.');

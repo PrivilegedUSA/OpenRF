@@ -1,3 +1,11 @@
+## v0.2.16 — Saved observations explorer
+
+- Added source, session, age, mapped-observation and time-direction filters to the existing Saved observations screen. Search and category/demo controls remain available.
+- Investigation Records shortcuts now open an editable session filter; Clear filters resets controls without reloading.
+- Added local filtered CSV export preserving source/provenance and measurement units with spreadsheet-formula protection and a DEMO opt-in requirement. Existing full-file exports remain unchanged.
+- Expanded pure JavaScript regression tests; no database migration, new dependency, sensor activation or location tracking.
+- Preserved v0.2.15 maps, USB/ESP32 source, radar roadmap and archived Android work; running Firefox and physical sensor tests still require operator validation.
+
 ## v0.2.15 — Wider overview and smooth browser location camera
 
 - The Survey Map now starts farther out so the opening camera shows much more of the continental United States before any location permission is granted.

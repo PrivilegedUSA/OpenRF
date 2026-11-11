@@ -1,4 +1,4 @@
-# OpenRF v0.2.15 — Fuller U.S. Overview and Smooth GPS Flyover
+# OpenRF v0.2.16 — Saved Observations Explorer
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.15.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.16.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.15 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.16 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.16 — Saved Observations Explorer
+
+- On **Saved / Discoveries**, filter existing local observations by text, type, evidence source, investigation session, recorded age (past day/week/month), or presence of survey coordinates. Sort by observation timestamp in either direction; use **Clear filters** without reloading the app.
+- **Investigations → Records** now opens Saved with a visible, editable investigation filter instead of a hidden session-only mode that required a browser refresh to clear.
+- **Export shown CSV** downloads only matching saved observations using the browser; it includes original `source`, `source_device`, timestamps, measurement units, survey coordinates/accuracy, session/capture references and hardware provenance where available. It does not change the existing full-export endpoints or upload anything. Spreadsheet-style formula strings in user text are escaped.
+- DEMO data remains opt-in; imported, manually entered and sensor-reported records are not reclassified as live. Time-window filters use the browser clock and `observed_at` timestamps, not device-sensor clock inference. Stored record lists are currently capped to the latest 10,000 rows by the existing backend, and the explorer reports this limit.
+- No database migrations, new Python dependencies, collection in the background, or change to radar/navigation feature status. Existing map UX and optional offline files are preserved. See [v0.2.16 testing](docs/RELEASE_0.2.16_TESTS.md).
 
 ## v0.2.15 — Fuller U.S. overview and smooth GPS camera
 

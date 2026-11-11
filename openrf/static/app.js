@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], captures: [], diagnostics: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, filterSession: null, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+const state = { observations: [], sessions: [], captures: [], diagnostics: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -83,7 +83,7 @@ async function refresh() {
   $('metric-demo').textContent = stats.demo;
   $('runtime-pill').textContent = hardware.environment;
   $('scanner-connection-pill').textContent = hardware.wifi_one_shot?.possible ? 'ON-DEMAND WI-FI POSSIBLE' : 'NO LINUX WI-FI SCANNER';
-  renderDiscoveries(); renderSessions(); renderCaptures(); renderHardware(); renderSensorRegistry(); renderSerialPorts(); renderSignals(); updateMap(); renderMapSurveyPanel();
+  refreshDiscoverySessions(); renderDiscoveries(); renderSessions(); renderCaptures(); renderHardware(); renderSensorRegistry(); renderSerialPorts(); renderSignals(); updateMap(); renderMapSurveyPanel();
 }
 
 function openObservation(lat = '', lon = '') {
@@ -93,15 +93,85 @@ function openObservation(lat = '', lon = '') {
   $('observation-dialog').showModal();
 }
 
-function renderDiscoveries() {
+// v0.2.16: browse only stored observations. Filters do not request hardware,
+// infer transmitter positions, or mutate the SQLite investigation database.
+function refreshDiscoverySessions() {
+  const select = $('discovery-session');
+  const chosen = select.value || 'ALL';
+  select.replaceChildren();
+  for (const [value, label] of [['ALL','All investigations'],['NONE','Not linked to a session']]) {
+    const opt = document.createElement('option'); opt.value = value; opt.textContent = label; select.append(opt);
+  }
+  state.sessions.forEach(session => {
+    const opt = document.createElement('option');
+    opt.value = String(session.id); opt.textContent = `${session.name} (#${session.id})`;
+    select.append(opt);
+  });
+  select.value = [...select.options].some(opt=>opt.value === chosen) ? chosen : 'ALL';
+}
+function filteredDiscoveries(now = Date.now()) {
   const keyword = $('discovery-search').value.trim().toLowerCase();
   const kind = $('discovery-kind').value;
+  const source = $('discovery-source').value;
+  const session = $('discovery-session').value;
+  const age = $('discovery-age').value;
+  const mapped = $('discovery-mapped').checked;
   const includeDemo = $('show-demo-list').checked;
+  const cutoff = age === 'ALL' ? null : now - Number(age) * 86400000;
   const items = state.observations.filter(o =>
-    (includeDemo || o.source !== 'DEMO') && (kind === 'ALL' || kind === o.kind) &&
-    (!state.filterSession || o.session_id === state.filterSession) &&
-    [o.label, o.identifier, o.notes].some(s => String(s || '').toLowerCase().includes(keyword))
+    (includeDemo || o.source !== 'DEMO') &&
+    (kind === 'ALL' || kind === o.kind) &&
+    (source === 'ALL' || source === o.source) &&
+    (session === 'ALL' || (session === 'NONE' ? o.session_id == null : String(o.session_id) === session)) &&
+    (!mapped || (o.latitude != null && o.longitude != null)) &&
+    (cutoff === null || (Number.isFinite(Date.parse(o.observed_at)) && Date.parse(o.observed_at) >= cutoff && Date.parse(o.observed_at) <= now)) &&
+    (!keyword || [o.label, o.identifier, o.notes, o.source_device].some(s => String(s || '').toLowerCase().includes(keyword)))
   );
+  // Timestamp sorts are explicitly historical; stable ID resolves duplicate times.
+  items.sort((a,b) => {
+    const order = (Date.parse(a.observed_at) || 0) - (Date.parse(b.observed_at) || 0) || a.id - b.id;
+    return $('discovery-sort').value === 'OLDEST' ? order : -order;
+  });
+  return items;
+}
+function csvCell(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '';
+  let s = String(value ?? '');
+  // Never let exported labels/notes from imports become spreadsheet formulas.
+  if (/^[\s\uFEFF]*[=+\-@]/u.test(s)) s = "'" + s;
+  return '"' + s.replace(/"/g,'""') + '"';
+}
+function discoveriesCsv(items) {
+  const cols = ['id','observed_at','kind','source','label','identifier','notes','source_device','frequency_mhz','rssi_dbm','signal_quality_percent','latitude','longitude','accuracy_m','location_source','fix_age_seconds','session_id','survey_capture_id','timestamp_basis','device_reported_at_utc','hardware_id'];
+  return '\uFEFF' + cols.join(',') + '\r\n' + items.map(item => cols.map(col=>csvCell(item[col])).join(',')).join('\r\n') + '\r\n';
+}
+function downloadShownDiscoveries() {
+  const items = filteredDiscoveries();
+  if (!items.length) return;
+  const blob = new Blob([discoveriesCsv(items)], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url; link.download = 'openrf-filtered-observations.csv';
+  document.body.append(link); link.click(); link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  flash(`Prepared local CSV for ${items.length} matching saved record(s). No upload performed.`);
+}
+function resetDiscoveryFilters() {
+  $('discovery-search').value = '';
+  $('discovery-kind').value = 'ALL';
+  $('discovery-source').value = 'ALL';
+  $('discovery-session').value = 'ALL';
+  $('discovery-age').value = 'ALL';
+  $('discovery-sort').value = 'NEWEST';
+  $('discovery-mapped').checked = false;
+  $('show-demo-list').checked = false;
+  $('discovery-refine').open = false;
+  renderDiscoveries();
+}
+function renderDiscoveries() {
+  const items = filteredDiscoveries();
+  $('discovery-results-count').textContent = `${items.length} of ${state.observations.length} saved observation(s) shown${state.observations.length >= 10000 ? ' (latest 10,000 records loaded)' : ''}`;
+  $('discovery-export').disabled = !items.length;
   $('discoveries-list').innerHTML = items.length ? items.map(o => `
     <article class="item"><div><div class="item-top"><h4>${escapeHTML(o.label)}</h4>
     <span class="badge">${escapeHTML(o.kind)}</span><span class="badge ${o.source === 'DEMO'?'demo':'manual'}">${escapeHTML(o.source)}</span></div>
@@ -110,7 +180,7 @@ function renderDiscoveries() {
     ${o.rssi_dbm !== null ? `<div class="tiny">RSSI ${escapeHTML(o.rssi_dbm)} dBm ${o.frequency_mhz !== null ? `· ${escapeHTML(o.frequency_mhz)} MHz` : ''}</div>` : ''}
     ${o.signal_quality_percent !== null && o.signal_quality_percent !== undefined ? `<div class="tiny">NetworkManager quality ${escapeHTML(o.signal_quality_percent)}% (not RSSI) · ${escapeHTML(o.location_source || 'UNSPECIFIED')} observer location ${o.fix_age_seconds !== null ? `· fix age ${escapeHTML(o.fix_age_seconds)} seconds` : ''}</div>` : ''}
     </div><div class="item-actions">${o.latitude !== null ? `<button class="btn mini outline" data-zoom="${o.id}">Map</button>` : ''}<button class="btn mini danger-outline" data-delete="${o.id}">Delete</button></div></article>`).join('') :
-    '<div class="empty">No records match. Use “Add observation”, or enable the demo filter for the optional test fixtures.</div>';
+    '<div class="empty">No saved observations match these filters. DEMO data requires explicit opt-in. Clear filters to view all available non-demo records.</div>';
 }
 
 function renderSessions() {
@@ -1176,8 +1246,11 @@ $('refresh-hardware').addEventListener('click',()=>runAction(async()=>{
   flash('Read-only Linux hardware inventory refreshed. This did not start an RF scan.');
 }));
 $('discovery-search').addEventListener('input',renderDiscoveries);
-$('discovery-kind').addEventListener('change',renderDiscoveries);
-$('show-demo-list').addEventListener('change',renderDiscoveries);
+for (const id of ['discovery-kind','discovery-source','discovery-session','discovery-age','discovery-sort','discovery-mapped','show-demo-list']) {
+  $(id).addEventListener('change',renderDiscoveries);
+}
+$('discovery-reset').addEventListener('click',resetDiscoveryFilters);
+$('discovery-export').addEventListener('click',downloadShownDiscoveries);
 $('signal-select').addEventListener('change',()=>drawHistory());
 $('discoveries-list').addEventListener('click',e=>{
   const del=e.target.closest('[data-delete]'); const zoom=e.target.closest('[data-zoom]');
@@ -1187,7 +1260,7 @@ $('discoveries-list').addEventListener('click',e=>{
 $('session-list').addEventListener('click',e=>{
   const stop=e.target.closest('[data-stop]'); const view=e.target.closest('[data-session-filter]');
   if(stop) runAction(async()=>{await api(`/api/sessions/${stop.dataset.stop}/stop`,'POST',{});flash('Session stopped.');await refresh();});
-  if(view) {state.filterSession = Number(view.dataset.sessionFilter);$('show-demo-list').checked=true;renderDiscoveries();showPage('discoveries');flash(`Showing records associated with session #${state.filterSession}. Return to “All records” by refreshing the page.`);}
+  if(view) {const selected = String(view.dataset.sessionFilter);resetDiscoveryFilters();$('discovery-session').value=selected; $('discovery-refine').open=true;renderDiscoveries();showPage('discoveries');flash(`Showing saved observations from investigation #${selected}. Choose Clear filters to return to all records.`);}
 });
 $('observation-form').addEventListener('submit',e=>{
   e.preventDefault();runAction(async()=>{
