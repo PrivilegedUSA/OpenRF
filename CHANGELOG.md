@@ -1,4 +1,4 @@
-## v0.2.14 — Wider overview and smooth browser location camera
+## v0.2.15 — Wider overview and smooth browser location camera
 
 - The Survey Map now starts farther out so the opening camera shows much more of the continental United States before any location permission is granted.
 - Browser location recentering now uses an explicit animated duration instead of a capped fly-to that could degrade into an instant snap on large jumps.
