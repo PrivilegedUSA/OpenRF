@@ -381,3 +381,26 @@
 .waypoint-row .button-line{display:flex;flex-wrap:wrap;gap:7px}
 .raster-waypoint-pin{position:absolute;width:14px;height:14px;border-radius:50%;background:#f6d37a;border:2px solid #09252c;transform:translate(-50%,-50%);z-index:5;pointer-events:none}
 @media(max-width:620px){.waypoint-row{align-items:flex-start;flex-direction:column}.waypoint-actions .btn{flex:1}}
+
+/* v0.2.21: comfortable separation of manual observation button and waypoints. */
+.map-actions{margin-bottom:18px}
+.survey-waypoint-manager{margin-top:2px}
+/* Read-only host readiness must fit five-inch touchscreens without sideways scroll. */
+.hardware-readiness{margin-top:16px;margin-bottom:16px;min-width:0}
+.hardware-readiness .panel-title{gap:12px;flex-wrap:wrap}
+.hardware-readiness-items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:13px}
+.readiness-item{background:#0c202a;border:1px solid #294652;border-radius:9px;padding:12px;min-width:0;overflow-wrap:anywhere}
+.readiness-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.readiness-heading strong{font-size:13px}
+.readiness-item p{margin:8px 0;line-height:1.5;color:#adbfca;font-size:12px}
+.readiness-item .tiny{line-height:1.5}
+@media(max-width:750px){.hardware-readiness-items{grid-template-columns:minmax(0,1fr)}.hardware-readiness .panel-title .btn{width:100%}}
+
+/* v0.2.21: compact stacked-layers and manual observation map controls. */
+.map-survey-toggle {right:12px!important;bottom:12px!important;min-width:44px;width:44px;height:44px;min-height:44px;padding:0!important;border-radius:11px!important;}
+.map-survey-toggle > .map-scan-symbol {display:grid;place-items:center;width:22px;height:22px;color:#a8f8ed;font-size:unset;line-height:normal;}
+.map-scan-symbol svg {display:block;width:21px;height:21px;}
+.map-add-observation {position:absolute;right:64px;bottom:12px;z-index:12;display:grid;place-items:center;width:44px;height:44px;padding:0;border-radius:11px;border:1px solid #4acbb8;background:#0f3039f0;color:#c8fff3;box-shadow:0 5px 18px #0009;}
+.map-add-observation svg {width:23px;height:23px;display:block;}
+.map-add-observation:hover,.map-survey-toggle:hover {background:#19434a;}
+.map-add-observation:focus-visible,.map-survey-toggle:focus-visible {outline:3px solid #98f5df;outline-offset:2px;}

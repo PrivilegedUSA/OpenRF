@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -68,7 +68,7 @@ function showPage(page, options = {}) {
 async function refresh() {
   const [records, sessions, stats, hardware, sensorData, captureData, diagnostics, waypointData] = await Promise.all([
     api('/api/observations'), api('/api/sessions'), api('/api/stats'), api('/api/hardware'), api('/api/sensors'),
-    api('/api/captures'), api('/api/sensors/diagnostics'), api('/api/survey/waypoints')
+    api('/api/captures'), api('/api/sensors/diagnostics'), api('/api/hardware/readiness'), api('/api/survey/waypoints')
   ]);
   state.observations = records.observations;
   state.sessions = sessions.sessions;
@@ -79,13 +79,14 @@ async function refresh() {
   state.serialTransport = sensorData.serial_transport || null;
   state.captures = captureData.captures || [];
   state.diagnostics = diagnostics;
+  state.readiness = readiness;
   $('metric-observations').textContent = stats.observations;
   $('metric-mapped').textContent = stats.mapped;
   $('metric-sessions').textContent = stats.sessions;
   $('metric-demo').textContent = stats.demo;
   $('runtime-pill').textContent = hardware.environment;
   $('scanner-connection-pill').textContent = hardware.wifi_one_shot?.possible ? 'ON-DEMAND WI-FI POSSIBLE' : 'NO LINUX WI-FI SCANNER';
-  refreshDiscoverySessions(); renderDiscoveries(); renderSessions(); renderCaptures(); renderHardware(); renderSensorRegistry(); renderSerialPorts(); renderSignals(); updateMap(); renderMapSurveyPanel(); renderWaypoints();
+  refreshDiscoverySessions(); renderDiscoveries(); renderSessions(); renderCaptures(); renderHardware(); renderSensorRegistry(); renderSerialPorts(); renderHardwareReadiness(); renderSignals(); updateMap(); renderMapSurveyPanel(); renderWaypoints();
 }
 
 function openObservation(lat = '', lon = '') {
@@ -312,7 +313,41 @@ async function runSerialSensor(snapshot) {
     }
     await refresh();
   } catch(error) { $('usb-sensor-status').textContent = `USB sensor unavailable: ${error.message}`; flash(error.message,true); }
-  finally { buttons.forEach(b=>b.disabled=!($('usb-sensor-port').value)); }
+  finally {
+    buttons.forEach(b=>b.disabled=!($('usb-sensor-port').value));
+    try {
+      state.diagnostics = await api('/api/sensors/diagnostics');
+      state.readiness = await api('/api/hardware/readiness');
+      renderSensorRegistry(); renderHardwareReadiness();
+    } catch (_) { /* Never mask the actual probe outcome if diagnostics fail. */ }
+  }
+}
+
+function renderHardwareReadiness() {
+  const report = state.readiness;
+  const items = $('hardware-readiness-items');
+  const updated = $('hardware-readiness-updated');
+  const exportButton = $('hardware-readiness-export');
+  if (!report || !Array.isArray(report.checklist)) {
+    items.innerHTML = '<div class="empty">No read-only readiness report is available.</div>';
+    updated.textContent = 'Readiness unavailable. Try Refresh inventory.';
+    exportButton.disabled = true;
+    return;
+  }
+  exportButton.disabled = false;
+  updated.textContent = `Checked ${stamp(report.collected_at_utc)} · ${report.summary.usb_serial_ports_visible} Linux serial port(s) visible · No RF scan started.`;
+  items.innerHTML = report.checklist.map(check => `
+    <div class="readiness-item"><div class="readiness-heading"><strong>${escapeHTML(check.label)}</strong><span class="pill">${escapeHTML(check.status.replaceAll('_', ' '))}</span></div>
+      <p>${escapeHTML(check.explanation)}</p><div class="tiny"><strong>Next:</strong> ${escapeHTML(check.next_step)}</div></div>`).join('');
+}
+function downloadHardwareReadiness() {
+  if (!state.readiness) return flash('Refresh hardware readiness before exporting.', true);
+  if (!confirm('Save a read-only hardware readiness report? It contains Linux environment and device counts, not private investigations, GPS, USB serial numbers, or RF samples.')) return;
+  const content = JSON.stringify(state.readiness, null, 2);
+  const url = URL.createObjectURL(new Blob([content], {type:'application/json;charset=utf-8'}));
+  const a = document.createElement('a'); a.href = url;
+  a.download = 'openrf-hardware-readiness.json'; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function renderHardware() {
@@ -1378,6 +1413,7 @@ document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',(
 document.querySelectorAll('[data-jump]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.jump)));
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
 $('manual-entry').addEventListener('click',()=>openObservation());
+$('map-add-observation').addEventListener('click',()=>openObservation());
 $('waypoint-session').addEventListener('change', renderWaypointSelection);
 $('waypoint-show-map').addEventListener('change', updateMap);
 $('waypoint-record').addEventListener('click', recordWaypoint);
@@ -1519,9 +1555,16 @@ document.querySelectorAll('[data-map-kind]').forEach(input => input.addEventList
 }));
 $('usb-sensor-probe').addEventListener('click',()=>runAction(()=>runSerialSensor(false)));
 $('usb-sensor-capture').addEventListener('click',()=>runAction(()=>runSerialSensor(true)));
+$('hardware-readiness-export').addEventListener('click', downloadHardwareReadiness);
 $('refresh-hardware').addEventListener('click',()=>runAction(async()=>{
-  state.hardware = await api('/api/hardware'); const registry = await api('/api/sensors'); state.sensors = registry.sensors; state.serialTransport = registry.serial_transport; renderHardware(); renderSensorRegistry(); renderSerialPorts();
-  flash('Read-only Linux hardware inventory refreshed. This did not start an RF scan.');
+  const [hardware, registry, diagnostics, readiness] = await Promise.all([
+    api('/api/hardware'), api('/api/sensors'), api('/api/sensors/diagnostics'), api('/api/hardware/readiness')
+  ]);
+  state.hardware = hardware; state.sensors = registry.sensors;
+  state.serialTransport = registry.serial_transport; state.diagnostics = diagnostics;
+  state.readiness = readiness;
+  renderHardware(); renderSensorRegistry(); renderSerialPorts(); renderHardwareReadiness();
+  flash('Read-only Linux hardware inventory and diagnostics refreshed. No RF scan started.');
 }));
 $('discovery-search').addEventListener('input',renderDiscoveries);
 for (const id of ['discovery-kind','discovery-source','discovery-session','discovery-age','discovery-sort','discovery-mapped','show-demo-list']) {

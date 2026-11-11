@@ -18,6 +18,7 @@ from .offline_maps import (available_maps, tile_bytes, import_map, remove_map,
 from .map_areas import (list_areas, get_area, save_area, remove_area, area_geojson, area_tile_manifest, build_subset, AreaError)
 from .tile_archive import import_xyz_zip, TileArchiveError, MAX_ZIP_BYTES
 from .hardware import status_report, enumerate_serial_ports, serial_port_diagnostics
+from .readiness import readiness_report
 from .drivers.wifi_nmcli import scan_once, WifiScanUnavailable
 from .drivers.serial_openrf import query_port, SerialSensorError
 from .storage import Repository, to_csv, to_geojson
@@ -203,6 +204,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, self.repo.stats())
         if path == '/api/hardware':
             return self._json(200, status_report())
+        if path == '/api/hardware/readiness':
+            return self._json(200, readiness_report(status_report(),
+                last_probe=self.server.serial_last_probe,
+                last_wifi_scan=self.server.scan_receipts.summary()))
         if path == '/api/sensors':
             hardware = status_report()
             return self._json(200, {'schema_version': 2, 'sensors': connections(hardware),

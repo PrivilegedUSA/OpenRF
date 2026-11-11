@@ -86,7 +86,7 @@ def enumerate_serial_ports(root: Path = Path('/dev')) -> list[str]:
     ports = []
     for pattern in ('ttyUSB[0-9]*', 'ttyACM[0-9]*'):
         try:
-            ports.extend(p.name for p in root.glob(pattern) if p.name.startswith(('ttyUSB', 'ttyACM')))
+            ports.extend(p.name for p in root.glob(pattern) if re.fullmatch(r'tty(?:USB|ACM)\d{1,3}', p.name))
         except OSError:
             pass
     return sorted(set(ports))[:64]
@@ -103,7 +103,10 @@ def serial_port_diagnostics(root: Path = Path('/dev')) -> list[dict]:
         path = root / name
         try:
             mode = path.stat()
-            owner = grp.getgrgid(mode.st_gid).gr_name
+            try:
+                owner = grp.getgrgid(mode.st_gid).gr_name
+            except KeyError:
+                owner = str(mode.st_gid)
             accessible = os.access(path, os.R_OK | os.W_OK)
             device_type = 'character_device' if stat.S_ISCHR(mode.st_mode) else 'other'
             status = 'permission_ok_unverified' if accessible else 'permission_denied'
@@ -134,6 +137,7 @@ def status_report() -> dict:
         bluetooth_adapters = []
     usb_devices = enumerate_usb_devices()
     serial_ports = enumerate_serial_ports()
+    serial_details = serial_port_diagnostics()
     wifi_device = any(n['wireless'] for n in network)
     bluez = shutil.which('bluetoothctl') is not None
     nmcli = shutil.which('nmcli') is not None
@@ -181,8 +185,8 @@ def status_report() -> dict:
         'bluetooth_adapters': bluetooth_adapters,
         'usb_devices': usb_devices,
         'serial_ports': serial_ports,
-        'serial_port_diagnostics': serial_port_diagnostics(),
-        'serial_port_details': serial_port_diagnostics(),
+        'serial_port_diagnostics': serial_details,
+        'serial_port_details': serial_details,
         'command_availability': {
             'nmcli': nmcli, 'bluetoothctl': bluez,
             'iw': shutil.which('iw') is not None,

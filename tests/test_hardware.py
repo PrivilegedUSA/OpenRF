@@ -27,7 +27,7 @@ class HardwareInventoryTests(unittest.TestCase):
     def test_only_usb_serial_endpoints_are_listed(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            for name in ('ttyUSB0', 'ttyACM2', 'ttyS0', 'ttyUSB-no', 'notes'):
+            for name in ('ttyUSB0', 'ttyACM2', 'ttyS0', 'ttyUSB-no', 'ttyUSB12extra', 'notes'):
                 (root/name).touch()
             self.assertEqual(enumerate_serial_ports(root), ['ttyACM2', 'ttyUSB0'])
 
@@ -50,3 +50,16 @@ class SerialPortDiagnosticsTests(unittest.TestCase):
             self.assertEqual(report[0]['device_type'], 'other')
             self.assertIn(report[0]['access'], ('permission_ok_unverified', 'permission_denied'))
             self.assertNotIn('serial_number', report[0])
+
+
+class HardwareRefreshStabilityTests(unittest.TestCase):
+    def test_unknown_group_is_reported_instead_of_marked_stat_failure(self):
+        from unittest.mock import patch
+        from openrf.hardware import serial_port_diagnostics
+        with tempfile.TemporaryDirectory() as tmp:
+            node = Path(tmp) / 'ttyUSB0'
+            node.touch()
+            with patch('openrf.hardware.grp.getgrgid', side_effect=KeyError('unknown group')):
+                item = serial_port_diagnostics(Path(tmp))[0]
+            self.assertNotEqual(item['access'], 'stat_failed')
+            self.assertTrue(item['group'].isdigit())

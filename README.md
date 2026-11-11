@@ -1,4 +1,4 @@
-# OpenRF v0.2.20 — GPS-Linked Manual Surveys
+# OpenRF v0.2.21 — Hardware Readiness & Compact Map Actions
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.20.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.21.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.20 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.21 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,13 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.21 — Hardware readiness and map actions
+
+- **Hardware → Readiness checklist** evaluates the actual Linux inventory and previously requested Wi-Fi/USB activity, without initiating a scan, serial read, or device probe. It differentiates visible/accessible USB ports, permission failures, missing wireless interfaces, recent protocol replies, stale replies, and disconnected devices. All detected capabilities are **unverified until explicitly tested**. BLE, SDR, external GNSS and police radar remain **not implemented**.
+- **Refresh hardware** now refreshes diagnostics and the readiness checklist as well as the inventory. **Export readiness JSON** downloads only the conservative status/checklist and aggregate counts, excluding private serial IDs, Wi-Fi addresses, raw readings and GPS records. It is not proof that a receiver is working.
+- The Survey Map's **Layers** control is smaller, uses a familiar stacked-layers SVG, and remains at lower right. The adjacent **+** control opens the existing manual observation form **without silently assigning GPS or map-center coordinates**. Tap the map at a specific location to prefill coordinates instead.
+- Added spacing below **Add observation manually** to separate it from the optional GPS waypoint card on narrow screens. No changes to stored observations, waypoints, captures, maps or the offline SQLite schema. No hardware driver dependency added. See [v0.2.21 tests](docs/RELEASE_0.2.21_TESTS.md).
 
 ## v0.2.20 — Manual, session-linked browser GPS waypoints
 

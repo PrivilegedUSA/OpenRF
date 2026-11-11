@@ -42,7 +42,7 @@ class ApiTests(unittest.TestCase):
     def test_health_static_hardware_and_exports(self):
         s,data=self.call('GET','/api/health')
         self.assertEqual(s,200)
-        self.assertEqual(data['version'],'0.2.20')
+        self.assertEqual(data['version'],'0.2.21')
         for path in ('/','/static/app.css','/static/app.js','/static/history-analysis.js','/api/export.csv','/api/export.geojson'):
             status,_=self.call('GET',path)
             self.assertEqual(status,200,path)
@@ -50,6 +50,23 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(s,200)
         self.assertEqual(len(data['capabilities']),8)
         self.assertTrue(any(c['key'] == 'police_radar' and c['status'] == 'not_implemented' for c in data['capabilities']))
+
+    def test_readiness_endpoint_is_read_only_and_private(self):
+        from unittest.mock import patch
+        with patch('openrf.server.status_report', return_value={
+            'environment':'WSL 2 / Linux', 'serial_ports':['ttyACM0'],
+            'serial_port_details':[{'port':'ttyACM0','access':'permission_ok_unverified',
+                                    'device_type':'character_device'}],
+            'wifi_one_shot':{'possible':False,'interface':None},
+            'network_details':[], 'command_availability':{'nmcli':False}
+        }):
+            status,report=self.call('GET','/api/hardware/readiness')
+        self.assertEqual(status,200)
+        self.assertFalse(report['active_rf_capture'])
+        self.assertEqual(report['schema_version'],1)
+        self.assertEqual(report['summary']['usb_serial_ports_visible'],1)
+        self.assertNotIn('ttyACM0',str(report))
+        self.assertFalse(any(c['status']=='ready' for c in report['checklist']))
 
     def test_cannot_forge_sensor_source_via_manual_entry(self):
         s,data=self.call('POST','/api/observations', {'kind':'BLE','source':'SENSOR', 'source_device':'HackRF','label':'Unverified manual'})
