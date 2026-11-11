@@ -355,3 +355,19 @@
 .report-actions .btn{min-height:40px;white-space:normal}
 #session-report-status{overflow-wrap:anywhere;line-height:1.6}
 @media(max-width:620px){.report-options{display:grid;grid-template-columns:minmax(0,1fr)}.report-actions{display:grid;grid-template-columns:minmax(0,1fr)}.report-actions .btn{width:100%;min-height:44px}}
+
+/* v0.2.19 historical graph: readable on a five-inch field display. */
+.history-filter-row{display:grid;grid-template-columns:minmax(0,1fr);gap:9px;margin-top:12px}
+.history-filter-row label{min-width:0;color:#b3cbd4;font-size:12px}
+.history-filter-row .field{margin-top:6px}
+.history-demo-switch{white-space:normal;margin:12px 0}
+.history-export-option{white-space:normal;margin:11px 0}
+.history-summary{background:#0a1720;border:1px solid #284650;border-radius:9px;padding:12px;min-width:0;overflow-wrap:anywhere;font-size:12px;margin-top:10px}
+.history-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.history-summary-grid>div{background:#122934;border-radius:8px;padding:9px 7px;min-width:0}
+.history-summary-grid small{display:block;font-size:10px;color:#acc3ce;min-height:27px}
+.history-summary-grid strong{display:block;color:#80e6d1;font-size:17px;margin-top:5px;font-variant-numeric:tabular-nums}
+.history-chart svg{height:auto;max-height:250px;display:block;width:100%;overflow:hidden}
+.history-chart-legend{color:#a9bdc7;font-size:11px;margin:4px 0 10px}
+.history-records{margin:10px 0}.history-records summary{min-height:36px;cursor:pointer;font-size:12px;color:#b7d9de}.history-records .table-scroll{max-width:100%}
+@media(max-width:620px){.history-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.history-summary-grid small{min-height:0}}

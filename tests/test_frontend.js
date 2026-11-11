@@ -68,7 +68,7 @@ assert(html.includes('id="captures-list"') && html.includes('id="sensor-diagnost
 assert(src.includes('state.wifiScan.observerAtRequest = atScanPosition'), 'browser location is latched at time of scan request');
 assert(src.includes('async function saveScanSnapshot()') && src.includes('/api/sensors/networkmanager-wifi/save-scan'), 'batch save must use server-owned scan receipt');
 assert(src.includes('scan.scan_id = null'), 'frontend must disable replaying the saved receipt');
-assert(src.includes('signal_quality_percent') && src.includes("const unit = rssi.length ? 'dBm' : '% NetworkManager quality'"), 'plot only same-unit measurements');
+assert(src.includes('function historySelection()') && src.includes('engine.history(series,') && src.includes('series.metricName'), 'historical chart groups by compatible measured unit and source');
 assert(css.includes('.capture-actions') && css.includes('.capture-actions .btn{width:100%;}'), 'touchscreen snapshot controls avoid horizontal overflow');
 console.log('v0.2.6 survey snapshot, quality units, and small-screen contract checks passed.');
 

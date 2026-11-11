@@ -26,4 +26,5 @@ jobs:
           node --check openrf/static/history-analysis.js
           node tests/test_frontend.js
           node tests/test_history_analysis.js
+          node tests/test_signal_explorer.js
           node tests/test_reports_frontend.js

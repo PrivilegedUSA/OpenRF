@@ -352,21 +352,11 @@ function renderHardware() {
 
 function renderSignals() {
   const signals = state.observations.filter(o => ['WIFI','BLE','RF','CELLULAR'].includes(o.kind));
-  const grouped = new Map();
-  signals.forEach(o => { if (o.identifier && (o.rssi_dbm !== null || o.signal_quality_percent !== null && o.signal_quality_percent !== undefined)) {
-    if (!grouped.has(o.identifier)) grouped.set(o.identifier, []);
-    grouped.get(o.identifier).push(o);
-  }});
-  const current = $('signal-select').value;
-  $('signal-select').replaceChildren();
-  const placeholder = document.createElement('option'); placeholder.value = ''; placeholder.textContent = 'Choose a recorded identifier'; $('signal-select').append(placeholder);
-  [...grouped.keys()].sort().forEach(id => {const opt = document.createElement('option'); opt.value = id; opt.textContent = `${id} (${grouped.get(id).length} recorded)`; $('signal-select').append(opt);});
-  $('signal-select').value = grouped.has(current) ? current : '';
   const rows = signals.filter(o => o.source !== 'DEMO').slice(0, 100);
-  $('scan-count').textContent = `${signals.length} recorded`;
+  $('scan-count').textContent = `${signals.filter(o=>o.source !== 'DEMO').length} saved · DEMO excluded`;
   renderWifiScan();
   $('signal-table').innerHTML = rows.length ? `<table class="data-table"><thead><tr><th>IDENTIFIER</th><th>KIND</th><th>RSSI</th><th>QUALITY</th><th>FREQUENCY</th><th>PROVENANCE</th><th>TIME</th></tr></thead><tbody>${rows.map(o=>`<tr><td data-label="Identifier">${escapeHTML(o.identifier || o.label)}</td><td data-label="Kind">${escapeHTML(o.kind)}</td><td data-label="RSSI">${format(o.rssi_dbm, ' dBm')}</td><td data-label="Quality">${format(o.signal_quality_percent, '%')}</td><td data-label="Frequency">${format(o.frequency_mhz, ' MHz')}</td><td data-label="Source">${escapeHTML(o.source)}</td><td data-label="Time">${escapeHTML(stamp(o.observed_at))}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No saved RF measurements yet. One-shot Wi-Fi results above are temporary and not stored automatically.</div>';
-  drawHistory(grouped);
+  refreshHistorySeries();
   renderComparison();
 }
 
@@ -411,28 +401,75 @@ function renderWifiScan() {
     (entries.length ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>SSID</th><th>BSSID</th><th>FREQ.</th><th>CHANNEL</th><th>QUALITY</th><th>SECURITY</th><th>SAVE</th></tr></thead><tbody>${entries.map(n=>`<tr><td data-label="SSID">${escapeHTML(n.ssid)}</td><td data-label="BSSID">${escapeHTML(n.bssid)}</td><td data-label="Frequency">${format(n.frequency_mhz,' MHz')}</td><td data-label="Channel">${format(n.channel)}</td><td data-label="Quality">${format(n.signal_quality_percent,'%')}</td><td data-label="Security">${escapeHTML(n.security)}</td><td data-label="Save"><button type="button" class="btn mini outline" data-save-wifi="${escapeHTML(n.bssid)}" ${scan.scan_id ? '' : 'disabled'}>Save</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">NetworkManager returned no access points. This does not prove the area has no wireless signals.</div>');
 }
 
-function drawHistory(grouped = null) {
-  const id = $('signal-select').value;
-  const all = grouped?.get(id) || state.observations.filter(o => o.identifier === id &&
-    (o.rssi_dbm !== null || o.signal_quality_percent !== null && o.signal_quality_percent !== undefined));
-  if (!id || !all.length) { $('history-graph').innerHTML = '<div class="empty">Choose an identifier with measured signal strength or quality.</div>'; return; }
-  const rssi = all.filter(o => o.rssi_dbm !== null);
-  const quality = all.filter(o => o.signal_quality_percent !== null && o.signal_quality_percent !== undefined);
-  // Never mix dBm power measurements and NetworkManager signal-quality percentages.
-  const metric = rssi.length ? 'rssi_dbm' : 'signal_quality_percent';
-  const unit = rssi.length ? 'dBm' : '% NetworkManager quality';
-  const sorted = (rssi.length ? rssi : quality).slice().reverse();
-  const values = sorted.map(x => Number(x[metric]));
-  const min = Math.min(...values) - 5, max = Math.max(...values) + 5;
-  const coords = values.map((v, i) => [32 + (values.length === 1 ? 155 : i * 310 / (values.length - 1)), 125 - (v - min) / (max - min) * 105]);
-  const path = coords.map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`).join(' ');
-  $('history-graph').innerHTML = `<svg viewBox="0 0 380 155" role="img" aria-label="${escapeHTML(unit)} values from ${sorted.length} observations">
-    <line x1="28" x2="352" y1="20" y2="20" class="gridline"/><line x1="28" x2="352" y1="125" y2="125" class="gridline"/>
-    <text x="2" y="24">${max.toFixed(0)}</text><text x="2" y="129">${min.toFixed(0)}</text>
-    <path d="${path}" fill="none" stroke="#41d8bd" stroke-width="3"/>
-    ${coords.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="4" fill="#81f4dc"/>`).join('')}
-    <text x="30" y="148">First record</text><text x="277" y="148">Last record</text></svg>
-    <p class="small muted">${sorted.length} reading(s) in ${escapeHTML(unit)} · ${sorted.some(o => o.source === 'DEMO') ? 'SYNTHETIC DEMO included · ' : ''}${metric === 'signal_quality_percent' ? 'May include cached results; ' : ''}not a distance or transmitter location estimate.</p>`;
+// Historical charts use exactly the same identity contract as the comparison
+// engine; selecting an identifier never silently mixes devices, frequencies or %/dBm.
+function historySelection() {
+  const engine = window.OpenRFHistoryAnalysis;
+  const series = engine?.makeSeries(state.observations, $('history-include-demo').checked)
+    .find(item=>item.key === $('signal-select').value);
+  return {engine, series, selection:series ? engine.history(series, $('history-window').value) : null};
+}
+function refreshHistorySeries() {
+  const engine = window.OpenRFHistoryAnalysis, select = $('signal-select'), previous = select.value;
+  if (!engine) { $('history-summary').textContent = 'Historical analysis module is unavailable.'; return; }
+  const list = engine.makeSeries(state.observations, $('history-include-demo').checked);
+  select.replaceChildren();
+  const empty = document.createElement('option'); empty.value=''; empty.textContent='Select one historical measurement series'; select.append(empty);
+  for (const series of list) {
+    const option = document.createElement('option'); option.value=series.key;
+    option.textContent=`${series.kind} · ${series.identifier} · ${series.metricName} (${series.unit}) · ${series.frequency_mhz ?? '?'} MHz · ${series.source} · ${series.source_device} (${series.rows.length})`;
+    select.append(option);
+  }
+  select.value = list.some(series=>series.key===previous) ? previous : '';
+  drawHistory();
+}
+function drawHistory() {
+  const {engine,series,selection} = historySelection();
+  const summary = $('history-summary'), chart = $('history-graph'), details = $('history-records');
+  $('history-export').disabled = !selection?.rows.length;
+  if (!engine || !series || !selection?.stats) {
+    summary.textContent='Choose a compatible saved measurement series. DEMO records are excluded by default.';
+    chart.innerHTML='<div class="empty">No saved readings selected. A scan does not appear here until you explicitly save its observations.</div>';
+    details.replaceChildren();
+    return;
+  }
+  const fmt = val=>Number(val).toFixed(1);
+  const result = selection.stats;
+  summary.innerHTML=`<div class="history-summary-grid"><div><small>Saved readings in window</small><strong>${result.count}</strong></div><div><small>Median ${escapeHTML(series.unit)}</small><strong>${fmt(result.median)}</strong></div><div><small>Lowest ${escapeHTML(series.unit)}</small><strong>${fmt(result.min)}</strong></div><div><small>Highest ${escapeHTML(series.unit)}</small><strong>${fmt(result.max)}</strong></div></div>
+    <p class="small muted">${escapeHTML(series.kind)} · ${escapeHTML(series.identifier)} · ${escapeHTML(series.source)} · ${escapeHTML(series.source_device)}${series.hardware_id?` · Device ID ${escapeHTML(series.hardware_id)}`:''} · ${series.frequency_mhz ?? '?'} MHz · ${escapeHTML(series.metricName)}</p>
+    <p class="small muted">${escapeHTML(stamp(result.first))} to ${escapeHTML(stamp(result.last))} · ${selection.skipped} older reading(s) outside window · ${selection.drawn} plotted of ${result.count} (all selected readings included in statistics and CSV)</p>
+    <ul class="comparison-cautions">${selection.warnings.map(w=>`<li>${escapeHTML(w)}</li>`).join('')}</ul>`;
+  const pts=selection.plot;
+  const x0=40,x1=592,y0=14,y1=176;
+  const low=result.min,high=result.max;
+  const diff=high-low || 1;
+  const a=pts[0]._time,b=pts[pts.length-1]._time;
+  const coords=pts.map((row,index)=>({x:x0+(b===a?(pts.length===1?0.5:index/(pts.length-1)):(row._time-a)/(b-a))*(x1-x0),
+    y:y1-((row._value-low)/diff)*(y1-y0)}));
+  const path=coords.map((point,index)=>`${index===0?'M':'L'}${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' ');
+  const medianY=(y1-((result.median-low)/diff)*(y1-y0)).toFixed(2);
+  const unit=escapeHTML(series.unit);
+  chart.innerHTML=`<svg viewBox="0 0 620 216" role="img" aria-label="Historical ${escapeHTML(series.metricName)} timeline, ${result.count} saved readings in ${unit}, oldest to newest">
+     <line x1="${x0}" x2="${x1}" y1="${y0}" y2="${y0}" class="gridline"/><line x1="${x0}" x2="${x1}" y1="${y1}" y2="${y1}" class="gridline"/>
+     <line x1="${x0}" x2="${x1}" y1="${medianY}" y2="${medianY}" stroke="#c09e5b" stroke-dasharray="5 5" stroke-width="1.2"/>
+     <text x="1" y="${y0+4}">${fmt(high)}</text><text x="1" y="${y1+4}">${fmt(low)}</text>
+     <path d="${path}" fill="none" stroke="#41d8bd" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
+     ${coords.length===1?`<circle cx="${coords[0].x.toFixed(2)}" cy="${coords[0].y.toFixed(2)}" r="4" fill="#81f4dc"/>`:''}
+     <text x="${x0}" y="204">Oldest saved</text><text x="${x1-88}" y="204">Newest saved</text></svg>
+     <div class="history-chart-legend">Teal: recorded ${unit} · Dotted: median · Time-scaled; equal timestamps may overlap</div>`;
+  const recent=selection.rows.slice(-12).reverse();
+  details.innerHTML=`<details><summary>Show latest saved readings (${Math.min(selection.rows.length,12)} of ${selection.rows.length})</summary>
+    <div class="table-scroll"><table class="data-table"><thead><tr><th>Saved time</th><th>Value</th><th>Session</th><th>Timestamp basis</th></tr></thead><tbody>${recent.map(row=>`<tr><td data-label="Saved time">${escapeHTML(stamp(row.observed_at))}</td><td data-label="Value">${fmt(row._value)} ${unit}</td><td data-label="Session">${escapeHTML(row.session_id ?? '—')}</td><td data-label="Time basis">${escapeHTML(row.timestamp_basis || 'Unspecified')}</td></tr>`).join('')}</tbody></table></div></details>`;
+}
+function exportHistoryCsv() {
+  const {engine,series,selection}=historySelection();
+  const csv=engine?.historyCsv(series,selection,$('history-export-coordinates').checked);
+  if (!csv) return;
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  const link=document.createElement('a'); link.href=url; link.download='openrf-signal-history.csv';
+  document.body.append(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  flash(`Exported ${selection.rows.length} HISTORICAL readings. ${$('history-export-coordinates').checked?'Coordinates included by choice.':'Precise observer coordinates excluded.'} No upload performed.`);
 }
 
 
@@ -1383,7 +1420,10 @@ for (const id of ['discovery-kind','discovery-source','discovery-session','disco
 }
 $('discovery-reset').addEventListener('click',resetDiscoveryFilters);
 $('discovery-export').addEventListener('click',downloadShownDiscoveries);
-$('signal-select').addEventListener('change',()=>drawHistory());
+$('signal-select').addEventListener('change',drawHistory);
+$('history-window').addEventListener('change',drawHistory);
+$('history-include-demo').addEventListener('change',refreshHistorySeries);
+$('history-export').addEventListener('click',exportHistoryCsv);
 $('compare-series').addEventListener('change',()=>renderComparisonResult());
 $('compare-mode').addEventListener('change',()=>renderComparisonResult());
 $('compare-before-session').addEventListener('change',()=>renderComparisonResult());

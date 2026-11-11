@@ -14,7 +14,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.18</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.19</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -110,7 +110,16 @@
         <div class="map-actions"><p class="muted small">Click anywhere on the map to create a manual survey observation at that coordinate. Coordinates are not automatically captured or uploaded.</p><button class="btn primary" id="manual-entry">Add observation manually</button></div>
       </section>
       <section class="page" id="page-scanner"><div class="section-heading"><div><h2>Detailed signal analysis</h2><p>Inspect saved measurements and signal history. For mapping and quick scans, use Layers &amp; Scan on the Survey Map.</p></div><span id="scanner-connection-pill" class="pill amber">CHECKING RADIO SUPPORT</span></div>
-        <div class="two-columns"><div class="panel"><div class="panel-title"><h3>Radio source status</h3><span class="pill amber">INACTIVE</span></div><p class="scanner-message">No continuous RF capture is running. A user-started Wi-Fi access-point survey can use NetworkManager on a Linux host with a compatible visible adapter; WSL normally cannot use Windows built-in Wi-Fi.</p><button class="btn outline" data-jump="hardware">Inspect detected hardware</button></div><div class="panel"><div class="panel-title"><h3>Signal history</h3><span class="pill">RECORDED DATA</span></div><label for="signal-select" class="fieldlabel">Select an observed identifier</label><select id="signal-select" class="field"><option value="">No identifiers recorded</option></select><div id="history-graph" class="chart-wrap"><div class="empty">No RSSI measurements yet. Add manual survey readings or load synthetic demo records.</div></div><p class="muted small">RSSI is a received-power measurement—not distance. A graph does not establish transmitter location.</p></div></div>
+        <div class="two-columns"><div class="panel"><div class="panel-title"><h3>Radio source status</h3><span class="pill amber">INACTIVE</span></div><p class="scanner-message">No continuous RF capture is running. A user-started Wi-Fi access-point survey can use NetworkManager on a Linux host with a compatible visible adapter; WSL normally cannot use Windows built-in Wi-Fi.</p><button class="btn outline" data-jump="hardware">Inspect detected hardware</button></div><div class="panel"><div class="panel-title"><h3>Signal history</h3><span class="pill">RECORDED DATA</span></div><label for="signal-select" class="fieldlabel">Saved measurement series</label>
+          <select id="signal-select" class="field"><option value="">No compatible saved series</option></select>
+          <div class="history-filter-row"><label>Time window <select id="history-window" class="field"><option value="all">All saved readings</option><option value="day">Last 24 hours of saved data</option><option value="week">Last 7 days of saved data</option><option value="month">Last 30 days of saved data</option></select></label></div>
+          <label class="switchline history-demo-switch"><input id="history-include-demo" type="checkbox"> Include SYNTHETIC DEMO / HISTORICAL records</label>
+          <div id="history-summary" class="history-summary" role="status" aria-live="polite">Select a saved series to inspect its historical measurements.</div>
+          <div id="history-graph" class="chart-wrap history-chart"><div class="empty">No compatible saved measurements yet.</div></div>
+          <div id="history-records" class="history-records"></div>
+          <label class="switchline history-export-option"><input id="history-export-coordinates" type="checkbox"> Include precise observer coordinates in CSV</label>
+          <button type="button" id="history-export" class="btn outline" disabled>Export selected series CSV</button>
+          <p class="muted small">Windows are relative to the newest saved reading, not the current time. Each series has one source, device, frequency and measurement unit; charts are historical and never locate transmitters. CSV excludes precise coordinates unless selected.</p></div></div>
         <details class="panel history-compare-panel" id="history-comparison"><summary>Compare saved signal history <span class="pill">OFFLINE · HISTORICAL</span></summary>
           <p class="muted small">Compare readings from the same recorded identifier, measurement unit, frequency and reported hardware/source. This does not scan for signals or estimate transmitter position.</p>
           <label class="fieldlabel" for="compare-series">Recorded signal / measurement</label>

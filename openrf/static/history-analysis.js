@@ -97,5 +97,73 @@
     warning.push('Descriptive comparison only. Receiver orientation, antenna, location and conditions affect values.');
     return {mode, before, after, baseline:base, followup:follow, delta:follow.median-base.median, warnings:warning};
   }
-  return Object.freeze({makeSeries, median, compare});
+  // v0.2.19: a timeline is one measured unit, frequency and source identity.
+  // Time windows are anchored to the LATEST SAVED sample, not today's date;
+  // this makes historical field sessions usable without suggesting live data.
+  const historyWindows = Object.freeze({all:0, day:86400000, week:7*86400000, month:30*86400000});
+  function downsampleExtrema(rows, limit = 202) {
+    const cap = Math.max(6, Math.min(402, Math.floor(Number(limit) || 202)));
+    if (rows.length <= cap) return rows.slice();
+    const interior = rows.slice(1, -1);
+    const buckets = Math.max(1, Math.floor((cap-2)/2));
+    const chosen = [rows[0]];
+    for (let bucket=0; bucket<buckets; bucket++) {
+      const lo = Math.floor(interior.length*bucket/buckets);
+      const hi = Math.floor(interior.length*(bucket+1)/buckets);
+      if (lo >= hi) continue;
+      let smallest = lo, largest = lo;
+      for (let j=lo+1; j<hi; j++) {
+        if (interior[j]._value < interior[smallest]._value) smallest=j;
+        if (interior[j]._value > interior[largest]._value) largest=j;
+      }
+      const ordered = smallest === largest ? [smallest] : [Math.min(smallest,largest), Math.max(smallest,largest)];
+      for (const index of ordered) chosen.push(interior[index]);
+    }
+    chosen.push(rows[rows.length-1]);
+    return chosen;
+  }
+  function history(series, period = 'all', maxPoints = 202) {
+    if (!series) return {rows:[], plot:[], stats:null, skipped:0, drawn:0, total:0, period:'all', warnings:[]};
+    const windowName = Object.hasOwn(historyWindows, period) ? period : 'all';
+    const duration = historyWindows[windowName];
+    const all = series.rows;
+    const latest = all.length ? all[all.length-1]._time : 0;
+    const rows = duration ? all.filter(row=>row._time >= latest-duration) : all.slice();
+    const plot = downsampleExtrema(rows, maxPoints);
+    const warnings=[];
+    if (series.source === 'DEMO') warnings.push('SYNTHETIC DEMO / HISTORICAL — not a live measurement.');
+    if (series.source === 'MANUAL' || series.source === 'IMPORTED') warnings.push('Manually entered/imported values are not independently verified.');
+    if (series.source === 'SENSOR' && !series.hardware_id) warnings.push('Reported sensor hardware ID is missing.');
+    if (series.metric === 'signal_quality_percent') warnings.push('NetworkManager quality % is not RSSI dBm; a Wi-Fi scan may reflect cached results.');
+    if (rows.some(r=>['HOST_RETRIEVAL','HOST_RECEIPT','RETRIEVAL_ONLY','HOST_RETRIEVAL_ONLY'].includes(r.timestamp_basis))) {
+      warnings.push('Some timestamps reflect host retrieval instead of a verified measurement instant.');
+    }
+    const locations = new Set(rows.filter(r=>r.latitude !== null && r.latitude !== undefined && r.longitude !== null && r.longitude !== undefined &&
+      Number.isFinite(Number(r.latitude)) && Number.isFinite(Number(r.longitude)))
+      .map(r=>`${Number(r.latitude).toFixed(3)},${Number(r.longitude).toFixed(3)}`));
+    if (locations.size > 1) warnings.push('Measurements were saved at different observer locations; signal changes may reflect movement.');
+    if (rows.length && locations.size === 0) warnings.push('No recorded observer positions in this selection.');
+    if (all.length >= 10000) warnings.push('Only the latest 10,000 saved observations may be loaded; older history could be missing.');
+    warnings.push('Historical measurements only. Signal values cannot reliably determine transmitter distance, direction or position.');
+    return {rows, plot, stats:statistics(rows), skipped:all.length-rows.length, drawn:plot.length,
+      total:all.length, period:windowName, latest:latest || null, warnings};
+  }
+  function csvCell(value) {
+    if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '';
+    let text = String(value ?? '');
+    if (/^[\s\uFEFF]*[=+\-@]/u.test(text)) text = "'"+text;
+    return '"'+text.replace(/"/g,'""')+'"';
+  }
+  function historyCsv(series, selection, includeCoordinates = false) {
+    if (!series || !selection || !Array.isArray(selection.rows) || !selection.rows.length) return null;
+    const fields = ['id','observed_at','kind','identifier','source','source_device','hardware_id','frequency_mhz',
+      'measurement_type','measurement_value','measurement_unit','session_id','survey_capture_id','timestamp_basis','device_reported_at_utc'];
+    if (includeCoordinates) fields.push('latitude','longitude','accuracy_m','location_source','fix_age_seconds');
+    const records = selection.rows.map(row=> {
+      const exportRow = {...row, measurement_type:series.metric, measurement_value:row._value, measurement_unit:series.unit};
+      return fields.map(key=>csvCell(exportRow[key])).join(',');
+    });
+    return '\uFEFF'+fields.join(',')+'\r\n'+records.join('\r\n')+'\r\n';
+  }
+  return Object.freeze({makeSeries, median, compare, history, historyCsv, downsampleExtrema});
 });
