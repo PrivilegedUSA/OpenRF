@@ -322,7 +322,7 @@ function startMap() {
   const attempt = ++state.mapAttempt;
   try {
     // Keep the overview visible while permission is requested; apply a later GPS fix via flyTo.
-    const initial = state.preferredView || {center:[-98.5,39.8], zoom:4};
+    const initial = state.preferredView || {center:[-98.5,39.8], zoom:3};
     state.preferredView = null;
     state.map = new maplibregl.Map({container:'map', style:`https://tiles.openfreemap.org/styles/${state.style}`, center:initial.center, zoom:initial.zoom, attributionControl:false, maplibreLogo:false});
     state.map.addControl(new maplibregl.NavigationControl(), 'top-right');
@@ -381,7 +381,7 @@ function applyPendingLocation() {
   if (state.map && state.mapReady) {
     if (reduceMapMotion()) state.map.jumpTo({center:pending.center, zoom:pending.zoom});
     else state.map.flyTo({center:pending.center, zoom:pending.zoom,
-      speed:0.8, curve:1.25, maxDuration:3200, essential:false});
+      duration:2600, essential:false});
     state.pendingLocationView = null;
   } else if (state.rasterMap) {
     state.rasterMap.flyTo({center:pending.center, zoom:pending.zoom});
@@ -473,7 +473,7 @@ function startRasterMap(reason, view = null) {
   controls.append(plus, minus); surface.append(tiles, pins);
   root.replaceChildren(surface, notice, controls);
   let flightFrame = null;
-  const raster = {center:view?.center || [-98.5,39.8], zoom:Math.max(2,Math.min(18,Math.round(view?.zoom || 4))), tileNodes:new Map(), failedTiles:new Set(),
+  const raster = {center:view?.center || [-98.5,39.8], zoom:Math.max(2,Math.min(18,Math.round(view?.zoom || 3))), tileNodes:new Map(), failedTiles:new Set(),
     render() {
       notice.textContent = `${reason} ${state.offlineMap ? `Local raster package: ${state.offlineMap.name}. Tiles outside its coverage remain blank.` : 'Coordinate grid only. Install a licensed MBTiles raster package for offline streets.'}`;
       const width = root.clientWidth, height = root.clientHeight;

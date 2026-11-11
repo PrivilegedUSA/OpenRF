@@ -118,7 +118,7 @@ assert(css.includes('.area-zip-fields') && css.includes('@media(max-width:620px)
 assert(!src.includes('tile.openstreetmap.org'), 'no public raster prefetching');
 console.log('v0.2.12 offline tile ZIP creation and license-aware UI contracts passed.');
 
-// v0.2.13: location fix flies from overview, while pre-load fixes and user gestures are safe.
+// v0.2.14: wider overview and explicit-duration location flyover avoid snapping.
 const cameraBegin = src.indexOf('function reduceMapMotion() {');
 const cameraEnd = src.indexOf('\nfunction locateMap(', cameraBegin);
 assert(cameraBegin >= 0 && cameraEnd > cameraBegin, 'camera behavior must be testable');
@@ -134,7 +134,7 @@ assert.equal(spy.flights.length,1, 'location should smoothly fly when style is r
 assert.equal(spy.jumps.length,0, 'normal location must not jump');
 assert.deepEqual(spy.flights[0].center, target.center);
 assert.equal(spy.flights[0].zoom, target.zoom);
-assert(spy.flights[0].maxDuration >= 2000 && spy.flights[0].maxDuration <= 4000, 'flight must be visible but bounded');
+assert.equal(spy.flights[0].duration, 2600, 'flight must use an explicit visible duration to avoid snapping');
 assert.equal(moving.pendingLocationView,null, 'consumed fix must not replay on later style switches');
 const reduced = {map:spy,mapReady:true,rasterMap:null,pendingLocationView:{...target},mapNavigationEpoch:0};
 cameraHandler(reduced, true)();
@@ -151,10 +151,10 @@ const fallback = {map:null,mapReady:false,rasterMap:rasterSpy,pendingLocationVie
 cameraHandler(fallback)();
 assert.deepEqual(rasterSpy.flights[0], {center:target.center,zoom:target.zoom});
 assert.equal(fallback.pendingLocationView,null);
-assert(src.includes('const initial = state.preferredView || {center:[-98.5,39.8], zoom:4}'), 'initial map camera must show overview instead of preemptively jumping to GPS');
+assert(src.includes('const initial = state.preferredView || {center:[-98.5,39.8], zoom:3}'), 'initial map camera must start from a wider U.S. overview');
 assert(src.includes('const camera = state.map ?') && !src.includes('const camera = state.pendingLocationView ||'), 'fallback should retain overview until pending location flies');
 assert(src.includes('const tick = now =>') && src.includes('requestAnimationFrame(tick)') && src.includes('state.rasterMap.stop();'), 'offline coordinate map should animate and allow interruption');
-console.log('v0.2.13 smooth GPS camera, reduced motion, readiness, user gesture and raster fallback tests passed.');
+console.log('v0.2.14 wider overview, non-snapping GPS camera, reduced motion, readiness, user gesture and raster fallback tests passed.');
 
 // Exercise the actual raster animation callbacks without a browser or mock RF data.
 const rasterBegin = src.indexOf('    stop() {',src.indexOf('function startRasterMap('));
@@ -163,12 +163,12 @@ assert(rasterBegin > 0 && rasterEnd > rasterBegin);
 const frames = [], cancelled = [];
 const rasterEnvironment = {rasterMap:null};
 const makeRaster = Function('state','reduceMapMotion','performance','requestAnimationFrame','cancelAnimationFrame',
-  `let flightFrame = null; const raster = {center:[-98.5,39.8],zoom:4,render(){},${src.slice(rasterBegin,rasterEnd)}}; state.rasterMap=raster; return raster;`);
+  `let flightFrame = null; const raster = {center:[-98.5,39.8],zoom:3,render(){},${src.slice(rasterBegin,rasterEnd)}}; state.rasterMap=raster; return raster;`);
 const rasterCamera = makeRaster(rasterEnvironment,()=>false,{now:()=>0}, fn=>{frames.push(fn);return frames.length;}, id=>cancelled.push(id));
 rasterCamera.flyTo({center:[-120.5,38.1],zoom:15});
-assert.equal(rasterCamera.zoom,4, 'raster flight should not snap immediately');
+assert.equal(rasterCamera.zoom,3, 'raster flight should not snap immediately');
 frames.shift()(1300);
-assert(rasterCamera.zoom > 4 && rasterCamera.zoom < 15, 'raster mid-flight should be zooming');
+assert(rasterCamera.zoom > 3 && rasterCamera.zoom < 15, 'raster mid-flight should be zooming');
 assert(rasterCamera.center[0] < -98.5 && rasterCamera.center[0] > -120.5, 'raster mid-flight should be panning');
 frames.shift()(2600);
 assert.deepEqual(rasterCamera.center,[-120.5,38.1], 'raster flight should reach exact final coordinates');
@@ -183,4 +183,4 @@ noMotionRaster.flyTo({center:[-121,38],zoom:12});
 assert.deepEqual(noMotionRaster.center,[-121,38]);
 assert.equal(noMotionRaster.zoom,12);
 assert.equal(noMotionFrames.length,0, 'reduced motion must not schedule animation frames');
-console.log('v0.2.13 raster frame interpolation, completion, interruption and accessibility passed.');
+console.log('v0.2.14 raster frame interpolation, completion, interruption and accessibility passed.');

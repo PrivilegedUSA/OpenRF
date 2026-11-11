@@ -1,4 +1,10 @@
-# Changelog
+## v0.2.14 — Wider overview and smooth browser location camera
+
+- The Survey Map now starts farther out so the opening camera shows much more of the continental United States before any location permission is granted.
+- Browser location recentering now uses an explicit animated duration instead of a capped fly-to that could degrade into an instant snap on large jumps.
+- The built-in raster/coordinate map starts from the same wider overview so online and offline map modes feel consistent.
+- Automatic recentering still yields to manual map movement, and reduced-motion operating-system preferences are respected.
+
 
 ## v0.2.13 — Animated browser location camera
 

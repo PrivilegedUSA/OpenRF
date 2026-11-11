@@ -1,12 +1,12 @@
-# OpenRF v0.2.13 — Smooth location camera test notes
+# OpenRF v0.2.14 — Wider U.S. overview and smooth camera test notes
 
 ## Changed files
 
 - `openrf/static/app.js`: animated MapLibre GPS flight, pending-location handling, user-gesture precedence, cancellable raster camera transition and reduced-motion support.
 - `openrf/static/index.html`: version label and clearer optional offline-tiles heading.
-- `openrf/__init__.py` and `tests/test_server.py`: 0.2.13 version.
+- `openrf/__init__.py` and `tests/test_server.py`: 0.2.14 version.
 - `tests/test_frontend.js`: actual camera behavior tests with MapLibre spy and raster animation frame scheduler, reduced-motion, and stale-request behavior.
-- `README.md`, `CHANGELOG.md`, `docs/RELEASE_0.2.13_TESTS.md`: release documentation.
+- `README.md`, `CHANGELOG.md`, `docs/RELEASE_0.2.14_TESTS.md`: release documentation.
 
 ## Automated tests (WSL)
 
@@ -20,7 +20,7 @@ node tests/test_frontend.js
 
 ## Manual smoke tests (Windows Firefox + Ubuntu/WSL)
 
-1. In Windows PowerShell, run the existing updater with `OpenRF-v0.2.13.zip` placed in Downloads: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'`.
+1. In Windows PowerShell, run the existing updater with `OpenRF-v0.2.14.zip` placed in Downloads: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'`.
 2. Stop any running OpenRF (Ctrl+C) and restart Ubuntu with `cd /mnt/c/projects/OpenRF && python3 -m openrf`. Open `http://localhost:8765` in Firefox and press Ctrl+F5 to bypass cached frontend JavaScript.
 3. Open Survey Map. When location is permitted and the browser returns a fix, verify that the camera visibly travels from the U.S. overview to the reported position instead of snapping. Exact position and accuracy depend on the browser/OS and cannot be independently verified by OpenRF.
 4. Deny location permission and confirm the overview remains usable. After enabling location, try the **My browser location** button. The flight should animate unless the OS/browser requests reduced motion.
