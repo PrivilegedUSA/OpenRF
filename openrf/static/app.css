@@ -449,3 +449,31 @@
 .navigation-preview-label[hidden]{display:none}
 @media(max-width:900px){.navigation-grid{grid-template-columns:minmax(0,1fr)}.nav-button-row .btn{flex:1 1 130px}}
 @media(max-width:400px){.navigation-coordinate-grid{grid-template-columns:minmax(0,1fr)}}
+
+/* v0.2.24: map-first destinations; offline controls come after the map. */
+.map-first-heading{margin:0 0 9px}.map-first-heading h2{font-size:17px}
+.map-destination-form{background:#10222c;border:1px solid #274552;border-radius:10px;padding:10px 12px;margin:0 0 11px;min-width:0}
+.map-destination-form>label{display:block;font-size:12px;color:#d2e8e9;font-weight:700;margin-bottom:7px}
+.map-destination-row{display:flex;gap:7px;align-items:center;min-width:0}
+.map-destination-row>svg{width:17px;height:17px;color:#6ce7d4;flex:none}
+.map-destination-row>.field{flex:1;min-width:0;padding:9px 10px}
+.map-destination-row>.btn{flex:none;padding:10px 11px;min-height:39px}
+.map-destination-form p{margin:8px 0 0;line-height:1.35}
+.map-control-settings>.button-line{margin:12px 0 4px}
+.map-trip-planner .navigation-grid{margin:12px 0}
+.map-trip-planner .nav-form,.map-trip-planner .nav-saved{padding:14px}
+.map-location-status{margin:12px 0}
+#offline-basemap-settings{margin-top:12px}
+#offline-basemap-settings .offline-map-manager{margin:12px 0 0}
+#map-area-manager{margin-top:12px}
+.form-grid .observation-location-tools{grid-column:1 / -1}
+@media(max-width:620px){.map-destination-form{padding:9px}.map-destination-row{flex-wrap:wrap}.map-destination-row>.field{flex-basis:calc(100% - 29px)}.map-destination-row .btn{flex:1 1 48%}.map-first-heading{margin-bottom:7px}.map-trip-planner .navigation-grid{display:grid;grid-template-columns:minmax(0,1fr)}}
+
+/* v0.2.24: a compact explicit recenter control directly below zoom / compass.
+   There is no background GPS polling or auto-save. */
+.openrf-recenter-control {margin-top:7px!important}
+.openrf-recenter-button {display:grid!important;place-items:center!important;cursor:pointer}
+.openrf-recenter-button svg{width:17px;height:17px;display:block}
+.openrf-recenter-button:focus-visible{outline:3px solid #67d4c5;outline-offset:1px}
+.raster-control .raster-recenter{display:grid;place-items:center;font-size:initial}
+.raster-control .raster-recenter svg{width:17px;height:17px}

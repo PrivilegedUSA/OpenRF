@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPreview:null, navFitPending:false, navDestinations:[], mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPreview:null, navFitPending:false, navDestinations:[], navOriginManual:false, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -59,7 +59,7 @@ function showPage(page, options = {}) {
   }
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.toggle('active', el.dataset.page === page));
   document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === `page-${page}`));
-  const titles = {overview:'Field overview',map:'Survey map',navigation:'Navigation preview',scanner:'Signal analysis',discoveries:'Saved discoveries',sessions:'Investigations',hardware:'Hardware manager'};
+  const titles = {overview:'Field overview',map:'Survey map',scanner:'Signal analysis',discoveries:'Saved discoveries',sessions:'Investigations',hardware:'Hardware manager'};
   $('page-title').textContent = titles[page] || 'OpenRF'; $('page-crumb').textContent = page.toUpperCase();
   if (page === 'map') { startMap(); if (options.autoLocate !== false) locateMap(false); renderMapSurveyPanel(); setTimeout(() => { state.map?.resize(); state.rasterMap?.resize(); }, 80); }
   window.scrollTo(0, 0);
@@ -670,13 +670,25 @@ function startMap() {
     state.preferredView = null;
     state.map = new maplibregl.Map({container:'map', style:`https://tiles.openfreemap.org/styles/${state.style}`, center:initial.center, zoom:initial.zoom, attributionControl:false, maplibreLogo:false});
     state.map.addControl(new maplibregl.NavigationControl(), 'top-right');
+    // Separate location control follows zoom/compass in the native MapLibre stack.
+    state.map.addControl({
+      onAdd() {
+        const group = document.createElement('div');
+        group.className = 'maplibregl-ctrl maplibregl-ctrl-group openrf-recenter-control';
+        group.append(makeMapRecenterButton());
+        this._element = group;
+        return group;
+      },
+      onRemove() { this._element?.remove(); this._element = null; }
+    }, 'top-right');
     state.map.on('style.load', () => { updateOfflineAttribution(); state.mapReady = true; $('map-error').hidden = true; installMarkerLayer(); updateMap(); updateBrowserLocationMarker(); applyPendingLocation(); renderAreaOverlay(); renderNavigationOverlay(); applyNavigationFit(); });
     state.map.on('movestart', event => { if (event.originalEvent) state.mapNavigationEpoch++; });
     state.map.on('move', () => {renderAreaOverlay(); renderNavigationOverlay();});
     state.map.on('click', (evt) => {
       if (consumeNavigationPick(evt.lngLat.lng, evt.lngLat.lat)) return;
       if (consumeAreaClick(evt.lngLat.lng, evt.lngLat.lat)) return;
-      if (state.mapReady && state.map.getLayer('survey-points') && state.map.queryRenderedFeatures(evt.point,{layers:['survey-points','survey-waypoints']}).length) return;
+      const clickableLayers = ['survey-points','survey-waypoints'].filter(id=>state.mapReady && state.map.getLayer(id));
+      if (clickableLayers.length && state.map.queryRenderedFeatures(evt.point,{layers:clickableLayers}).length) return;
       if (state.browserLocation && Math.abs(evt.lngLat.lat-state.browserLocation.lat) < 0.0001 && Math.abs(evt.lngLat.lng-state.browserLocation.lon) < 0.0001) return;
       openObservation(evt.lngLat.lat.toFixed(6), evt.lngLat.lng.toFixed(6));
     });
@@ -741,6 +753,39 @@ function applyPendingLocation() {
   // style.load can animate it from the overview rather than initializing there.
 }
 
+// The crosshair button is a manual convenience, not continuous GPS tracking.
+// Reuse a recent browser fix immediately; otherwise ask for a new permissioned fix.
+function recenterMapToBrowserLocation() {
+  const loc = state.browserLocation;
+  const age = loc ? Date.now() - loc.capturedAt : Infinity;
+  if (!loc || !Number.isFinite(loc.lat) || !Number.isFinite(loc.lon) ||
+      !Number.isFinite(age) || age < 0 || age > 60000) {
+    locateMap(true);
+    return;
+  }
+  state.mapNavigationEpoch++;
+  state.pendingLocationView = {
+    center:[loc.lon, loc.lat], zoom:locationZoom(loc.accuracy),
+    epoch:state.mapNavigationEpoch, manual:true
+  };
+  applyPendingLocation();
+  $('map-location-status').textContent = 'Recentered to recent browser-reported location; may be approximate. No location was saved.';
+}
+function makeMapRecenterButton() {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'openrf-recenter-button';
+  button.setAttribute('aria-label','Center map on my browser location');
+  button.title = 'Center map on my location (request a fresh fix if needed)';
+  // Crosshair location icon instead of another navigation-arrow icon.
+  button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/><circle cx="12" cy="12" r="2"/></svg>';
+  button.addEventListener('click', event => {
+    event.preventDefault(); event.stopPropagation();
+    recenterMapToBrowserLocation();
+  });
+  return button;
+}
+
 function locateMap(manual = false) {
   if (!manual && state.autoLocateAttempted) return;
   state.autoLocateAttempted = true;
@@ -757,6 +802,11 @@ function locateMap(manual = false) {
       status.textContent = 'Browser returned invalid coordinates. Map remains available manually.'; return;
     }
     state.browserLocation = {lat, lon, accuracy, capturedAt: Date.now()};
+    if (!state.navOriginManual) {
+      $('nav-start-lat').value=lat.toFixed(7);
+      $('nav-start-lon').value=lon.toFixed(7);
+      $('nav-origin-status').textContent=`Starting position: browser-reported (±${Number.isFinite(accuracy) ? Math.round(accuracy) : 'unknown'} m). Approximate; adjust in Plan a trip if necessary.`;
+    }
     updateBrowserLocationMarker();
     if (manual || epoch === state.mapNavigationEpoch) {
       state.pendingLocationView = {center:[lon,lat], zoom:locationZoom(accuracy), epoch, manual};
@@ -889,7 +939,9 @@ function startRasterMap(reason, view = null) {
   const controls = document.createElement('div'); controls.className = 'raster-control';
   const plus = document.createElement('button'); plus.type = 'button'; plus.textContent = '+'; plus.title = 'Zoom in';
   const minus = document.createElement('button'); minus.type = 'button'; minus.textContent = '−'; minus.title = 'Zoom out';
-  controls.append(plus, minus); surface.append(tiles, pins);
+  const recenter = makeMapRecenterButton();
+  recenter.classList.add('raster-recenter');
+  controls.append(plus, minus, recenter); surface.append(tiles, pins);
   root.replaceChildren(surface, notice, controls);
   let flightFrame = null;
   const raster = {center:view?.center || [-98.5,39.8], zoom:Math.max(2,Math.min(18,Math.round(view?.zoom || 2))), tileNodes:new Map(), failedTiles:new Set(),
@@ -1488,13 +1540,57 @@ function navigationInputPoint(prefix) {
   return navGeometry.point($(`${prefix}-lat`).value, $(`${prefix}-lon`).value);
 }
 function setNavigationStatus(message) { $('nav-status').textContent=message; }
+function setMapDestinationStatus(message) { $('map-destination-status').textContent=message; }
+// The quick search is local-only until an explicitly configured geocoder exists.
+// It never sends typed places or GPS fixes to third-party services.
+function findLocalDestination(query, destinations) {
+  const value=String(query||'').trim();
+  if (!value) throw Error('Enter a saved destination name or latitude, longitude.');
+  const pair=value.match(/^([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*,\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))$/);
+  if (pair) {
+    const coords=navGeometry.point(pair[1],pair[2]);
+    return {name:value,coordinates:coords};
+  }
+  const exact=destinations.find(d=>d.name.trim().toLowerCase()===value.toLowerCase());
+  const matching=exact ? [exact] : destinations.filter(d=>d.name.trim().toLowerCase().startsWith(value.toLowerCase()));
+  if (matching.length===1) {
+    const d=matching[0];
+    return {name:d.name,coordinates:navGeometry.point(d.latitude,d.longitude)};
+  }
+  if (matching.length>1) throw Error('Several saved destinations match. Select a full name from the suggestions.');
+  throw Error('Address lookup is not enabled yet. Choose a saved destination, use latitude, longitude, or select Pick on map in Plan a trip.');
+}
+function locationForQuickPreview() {
+  const pos=state.browserLocation;
+  if (pos && Number.isFinite(pos.lat) && Number.isFinite(pos.lon) &&
+      Date.now()-pos.capturedAt<=60000 && Date.now()-pos.capturedAt>=-5000 &&
+      Number.isFinite(pos.accuracy) && pos.accuracy>=0) return [pos.lon,pos.lat];
+  throw Error('No recent browser position. Allow browser location on Map, or set a starting point under Plan a trip.');
+}
+function quickDestinationPreview(query) {
+  const chosen=findLocalDestination(query,state.navDestinations);
+  const origin=state.navOriginManual ? navigationInputPoint('nav-start') : locationForQuickPreview();
+  const result=navGeometry.preview(origin,chosen.coordinates);
+  $('nav-dest-name').value=chosen.name;
+  $('nav-dest-lat').value=chosen.coordinates[1];
+  $('nav-dest-lon').value=chosen.coordinates[0];
+  state.navPreview=result;
+  state.navFitPending=true;
+  setMapDestinationStatus(`${chosen.name} · Direct-line distance ${(result.distance_km*0.621371).toFixed(1)} mi, not a driving route. Road directions and addresses require a routing engine.`);
+  $('nav-preview-summary').textContent=`Direct-line distance ${(result.distance_km*0.621371).toFixed(2)} mi. Not a road route.`;
+  applyNavigationFit();
+  setTimeout(applyNavigationFit,120);
+  return result;
+}
+
 function consumeNavigationPick(lon,lat) {
   if (!state.navPicking) return false;
   state.navPicking = false;
   $('nav-dest-lat').value = lat.toFixed(7);
   $('nav-dest-lon').value = lon.toFixed(7);
-  showPage('navigation',{autoLocate:false});
-  setNavigationStatus('Destination selected from the map. Enter a starting position, then choose Preview on map.');
+  $('map-destination-query').value = `${lat.toFixed(7)}, ${lon.toFixed(7)}`;
+  setMapDestinationStatus('Destination selected on map. Select Preview to display a geographic reference.');
+  setNavigationStatus('Map selection filled destination coordinates. Use Preview to see the direct line.');
   renderNavigationOverlay();
   return true;
 }
@@ -1537,6 +1633,9 @@ function renderNavigationOverlay() {
 async function refreshNavigationDestinations() {
   const reply=await api('/api/navigation/destinations');
   state.navDestinations=reply.destinations||[];
+  $('map-destination-suggestions').replaceChildren(...state.navDestinations.map(d=>{
+    const option=document.createElement('option');option.value=d.name;return option;
+  }));
   const dest=$('nav-destination-list');
   dest.innerHTML=state.navDestinations.length ? state.navDestinations.map(d=>
     `<div class="nav-destination-entry"><strong>${escapeHTML(d.name)}</strong>`+
@@ -1592,6 +1691,9 @@ $('nav-use-location').addEventListener('click',()=>{
        !Number.isFinite(accuracy)||accuracy<0||!Number.isFinite(age)||age< -5||age>60){
        status.textContent='The location fix was invalid or stale. No coordinates changed.';return;
     }
+    state.navOriginManual=false;
+    state.browserLocation={lat:latitude,lon:longitude,accuracy,capturedAt:Date.now()};
+    updateBrowserLocationMarker();
     $('nav-start-lat').value=latitude.toFixed(7);$('nav-start-lon').value=longitude.toFixed(7);
     status.textContent=`Browser-reported starting point (±${Math.round(accuracy)} m; ${Math.round(Math.max(0,age))} s old). Desktop/VPN location may be approximate.`;
   },err=>{
@@ -1624,7 +1726,7 @@ $('nav-destination-list').addEventListener('click',event=>{
   const remove=event.target.closest('[data-nav-delete]');
   if(use){
     const d=state.navDestinations.find(x=>x.id===Number(use.dataset.navUse));
-    if(d){$('nav-dest-name').value=d.name;$('nav-dest-lat').value=d.latitude;$('nav-dest-lon').value=d.longitude;
+    if(d){$('map-destination-query').value=d.name;$('nav-dest-name').value=d.name;$('nav-dest-lat').value=d.latitude;$('nav-dest-lon').value=d.longitude;
       setNavigationStatus('Saved destination loaded. Enter your starting position and preview it on the map.');}
   }
   if(remove && confirm('Delete this saved navigation destination from your private OpenRF database?'))runAction(async()=>{
@@ -1632,6 +1734,18 @@ $('nav-destination-list').addEventListener('click',event=>{
     await refreshNavigationDestinations();setNavigationStatus('Saved destination removed.');
   });
 });
+$('map-destination-form').addEventListener('submit',event=>{
+  event.preventDefault();
+  try {quickDestinationPreview($('map-destination-query').value);} catch(err){setMapDestinationStatus(err.message);}
+});
+$('map-open-trip').addEventListener('click',()=>{
+  $('map-trip-planner').open=true;
+  $('map-trip-planner').scrollIntoView({behavior:'smooth',block:'start'});
+});
+for(const id of ['nav-start-lat','nav-start-lon']) {
+  $(id).addEventListener('input',()=>{state.navOriginManual=true;
+    $('nav-origin-status').textContent='Custom starting point selected. Use fresh browser location to reset it.';});
+}
 document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
 document.querySelectorAll('[data-jump]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.jump)));
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));

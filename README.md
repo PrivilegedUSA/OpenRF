@@ -1,4 +1,4 @@
-# OpenRF v0.2.23 — Compact Map UI and Navigation Foundation
+# OpenRF v0.2.24 — Map-first Navigation Workspace
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.23.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.24.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.23 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.24 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,17 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.24 — Map-first navigation and Rural Route research
+
+- **Map is the primary workspace:** compact destination entry appears directly above the map, with an optional expandable **Plan a trip** workspace beneath it. There is no separate primary Navigation page. Stored destinations or `latitude, longitude` may be entered in the quick bar, with suggestions from private saved locations.
+- The starting point defaults to your latest browser-reported location (when available and no custom origin has been entered). The map never starts background GPS tracking or saves navigation fixes. A custom origin is available in the expanded planner. Denied, stale, or unsupported location fixes fail clearly rather than guessing.
+- **No address geocoding or road routing yet:** arbitrary street addresses are *not* resolved; an explicit message explains the limitation. Previews are still labeled **direct line, not a drivable route**. Full multi-stop navigation, roads and directions depend on the later routing engine and road graph.
+- **Recenter button:** compact location crosshair below the map’s zoom and compass controls. A recent browser fix recenters immediately; otherwise it requests a new permitted fix without background tracking or saving.
+- **Clean map opening:** optional offline basemap and map-file controls now sit below the main map and GPS survey waypoints. The small Survey Map layout opens without those panels pushing the map down the screen. Map controls remain available under **Map settings** and Layers. Required map attribution remains accessible.
+- **Observation form:** Use my location now sits after the accuracy field, keeping coordinate and accuracy controls together. Existing secure location provenance remains unchanged.
+- **Routing architecture:** reviewed the prior Rural Route history (MapLibre, previous HERE/Google Directions and later TomTom integration). Plan a local Linux-native Valhalla adapter using OSM-derived regional road graphs, with origin/destination and maneuver data normalized through OpenRF's JSON API; no live routing engine is bundled or configured in v0.2.24. See [routing design notes](docs/ROUTING_ENGINE_DECISION.md) and [release checks](docs/RELEASE_0.2.24_TESTS.md).
+- No schema migration, new Python dependencies, traffic API keys, third-party location requests, RF hardware data, or changes to the local sensor system.
 
 ## v0.2.23 — Navigation foundation and compact map UI
 
