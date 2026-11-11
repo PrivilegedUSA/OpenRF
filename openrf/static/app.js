@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPreview:null, navFitPending:false, navDestinations:[], navOriginManual:false, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'dark', rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPreview:null, navFitPending:false, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -1539,10 +1539,12 @@ function navigationInputPoint(prefix) {
   if (!navGeometry) throw Error('Navigation geometry module unavailable. Refresh OpenRF.');
   return navGeometry.point($(`${prefix}-lat`).value, $(`${prefix}-lon`).value);
 }
+const navAddressCache=new Map();
 function setNavigationStatus(message) { $('nav-status').textContent=message; }
 function setMapDestinationStatus(message) { $('map-destination-status').textContent=message; }
-// The quick search is local-only until an explicitly configured geocoder exists.
-// It never sends typed places or GPS fixes to third-party services.
+// Local saved places and typed coordinates are resolved without network access.
+// Text address suggestions query only configured local Photon or an EXPLICIT opt-in
+// MapTiler provider; never send browser location automatically to the geocoder.
 function findLocalDestination(query, destinations) {
   const value=String(query||'').trim();
   if (!value) throw Error('Enter a saved destination name or latitude, longitude.');
@@ -1558,7 +1560,7 @@ function findLocalDestination(query, destinations) {
     return {name:d.name,coordinates:navGeometry.point(d.latitude,d.longitude)};
   }
   if (matching.length>1) throw Error('Several saved destinations match. Select a full name from the suggestions.');
-  throw Error('Address lookup is not enabled yet. Choose a saved destination, use latitude, longitude, or select Pick on map in Plan a trip.');
+  throw Error('This is an address, not a saved place or coordinates. Configure address search or choose a map point.');
 }
 function locationForQuickPreview() {
   const pos=state.browserLocation;
@@ -1567,21 +1569,145 @@ function locationForQuickPreview() {
       Number.isFinite(pos.accuracy) && pos.accuracy>=0) return [pos.lon,pos.lat];
   throw Error('No recent browser position. Allow browser location on Map, or set a starting point under Plan a trip.');
 }
-function quickDestinationPreview(query) {
-  const chosen=findLocalDestination(query,state.navDestinations);
-  const origin=state.navOriginManual ? navigationInputPoint('nav-start') : locationForQuickPreview();
-  const result=navGeometry.preview(origin,chosen.coordinates);
-  $('nav-dest-name').value=chosen.name;
-  $('nav-dest-lat').value=chosen.coordinates[1];
-  $('nav-dest-lon').value=chosen.coordinates[0];
+async function resolveTypedPlace(query) {
+  const value=String(query||'').trim();
+  const chosen=state.navSelectedAddress;
+  if (chosen && chosen.name===value) return chosen;
+  if (navAddressCache.has(value)) return navAddressCache.get(value);
+  try { return findLocalDestination(value,state.navDestinations); }
+  catch (error) {
+    if (!/This is an address/.test(error.message)) throw error;
+    const reply=await api(`/api/navigation/geocode?q=${encodeURIComponent(value)}`);
+    if (!reply.results?.length) throw Error('Address not found. Try including city and state, or pick a point on the map.');
+    return {name:reply.results[0].name,coordinates:navGeometry.point(reply.results[0].latitude,reply.results[0].longitude)};
+  }
+}
+function setNavigationRoutePreview(result) {
   state.navPreview=result;
   state.navFitPending=true;
-  setMapDestinationStatus(`${chosen.name} · Direct-line distance ${(result.distance_km*0.621371).toFixed(1)} mi, not a driving route. Road directions and addresses require a routing engine.`);
-  $('nav-preview-summary').textContent=`Direct-line distance ${(result.distance_km*0.621371).toFixed(2)} mi. Not a road route.`;
   applyNavigationFit();
   setTimeout(applyNavigationFit,120);
-  return result;
+  renderNavigationOverlay();
 }
+async function planRoadRoute(points) {
+  try {
+    const data=await api('/api/navigation/route','POST',{
+      locations:points.map(p=>({latitude:p[1],longitude:p[0]}))});
+    const road=data.route;
+    if (!road || road.type!=='ROAD_ROUTE' || road.is_driving_route!==true) throw Error('No verified road route returned.');
+    setNavigationRoutePreview(road);
+    const steps=(road.maneuvers||[]).slice(0,80);
+    $('nav-directions').innerHTML=steps.length ? '<h4>Planned turns · no active guidance</h4><ol>'+
+      steps.map(step=>`<li>${escapeHTML(step.instruction)}</li>`).join('')+'</ol>' : '';
+    const minutes=Math.round(road.duration_seconds/60);
+    return {road, text:`LOCAL ROAD ROUTE · ${road.distance_miles} mi · approximately ${minutes} min (no live traffic). Driving guidance is not active.`};
+  } catch (err) {
+    const first=points[0], last=points[points.length-1];
+    $('nav-directions').replaceChildren();
+    const direct=navGeometry.preview(first,last);
+    // In multi-stop mode, visualize every waypoint, but NEVER call it a road route.
+    direct.coordinates=points;
+    direct.stops=points.slice(1,-1);
+    setNavigationRoutePreview(direct);
+    return {road:null,text:`Road routing unavailable: ${err.message} Direct-line reference only — do not drive along this line.`};
+  }
+}
+async function quickDestinationPreview(query) {
+  const chosen=await resolveTypedPlace(query);
+  const origin=state.navOriginManual ? navigationInputPoint('nav-start') : locationForQuickPreview();
+  $('nav-dest-name').value=chosen.name;
+  $('nav-dest-query').value=chosen.name;
+  $('nav-dest-lat').value=chosen.coordinates[1];
+  $('nav-dest-lon').value=chosen.coordinates[0];
+  const planned=await planRoadRoute([origin,chosen.coordinates]);
+  setMapDestinationStatus(`${chosen.name} · ${planned.text}`);
+  $('nav-preview-summary').textContent=planned.text;
+  if(planned.road) setNavigationStatus(planned.text);
+  return planned;
+}
+// Address autocomplete never uses the public Nominatim service.
+let navAddressTimer=null;
+$('map-destination-query').addEventListener('input',()=>{
+  state.navSelectedAddress=null;
+  const q=$('map-destination-query').value.trim(), token=++state.navSearchToken;
+  const box=$('map-address-options');
+  box.hidden=true;box.replaceChildren();
+  if(navAddressTimer) clearTimeout(navAddressTimer);
+  if(q.length<3) return;
+  navAddressTimer=setTimeout(async()=>{
+    try {
+      const local=state.navDestinations.filter(d=>d.name.toLowerCase().includes(q.toLowerCase())).slice(0,5)
+        .map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]}));
+      let remote=[];
+      try {
+        const reply=await api(`/api/navigation/geocode?q=${encodeURIComponent(q)}`);
+        remote=(reply.results||[]).map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]}));
+      } catch(error) {
+        if (token===state.navSearchToken && !local.length) setMapDestinationStatus(error.message);
+      }
+      if(token!==state.navSearchToken) return;
+      const matches=[...local,...remote].slice(0,7);
+      for(const match of matches) {
+        const button=document.createElement('button');button.type='button';
+        button.className='address-option';button.setAttribute('role','option');
+        button.textContent=match.name;
+        button.addEventListener('click',()=>{
+          state.navSelectedAddress=match;
+          $('map-destination-query').value=match.name;
+          box.hidden=true;box.replaceChildren();
+          setMapDestinationStatus('Address selected. Press Route to calculate with local Valhalla.');
+        });
+        box.append(button);
+      }
+      box.hidden=matches.length===0;
+    }catch(error){ if(token===state.navSearchToken) setMapDestinationStatus(error.message); }
+  },400);
+});
+
+
+// Reuse the same opt-in address provider for trip start, stops, and destination.
+function wireTripAddressField(input) {
+  const parent=input.parentElement;
+  parent.classList.add('nav-address-host');
+  const options=document.createElement('div');
+  options.className='address-suggestions nav-trip-suggestions';
+  options.hidden=true;options.setAttribute('role','listbox');
+  parent.append(options);
+  let timer=null, requestIndex=0;
+  input.addEventListener('input',()=>{
+    const text=input.value.trim(), id=++requestIndex;
+    options.hidden=true; options.replaceChildren();
+    if(timer) clearTimeout(timer);
+    if(text.length<3) return;
+    timer=setTimeout(async()=>{
+      const local=state.navDestinations.filter(d=>d.name.toLowerCase().includes(text.toLowerCase())).slice(0,5)
+        .map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]}));
+      let fromGeocoder=[];
+      try {
+        const response=await api(`/api/navigation/geocode?q=${encodeURIComponent(text)}`);
+        fromGeocoder=(response.results||[]).map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]}));
+      } catch(error) {
+        if(id===requestIndex && !local.length) setNavigationStatus(error.message);
+      }
+      if(id!==requestIndex) return;
+      for(const match of [...local,...fromGeocoder].slice(0,7)) {
+        const btn=document.createElement('button');
+        btn.type='button';btn.className='address-option';btn.setAttribute('role','option');
+        btn.textContent=match.name;
+        btn.addEventListener('click',()=>{
+          input.value=match.name;
+          navAddressCache.set(match.name,match);
+          options.hidden=true;options.replaceChildren();
+          if(input.id==='nav-start-query') state.navOriginManual=true;
+        });
+        options.append(btn);
+      }
+      options.hidden=!options.children.length;
+    },400);
+  });
+  input.addEventListener('blur',()=>setTimeout(()=>{options.hidden=true;},180));
+}
+for(const id of ['nav-start-query','nav-dest-query']) wireTripAddressField($(id));
 
 function consumeNavigationPick(lon,lat) {
   if (!state.navPicking) return false;
@@ -1589,6 +1715,8 @@ function consumeNavigationPick(lon,lat) {
   $('nav-dest-lat').value = lat.toFixed(7);
   $('nav-dest-lon').value = lon.toFixed(7);
   $('map-destination-query').value = `${lat.toFixed(7)}, ${lon.toFixed(7)}`;
+  $('nav-dest-query').value=$('map-destination-query').value;
+  state.navSelectedAddress=null;
   setMapDestinationStatus('Destination selected on map. Select Preview to display a geographic reference.');
   setNavigationStatus('Map selection filled destination coordinates. Use Preview to see the direct line.');
   renderNavigationOverlay();
@@ -1622,13 +1750,19 @@ function renderNavigationOverlay() {
     }
     return [NaN,NaN];
   }
-  const a=project(preview.origin), b=project(preview.destination);
-  if (![...a,...b].every(Number.isFinite)) {overlay.replaceChildren();return;}
+  const points=(preview.type==='ROAD_ROUTE' && Array.isArray(preview.coordinates) ? preview.coordinates :
+    (preview.coordinates || [preview.origin,...(preview.stops||[]),preview.destination]));
+  const projected=points.map(project);
+  if(!projected.length || projected.some(pair=>pair.some(n=>!Number.isFinite(n)))) {overlay.replaceChildren();return;}
   overlay.setAttribute('viewBox',`0 0 ${width} ${height}`);
-  overlay.innerHTML=`<path d="M ${a[0].toFixed(2)} ${a[1].toFixed(2)} L ${b[0].toFixed(2)} ${b[1].toFixed(2)}" />`+
-    `<circle cx="${a[0].toFixed(2)}" cy="${a[1].toFixed(2)}" r="6" fill="#44dec4"/>`+
-    `<circle cx="${b[0].toFixed(2)}" cy="${b[1].toFixed(2)}" r="6" fill="#ffca65"/>`;
-  label.textContent='DIRECT LINE · NOT A ROAD ROUTE'; label.hidden=false;
+  const path=projected.map((xy,i)=>`${i?'L':'M'} ${xy[0].toFixed(2)} ${xy[1].toFixed(2)}`).join(' ');
+  const last=projected[projected.length-1], first=projected[0];
+  const road=preview.type==='ROAD_ROUTE' && preview.is_driving_route===true;
+  overlay.innerHTML=`<path class="${road?'road-route':'direct-route'}" d="${path}" />`+
+    `<circle cx="${first[0].toFixed(2)}" cy="${first[1].toFixed(2)}" r="6" fill="#44dec4"/>`+
+    `<circle cx="${last[0].toFixed(2)}" cy="${last[1].toFixed(2)}" r="6" fill="#ffca65"/>`;
+  label.textContent=road?'LOCAL VALHALLA ROAD PLAN · NO LIVE GUIDANCE':'DIRECT LINE · NOT A ROAD ROUTE';
+  label.hidden=false;
 }
 async function refreshNavigationDestinations() {
   const reply=await api('/api/navigation/destinations');
@@ -1647,37 +1781,58 @@ async function refreshNavigationDestinations() {
 function applyNavigationFit() {
   if (!state.navFitPending || !state.navPreview) return;
   const result=state.navPreview;
+  const pts=result.coordinates || [result.origin,...(result.stops||[]),result.destination];
+  const selected=pts.length > 3 ? pts.filter((_,i)=>i%Math.max(1,Math.ceil(pts.length/150))===0).concat([pts[pts.length-1]]) : pts;
   if (state.map && state.mapReady) {
     state.navFitPending=false;
-    const bounds=new maplibregl.LngLatBounds(result.origin,result.destination);
-    state.map.fitBounds(bounds,{padding:55,maxZoom:13,duration:850});
+    const bounds=new maplibregl.LngLatBounds(selected[0],selected[0]);
+    selected.forEach(p=>bounds.extend(p));
+    state.map.fitBounds(bounds,{padding:48,maxZoom:13,duration:950});
   } else if (state.rasterMap) {
     state.navFitPending=false;
-    const [start,end]=[result.origin,result.destination];
-    const lonDiff=Math.abs(((end[0]-start[0]+540)%360)-180);
-    const extent=Math.max(lonDiff,Math.abs(end[1]-start[1]),0.01);
+    const xs=selected.map(p=>p[0]),ys=selected.map(p=>p[1]);
+    const left=Math.min(...xs),right=Math.max(...xs), south=Math.min(...ys),north=Math.max(...ys);
+    const extent=Math.max(right-left,north-south,0.01);
     const zoom=Math.max(2,Math.min(12,Math.floor(Math.log2(180/(extent*1.8)))));
-    state.rasterMap.flyTo({center:[(start[0]+end[0])/2,(start[1]+end[1])/2],zoom});
+    state.rasterMap.flyTo({center:[(left+right)/2,(north+south)/2],zoom});
   }
   renderNavigationOverlay();
 }
-function previewNavigation() {
-  const start=navigationInputPoint('nav-start');
-  const end=navigationInputPoint('nav-dest');
-  const result=navGeometry.preview(start,end);
-  state.navPreview=result;
-  state.navFitPending=true;
-  const miles=result.distance_km*0.621371;
-  const bearing=result.bearing_degrees===null?'same coordinate':`${result.bearing_degrees.toFixed(0)}° from true north`;
-  $('nav-preview-summary').textContent=`Direct-line distance: ${miles.toFixed(2)} mi (${result.distance_km.toFixed(2)} km). Initial bearing: ${bearing}. Not a drive distance, road route, or travel estimate.`;
-  setNavigationStatus('Map displays a dashed geographic line. Road routing and turn-by-turn navigation are NOT available.');
+async function resolveTripField(text, fallbackPrefix) {
+  const value=String(text||'').trim();
+  if(value) return (await resolveTypedPlace(value)).coordinates;
+  return navigationInputPoint(fallbackPrefix);
+}
+async function previewNavigation() {
+  const originText=$('nav-start-query').value.trim();
+  const origin=originText ? (await resolveTripField(originText,'nav-start')) :
+    (state.navOriginManual && $('nav-start-lat').value && $('nav-start-lon').value ? navigationInputPoint('nav-start') : locationForQuickPreview());
+  const stops=[];
+  for(const field of document.querySelectorAll('.nav-stop-query')) {
+    if (!field.value.trim()) throw Error('Enter a place for every added stop, or remove the unused row.');
+    stops.push((await resolveTypedPlace(field.value)).coordinates);
+  }
+  const destination=await resolveTripField($('nav-dest-query').value,'nav-dest');
+  const planned=await planRoadRoute([origin,...stops,destination]);
+  $('nav-preview-summary').textContent=planned.text;
+  setNavigationStatus(planned.text);
   showPage('map',{autoLocate:false});
-  // MapLibre may not yet be ready; the map style-load handler renders the preview.
   setTimeout(applyNavigationFit,120);
 }
-$('nav-preview-form').addEventListener('submit',event=>{
+$('nav-preview-form').addEventListener('submit',async event=>{
   event.preventDefault();
-  try {previewNavigation();} catch(err){setNavigationStatus(err.message);}
+  try {await previewNavigation();} catch(err){setNavigationStatus(err.message);}
+});
+$('nav-add-stop').addEventListener('click',()=>{
+  const parent=$('nav-stops');
+  if(parent.children.length>=10){setNavigationStatus('Maximum of ten intermediate stops.');return;}
+  const row=document.createElement('div');row.className='nav-stop-row';
+  const input=document.createElement('input');input.className='field nav-stop-query';input.type='text';
+  input.placeholder=`Stop ${parent.children.length+1} street address, place, or coordinates`;
+  input.maxLength=140;input.setAttribute('aria-label',`Stop ${parent.children.length+1}`);
+  const remove=document.createElement('button');remove.type='button';remove.className='btn outline mini';
+  remove.textContent='Remove';remove.addEventListener('click',()=>row.remove());
+  row.append(input,remove);parent.append(row);wireTripAddressField(input);input.focus();
 });
 $('nav-use-location').addEventListener('click',()=>{
   const button=$('nav-use-location'),status=$('nav-origin-status');
@@ -1692,6 +1847,7 @@ $('nav-use-location').addEventListener('click',()=>{
        status.textContent='The location fix was invalid or stale. No coordinates changed.';return;
     }
     state.navOriginManual=false;
+    $('nav-start-query').value='';
     state.browserLocation={lat:latitude,lon:longitude,accuracy,capturedAt:Date.now()};
     updateBrowserLocationMarker();
     $('nav-start-lat').value=latitude.toFixed(7);$('nav-start-lon').value=longitude.toFixed(7);
@@ -1710,6 +1866,7 @@ $('nav-pick-map').addEventListener('click',()=>{
 $('nav-clear-preview').addEventListener('click',()=>{
   state.navPicking=false;state.navPreview=null;state.navFitPending=false;
   $('nav-preview-summary').textContent='';
+  $('nav-directions').replaceChildren();
   setNavigationStatus('Preview cleared; saved destinations are unchanged.');
   renderNavigationOverlay();
 });
@@ -1726,7 +1883,7 @@ $('nav-destination-list').addEventListener('click',event=>{
   const remove=event.target.closest('[data-nav-delete]');
   if(use){
     const d=state.navDestinations.find(x=>x.id===Number(use.dataset.navUse));
-    if(d){$('map-destination-query').value=d.name;$('nav-dest-name').value=d.name;$('nav-dest-lat').value=d.latitude;$('nav-dest-lon').value=d.longitude;
+    if(d){state.navSelectedAddress=null;$('map-destination-query').value=d.name;$('nav-dest-name').value=d.name;$('nav-dest-lat').value=d.latitude;$('nav-dest-lon').value=d.longitude;$('nav-dest-query').value=d.name;
       setNavigationStatus('Saved destination loaded. Enter your starting position and preview it on the map.');}
   }
   if(remove && confirm('Delete this saved navigation destination from your private OpenRF database?'))runAction(async()=>{
@@ -1734,13 +1891,10 @@ $('nav-destination-list').addEventListener('click',event=>{
     await refreshNavigationDestinations();setNavigationStatus('Saved destination removed.');
   });
 });
-$('map-destination-form').addEventListener('submit',event=>{
+$('map-destination-form').addEventListener('submit',async event=>{
   event.preventDefault();
-  try {quickDestinationPreview($('map-destination-query').value);} catch(err){setMapDestinationStatus(err.message);}
-});
-$('map-open-trip').addEventListener('click',()=>{
-  $('map-trip-planner').open=true;
-  $('map-trip-planner').scrollIntoView({behavior:'smooth',block:'start'});
+  setMapDestinationStatus('Looking up destination and checking local Valhalla…');
+  try {await quickDestinationPreview($('map-destination-query').value);} catch(err){setMapDestinationStatus(err.message);}
 });
 for(const id of ['nav-start-lat','nav-start-lon']) {
   $(id).addEventListener('input',()=>{state.navOriginManual=true;

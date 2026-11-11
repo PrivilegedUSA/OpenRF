@@ -1,0 +1,170 @@
+"""v0.2.25: offline-only routing and opt-in geocoding contract tests."""
+import io
+import json
+import os
+import threading
+import tempfile
+import unittest
+from http.client import HTTPConnection
+from pathlib import Path
+from unittest.mock import patch
+
+from openrf.routing import (RouteError, RouteUnavailable, coordinates,
+                            decode_polyline6, local_route, normalize_result)
+from openrf.geocoding import (GeocoderUnavailable, GeocoderError,
+                              provider, search)
+from openrf.server import create_server
+from openrf.storage import Repository
+
+
+class Response(io.BytesIO):
+    def __enter__(self): return self
+    def __exit__(self, *args): self.close()
+
+
+def encoded(points):
+    """Encode test vertices using Valhalla's six-decimal convention."""
+    old_lat = old_lon = 0
+    result = ''
+    for lon, lat in points:
+        x, y = round(lat*1e6), round(lon*1e6)
+        for n in (x-old_lat, y-old_lon):
+            v = n << 1 if n >= 0 else ~(n << 1)
+            while v >= 32:
+                result += chr((32 | (v & 31)) + 63)
+                v >>= 5
+            result += chr(v+63)
+        old_lat, old_lon = x, y
+    return result
+
+
+class RoutingTests(unittest.TestCase):
+    def test_coordinate_validation(self):
+        for points in ([], [{}], [{'latitude':0,'longitude':0}]*13,
+                       [{'latitude':True,'longitude':1}]*2,
+                       [{'latitude':91,'longitude':0}]*2,
+                       [{'latitude':0,'longitude':float('nan')}]*2,
+                       [{'latitude':0,'longitude':0,'url':'http://example.com'}]*2):
+            with self.subTest(points=points), self.assertRaises(RouteError):
+                coordinates(points)
+
+    def test_polyline6_round_trip_and_rejects_malformed(self):
+        points=[[-120.62,38.48],[-120.619,38.481],[-120.6,38.49]]
+        self.assertEqual(decode_polyline6(encoded(points)), points)
+        for bad in ('_', '\u0000', '~', 'a'*1000001):
+            with self.subTest(bad=bad[:30]), self.assertRaises(RouteError):
+                decode_polyline6(bad)
+
+    def test_local_route_normalizes_geometry_and_maneuvers(self):
+        points=[[-120.62,38.48],[-120.61,38.481],[-120.6,38.49]]
+        reply={'trip':{'summary':{'length':4.7,'time':420},'legs':[
+            {'shape':encoded(points),'maneuvers':[{'instruction':'Head north.', 'length':0.4}]}
+        ]}}
+        urls=[]
+        def opener(req, timeout):
+            urls.append(req.full_url)
+            self.assertEqual(timeout, 7)
+            data=json.loads(req.data)
+            self.assertEqual(data['costing'],'auto')
+            self.assertEqual(len(data['locations']),2)
+            return Response(json.dumps(reply).encode())
+        result=local_route([{'latitude':38.48,'longitude':-120.62},
+                            {'latitude':38.49,'longitude':-120.6}],open_connection=opener,port=8002)
+        self.assertEqual(urls,['http://127.0.0.1:8002/route'])
+        self.assertTrue(result['is_driving_route'])
+        self.assertEqual(result['distance_miles'],4.7)
+        self.assertEqual(result['coordinates'],points)
+        self.assertEqual(result['maneuvers'][0]['instruction'],'Head north.')
+        self.assertNotIn('police',json.dumps(result).lower())
+
+    def test_unavailable_never_fakes_road(self):
+        def unavailable(req, timeout):
+            raise OSError('connection refused')
+        with self.assertRaisesRegex(RouteUnavailable,'unavailable'):
+            local_route([{'latitude':38,'longitude':-120}, {'latitude':39,'longitude':-120}],
+                        open_connection=unavailable,port=8002)
+        with self.assertRaises(RouteError):
+            normalize_result({'trip':{'summary':{'length':1,'time':2},'legs':[{'shape':'broken'}]}},
+                [{'lat':38,'lon':-120},{'lat':39,'lon':-120}])
+
+
+class GeocodingTests(unittest.TestCase):
+    def test_no_external_requests_by_default(self):
+        with patch.dict(os.environ, {'OPENRF_MAPTILER_KEY':'','OPENRF_PHOTON_PORT':''}):
+            self.assertIsNone(provider())
+            with self.assertRaises(GeocoderUnavailable):
+                search('Jackson California',open_connection=lambda *a,**k:self.fail('should not send requests'))
+
+    def test_local_photon_sanitizes_results(self):
+        def opener(req, timeout):
+            self.assertIn('127.0.0.1:2322/api?',req.full_url)
+            self.assertIn('Jackson',req.full_url)
+            return Response(json.dumps({'features':[
+                {'geometry':{'coordinates':[-120.77,38.35]},'properties':{'name':'Main Street','city':'Jackson','state':'California'}},
+                {'geometry':{'coordinates':[999,999]},'properties':{'name':'Bogus'}}
+            ]}).encode())
+        with patch.dict(os.environ, {'OPENRF_PHOTON_PORT':'2322','OPENRF_MAPTILER_KEY':''}):
+            data=search('Main Street Jackson',open_connection=opener)
+        self.assertEqual(data['provider'],'local-photon')
+        self.assertFalse(data['external_query'])
+        self.assertEqual(len(data['results']),1)
+        self.assertEqual(data['results'][0]['longitude'],-120.77)
+
+    def test_maptiler_is_explicit_opt_in(self):
+        urls=[]
+        def opener(req, timeout):
+            urls.append(req.full_url)
+            return Response(json.dumps({'features':[
+                {'geometry':{'coordinates':[-120.1,38.1]},'properties':{'place_name':'Example Road, California'}}
+            ]}).encode())
+        with patch.dict(os.environ, {'OPENRF_PHOTON_PORT':'','OPENRF_MAPTILER_KEY':'test-secret'}):
+            data=search('Example Road',open_connection=opener)
+        self.assertTrue(data['external_query'])
+        self.assertIn('api.maptiler.com/geocoding/',urls[0])
+        self.assertEqual(data['results'][0]['name'],'Example Road, California')
+
+
+class RouteHTTPTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp=tempfile.TemporaryDirectory()
+        self.repo=Repository(Path(self.tmp.name)/'test.db')
+        self.server=create_server(self.repo,port=0)
+        self.thread=threading.Thread(target=self.server.serve_forever,daemon=True)
+        self.thread.start()
+
+    def tearDown(self):
+        self.server.shutdown();self.server.server_close();self.thread.join(timeout=3);self.tmp.cleanup()
+
+    def request(self, method, url, body=None):
+        c=HTTPConnection('127.0.0.1',self.server.server_port,timeout=2)
+        headers={'Host':f'localhost:{self.server.server_port}'}
+        if body is not None:
+            headers['Content-Type']='application/json'
+            body=json.dumps(body)
+        c.request(method,url,body=body,headers=headers)
+        r=c.getresponse();data=r.read();status=r.status;ct=r.getheader('Content-Type');c.close()
+        return status,json.loads(data) if 'json' in ct else data
+
+    def test_navigation_static_asset_and_offline_status(self):
+        status,body=self.request('GET','/static/navigation.js')
+        self.assertEqual(status,200)
+        self.assertIn(b'OpenRFNavigation',body)
+        with patch.dict(os.environ,{'OPENRF_MAPTILER_KEY':'','OPENRF_PHOTON_PORT':''}):
+            status,data=self.request('GET','/api/navigation/geocoding/status')
+            self.assertEqual(status,200);self.assertFalse(data['enabled'])
+            self.assertEqual(self.request('GET','/api/navigation/geocode?q=Jackson')[0],503)
+
+    def test_route_validation_no_implicit_network(self):
+        self.assertEqual(self.request('POST','/api/navigation/route',{'locations':[]})[0],422)
+        self.assertEqual(self.request('POST','/api/navigation/route',{'locations':[], 'url':'http://example.com'})[0],400)
+        with patch('openrf.server.local_route',side_effect=RouteUnavailable('No local routing available')):
+            status,data=self.request('POST','/api/navigation/route',{
+                'locations':[{'latitude':38,'longitude':-120},{'latitude':38.1,'longitude':-120.1}]})
+        self.assertEqual(status,503)
+        self.assertEqual(data['error_code'],'routing_unavailable')
+        self.assertEqual(self.repo.list_observations(),[])
+        self.assertEqual(self.repo.list_waypoints()['total'],0)
+
+
+if __name__=='__main__':
+    unittest.main()

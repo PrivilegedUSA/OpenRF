@@ -6,16 +6,16 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.24">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.25">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
-  <script defer src="/static/navigation.js?v=0.2.24"></script>
-  <script defer src="/static/app.js?v=0.2.24"></script>
+  <script defer src="/static/navigation.js?v=0.2.25"></script>
+  <script defer src="/static/app.js?v=0.2.25"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.24</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.25</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -43,9 +43,9 @@
       <section class="page" id="page-map">
         <div class="section-heading map-first-heading"><div><h2>Survey map</h2></div></div>
         <form id="map-destination-form" class="map-destination-form" autocomplete="off" aria-label="Preview a destination on the map">
-          <label for="map-destination-query">Destination <span class="small muted">(saved place or latitude, longitude)</span></label>
-          <div class="map-destination-row"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m3 11 18-8-8 18-2-8-8-2Z"/></svg><input class="field" id="map-destination-query" list="map-destination-suggestions" placeholder="Saved destination or 38.48, -120.62" maxlength="140" required><datalist id="map-destination-suggestions"></datalist><button class="btn primary" type="submit">Preview</button><button class="btn outline" id="map-open-trip" type="button">Plan a trip</button></div>
-          <p id="map-destination-status" class="small muted" role="status" aria-live="polite">Uses your browser position when available. Preview is a direct line, not a road route. Street-address search is not enabled yet.</p>
+          <label for="map-destination-query">Destination <span class="small muted">(street address, saved place or coordinates)</span></label>
+          <div class="map-destination-row"><svg class="destination-arrow" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m3 11 18-8-8 18-2-8-8-2Z"/></svg><div class="map-address-input-wrap"><input class="field" id="map-destination-query" list="map-destination-suggestions" placeholder="Search an address or saved place" maxlength="140" required><div id="map-address-options" class="address-suggestions" role="listbox" aria-label="Address suggestions" hidden></div></div><datalist id="map-destination-suggestions"></datalist><button class="btn primary" type="submit">Route</button></div>
+          <p id="map-destination-status" class="small muted" role="status" aria-live="polite">Uses your browser position when available. Address suggestions need a configured geocoder; road directions need local Valhalla.</p>
         </form>
         <div class="map-wrap"><div id="map"></div><svg id="navigation-preview-overlay" class="navigation-preview-overlay" aria-hidden="true" preserveAspectRatio="none"></svg><div id="navigation-preview-label" class="navigation-preview-label" hidden>DIRECT LINE · NOT A ROAD ROUTE</div><details class="map-credits" id="map-credits"><summary aria-label="Open map data credits and licenses" title="Map credits">ⓘ</summary><div class="map-credits-links"><strong>Map credits</strong><span id="offline-map-attribution" hidden></span><div id="online-map-credits"><span>Online vector basemap:</span><a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a><a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">© OpenMapTiles</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors (ODbL)</a></div></div></details><div id="map-error" class="map-error" hidden><strong>Map could not load.</strong><p>Online vector map unavailable. Offline coordinates and any installed local raster package remain accessible.</p></div><div class="map-legend"><span><i class="legend-dot man"></i> Survey location</span><span><i class="legend-dot dem"></i> DEMO (optional)</span></div>
           <button type="button" id="map-add-observation" class="map-add-observation" aria-label="Add a manual observation" title="Add a manual observation (enter a location or tap the map)">
@@ -71,24 +71,29 @@
       </section></div>
         <div class="map-actions"><p class="muted small">Tap the <strong>+</strong> on the map to add a manual observation, or tap a point on the map to enter its coordinates. No positions are automatically saved.</p></div>
         <p id="map-location-status" class="muted small map-location-status" role="status" aria-live="polite">Location will be requested when you open the map. Coordinates are not saved.</p>
-        <details class="map-area-manager map-control-settings" id="map-control-settings"><summary>Map settings <span class="small muted">(style, location and survey options)</span></summary><div class="button-line"><label class="switchline"><input id="show-demo-map" type="checkbox"> Show demo</label><button class="btn outline" id="map-geolocate">My browser location</button><button class="btn outline" id="map-style">Dark map</button><button class="btn outline" id="map-mode">Offline / raster</button></div></details>
+        
         <details class="map-area-manager map-trip-planner" id="map-trip-planner"><summary>Plan a trip <span class="small muted">(optional · alternate starting point and saved destinations)</span></summary>
-          <p class="muted small">This is a coordinate-only planning preview, not a road route. The engine for roads, turns, multiple stops and address lookup comes later. Do not follow a straight line as driving directions.</p>
+          <p class="muted small">Add ordered stops and request a road route from local Valhalla. Without the routing service, coordinate previews remain direct lines, not driving directions.</p>
         <div class="navigation-grid">
           <form id="nav-preview-form" class="panel nav-form">
             <h3>Plan a trip · detailed controls</h3>
-            <p class="muted small">Street-address lookup, road routing and turn-by-turn navigation are not implemented. This is a straight-line preview; no background tracking or police alerts.</p>
-            <h4>Starting position</h4>
-            <div class="navigation-coordinate-grid"><label>Latitude<input id="nav-start-lat" type="number" min="-90" max="90" step="any" class="field" placeholder="38.48" required></label><label>Longitude<input id="nav-start-lon" type="number" min="-180" max="180" step="any" class="field" placeholder="-120.62" required></label></div>
+            <p class="muted small">Street address suggestions require a configured local Photon or opt-in MapTiler search. Valhalla provides planned routes only when a local service is installed. No live turn guidance or police alerts.</p>
+            <h4>Starting point</h4>
+            <label for="nav-start-query">Starting address <input id="nav-start-query" class="field" type="text" placeholder="Current browser location (default)" maxlength="140"></label>
+            <details class="nav-advanced-coords"><summary>Coordinates (advanced)</summary><div class="navigation-coordinate-grid"><label>Latitude<input id="nav-start-lat" type="number" min="-90" max="90" step="any" class="field" placeholder="38.48"></label><label>Longitude<input id="nav-start-lon" type="number" min="-180" max="180" step="any" class="field" placeholder="-120.62"></label></div></details>
             <button type="button" class="btn outline" id="nav-use-location">⌖ Use fresh browser location</button>
             <p class="muted small" id="nav-origin-status" role="status" aria-live="polite">Your browser position fills this automatically when available; you may enter a different origin for trip planning. No continuous tracking.</p>
-            <h4>Destination</h4>
-            <label for="nav-dest-name">Name / description<input id="nav-dest-name" class="field" type="text" maxlength="120" placeholder="e.g. Field survey destination"></label>
-            <div class="navigation-coordinate-grid"><label>Latitude<input id="nav-dest-lat" type="number" min="-90" max="90" step="any" class="field" required placeholder="38.6"></label><label>Longitude<input id="nav-dest-lon" type="number" min="-180" max="180" step="any" class="field" required placeholder="-120.8"></label></div>
+            <h4>Stops (in order)</h4>
+            <div id="nav-stops" class="nav-stops" aria-label="Intermediate trip stops"></div>
+            <button type="button" id="nav-add-stop" class="btn outline">+ Add a stop</button>
+            <h4>Final destination</h4>
+            <label for="nav-dest-query">Destination address<input id="nav-dest-query" class="field" type="text" maxlength="140" placeholder="Street address, saved place, or coordinates"></label>
+            <label for="nav-dest-name">Saved name (optional)<input id="nav-dest-name" class="field" type="text" maxlength="120" placeholder="Name this saved destination"></label>
+            <details class="nav-advanced-coords"><summary>Destination coordinates (advanced)</summary><div class="navigation-coordinate-grid"><label>Latitude<input id="nav-dest-lat" type="number" min="-90" max="90" step="any" class="field" placeholder="38.6"></label><label>Longitude<input id="nav-dest-lon" type="number" min="-180" max="180" step="any" class="field" placeholder="-120.8"></label></div></details>
             <div class="nav-button-row"><button type="button" class="btn outline" id="nav-pick-map">Pick on map</button><button type="submit" class="btn primary" id="nav-preview-map">Preview on map</button></div>
             <div class="nav-button-row"><button type="button" class="btn outline" id="nav-save-destination">Save destination</button><button type="button" class="btn ghost" id="nav-clear-preview">Clear preview</button></div>
-            <p id="nav-status" class="muted small" role="status" aria-live="polite">No route is calculated. Preview draws a dashed direct line between your entered points.</p>
-            <div id="nav-preview-summary" class="nav-preview-summary" aria-live="polite"></div>
+            <p id="nav-status" class="muted small" role="status" aria-live="polite">Ready to plan. Only local Valhalla can produce a road route; fallback previews are direct lines.</p>
+            <div id="nav-preview-summary" class="nav-preview-summary" aria-live="polite"></div><div id="nav-directions" class="nav-directions" aria-live="polite"></div>
           </form>
           <div class="panel nav-saved"><h3>Saved destinations <span class="pill">PRIVATE / LOCAL</span></h3>
             <p class="muted small">Stored only in your local OpenRF database. No address lookup, internet requests, or automatic GPS history.</p>
@@ -97,6 +102,7 @@
           </div>
         </div>
         </details>
+        <details class="map-area-manager map-control-settings" id="map-control-settings"><summary>Map settings <span class="small muted">(style, location and survey options)</span></summary><div class="button-line"><label class="switchline"><input id="show-demo-map" type="checkbox"> Show demo</label><button class="btn outline" id="map-geolocate">My browser location</button><button class="btn outline" id="map-style">Street map</button><button class="btn outline" id="map-mode">Offline / raster</button></div></details>
         <details class="map-area-manager survey-waypoint-manager" id="survey-waypoint-manager">
           <summary>GPS-linked survey waypoints <span class="small muted">(manual · private · no background tracking)</span></summary>
           <div class="survey-waypoint-inner">

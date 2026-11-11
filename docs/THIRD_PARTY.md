@@ -15,3 +15,10 @@ The standalone application's final open-source license has **not** yet been chos
 
 ### v0.2.5 map attribution UI
 OpenFreeMap's vector styles and OpenMapTiles/OpenStreetMap underlying geographic data require attribution. OpenRF displays an accessible `ⓘ` **Map credits** control on the map, with direct links to OpenFreeMap (optional credit), OpenMapTiles (CC-BY attribution) and OpenStreetMap contributors (ODbL). Attribution is moved into a compact disclosure to accommodate five-inch screens, not removed. The MapLibre JavaScript library name is not required to appear as an additional mark. If a different map vendor/style is configured later, revisit its attribution and key handling.
+
+## Optional v0.2.25 routing and geocoding
+
+- **Valhalla**: open-source routing engine, MIT license, separate installation with OSM-derived road data/attribution. https://github.com/valhalla/valhalla
+- **Photon**: optional separately hosted OSM search/geocoder; review its license and OSM attribution when deploying. https://github.com/komoot/photon
+- **MapTiler Geocoding**: optional account/API-key based external provider with independent service terms and quota limits; not bundled and never queried unless configured. https://docs.maptiler.com/cloud/api/geocoding/
+- Public OSM Nominatim is not used for autocomplete because its usage policy forbids that use. https://operations.osmfoundation.org/policies/nominatim/

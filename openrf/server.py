@@ -19,6 +19,8 @@ from .map_areas import (list_areas, get_area, save_area, remove_area, area_geojs
 from .tile_archive import import_xyz_zip, TileArchiveError, MAX_ZIP_BYTES
 from .hardware import status_report, enumerate_serial_ports, serial_port_diagnostics
 from .readiness import readiness_report
+from .routing import local_route, RouteUnavailable, RouteError
+from .geocoding import search as address_search, provider as geocoder_provider, GeocoderUnavailable, GeocoderError
 from .drivers.wifi_nmcli import scan_once, WifiScanUnavailable
 from .drivers.serial_openrf import query_port, SerialSensorError
 from .storage import Repository, to_csv, to_geojson
@@ -176,9 +178,23 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, raw, mime, {'Content-Disposition': f'{disposition}; filename="{name}"'})
             except ValueError:
                 return self._error(400, 'Invalid report selection')
+        if path == '/api/navigation/geocoding/status':
+            return self._json(200, {'provider': geocoder_provider(),
+                                    'enabled': bool(geocoder_provider()),
+                                    'privacy': 'Online provider only with explicit OPENRF_MAPTILER_KEY; no outbound lookup by default.'})
+        if path == '/api/navigation/geocode':
+            params = parse_qs(urlparse(self.path).query)
+            if set(params) != {'q'} or len(params.get('q', [])) != 1:
+                return self._error(400, 'Provide one address search query.')
+            try:
+                return self._json(200, address_search(params['q'][0]))
+            except GeocoderUnavailable as exc:
+                return self._error(503, str(exc), 'geocoder_unavailable')
+            except GeocoderError as exc:
+                return self._error(400, str(exc), 'geocoder_error')
         if path == '/api/navigation/destinations':
             return self._json(200, {'destinations': self.repo.list_destinations(),
-                                     'routing_status': 'not_implemented',
+                                     'routing_status': 'local_valhalla_opt_in',
                                      'location_tracking': False})
         if path == '/api/survey/waypoints':
             return self._json(200, self.repo.list_waypoints())
@@ -240,7 +256,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, raw, 'text/csv; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.csv"'})
         if path in ('/', '/index.html'):
             file = STATIC_DIR / 'index.html'
-        elif path in ('/static/app.css', '/static/app.js', '/static/history-analysis.js'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/history-analysis.js', '/static/navigation.js'):
             file = STATIC_DIR / Path(path).name
         else:
             return self._error(404, 'Not found')
@@ -327,6 +343,16 @@ class Handler(BaseHTTPRequestHandler):
                     body.get('source_map_id'), body.get('output_map_id'),
                     body.get('rights_confirmed'), self.server.map_lock)
                 return self._json(201, built)
+            if path == '/api/navigation/route':
+                if set(body) != {'locations'}:
+                    raise ValueError('Only an ordered locations array is allowed for driving routes.')
+                try:
+                    result = local_route(body['locations'])
+                    return self._json(200, {'route': result})
+                except RouteUnavailable as exc:
+                    return self._error(503, str(exc), 'routing_unavailable')
+                except RouteError as exc:
+                    return self._error(422, str(exc), 'routing_error')
             if path == '/api/navigation/destinations':
                 return self._json(201, {'destination': self.repo.add_destination(body)})
             if path == '/api/survey/waypoints':

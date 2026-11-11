@@ -63,7 +63,7 @@ class NavigationTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(len(collection['destinations']), 1)
         self.assertFalse(collection['location_tracking'])
-        self.assertEqual(collection['routing_status'], 'not_implemented')
+        self.assertEqual(collection['routing_status'], 'local_valhalla_opt_in')
         self.assertEqual(self.repo.list_observations(), [])
         self.assertEqual(self.repo.list_waypoints()['total'], 0)
         status, out = self.api('DELETE',f"/api/navigation/destinations/{destination['id']}")
@@ -87,7 +87,7 @@ class NavigationTests(unittest.TestCase):
         status, out = self.api('GET','/api/navigation/destinations')
         self.assertEqual((status,out['destinations']), (200,[]))
         self.assertFalse(out['location_tracking'])
-        self.assertEqual(out['routing_status'], 'not_implemented')
+        self.assertEqual(out['routing_status'], 'local_valhalla_opt_in')
 
 if __name__ == '__main__':
     unittest.main()

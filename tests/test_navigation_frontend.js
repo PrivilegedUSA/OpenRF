@@ -45,8 +45,8 @@ assert(css.includes('.map-survey-toggle {right:10px!important;bottom:10px!import
 assert(css.includes('.map-add-observation {right:50px;bottom:10px;width:32px'));
 assert(source.includes('if (consumeNavigationPick(evt.lngLat.lng, evt.lngLat.lat)) return;'));
 assert(source.includes('if (consumeNavigationPick(ll[0], ll[1])) return;'));
-assert(source.includes('is_driving_route')===false,'no false driving-route claims');
-assert(source.includes('Direct-line distance:'));
+assert(source.includes("road.type!=='ROAD_ROUTE'") && source.includes('is_driving_route!==true'), 'only recognized Valhalla route responses can claim roads');
+assert(source.includes('Direct-line reference only'));
 assert(source.includes('previewNavigation()')&&source.includes('renderNavigationOverlay()'));
 assert(!source.includes("$('manual-entry').addEventListener"));
 const begin=source.indexOf('function findLocalDestination(');
@@ -58,11 +58,11 @@ const named=localSearch('home base',saved);
 assert.deepEqual(Array.from(named.coordinates),[-120.7,38.4]);
 const coords=localSearch('38.48, -120.62',saved);
 assert.deepEqual(Array.from(coords.coordinates),[-120.62,38.48]);
-assert.throws(()=>localSearch('Main St, Jackson',saved),/Address lookup is not enabled/);
+assert.throws(()=>localSearch('Main St, Jackson',saved),/This is an address/);
 assert.throws(()=>localSearch('91, 10',saved),/Enter valid coordinates/);
 assert.throws(()=>localSearch('',saved),/Enter a saved destination/);
-assert(!source.includes('nominatim.openstreetmap.org'), 'no unsolicited destination lookup');
-console.log('v0.2.24 map-first destination search, geometry, offline settings, observation controls and attribution contracts passed.');
+assert(!source.includes('nominatim.openstreetmap.org'), 'no public Nominatim autocomplete');
+console.log('v0.2.25 map-first destination search, geometry, offline settings, observation controls and attribution contracts passed.');
 
 // v0.2.24: location recenter remains user-triggered and never persists points.
 assert(source.includes("state.map.addControl({") && source.includes("openrf-recenter-control"),
@@ -95,4 +95,17 @@ const stale=runRecenter({lat:38.48,lon:-120.62,accuracy:35,capturedAt:30000});
 assert.equal(stale.calls.locate,1);assert.equal(stale.calls.apply,0);
 const missing=runRecenter(null);
 assert.equal(missing.calls.locate,1);
-console.log('v0.2.24 user-triggered recenter, old-fix rejection, privacy and map-mode placement passed.');
+console.log('v0.2.25 user-triggered recenter, old-fix rejection, privacy and map-mode placement passed.');
+
+// v0.2.25: real road route only from local Valhalla, optional address search, stops and dark map.
+assert(html.includes('id="map-address-options"') && html.includes('id="nav-add-stop"') && html.includes('id="nav-stops"'));
+assert(html.indexOf('id="map-trip-planner"') < html.indexOf('id="map-control-settings"'), 'trip planner accordion above map settings');
+assert(html.includes('id="nav-start-query"') && html.includes('id="nav-dest-query"'), 'trip planner uses address inputs, not just coordinates');
+assert(source.includes("style: 'dark'"), 'open map with dark OpenFreeMap style');
+assert(css.includes('.openrf-recenter-button{background:#fff!important'), 'white location button');
+assert(css.includes('stroke:#101820!important'), 'dark crosshair on white background');
+assert(source.includes("'/api/navigation/route'") && source.includes('nav-stop-query'), 'backend route with ordered stops');
+assert(source.includes('renderNavigationOverlay') && source.includes('road-route'), 'draw actual road geometry');
+assert(source.includes('/api/navigation/geocode?q=') && source.includes('setTimeout(async()=>'), 'debounced optional address suggestions');
+assert(!source.includes('map-open-trip'), 'main map no longer uses extra large Plan a trip button');
+console.log('v0.2.25 Valhalla trip UI, address autocomplete, map theme, and recenter contrast passed.');
