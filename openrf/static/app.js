@@ -183,15 +183,67 @@ function renderDiscoveries() {
     '<div class="empty">No saved observations match these filters. DEMO data requires explicit opt-in. Clear filters to view all available non-demo records.</div>';
 }
 
+function updateSessionReportSelector() {
+  const select = $('session-report-select');
+  const previous = select.value;
+  select.replaceChildren();
+  const placeholder = document.createElement('option');
+  placeholder.value = ''; placeholder.textContent = 'Select an investigation';
+  select.append(placeholder);
+  for (const session of state.sessions) {
+    const opt = document.createElement('option');
+    opt.value = String(session.id);
+    opt.textContent = `#${session.id} · ${session.name} (${session.status})`;
+    select.append(opt);
+  }
+  if (state.sessions.some(s => String(s.id) === previous)) select.value = previous;
+  else if (state.sessions.length === 1) select.value = String(state.sessions[0].id);
+  const active = !!select.value;
+  ['session-report-preview', 'session-report-html', 'session-report-json'].forEach(id => $(id).disabled = !active);
+  $('session-report-status').textContent = active
+    ? 'Ready for a historical report. DEMO and exact coordinates are opt-in. Review notes and identifiers before sharing.'
+    : 'Choose an investigation. No files are generated automatically.';
+}
+
+function sessionReportUrl(kind, download = false) {
+  const selected = $('session-report-select').value;
+  if (!/^[0-9]+$/.test(selected) || !state.sessions.some(s => String(s.id) === selected)) {
+    throw Error('Choose an investigation first.');
+  }
+  const query = new URLSearchParams({
+    include_demo: $('session-report-demo').checked ? '1' : '0',
+    include_coordinates: $('session-report-coordinates').checked ? '1' : '0',
+    download: download ? '1' : '0'
+  });
+  return `/api/reports/sessions/${selected}.${kind}?${query.toString()}`;
+}
+
+function openSessionReport(kind, download = false) {
+  const url = sessionReportUrl(kind, download);
+  // A trusted local same-origin URL is built solely from an existing numeric
+  // session ID, validated options and a fixed HTML/JSON format.
+  if (download) {
+    const link = document.createElement('a');
+    link.href = url; link.download = `openrf-investigation-${$('session-report-select').value}.${kind}`;
+    document.body.append(link); link.click(); link.remove();
+  } else {
+    window.open(url, '_blank', 'noopener');
+  }
+  $('session-report-status').textContent = download
+    ? 'Historical report download requested. File remains on this device unless you share it.'
+    : 'Report opened in a new tab. Use Ctrl+P or your browser’s Print menu to print or Save as PDF.';
+}
+
 function renderSessions() {
   $('session-count').textContent = `${state.sessions.length} sessions`;
   $('session-list').innerHTML = state.sessions.length ? state.sessions.map(s => `
     <article class="item"><div><div class="item-top"><h4>${escapeHTML(s.name)}</h4><span class="badge ${s.status === 'ACTIVE' ? '' : 'manual'}">${escapeHTML(s.status)}</span></div>
     <p>${escapeHTML(s.observation_count)} saved observations · ${escapeHTML(s.capture_count || 0)} survey snapshots · Started ${escapeHTML(stamp(s.started_at))}</p>
     <div class="tiny">${s.ended_at ? `Ended ${escapeHTML(stamp(s.ended_at))}` : 'No finish timestamp recorded'} · Records stay local</div>
-    </div><div class="item-actions"><button class="btn mini outline" data-session-filter="${s.id}">Records</button>
+    </div><div class="item-actions"><button class="btn mini outline" data-session-filter="${s.id}">Records</button><button class="btn mini outline" data-session-report="${s.id}">Report</button>
     ${s.status === 'ACTIVE' ? `<button class="btn mini danger-outline" data-stop="${s.id}">Stop</button>` : ''}</div></article>`).join('') :
     '<div class="empty">No sessions started. You can record notes against a session, but no background collection occurs.</div>';
+  updateSessionReportSelector();
 }
 
 function renderCaptures() {
@@ -1343,8 +1395,14 @@ $('discoveries-list').addEventListener('click',e=>{
   if(zoom) zoomToRecord(Number(zoom.dataset.zoom));
   if(del && confirm('Permanently delete this local observation?')) runAction(async()=>{await api(`/api/observations/${del.dataset.delete}`,'DELETE');flash('Record deleted.');await refresh();});
 });
+$('session-report-select').addEventListener('change', updateSessionReportSelector);
+$('session-report-preview').addEventListener('click', () => openSessionReport('html'));
+$('session-report-html').addEventListener('click', () => openSessionReport('html', true));
+$('session-report-json').addEventListener('click', () => openSessionReport('json', true));
 $('session-list').addEventListener('click',e=>{
   const stop=e.target.closest('[data-stop]'); const view=e.target.closest('[data-session-filter]');
+  const report=e.target.closest('[data-session-report]');
+  if(report) { $('session-report-select').value = report.dataset.sessionReport; updateSessionReportSelector(); $('session-report-select').focus(); }
   if(stop) runAction(async()=>{await api(`/api/sessions/${stop.dataset.stop}/stop`,'POST',{});flash('Session stopped.');await refresh();});
   if(view) {const selected = String(view.dataset.sessionFilter);resetDiscoveryFilters();$('discovery-session').value=selected; $('discovery-refine').open=true;renderDiscoveries();showPage('discoveries');flash(`Showing saved observations from investigation #${selected}. Choose Clear filters to return to all records.`);}
 });

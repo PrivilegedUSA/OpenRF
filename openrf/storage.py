@@ -378,6 +378,48 @@ class Repository:
                 GROUP BY sessions.id ORDER BY sessions.id DESC
             """)]
 
+    def session_report_snapshot(self, session_id: int, *, include_demo: bool = False,
+                                include_coordinates: bool = False) -> dict | None:
+        """Read a consistent, bounded session snapshot without modifying any stored data.
+
+        Explicitly report caps so a large export can never silently masquerade as
+        complete. Longitude/latitude are omitted from both rows by default.
+        """
+        if type(session_id) is not int or session_id < 1 or type(include_demo) is not bool or type(include_coordinates) is not bool:
+            raise ValueError('Invalid investigation report options')
+        limit_observations, limit_captures = 5000, 1000
+        with self._lock, self._connect() as db:
+            db.execute("BEGIN")  # one consistent read snapshot, including concurrent writers
+            session = db.execute('SELECT * FROM sessions WHERE id=?', (session_id,)).fetchone()
+            if session is None:
+                return None
+            # The transaction starts on the first SELECT; all following reads
+            # refer to the same SQLite snapshot even if another writer updates it.
+            demo_excluded = db.execute("SELECT COUNT(*) FROM observations WHERE session_id=? AND source='DEMO'",
+                                       (session_id,)).fetchone()[0] if not include_demo else 0
+            allowed = '' if include_demo else " AND source!='DEMO'"
+            total = db.execute('SELECT COUNT(*) FROM observations WHERE session_id=?' + allowed,
+                               (session_id,)).fetchone()[0]
+            positioned = db.execute('SELECT COUNT(*) FROM observations WHERE session_id=? AND latitude IS NOT NULL' + allowed,
+                                    (session_id,)).fetchone()[0]
+            observations = [dict(row) for row in db.execute(
+                'SELECT * FROM observations WHERE session_id=?' + allowed + ' ORDER BY observed_at, id LIMIT ?',
+                (session_id, limit_observations))]
+            capture_total = db.execute('SELECT COUNT(*) FROM survey_captures WHERE session_id=?',
+                                       (session_id,)).fetchone()[0]
+            captures = [dict(row) for row in db.execute(
+                'SELECT * FROM survey_captures WHERE session_id=? ORDER BY retrieved_at_utc, id LIMIT ?',
+                (session_id, limit_captures))]
+        if not include_coordinates:
+            for row in observations + captures:
+                row['latitude'] = None
+                row['longitude'] = None
+        return {'session': dict(session), 'observations': observations, 'captures': captures,
+                'total_matching': total, 'positioned_count': positioned, 'demo_excluded': demo_excluded,
+                'captures_matching': capture_total, 'observations_truncated': total > len(observations),
+                'captures_truncated': capture_total > len(captures),
+                'include_demo': include_demo, 'include_coordinates': include_coordinates}
+
     def begin_session(self, name: str) -> dict:
         name = _string(name, "name", 120, required=True)
         with self._lock, self._connect() as db:

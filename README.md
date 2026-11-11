@@ -1,4 +1,4 @@
-# OpenRF v0.2.17 — Historical Signal Comparisons
+# OpenRF v0.2.18 — Investigation Reports
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.17.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.18.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.17 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.18 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.18 — Printable investigation reports
+
+- On **Sessions → Investigation report**, choose a saved investigation (or use its **Report** button). Preview a self-contained, print-friendly HTML report in a new tab, use the browser Print menu to **Save as PDF**, or download standalone **HTML** and **JSON** copies. The report is generated on demand from local SQLite records rather than potentially truncated browser lists.
+- Each report includes session start/end/status, historical observations with evidence provenance and notes, explicitly saved one-shot survey captures including zero-result scans, source/category counts, and median/range summaries of compatible signal readings. The summaries only group identical kind, evidence source, identifier, receiver label, hardware ID, MHz and measurement unit; dBm is not compared with NetworkManager quality %.
+- **Privacy by default:** synthetic DEMO observations and precise survey latitude/longitude are excluded unless their respective checkboxes are enabled. Coordinates describe **observer** survey positions, never RF source positions. Notes and identifiers can still contain personal information and should be reviewed before sharing.
+- Reports are explicitly **HISTORICAL / NOT LIVE**. Source device identity, measurement accuracy, timestamps, calibration and scan freshness may be unverified. Empty investigations produce truthful empty reports. Large reports are capped at 5,000 observation records, 1,000 captures, and 150 metric groups, with visible truncation notices and original matching record counts.
+- New read-only endpoints: `/api/reports/sessions/<id>.html` and `/api/reports/sessions/<id>.json`. HTML is self-contained without external assets; no report records are saved back to SQLite. No new libraries, auto uploads, live hardware scan, routing, radar reception or database migration. See [v0.2.18 tests](docs/RELEASE_0.2.18_TESTS.md).
 
 ## v0.2.17 — Historical signal comparisons
 

@@ -344,3 +344,14 @@
 .comparison-cautions { margin:9px 0; padding-left:20px; color:#a9c2cc; line-height:1.55; }
 @media (max-width:900px) { .comparison-controls { grid-template-columns:minmax(0,1fr); } }
 @media (max-width:550px) { .comparison-metric-grid { grid-template-columns:minmax(0,1fr); } }
+
+/* v0.2.18 — Investigation reports: opt-in private exports, touchscreen-friendly. */
+.investigation-report-panel{margin-top:16px;margin-bottom:16px;min-width:0}
+.investigation-report-panel .report-session-label{display:block;margin:10px 0 7px;font-size:12px;color:#b7cbd4;font-weight:700}
+.investigation-report-panel #session-report-select{display:block;width:100%;max-width:650px;min-width:0}
+.report-options{display:flex;flex-wrap:wrap;gap:8px 20px;margin:15px 0}
+.report-options .switchline{min-height:38px;white-space:normal;align-items:center}
+.report-actions{display:flex;flex-wrap:wrap;gap:8px}
+.report-actions .btn{min-height:40px;white-space:normal}
+#session-report-status{overflow-wrap:anywhere;line-height:1.6}
+@media(max-width:620px){.report-options{display:grid;grid-template-columns:minmax(0,1fr)}.report-actions{display:grid;grid-template-columns:minmax(0,1fr)}.report-actions .btn{width:100%;min-height:44px}}

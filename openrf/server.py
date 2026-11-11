@@ -10,7 +10,7 @@ import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, parse_qs
 
 from . import __version__
 from .offline_maps import (available_maps, tile_bytes, import_map, remove_map,
@@ -21,6 +21,7 @@ from .hardware import status_report, enumerate_serial_ports, serial_port_diagnos
 from .drivers.wifi_nmcli import scan_once, WifiScanUnavailable
 from .drivers.serial_openrf import query_port, SerialSensorError
 from .storage import Repository, to_csv, to_geojson
+from .reports import investigation_report, report_html
 from .sensor_connections import connections, ScanReceiptStore, verified_wifi_observation, browser_location_details
 
 STATIC_DIR = Path(__file__).resolve().parent / 'static'
@@ -141,6 +142,38 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 logging.exception('Invalid local map file')
                 return self._error(404, 'Tile unavailable in local offline package')
+        if path.startswith('/api/reports/sessions/'):
+            # Only read-only session reports; no arbitrary path lookup or stored
+            # report file in the app/project tree. GET does not mutate a session.
+            suffix = path[len('/api/reports/sessions/'):]
+            ident, dot, kind = suffix.partition('.')
+            if not dot or kind not in ('json', 'html') or not ident.isascii() or not ident.isdecimal() or len(ident) > 12:
+                return self._error(404, 'Unknown report format')
+            try:
+                session_id = int(ident)
+                if not 1 <= session_id <= 2_147_483_647:
+                    raise ValueError()
+                query = parse_qs(urlparse(self.path).query, keep_blank_values=True)
+                if set(query) - {'include_demo', 'include_coordinates', 'download'} or any(
+                    len(v) != 1 or v[0] not in ('0', '1') for v in query.values()):
+                    return self._error(400, 'Unsupported report options')
+                if kind == 'json' and query.get('download', ['0'])[0] == '0':
+                    pass  # JSON always downloads, no behavior difference.
+                snapshot = self.repo.session_report_snapshot(
+                    session_id,
+                    include_demo=query.get('include_demo', ['0'])[0] == '1',
+                    include_coordinates=query.get('include_coordinates', ['0'])[0] == '1')
+                if snapshot is None:
+                    return self._error(404, 'Investigation not found')
+                result = investigation_report(snapshot)
+                name = f'openrf-investigation-{session_id}.{kind}'
+                disposition = 'attachment' if kind == 'json' or query.get('download', ['0'])[0] == '1' else 'inline'
+                raw = (json.dumps(result, ensure_ascii=False, indent=2).encode('utf-8')
+                       if kind == 'json' else report_html(result))
+                mime = 'application/json; charset=utf-8' if kind == 'json' else 'text/html; charset=utf-8'
+                return self._send(200, raw, mime, {'Content-Disposition': f'{disposition}; filename="{name}"'})
+            except ValueError:
+                return self._error(400, 'Invalid report selection')
         if path == '/api/observations':
             return self._json(200, {'observations': self.repo.list_observations()})
         if path == '/api/sessions':
