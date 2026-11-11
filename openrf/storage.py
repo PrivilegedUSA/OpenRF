@@ -144,6 +144,18 @@ class Repository:
                 CREATE INDEX IF NOT EXISTS idx_captures_time ON survey_captures(id DESC);
                 CREATE INDEX IF NOT EXISTS idx_observations_time ON observations(observed_at);
                 CREATE INDEX IF NOT EXISTS idx_observations_identifier ON observations(identifier);
+                -- v0.2.20: user-triggered location waypoints, never RF detections.
+                CREATE TABLE IF NOT EXISTS survey_waypoints (
+                    id INTEGER PRIMARY KEY,
+                    session_id INTEGER NOT NULL REFERENCES sessions(id),
+                    latitude REAL NOT NULL, longitude REAL NOT NULL,
+                    accuracy_m REAL NOT NULL, fix_age_seconds REAL NOT NULL,
+                    fix_reported_at_utc TEXT NOT NULL, recorded_at_utc TEXT NOT NULL,
+                    note TEXT NOT NULL DEFAULT '',
+                    location_source TEXT NOT NULL DEFAULT 'BROWSER_REPORTED',
+                    source_device TEXT NOT NULL DEFAULT 'Browser Geolocation API'
+                );
+                CREATE INDEX IF NOT EXISTS idx_waypoints_session ON survey_waypoints(session_id,id DESC);
             """)
             # Additive migration from v0.2.5; never drop or rebuild saved observations.
             columns = {row['name'] for row in db.execute('PRAGMA table_info(observations)')}
@@ -167,6 +179,39 @@ class Repository:
                         db.execute(f'ALTER TABLE {table} ADD COLUMN {name} {ddl}')
             # A crashed server does not silently continue a previously active survey.
             db.execute("UPDATE sessions SET status='INTERRUPTED' WHERE status='ACTIVE'")
+
+    def record_waypoint(self, data: dict) -> dict:
+        from .survey_waypoints import normalize_waypoint
+        waypoint = normalize_waypoint(data)
+        with self._lock, self._connect() as db:
+            active = db.execute("SELECT 1 FROM sessions WHERE id=? AND status='ACTIVE'",
+                                (waypoint['session_id'],)).fetchone()
+            if active is None:
+                raise ValueError('Investigation is missing or not active')
+            fields = list(waypoint) + ['recorded_at_utc']
+            values = list(waypoint.values()) + [now_iso()]
+            ident = db.execute(
+                f"INSERT INTO survey_waypoints ({', '.join(fields)}) VALUES ({', '.join('?' for _ in fields)})",
+                values).lastrowid
+            row = db.execute('SELECT * FROM survey_waypoints WHERE id=?', (ident,)).fetchone()
+            return dict(row)
+
+    def list_waypoints(self, session_id: int | None = None, limit: int = 2000) -> dict:
+        if session_id is not None and (type(session_id) is not int or session_id < 1):
+            raise ValueError('Invalid investigation ID')
+        with self._lock, self._connect() as db:
+            where, args = ('WHERE session_id=?', (session_id,)) if session_id else ('', ())
+            total = db.execute('SELECT COUNT(*) FROM survey_waypoints ' + where, args).fetchone()[0]
+            records = [dict(r) for r in db.execute(
+                'SELECT * FROM survey_waypoints ' + where + ' ORDER BY id DESC LIMIT ?', (*args, limit))]
+            return {'waypoints': records, 'total': total, 'truncated': total > len(records),
+                    'meaning': 'MANUAL_BROWSER_OBSERVER_WAYPOINT_NOT_RF_DETECTION'}
+
+    def delete_waypoint(self, waypoint_id: int) -> bool:
+        if type(waypoint_id) is not int or waypoint_id < 1:
+            raise ValueError('Invalid waypoint ID')
+        with self._lock, self._connect() as db:
+            return db.execute('DELETE FROM survey_waypoints WHERE id=?', (waypoint_id,)).rowcount > 0
 
     def list_observations(self) -> list[dict]:
         with self._lock, self._connect() as db:

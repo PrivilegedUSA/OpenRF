@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], captures: [], diagnostics: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -66,12 +66,14 @@ function showPage(page, options = {}) {
 }
 
 async function refresh() {
-  const [records, sessions, stats, hardware, sensorData, captureData, diagnostics] = await Promise.all([
+  const [records, sessions, stats, hardware, sensorData, captureData, diagnostics, waypointData] = await Promise.all([
     api('/api/observations'), api('/api/sessions'), api('/api/stats'), api('/api/hardware'), api('/api/sensors'),
-    api('/api/captures'), api('/api/sensors/diagnostics')
+    api('/api/captures'), api('/api/sensors/diagnostics'), api('/api/survey/waypoints')
   ]);
   state.observations = records.observations;
   state.sessions = sessions.sessions;
+  state.waypoints = waypointData.waypoints || [];
+  state.waypointsTruncated = Boolean(waypointData.truncated);
   state.hardware = hardware;
   state.sensors = sensorData.sensors || [];
   state.serialTransport = sensorData.serial_transport || null;
@@ -83,7 +85,7 @@ async function refresh() {
   $('metric-demo').textContent = stats.demo;
   $('runtime-pill').textContent = hardware.environment;
   $('scanner-connection-pill').textContent = hardware.wifi_one_shot?.possible ? 'ON-DEMAND WI-FI POSSIBLE' : 'NO LINUX WI-FI SCANNER';
-  refreshDiscoverySessions(); renderDiscoveries(); renderSessions(); renderCaptures(); renderHardware(); renderSensorRegistry(); renderSerialPorts(); renderSignals(); updateMap(); renderMapSurveyPanel();
+  refreshDiscoverySessions(); renderDiscoveries(); renderSessions(); renderCaptures(); renderHardware(); renderSensorRegistry(); renderSerialPorts(); renderSignals(); updateMap(); renderMapSurveyPanel(); renderWaypoints();
 }
 
 function openObservation(lat = '', lon = '') {
@@ -570,7 +572,7 @@ function startMap() {
     state.map.on('move', renderAreaOverlay);
     state.map.on('click', (evt) => {
       if (consumeAreaClick(evt.lngLat.lng, evt.lngLat.lat)) return;
-      if (state.mapReady && state.map.getLayer('survey-points') && state.map.queryRenderedFeatures(evt.point,{layers:['survey-points']}).length) return;
+      if (state.mapReady && state.map.getLayer('survey-points') && state.map.queryRenderedFeatures(evt.point,{layers:['survey-points','survey-waypoints']}).length) return;
       if (state.browserLocation && Math.abs(evt.lngLat.lat-state.browserLocation.lat) < 0.0001 && Math.abs(evt.lngLat.lng-state.browserLocation.lon) < 0.0001) return;
       openObservation(evt.lngLat.lat.toFixed(6), evt.lngLat.lng.toFixed(6));
     });
@@ -578,6 +580,11 @@ function startMap() {
       if (state.areaChoosing || !evt.features?.length) return;
       const p = evt.features[0].properties;
       new maplibregl.Popup().setLngLat(evt.lngLat).setHTML(`<strong>${escapeHTML(p.label)}</strong><br>${escapeHTML(p.kind)} · ${escapeHTML(p.source)}<br><small>Observation position only</small>`).addTo(state.map);
+    });
+    state.map.on('click', 'survey-waypoints', evt => {
+      if (!evt.features?.length) return;
+      const w = evt.features[0].properties;
+      new maplibregl.Popup().setLngLat(evt.lngLat).setHTML(`<strong>Survey waypoint #${escapeHTML(w.id)}</strong><br>Browser-reported observer position, not RF detection<br>${escapeHTML(w.note || '')}`).addTo(state.map);
     });
     state.map.on('error', evt => { if (evt.error && !state.mapReady) setTimeout(() => {
       if (attempt === state.mapAttempt && !state.mapReady && !state.rasterMap) switchToRasterMap('Vector style failed; showing raster map instead.');
@@ -658,12 +665,76 @@ function locateMap(manual = false) {
     status.textContent = `Browser location ${detail}; the map remains usable. Try “My browser location” or enter survey coordinates manually.`;
   }, {timeout:15000, maximumAge:60000, enableHighAccuracy:false});
 }
+function visibleWaypoints() {
+  if (!$('waypoint-show-map').checked) return [];
+  const chosen = Number($('waypoint-session').value);
+  return chosen ? state.waypoints.filter(p=>p.session_id === chosen) : [];
+}
+function renderWaypoints() {
+  const selector = $('waypoint-session');
+  const old = selector.value;
+  const available = state.sessions;
+  selector.innerHTML = `<option value="">Choose an investigation</option>` + available.map(session =>
+    `<option value="${session.id}">${escapeHTML(session.name)} (#${session.id} · ${session.status})</option>`).join('');
+  const active = available.find(s=>s.status === 'ACTIVE');
+  const fallback = active || available[0];
+  selector.value = available.some(s=>String(s.id)===old) ? old : String(fallback?.id || '');
+  renderWaypointSelection();
+}
+function renderWaypointSelection() {
+  const selected = Number($('waypoint-session').value);
+  const matching = state.waypoints.filter(w=>w.session_id === selected);
+  const session = state.sessions.find(s=>s.id===selected);
+  $('waypoint-record').disabled = !session || session.status !== 'ACTIVE';
+  $('waypoint-export').disabled = !session || matching.length === 0;
+  const more = state.waypointsTruncated ? ' Some older waypoints are omitted from this view.' : '';
+  $('waypoint-status').textContent = `${matching.length} saved, explicitly requested observer waypoint(s) for this investigation.${more} ${session?.status !== 'ACTIVE' ? 'Only an active investigation accepts new waypoints.' : 'Use Save to request one new browser position.'}`;
+  $('waypoint-list').innerHTML = matching.length ? matching.slice(0,30).map(w=>`
+    <div class="waypoint-row"><div><strong>${escapeHTML(w.note || 'Survey waypoint')} #${w.id}</strong>
+    <p class="small muted">${escapeHTML(stamp(w.recorded_at_utc))} · Browser-reported ±${escapeHTML(Math.round(w.accuracy_m))} m · fix age ${escapeHTML(w.fix_age_seconds.toFixed(1))} s · observer only</p></div>
+    <div class="button-line"><button type="button" class="btn mini outline" data-waypoint-view="${w.id}">View</button>
+    <button type="button" class="btn mini danger-outline" data-waypoint-delete="${w.id}">Delete</button></div></div>`).join('') : '<div class="empty">No survey waypoints saved for this investigation. Nothing is tracked automatically.</div>';
+  updateMap();
+}
+async function recordWaypoint() {
+  const session = state.sessions.find(s=>String(s.id)===$('waypoint-session').value);
+  if (!session || session.status !== 'ACTIVE') { $('waypoint-status').textContent='Start an active investigation first.';return; }
+  if (!navigator.geolocation) { $('waypoint-status').textContent='Browser geolocation is unavailable.';return; }
+  const button = $('waypoint-record');
+  button.disabled = true;
+  $('waypoint-status').textContent = 'Requesting a fresh browser location; nothing is saved until permission and validation succeed…';
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    try {
+      const age = (Date.now() - pos.timestamp) / 1000;
+      if (!Number.isFinite(age) || age < 0 || age > 60) throw Error('Browser fix is stale; request a new location.');
+      const {latitude, longitude, accuracy} = pos.coords;
+      if (![latitude, longitude, accuracy].every(Number.isFinite)) throw Error('Browser did not report valid coordinates and accuracy.');
+      const response = await api('/api/survey/waypoints','POST', {
+        session_id:session.id, latitude, longitude, accuracy_m:accuracy,
+        fix_age_seconds:age, fix_reported_at_utc:new Date(pos.timestamp).toISOString(),
+        note:$('waypoint-note').value.trim()
+      });
+      $('waypoint-note').value='';
+      await refresh();
+      $('waypoint-status').textContent = `Waypoint #${response.waypoint.id} saved locally for investigation #${session.id}. Browser-reported, not verified GNSS or an RF detection.`;
+    } catch(err) { $('waypoint-status').textContent = `Waypoint not saved: ${err.message}`; }
+    finally { button.disabled = false; }
+  }, err=>{
+    $('waypoint-status').textContent = `Waypoint not saved: ${err.code===1?'location permission denied':err.code===3?'location timed out':'browser position unavailable'}.`;
+    button.disabled=false;
+  }, {enableHighAccuracy:true,maximumAge:0,timeout:15000});
+}
 function installMarkerLayer() {
   if (!state.map || state.map.getSource('survey-data')) return;
   state.map.addSource('survey-data', {type:'geojson',data:{type:'FeatureCollection',features:[]}});
   state.map.addLayer({id:'survey-points',type:'circle',source:'survey-data',paint:{
     'circle-color':['case',['==',['get','source'],'DEMO'],'#efa947',['match',['get','kind'],'WIFI','#53a9ff','BLE','#ae8cff','RF','#efaa53','CELLULAR','#f07b8d','INFRASTRUCTURE','#e9f0f1','#30dec0']],
     'circle-radius':8,'circle-stroke-color':'#09252c','circle-stroke-width':2,'circle-opacity':0.9
+  }});
+  state.map.addSource('survey-waypoint-data',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+  state.map.addLayer({id:'survey-waypoints',type:'circle',source:'survey-waypoint-data',paint:{
+    'circle-color':'#f6d37a','circle-radius':6,'circle-stroke-color':'#09252c',
+    'circle-stroke-width':2,'circle-opacity':0.95
   }});
 }
 function updateMap() {
@@ -672,6 +743,11 @@ function updateMap() {
   const observations = mapVisibleObservations();
   const features = observations.map(o => ({type:'Feature',geometry:{type:'Point',coordinates:[o.longitude,o.latitude]},properties:{id:o.id,label:o.label,kind:o.kind,source:o.source}}));
   state.map.getSource('survey-data').setData({type:'FeatureCollection',features});
+  const wp = state.map.getSource('survey-waypoint-data');
+  if (wp) wp.setData({type:'FeatureCollection',features:visibleWaypoints().map(w=>({
+    type:'Feature',geometry:{type:'Point',coordinates:[w.longitude,w.latitude]},
+    properties:{id:w.id,note:w.note,accuracy_m:w.accuracy_m,source:'BROWSER_REPORTED'}
+  }))});
 }
 function switchToRasterMap(reason) {
   ++state.mapAttempt;
@@ -770,6 +846,16 @@ function startRasterMap(reason, view = null) {
         pin.style.left = `${width/2+dx}px`; pin.style.top = `${height/2+dy}px`;
         pin.title = `${o.label} (${o.kind}, ${o.source}) — observer position`;
         pin.addEventListener('click',e=>{e.stopPropagation(); flash(`${o.label} — ${o.kind} · ${o.source} · OBSERVATION LOCATION, not transmitter location.`);});
+        nextPins.append(pin);
+      });
+      visibleWaypoints().forEach(w=>{
+        const position = worldPixel(w.longitude,w.latitude,raster.zoom);
+        const dx = ((position[0]-center[0]+size*1.5)%size)-size/2;
+        const dy = position[1]-center[1];
+        if (Math.abs(dx)>width/2+15 || Math.abs(dy)>height/2+15) return;
+        const pin = document.createElement('div'); pin.className='raster-waypoint-pin';
+        pin.style.left=`${width/2+dx}px`; pin.style.top=`${height/2+dy}px`;
+        pin.title=`Browser-reported survey waypoint #${w.id}; observer position, not RF detection`;
         nextPins.append(pin);
       });
       if (state.browserLocation) {
@@ -1292,6 +1378,29 @@ document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',(
 document.querySelectorAll('[data-jump]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.jump)));
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
 $('manual-entry').addEventListener('click',()=>openObservation());
+$('waypoint-session').addEventListener('change', renderWaypointSelection);
+$('waypoint-show-map').addEventListener('change', updateMap);
+$('waypoint-record').addEventListener('click', recordWaypoint);
+$('waypoint-export').addEventListener('click',()=>{
+  const sessionId = Number($('waypoint-session').value);
+  if (!sessionId || !confirm('Export precise browser-reported location coordinates for this investigation as GeoJSON? The download stays local but sharing the file could reveal survey locations.')) return;
+  const link = document.createElement('a');
+  link.href = `/api/survey/waypoints.geojson?session_id=${sessionId}`;
+  link.download = `openrf-survey-waypoints-${sessionId}.geojson`;
+  document.body.append(link); link.click(); link.remove();
+});
+$('waypoint-list').addEventListener('click',e=>{
+  const view=e.target.closest('[data-waypoint-view]');
+  const del=e.target.closest('[data-waypoint-delete]');
+  if(view) {
+    const w=state.waypoints.find(row=>row.id===Number(view.dataset.waypointView));
+    if(w) (state.map || state.rasterMap)?.flyTo({center:[w.longitude,w.latitude],zoom:14});
+  }
+  if(del && confirm('Permanently delete this local survey waypoint?')) runAction(async()=>{
+    await api(`/api/survey/waypoints/${Number(del.dataset.waypointDelete)}`,'DELETE');
+    await refresh(); flash('Survey waypoint deleted. No observations or capture data were changed.');
+  });
+});
 $('add-discovery').addEventListener('click',()=>openObservation());
 $('new-session').addEventListener('click',()=>$('session-dialog').showModal());
 $('show-demo-map').addEventListener('change',e => {state.showDemo = e.target.checked;$('show-demo-map-sheet').checked=e.target.checked;updateMap();renderMapSurveyPanel();});

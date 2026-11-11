@@ -22,6 +22,7 @@ from .drivers.wifi_nmcli import scan_once, WifiScanUnavailable
 from .drivers.serial_openrf import query_port, SerialSensorError
 from .storage import Repository, to_csv, to_geojson
 from .reports import investigation_report, report_html
+from .survey_waypoints import waypoints_geojson
 from .sensor_connections import connections, ScanReceiptStore, verified_wifi_observation, browser_location_details
 
 STATIC_DIR = Path(__file__).resolve().parent / 'static'
@@ -174,6 +175,24 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, raw, mime, {'Content-Disposition': f'{disposition}; filename="{name}"'})
             except ValueError:
                 return self._error(400, 'Invalid report selection')
+        if path == '/api/survey/waypoints':
+            return self._json(200, self.repo.list_waypoints())
+        if path == '/api/survey/waypoints.geojson':
+            query = parse_qs(urlparse(self.path).query, keep_blank_values=True)
+            if set(query) != {'session_id'} or len(query['session_id']) != 1:
+                return self._error(400, 'Specify one investigation ID to export waypoints')
+            ident = query['session_id'][0]
+            if not ident.isascii() or not ident.isdecimal() or not 1 <= len(ident) <= 10:
+                return self._error(400, 'Invalid investigation ID')
+            session_id = int(ident)
+            if not any(row['id'] == session_id for row in self.repo.sessions()):
+                return self._error(404, 'Investigation not found')
+            result = self.repo.list_waypoints(session_id=session_id, limit=100000)
+            if len(result['waypoints']) > 100000 or result['truncated']:
+                return self._error(409, 'Too many waypoints for this export')
+            raw = json.dumps(waypoints_geojson(result['waypoints'], session_id), ensure_ascii=False, indent=2).encode('utf-8')
+            return self._send(200, raw, 'application/geo+json; charset=utf-8',
+                {'Content-Disposition': f'attachment; filename="openrf-survey-waypoints-{session_id}.geojson"'})
         if path == '/api/observations':
             return self._json(200, {'observations': self.repo.list_observations()})
         if path == '/api/sessions':
@@ -299,6 +318,8 @@ class Handler(BaseHTTPRequestHandler):
                     body.get('source_map_id'), body.get('output_map_id'),
                     body.get('rights_confirmed'), self.server.map_lock)
                 return self._json(201, built)
+            if path == '/api/survey/waypoints':
+                return self._json(201, {'waypoint': self.repo.record_waypoint(body)})
             if path == '/api/observations':
                 # Do not let a manual browser entry falsely claim a measured hardware source.
                 body['source'] = 'MANUAL'
@@ -408,6 +429,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self._error(404, 'Offline map not available')
             except OSError:
                 return self._error(500, 'Could not remove local map file')
+        if path.startswith('/api/survey/waypoints/') and path.count('/') == 4:
+            segment = path.rsplit('/', 1)[1]
+            if not segment.isascii() or not segment.isdecimal() or len(segment) > 10:
+                return self._error(400, 'Invalid waypoint ID')
+            return self._json(200, {'deleted': self.repo.delete_waypoint(int(segment))})
         if not path.startswith('/api/observations/'):
             return self._error(404, 'Not found')
         try:

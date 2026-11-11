@@ -371,3 +371,13 @@
 .history-chart-legend{color:#a9bdc7;font-size:11px;margin:4px 0 10px}
 .history-records{margin:10px 0}.history-records summary{min-height:36px;cursor:pointer;font-size:12px;color:#b7d9de}.history-records .table-scroll{max-width:100%}
 @media(max-width:620px){.history-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.history-summary-grid small{min-height:0}}
+
+/* v0.2.20: user-triggered GPS waypoints, hidden on map until enabled */
+.survey-waypoint-inner{display:grid;gap:12px;padding:15px 0 6px;min-width:0}
+.survey-waypoint-inner .field{max-width:100%;width:100%}
+.waypoint-actions{display:flex;flex-wrap:wrap;gap:10px}
+.waypoint-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid rgba(140,174,184,.2)}
+.waypoint-row p{margin:6px 0 0}
+.waypoint-row .button-line{display:flex;flex-wrap:wrap;gap:7px}
+.raster-waypoint-pin{position:absolute;width:14px;height:14px;border-radius:50%;background:#f6d37a;border:2px solid #09252c;transform:translate(-50%,-50%);z-index:5;pointer-events:none}
+@media(max-width:620px){.waypoint-row{align-items:flex-start;flex-direction:column}.waypoint-actions .btn{flex:1}}

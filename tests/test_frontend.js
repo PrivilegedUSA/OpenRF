@@ -254,3 +254,14 @@ assert(src.includes('OpenRFHistoryAnalysis') && src.includes('engine.compare(ser
 assert(src.includes('csvCell(record[field])') && src.includes('openrf-historical-comparison.csv'), 'local comparison CSV must include spreadsheet injection mitigation');
 assert(css.includes('.history-compare-panel') && css.includes('.comparison-metric-grid'), 'touchscreen-safe comparison view');
 console.log('v0.2.17 saved comparison UI, export and provenance contracts passed.');
+
+// v0.2.20: browser-location waypoint opt-in, never a continuous travel track.
+assert(html.includes('id="survey-waypoint-manager"') && html.includes('id="waypoint-record"'), 'waypoint UI must be available');
+assert(html.includes('id="waypoint-show-map"') && html.includes('id="waypoint-export"'), 'map visibility and coordinate export require opt-in');
+assert(src.includes('function recordWaypoint()') && src.includes('maximumAge:0,timeout:15000'), 'waypoints request a fresh browser fix only on user action');
+assert(src.includes("api('/api/survey/waypoints','POST'") && src.includes('new Date(pos.timestamp).toISOString()'), 'browser provenance and timestamp are attached');
+assert(src.includes('function visibleWaypoints()') && src.includes("if (!$('waypoint-show-map').checked) return []"), 'waypoints are not shown without explicit map opt-in');
+assert(src.includes('survey-waypoint-data') && src.includes('raster-waypoint-pin'), 'waypoint map support exists in vector and raster modes');
+assert(src.includes("confirm('Export precise browser-reported location coordinates"), 'coordinate export explicitly warns');
+assert(!src.includes('watchPosition('), 'no background browser location tracking');
+console.log('v0.2.20 manually saved browser waypoints, provenance, opt-in map and privacy export checks passed.');

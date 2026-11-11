@@ -14,7 +14,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.19</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.20</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -108,6 +108,22 @@
             <div id="map-wifi-readings" class="map-wifi-readings" aria-live="polite"></div>
           </section></div>
         <div class="map-actions"><p class="muted small">Click anywhere on the map to create a manual survey observation at that coordinate. Coordinates are not automatically captured or uploaded.</p><button class="btn primary" id="manual-entry">Add observation manually</button></div>
+        <details class="map-area-manager survey-waypoint-manager" id="survey-waypoint-manager">
+          <summary>GPS-linked survey waypoints <span class="small muted">(manual · private · no background tracking)</span></summary>
+          <div class="survey-waypoint-inner">
+            <p class="small muted">Record a fresh browser-reported observer position for an active investigation. This is not a transmitter location, RF detection, verified external GPS fix or recorded driving route. Each point requires a click.</p>
+            <label for="waypoint-session" class="fieldlabel">Investigation to view</label>
+            <select class="field" id="waypoint-session"><option value="">No investigation selected</option></select>
+            <label for="waypoint-note" class="fieldlabel">Optional waypoint note</label>
+            <input class="field" id="waypoint-note" type="text" maxlength="500" placeholder="Roadside check, survey stop, landmark…">
+            <div class="button-line waypoint-actions"><button type="button" id="waypoint-record" class="btn primary">Save a fresh location waypoint</button>
+              <button type="button" id="waypoint-export" class="btn outline" disabled>Export session GeoJSON</button></div>
+            <label class="switchline"><input type="checkbox" id="waypoint-show-map"> Show saved waypoints on map</label>
+            <p id="waypoint-status" class="small muted" role="status" aria-live="polite">Select an active investigation to save a waypoint. This records only when requested.</p>
+            <div id="waypoint-list" class="waypoint-list"></div>
+            <p class="small muted">GeoJSON includes precise coordinates. Review before sharing. Waypoints never represent a continuous track, known police position or RF transmitter position.</p>
+          </div>
+        </details>
       </section>
       <section class="page" id="page-scanner"><div class="section-heading"><div><h2>Detailed signal analysis</h2><p>Inspect saved measurements and signal history. For mapping and quick scans, use Layers &amp; Scan on the Survey Map.</p></div><span id="scanner-connection-pill" class="pill amber">CHECKING RADIO SUPPORT</span></div>
         <div class="two-columns"><div class="panel"><div class="panel-title"><h3>Radio source status</h3><span class="pill amber">INACTIVE</span></div><p class="scanner-message">No continuous RF capture is running. A user-started Wi-Fi access-point survey can use NetworkManager on a Linux host with a compatible visible adapter; WSL normally cannot use Windows built-in Wi-Fi.</p><button class="btn outline" data-jump="hardware">Inspect detected hardware</button></div><div class="panel"><div class="panel-title"><h3>Signal history</h3><span class="pill">RECORDED DATA</span></div><label for="signal-select" class="fieldlabel">Saved measurement series</label>

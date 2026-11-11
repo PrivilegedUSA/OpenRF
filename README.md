@@ -1,4 +1,4 @@
-# OpenRF v0.2.19 — Advanced Signal Analysis
+# OpenRF v0.2.20 — GPS-Linked Manual Surveys
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.19.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.20.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.19 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.20 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -31,13 +31,21 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
 
+## v0.2.20 — Manual, session-linked browser GPS waypoints
+
+Go to **Map → GPS-linked survey waypoints** and start an investigation on **Sessions** first. Select the investigation, optionally enter a waypoint note, and click **Save a fresh location waypoint**. The browser asks for current geolocation only upon each explicit click. No background tracking, path reconstruction or RF acquisition occurs. A successfully saved waypoint is linked to that investigation and retains browser accuracy, fix timestamp and age, plus the server's receipt time. No satellite fix or external GNSS hardware is claimed.
+
+**Show saved waypoints on map** is OFF by default, and only affects the selected investigation. Point markers work with the online vector map or offline coordinate/raster fallback. Separate points do not imply a driven route or transmitter location. **Export session GeoJSON** confirms before downloading precise location records; consider privacy before sharing the downloaded file. You can delete a single waypoint with confirmation without deleting investigation observations or scan captures. Waypoint export requires local API access and does not upload anything to third parties.
+
+The additive `survey_waypoints` SQLite table is initialized automatically without overwriting existing data. The previous investigation HTML/JSON report does not yet include waypoints. See [v0.2.20 test guide](docs/RELEASE_0.2.20_TESTS.md).
+
 ## v0.2.19 — Advanced historical signal analysis
 
 - In **Analysis → Signal history**, choose a compatible saved measurement series by identifier, kind, measurement unit, evidence source, receiver label, reported hardware identity, and recorded frequency. Unlike the previous identifier-only chart, different devices, units or frequencies never share an axis or a line. Both the graph and comparison panel now use the same grouping rules.
 - Inspect **all / last 24 hours / last 7 days / last 30 days** of *saved* readings, relative to the newest reading in that series. A time-scaled chart displays values plus a median guideline; a summary lists count/median/min/max and timestamp span. A collapsible recent-readings list shows time basis and investigation assignment.
 - Charts render a maximum of ~202 sample points using a min/max sampling algorithm, preserving spikes and dips in the plotted sample. All matching rows are still included in descriptive statistics and export. No chart reveals distance or source location, and saved measurements are never live scans.
 - **Export selected series CSV** downloads only selected saved readings, with reported unit, provenance and receiver/time identity. **Precise observer GPS fields are omitted by default**; use the opt-in checkbox if necessary. Synthetic DEMO data is excluded unless independently enabled in the history panel. No remote requests are made for analysis/export and no database changes are needed.
-- Browser/history comparisons are still limited to the latest 10,000 observations loaded by the local API; some older measurements could therefore be absent from the view. Unverified hardware, cached Wi-Fi readings and old/estimated timestamps retain caution labels. See [v0.2.19 tests](docs/RELEASE_0.2.19_TESTS.md).
+- Browser/history comparisons are still limited to the latest 10,000 observations loaded by the local API; some older measurements could therefore be absent from the view. Unverified hardware, cached Wi-Fi readings and old/estimated timestamps retain caution labels. See [v0.2.20 tests](docs/RELEASE_0.2.20_TESTS.md).
 
 ## v0.2.18 — Printable investigation reports
 
