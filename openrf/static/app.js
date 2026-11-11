@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPreview:null, navFitPending:false, navDestinations:[], mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -59,7 +59,7 @@ function showPage(page, options = {}) {
   }
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.toggle('active', el.dataset.page === page));
   document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === `page-${page}`));
-  const titles = {overview:'Field overview',map:'Survey map',scanner:'Signal analysis',discoveries:'Saved discoveries',sessions:'Investigations',hardware:'Hardware manager'};
+  const titles = {overview:'Field overview',map:'Survey map',navigation:'Navigation preview',scanner:'Signal analysis',discoveries:'Saved discoveries',sessions:'Investigations',hardware:'Hardware manager'};
   $('page-title').textContent = titles[page] || 'OpenRF'; $('page-crumb').textContent = page.toUpperCase();
   if (page === 'map') { startMap(); if (options.autoLocate !== false) locateMap(false); renderMapSurveyPanel(); setTimeout(() => { state.map?.resize(); state.rasterMap?.resize(); }, 80); }
   window.scrollTo(0, 0);
@@ -670,10 +670,11 @@ function startMap() {
     state.preferredView = null;
     state.map = new maplibregl.Map({container:'map', style:`https://tiles.openfreemap.org/styles/${state.style}`, center:initial.center, zoom:initial.zoom, attributionControl:false, maplibreLogo:false});
     state.map.addControl(new maplibregl.NavigationControl(), 'top-right');
-    state.map.on('style.load', () => { updateOfflineAttribution(); state.mapReady = true; $('map-error').hidden = true; installMarkerLayer(); updateMap(); updateBrowserLocationMarker(); applyPendingLocation(); renderAreaOverlay(); });
+    state.map.on('style.load', () => { updateOfflineAttribution(); state.mapReady = true; $('map-error').hidden = true; installMarkerLayer(); updateMap(); updateBrowserLocationMarker(); applyPendingLocation(); renderAreaOverlay(); renderNavigationOverlay(); applyNavigationFit(); });
     state.map.on('movestart', event => { if (event.originalEvent) state.mapNavigationEpoch++; });
-    state.map.on('move', renderAreaOverlay);
+    state.map.on('move', () => {renderAreaOverlay(); renderNavigationOverlay();});
     state.map.on('click', (evt) => {
+      if (consumeNavigationPick(evt.lngLat.lng, evt.lngLat.lat)) return;
       if (consumeAreaClick(evt.lngLat.lng, evt.lngLat.lat)) return;
       if (state.mapReady && state.map.getLayer('survey-points') && state.map.queryRenderedFeatures(evt.point,{layers:['survey-points','survey-waypoints']}).length) return;
       if (state.browserLocation && Math.abs(evt.lngLat.lat-state.browserLocation.lat) < 0.0001 && Math.abs(evt.lngLat.lng-state.browserLocation.lon) < 0.0001) return;
@@ -974,6 +975,7 @@ function startRasterMap(reason, view = null) {
       }
       pins.replaceChildren(nextPins);
       renderAreaOverlay();
+      renderNavigationOverlay();
     },
     stop() {
       if (flightFrame !== null) cancelAnimationFrame(flightFrame);
@@ -1036,6 +1038,7 @@ function startRasterMap(reason, view = null) {
       const rect=root.getBoundingClientRect();
       const cp=worldPixel(state.rasterMap.center[0],state.rasterMap.center[1],state.rasterMap.zoom);
       const ll=pixelWorld(cp[0]+e.clientX-rect.left-rect.width/2, cp[1]+e.clientY-rect.top-rect.height/2,state.rasterMap.zoom);
+      if (consumeNavigationPick(ll[0], ll[1])) return;
       if (consumeAreaClick(ll[0], ll[1])) return;
       openObservation(ll[1].toFixed(6), ll[0].toFixed(6));
     });
@@ -1047,6 +1050,7 @@ function startRasterMap(reason, view = null) {
     },{passive:false});
   }
   raster.render();
+  applyNavigationFit();
 }
 function zoomToRecord(id) {
   const item = state.observations.find(o=>o.id===id); if (!item || item.latitude === null) return;
@@ -1477,10 +1481,160 @@ $('offline-map-import').addEventListener('click', () => runAction(async () => {
   } finally { button.disabled = false; }
 }));
 
+// v0.2.23: saved destinations and a map preview. NO road routing / police alerts.
+const navGeometry = window.OpenRFNavigation;
+function navigationInputPoint(prefix) {
+  if (!navGeometry) throw Error('Navigation geometry module unavailable. Refresh OpenRF.');
+  return navGeometry.point($(`${prefix}-lat`).value, $(`${prefix}-lon`).value);
+}
+function setNavigationStatus(message) { $('nav-status').textContent=message; }
+function consumeNavigationPick(lon,lat) {
+  if (!state.navPicking) return false;
+  state.navPicking = false;
+  $('nav-dest-lat').value = lat.toFixed(7);
+  $('nav-dest-lon').value = lon.toFixed(7);
+  showPage('navigation',{autoLocate:false});
+  setNavigationStatus('Destination selected from the map. Enter a starting position, then choose Preview on map.');
+  renderNavigationOverlay();
+  return true;
+}
+function renderNavigationOverlay() {
+  const overlay = $('navigation-preview-overlay');
+  const label = $('navigation-preview-label');
+  if (state.navPicking) {
+    overlay.replaceChildren();
+    label.textContent='TAP MAP TO CHOOSE DESTINATION'; label.hidden=false;
+    return;
+  }
+  const preview = state.navPreview;
+  if (!preview || (!state.mapReady && !state.rasterMap)) {
+    overlay.replaceChildren(); label.hidden=true; return;
+  }
+  const map=$('map'), width=map.clientWidth, height=map.clientHeight;
+  if (!width || !height) return;
+  function project(coords) {
+    if (state.map && state.mapReady) {
+      const pt=state.map.project(coords);
+      return [pt.x,pt.y];
+    }
+    if (state.rasterMap) {
+      const center=worldPixel(state.rasterMap.center[0],state.rasterMap.center[1],state.rasterMap.zoom);
+      const p=worldPixel(coords[0],coords[1],state.rasterMap.zoom);
+      const size=256*(2**state.rasterMap.zoom);
+      const dx=((p[0]-center[0]+size*1.5)%size)-size/2;
+      return [width/2+dx, height/2+p[1]-center[1]];
+    }
+    return [NaN,NaN];
+  }
+  const a=project(preview.origin), b=project(preview.destination);
+  if (![...a,...b].every(Number.isFinite)) {overlay.replaceChildren();return;}
+  overlay.setAttribute('viewBox',`0 0 ${width} ${height}`);
+  overlay.innerHTML=`<path d="M ${a[0].toFixed(2)} ${a[1].toFixed(2)} L ${b[0].toFixed(2)} ${b[1].toFixed(2)}" />`+
+    `<circle cx="${a[0].toFixed(2)}" cy="${a[1].toFixed(2)}" r="6" fill="#44dec4"/>`+
+    `<circle cx="${b[0].toFixed(2)}" cy="${b[1].toFixed(2)}" r="6" fill="#ffca65"/>`;
+  label.textContent='DIRECT LINE · NOT A ROAD ROUTE'; label.hidden=false;
+}
+async function refreshNavigationDestinations() {
+  const reply=await api('/api/navigation/destinations');
+  state.navDestinations=reply.destinations||[];
+  const dest=$('nav-destination-list');
+  dest.innerHTML=state.navDestinations.length ? state.navDestinations.map(d=>
+    `<div class="nav-destination-entry"><strong>${escapeHTML(d.name)}</strong>`+
+    `<p>${Number(d.latitude).toFixed(5)}, ${Number(d.longitude).toFixed(5)} · LOCAL destination, not an observation</p>`+
+    `<div class="nav-button-row"><button type="button" class="btn mini outline" data-nav-use="${d.id}">Use</button>`+
+    `<button type="button" class="btn mini danger-outline" data-nav-delete="${d.id}">Remove</button></div></div>`
+  ).join('') : '<div class="empty">No destinations saved. Enter a location to save it locally.</div>';
+}
+function applyNavigationFit() {
+  if (!state.navFitPending || !state.navPreview) return;
+  const result=state.navPreview;
+  if (state.map && state.mapReady) {
+    state.navFitPending=false;
+    const bounds=new maplibregl.LngLatBounds(result.origin,result.destination);
+    state.map.fitBounds(bounds,{padding:55,maxZoom:13,duration:850});
+  } else if (state.rasterMap) {
+    state.navFitPending=false;
+    const [start,end]=[result.origin,result.destination];
+    const lonDiff=Math.abs(((end[0]-start[0]+540)%360)-180);
+    const extent=Math.max(lonDiff,Math.abs(end[1]-start[1]),0.01);
+    const zoom=Math.max(2,Math.min(12,Math.floor(Math.log2(180/(extent*1.8)))));
+    state.rasterMap.flyTo({center:[(start[0]+end[0])/2,(start[1]+end[1])/2],zoom});
+  }
+  renderNavigationOverlay();
+}
+function previewNavigation() {
+  const start=navigationInputPoint('nav-start');
+  const end=navigationInputPoint('nav-dest');
+  const result=navGeometry.preview(start,end);
+  state.navPreview=result;
+  state.navFitPending=true;
+  const miles=result.distance_km*0.621371;
+  const bearing=result.bearing_degrees===null?'same coordinate':`${result.bearing_degrees.toFixed(0)}° from true north`;
+  $('nav-preview-summary').textContent=`Direct-line distance: ${miles.toFixed(2)} mi (${result.distance_km.toFixed(2)} km). Initial bearing: ${bearing}. Not a drive distance, road route, or travel estimate.`;
+  setNavigationStatus('Map displays a dashed geographic line. Road routing and turn-by-turn navigation are NOT available.');
+  showPage('map',{autoLocate:false});
+  // MapLibre may not yet be ready; the map style-load handler renders the preview.
+  setTimeout(applyNavigationFit,120);
+}
+$('nav-preview-form').addEventListener('submit',event=>{
+  event.preventDefault();
+  try {previewNavigation();} catch(err){setNavigationStatus(err.message);}
+});
+$('nav-use-location').addEventListener('click',()=>{
+  const button=$('nav-use-location'),status=$('nav-origin-status');
+  if(!navigator.geolocation){status.textContent='Browser geolocation unavailable. Enter coordinates manually.';return;}
+  button.disabled=true;status.textContent='Requesting a fresh position. Nothing is saved or tracked.';
+  navigator.geolocation.getCurrentPosition(pos=>{
+    button.disabled=false;
+    const {latitude,longitude,accuracy}=pos.coords||{};
+    const age=(Date.now()-pos.timestamp)/1000;
+    if(!Number.isFinite(latitude)||Math.abs(latitude)>90||!Number.isFinite(longitude)||Math.abs(longitude)>180||
+       !Number.isFinite(accuracy)||accuracy<0||!Number.isFinite(age)||age< -5||age>60){
+       status.textContent='The location fix was invalid or stale. No coordinates changed.';return;
+    }
+    $('nav-start-lat').value=latitude.toFixed(7);$('nav-start-lon').value=longitude.toFixed(7);
+    status.textContent=`Browser-reported starting point (±${Math.round(accuracy)} m; ${Math.round(Math.max(0,age))} s old). Desktop/VPN location may be approximate.`;
+  },err=>{
+    button.disabled=false;
+    status.textContent=`Position unavailable (${err.code===1?'permission denied':err.code===3?'timed out':'no fix'}). Enter coordinates manually.`;
+  },{enableHighAccuracy:true,maximumAge:0,timeout:15000});
+});
+$('nav-pick-map').addEventListener('click',()=>{
+  state.navPicking=true;state.navPreview=null;state.navFitPending=false;
+  showPage('map',{autoLocate:false});
+  renderNavigationOverlay();
+  flash('Tap a map location to set the navigation destination. No observation is created.');
+});
+$('nav-clear-preview').addEventListener('click',()=>{
+  state.navPicking=false;state.navPreview=null;state.navFitPending=false;
+  $('nav-preview-summary').textContent='';
+  setNavigationStatus('Preview cleared; saved destinations are unchanged.');
+  renderNavigationOverlay();
+});
+$('nav-save-destination').addEventListener('click',()=>runAction(async()=>{
+  const coords=navigationInputPoint('nav-dest');
+  const name=$('nav-dest-name').value.trim();
+  if(!name) throw Error('Enter a destination name before saving.');
+  await api('/api/navigation/destinations','POST',{name,latitude:coords[1],longitude:coords[0]});
+  await refreshNavigationDestinations();
+  setNavigationStatus('Destination saved locally. No route or GPS history recorded.');
+}));
+$('nav-destination-list').addEventListener('click',event=>{
+  const use=event.target.closest('[data-nav-use]');
+  const remove=event.target.closest('[data-nav-delete]');
+  if(use){
+    const d=state.navDestinations.find(x=>x.id===Number(use.dataset.navUse));
+    if(d){$('nav-dest-name').value=d.name;$('nav-dest-lat').value=d.latitude;$('nav-dest-lon').value=d.longitude;
+      setNavigationStatus('Saved destination loaded. Enter your starting position and preview it on the map.');}
+  }
+  if(remove && confirm('Delete this saved navigation destination from your private OpenRF database?'))runAction(async()=>{
+    await api(`/api/navigation/destinations/${remove.dataset.navDelete}`,'DELETE');
+    await refreshNavigationDestinations();setNavigationStatus('Saved destination removed.');
+  });
+});
 document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
 document.querySelectorAll('[data-jump]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.jump)));
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
-$('manual-entry').addEventListener('click',()=>openObservation());
 $('map-add-observation').addEventListener('click',()=>openObservation());
 $('waypoint-session').addEventListener('change', renderWaypointSelection);
 $('waypoint-show-map').addEventListener('change', updateMap);
@@ -1706,3 +1860,4 @@ if (window.matchMedia('(max-width: 900px), (max-width: 1400px) and (max-height: 
 refresh().catch(e=>flash(`OpenRF data refresh failed: ${e.message}. The server may still be running.`,true));
 refreshOfflineMaps().catch(e=>{ $('offline-map-status').textContent = `Unable to list local maps: ${e.message}`; });
 refreshAreaPlans().catch(e=>{ $('area-saved-detail').textContent = `Saved area plans unavailable: ${e.message}`; });
+refreshNavigationDestinations().catch(e=>{ $('nav-destination-list').textContent=`Local destinations unavailable: ${e.message}`; });

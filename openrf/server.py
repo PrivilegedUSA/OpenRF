@@ -176,6 +176,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, raw, mime, {'Content-Disposition': f'{disposition}; filename="{name}"'})
             except ValueError:
                 return self._error(400, 'Invalid report selection')
+        if path == '/api/navigation/destinations':
+            return self._json(200, {'destinations': self.repo.list_destinations(),
+                                     'routing_status': 'not_implemented',
+                                     'location_tracking': False})
         if path == '/api/survey/waypoints':
             return self._json(200, self.repo.list_waypoints())
         if path == '/api/survey/waypoints.geojson':
@@ -323,6 +327,8 @@ class Handler(BaseHTTPRequestHandler):
                     body.get('source_map_id'), body.get('output_map_id'),
                     body.get('rights_confirmed'), self.server.map_lock)
                 return self._json(201, built)
+            if path == '/api/navigation/destinations':
+                return self._json(201, {'destination': self.repo.add_destination(body)})
             if path == '/api/survey/waypoints':
                 return self._json(201, {'waypoint': self.repo.record_waypoint(body)})
             if path == '/api/observations':
@@ -434,6 +440,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self._error(404, 'Offline map not available')
             except OSError:
                 return self._error(500, 'Could not remove local map file')
+        if path.startswith('/api/navigation/destinations/') and path.count('/') == 4:
+            segment = path.rsplit('/', 1)[1]
+            if not segment.isascii() or not segment.isdecimal() or len(segment) > 10:
+                return self._error(400, 'Invalid destination ID')
+            return self._json(200, {'deleted': self.repo.delete_destination(int(segment))})
         if path.startswith('/api/survey/waypoints/') and path.count('/') == 4:
             segment = path.rsplit('/', 1)[1]
             if not segment.isascii() or not segment.isdecimal() or len(segment) > 10:

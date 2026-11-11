@@ -1,4 +1,4 @@
-# OpenRF v0.2.22 — Observation Location Shortcut & Startup Fix
+# OpenRF v0.2.23 — Compact Map UI and Navigation Foundation
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.22.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.23.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.22 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.23 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,15 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.23 — Navigation foundation and compact map UI
+
+- **Navigation (new page):** manually enter a starting coordinate and a destination; request a fresh browser location only by clicking the button; or choose the destination by tapping the Survey Map. No automatic location tracking or GPS recording.
+- **Local saved destinations:** up to 250 named coordinates retained in a new additive `navigation_destinations` SQLite table, independent from observations, waypoint tracks, signal evidence and investigation records. Save, reuse or remove them through the navigation interface.
+- **Geographic preview:** a dashed straight-line overlay connects the selected positions; the app shows great-circle distance in miles/kilometers and initial bearing. **This is NOT road routing, driving distance, turn-by-turn directions, police identification, or camera-aware route planning.** Do not use the line for driving instructions. Real routing, voice guidance, source-verified ALPR alerts, and radar integration remain future milestones.
+- **Map cleanup:** removed the redundant full-width **Add observation manually** button under Map. Retained the + map action and map-click observation placement, now with smaller 32px borderless stacked-layers and + controls. **Map copyright attribution remains accessible** through a more discreet credit disclosure (can't remove required credits).
+- Moved **Use my location** to immediately beneath the longitude field in the observation form. Existing browser-provenance and accuracy logic are unchanged. No third-party routing service, paid account, or new Python dependency.
+- New API: `GET/POST /api/navigation/destinations` and `DELETE /api/navigation/destinations/{id}`, loopback-only with existing origin protection; input ranges and fields are validated. See [v0.2.23 test guide](docs/RELEASE_0.2.23_TESTS.md).
 
 ## v0.2.22 — Observation location shortcut and reliable startup
 

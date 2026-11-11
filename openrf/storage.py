@@ -169,6 +169,15 @@ class Repository:
                     source_device TEXT NOT NULL DEFAULT 'Browser Geolocation API'
                 );
                 CREATE INDEX IF NOT EXISTS idx_waypoints_session ON survey_waypoints(session_id,id DESC);
+                -- v0.2.23: optional private destinations, not observations or routes.
+                CREATE TABLE IF NOT EXISTS navigation_destinations (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    latitude REAL NOT NULL,
+                    longitude REAL NOT NULL,
+                    created_at_utc TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_navigation_destinations_created ON navigation_destinations(id DESC);
             """)
             # Additive migration from v0.2.5; never drop or rebuild saved observations.
             columns = {row['name'] for row in db.execute('PRAGMA table_info(observations)')}
@@ -192,6 +201,30 @@ class Repository:
                         db.execute(f'ALTER TABLE {table} ADD COLUMN {name} {ddl}')
             # A crashed server does not silently continue a previously active survey.
             db.execute("UPDATE sessions SET status='INTERRUPTED' WHERE status='ACTIVE'")
+
+    def add_destination(self, data: dict) -> dict:
+        from .navigation import normalize_destination
+        dest = normalize_destination(data)
+        with self._lock, self._connect() as db:
+            count = db.execute('SELECT COUNT(*) FROM navigation_destinations').fetchone()[0]
+            if count >= 250:
+                raise ValueError('Saved destination limit reached (250)')
+            ident = db.execute(
+                'INSERT INTO navigation_destinations (name, latitude, longitude, created_at_utc) VALUES (?, ?, ?, ?)',
+                (dest['name'], dest['latitude'], dest['longitude'], now_iso())
+            ).lastrowid
+            return dict(db.execute('SELECT * FROM navigation_destinations WHERE id=?', (ident,)).fetchone())
+
+    def list_destinations(self) -> list[dict]:
+        with self._lock, self._connect() as db:
+            return [dict(row) for row in db.execute(
+                'SELECT * FROM navigation_destinations ORDER BY id DESC LIMIT 250')]
+
+    def delete_destination(self, ident: int) -> bool:
+        if type(ident) is not int or ident < 1:
+            raise ValueError('Invalid destination ID')
+        with self._lock, self._connect() as db:
+            return db.execute('DELETE FROM navigation_destinations WHERE id=?', (ident,)).rowcount > 0
 
     def record_waypoint(self, data: dict) -> dict:
         from .survey_waypoints import normalize_waypoint

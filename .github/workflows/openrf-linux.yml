@@ -24,9 +24,11 @@ jobs:
         run: |
           node --check openrf/static/app.js
           node --check openrf/static/history-analysis.js
+          node --check openrf/static/navigation.js
           node tests/test_frontend.js
           node tests/test_history_analysis.js
           node tests/test_signal_explorer.js
           node tests/test_reports_frontend.js
           node tests/test_readiness_frontend.js
           node tests/test_manual_location_frontend.js
+          node tests/test_navigation_frontend.js
