@@ -1,4 +1,4 @@
-# OpenRF v0.2.12 — Licensed Offline Tile ZIP Preparation
+# OpenRF v0.2.13 — Smooth Browser Location Flyover
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.12.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.13.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.12 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.13 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,13 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.13 — Smooth location camera and simple map start
+
+- Opening the Survey Map still starts on a U.S. overview when there is no previously chosen map view. After browser location permission is accepted and a fix is obtained, MapLibre smoothly pans and zooms to the browser-reported position with a bounded flight instead of snapping instantly.
+- A fix delivered *before* the online map style finishes loading is kept pending and animated after the style becomes ready. A manual map gesture made during the location request prevents an unsolicited automatic recenter; the My browser location button may always be used explicitly.
+- The local coordinate-grid / offline raster fallback now also moves and zooms gradually, with interruption on drag/wheel/zoom buttons. Motion-reduction preferences avoid animation.
+- Offline-area tools remain available but optional, labeled as offline tile management and collapsed by default. No change to map downloads, USB/ESP32 receivers, investigations or SQLite storage. See [v0.2.13 test guide](docs/RELEASE_0.2.13_TESTS.md).
 
 ## v0.2.12 — Licensed raster tile ZIP → offline MBTiles
 

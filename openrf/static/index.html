@@ -13,7 +13,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.12</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.13</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -41,7 +41,7 @@
       <section class="page" id="page-map">
         <div class="section-heading"><div><h2>Geographic survey</h2><p>Map wireless survey points, view recorded signal layers, and launch supported on-demand scans. Pins are observer locations, not transmitter positions.</p></div><div class="button-line"><label class="switchline"><input id="show-demo-map" type="checkbox"> Show demo</label><button class="btn outline" id="map-geolocate">My browser location</button><button class="btn outline" id="map-style">Dark map</button><button class="btn outline" id="map-mode">Offline / raster</button></div></div>
         <div class="offline-map-manager" aria-label="Offline map package selector"><label for="offline-map-select">Offline basemap</label><select class="field" id="offline-map-select" aria-label="Local raster map"><option value="">Coordinate grid · no map package</option></select><button type="button" class="btn outline" id="offline-map-refresh">Refresh maps</button><span id="offline-map-status" role="status" aria-live="polite">Local map packages are optional. No online tile downloading.</span></div>
-        <details class="map-area-manager" id="map-area-manager"><summary>Manage offline map areas <span class="small muted">(local files only)</span></summary>
+        <details class="map-area-manager" id="map-area-manager"><summary>Offline map files <span class="small muted">(optional · tiles for use without internet)</span></summary>
           <div class="map-area-controls"><label for="offline-map-file">Import licensed raster MBTiles</label><input class="field" id="offline-map-file" type="file" accept=".mbtiles,application/octet-stream" aria-describedby="offline-map-guidance"><button type="button" class="btn primary" id="offline-map-import">Import selected file</button></div>
           <p id="offline-map-guidance" class="muted small">Select a previously downloaded PNG, JPEG or WebP raster MBTiles file. Files stay in the private OpenRF maps directory (limit 1 GiB). OpenRF does not download or generate tile regions.</p>
           <div id="offline-map-detail" class="offline-map-detail muted small" aria-live="polite">Choose an installed map to see its geographic coverage, zoom range, and local file size.</div>

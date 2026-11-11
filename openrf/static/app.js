@@ -321,7 +321,8 @@ function startMap() {
   if (!window.maplibregl) { const view = state.preferredView; state.preferredView = null; return startRasterMap('MapLibre is unavailable. Using the built-in raster/coordinate map.', view); }
   const attempt = ++state.mapAttempt;
   try {
-    const initial = state.pendingLocationView || state.preferredView || {center:[-98.5,39.8], zoom:4};
+    // Keep the overview visible while permission is requested; apply a later GPS fix via flyTo.
+    const initial = state.preferredView || {center:[-98.5,39.8], zoom:4};
     state.preferredView = null;
     state.map = new maplibregl.Map({container:'map', style:`https://tiles.openfreemap.org/styles/${state.style}`, center:initial.center, zoom:initial.zoom, attributionControl:false, maplibreLogo:false});
     state.map.addControl(new maplibregl.NavigationControl(), 'top-right');
@@ -368,20 +369,26 @@ function updateBrowserLocationMarker() {
   }
   state.rasterMap?.render();
 }
+function reduceMapMotion() {
+  // Respect the operating system's reduced-motion accessibility preference.
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
 function applyPendingLocation() {
   const pending = state.pendingLocationView;
   if (!pending) return;
   // User gestures after a GPS request take precedence over automatic recentering.
   if (!pending.manual && pending.epoch !== state.mapNavigationEpoch) { state.pendingLocationView = null; return; }
   if (state.map && state.mapReady) {
-    state.map.jumpTo({center:pending.center, zoom:pending.zoom});
+    if (reduceMapMotion()) state.map.jumpTo({center:pending.center, zoom:pending.zoom});
+    else state.map.flyTo({center:pending.center, zoom:pending.zoom,
+      speed:0.8, curve:1.25, maxDuration:3200, essential:false});
     state.pendingLocationView = null;
   } else if (state.rasterMap) {
     state.rasterMap.flyTo({center:pending.center, zoom:pending.zoom});
     state.pendingLocationView = null;
-  } else {
-    state.preferredView = {center:pending.center, zoom:pending.zoom};
   }
+  // When MapLibre has not finished loading, leave the pending fix untouched so
+  // style.load can animate it from the overview rather than initializing there.
 }
 
 function locateMap(manual = false) {
@@ -429,7 +436,8 @@ function updateMap() {
 }
 function switchToRasterMap(reason) {
   ++state.mapAttempt;
-  const camera = state.pendingLocationView || (state.map ? {center:[state.map.getCenter().lng,state.map.getCenter().lat], zoom:state.map.getZoom()} : state.preferredView);
+  // Preserve the current overview so a pending GPS fix animates in fallback too.
+  const camera = state.map ? {center:[state.map.getCenter().lng,state.map.getCenter().lat], zoom:state.map.getZoom()} : state.preferredView;
   if (state.geoMarker) { try {state.geoMarker.remove();} catch(_) {} state.geoMarker = null; }
   if (state.map) { try { state.map.remove(); } catch(_) { /* partially initialized */ } }
   state.map = null;
@@ -464,6 +472,7 @@ function startRasterMap(reason, view = null) {
   const minus = document.createElement('button'); minus.type = 'button'; minus.textContent = '−'; minus.title = 'Zoom out';
   controls.append(plus, minus); surface.append(tiles, pins);
   root.replaceChildren(surface, notice, controls);
+  let flightFrame = null;
   const raster = {center:view?.center || [-98.5,39.8], zoom:Math.max(2,Math.min(18,Math.round(view?.zoom || 4))), tileNodes:new Map(), failedTiles:new Set(),
     render() {
       notice.textContent = `${reason} ${state.offlineMap ? `Local raster package: ${state.offlineMap.name}. Tiles outside its coverage remain blank.` : 'Coordinate grid only. Install a licensed MBTiles raster package for offline streets.'}`;
@@ -538,20 +547,46 @@ function startRasterMap(reason, view = null) {
       pins.replaceChildren(nextPins);
       renderAreaOverlay();
     },
-    flyTo({center, zoom}) { raster.center = [...center]; if (Number.isFinite(zoom)) raster.zoom = Math.max(2,Math.min(18,Math.round(zoom))); raster.render(); },
+    stop() {
+      if (flightFrame !== null) cancelAnimationFrame(flightFrame);
+      flightFrame = null;
+    },
+    flyTo({center, zoom}) {
+      raster.stop();
+      const endZoom = Number.isFinite(zoom) ? Math.max(2,Math.min(18,Math.round(zoom))) : raster.zoom;
+      const start = [...raster.center], startZoom = raster.zoom;
+      if (reduceMapMotion()) { raster.center = [...center]; raster.zoom = endZoom; raster.render(); return; }
+      const startTime = performance.now(), duration = 2600;
+      // Choose the shorter longitudinal path across the antimeridian. Fractional
+      // raster zoom would produce invalid tile coordinates, so use integer steps.
+      const deltaLon = ((center[0] - start[0] + 540) % 360) - 180;
+      const tick = now => {
+        if (state.rasterMap !== raster) { raster.stop(); return; }
+        const t = Math.max(0, Math.min(1, (now - startTime) / duration));
+        const ease = t * t * (3 - 2 * t);
+        raster.center = [((start[0] + deltaLon * ease + 540) % 360) - 180,
+          start[1] + (center[1] - start[1]) * ease];
+        raster.zoom = Math.max(2,Math.min(18,Math.round(startZoom + (endZoom - startZoom) * ease)));
+        raster.render();
+        if (t < 1) flightFrame = requestAnimationFrame(tick);
+        else { raster.center = [...center]; raster.zoom = endZoom; raster.render(); flightFrame = null; }
+      };
+      flightFrame = requestAnimationFrame(tick);
+    },
     resize() { raster.render(); }
   };
   state.rasterMap = raster;
   updateOfflineAttribution();
   applyPendingLocation();
   $('map-mode').textContent = 'Try online vector';
-  plus.addEventListener('click',e=>{e.stopPropagation();state.mapNavigationEpoch++;raster.zoom=Math.min(18,raster.zoom+1);raster.render();});
-  minus.addEventListener('click',e=>{e.stopPropagation();state.mapNavigationEpoch++;raster.zoom=Math.max(2,raster.zoom-1);raster.render();});
+  plus.addEventListener('click',e=>{e.stopPropagation();raster.stop();state.mapNavigationEpoch++;raster.zoom=Math.min(18,raster.zoom+1);raster.render();});
+  minus.addEventListener('click',e=>{e.stopPropagation();raster.stop();state.mapNavigationEpoch++;raster.zoom=Math.max(2,raster.zoom-1);raster.render();});
   if (!root.dataset.rasterBound) {
     root.dataset.rasterBound = 'true';
     let start = null;
     root.addEventListener('pointerdown',e=>{
       if (!state.rasterMap || e.button !== 0 || e.target.closest('button, a')) return;
+      state.rasterMap.stop();
       start = {x:e.clientX,y:e.clientY,center:[...state.rasterMap.center], moved:false};
       root.setPointerCapture(e.pointerId);
     });
@@ -579,7 +614,7 @@ function startRasterMap(reason, view = null) {
     root.addEventListener('pointercancel',()=>{start=null;});
     root.addEventListener('wheel',e=>{
       if (!state.rasterMap) return;
-      e.preventDefault(); state.mapNavigationEpoch++; state.rasterMap.zoom=Math.max(2,Math.min(18,state.rasterMap.zoom+(e.deltaY<0?1:-1)));
+      e.preventDefault(); state.rasterMap.stop(); state.mapNavigationEpoch++; state.rasterMap.zoom=Math.max(2,Math.min(18,state.rasterMap.zoom+(e.deltaY<0?1:-1)));
       state.rasterMap.render();
     },{passive:false});
   }
@@ -638,6 +673,7 @@ $('offline-map-select').addEventListener('change', event => {
     for (const image of state.rasterMap.tileNodes.values()) image.remove();
     state.rasterMap.tileNodes.clear(); state.rasterMap.failedTiles.clear();
     const camera = {center:[...state.rasterMap.center], zoom:state.rasterMap.zoom};
+    state.rasterMap.stop();
     state.rasterMap = null;
     $('map').replaceChildren();
     startRasterMap('Offline map selection changed.', camera);
@@ -1034,6 +1070,7 @@ $('show-demo-map-sheet').addEventListener('change',e=>{ $('show-demo-map').check
 $('map-mode').addEventListener('click',()=>{
   if (!state.rasterMap) {switchToRasterMap('Offline raster/coordinate mode selected.');return;}
   state.preferredView={center:[...state.rasterMap.center],zoom:state.rasterMap.zoom};
+  state.rasterMap.stop();
   state.rasterMap=null;
   $('map').replaceChildren(); $('map').classList.remove('raster-mode','raster-dark');
   startMap();
