@@ -23,4 +23,6 @@ jobs:
       - name: Check JavaScript and mapping regressions
         run: |
           node --check openrf/static/app.js
+          node --check openrf/static/history-analysis.js
           node tests/test_frontend.js
+          node tests/test_history_analysis.js

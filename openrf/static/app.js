@@ -315,6 +315,7 @@ function renderSignals() {
   renderWifiScan();
   $('signal-table').innerHTML = rows.length ? `<table class="data-table"><thead><tr><th>IDENTIFIER</th><th>KIND</th><th>RSSI</th><th>QUALITY</th><th>FREQUENCY</th><th>PROVENANCE</th><th>TIME</th></tr></thead><tbody>${rows.map(o=>`<tr><td data-label="Identifier">${escapeHTML(o.identifier || o.label)}</td><td data-label="Kind">${escapeHTML(o.kind)}</td><td data-label="RSSI">${format(o.rssi_dbm, ' dBm')}</td><td data-label="Quality">${format(o.signal_quality_percent, '%')}</td><td data-label="Frequency">${format(o.frequency_mhz, ' MHz')}</td><td data-label="Source">${escapeHTML(o.source)}</td><td data-label="Time">${escapeHTML(stamp(o.observed_at))}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No saved RF measurements yet. One-shot Wi-Fi results above are temporary and not stored automatically.</div>';
   drawHistory(grouped);
+  renderComparison();
 }
 
 // Map-first workflow: display stored observations only at actual survey coordinates.
@@ -380,6 +381,85 @@ function drawHistory(grouped = null) {
     ${coords.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="4" fill="#81f4dc"/>`).join('')}
     <text x="30" y="148">First record</text><text x="277" y="148">Last record</text></svg>
     <p class="small muted">${sorted.length} reading(s) in ${escapeHTML(unit)} · ${sorted.some(o => o.source === 'DEMO') ? 'SYNTHETIC DEMO included · ' : ''}${metric === 'signal_quality_percent' ? 'May include cached results; ' : ''}not a distance or transmitter location estimate.</p>`;
+}
+
+
+// v0.2.17: comparisons operate on already-saved, historical observations only.
+// Group by measurement units + recorded receiver/provenance rather than by name alone.
+function renderComparison() {
+  const engine = window.OpenRFHistoryAnalysis;
+  const selector = $('compare-series');
+  if (!engine) { $('comparison-result').textContent = 'Saved comparison engine unavailable. No analysis performed.'; return; }
+  const seriesList = engine.makeSeries(state.observations, $('compare-include-demo').checked);
+  const previous = selector.value;
+  selector.replaceChildren();
+  const blank = document.createElement('option'); blank.value = ''; blank.textContent = 'Choose a recorded signal'; selector.append(blank);
+  for (const series of seriesList) {
+    const option = document.createElement('option'); option.value = series.key;
+    option.textContent = `${series.kind} · ${series.identifier} · ${series.metricName} (${series.unit}) · ${series.frequency_mhz ?? '?'} MHz · ${series.source} · ${series.source_device} (${series.rows.length})`;
+    selector.append(option);
+  }
+  selector.value = seriesList.some(series=>series.key === previous) ? previous : '';
+  for (const controlId of ['compare-before-session','compare-after-session']) {
+    const control = $(controlId), prior = control.value;
+    control.replaceChildren();
+    const option = document.createElement('option'); option.value = ''; option.textContent = 'Choose an investigation'; control.append(option);
+    for (const session of state.sessions) {
+      const item = document.createElement('option'); item.value = String(session.id);
+      item.textContent = `${session.name} (#${session.id})`;
+      control.append(item);
+    }
+    control.value = state.sessions.some(session=>String(session.id) === prior) ? prior : '';
+  }
+  renderComparisonResult(seriesList);
+}
+function renderComparisonResult(seriesList = null) {
+  const engine = window.OpenRFHistoryAnalysis;
+  const mode = $('compare-mode').value;
+  for (const field of document.querySelectorAll('.compare-session-field')) field.hidden = mode !== 'sessions';
+  const series = (seriesList || engine?.makeSeries(state.observations, $('compare-include-demo').checked) || [])
+    .find(item=>item.key === $('compare-series').value);
+  const output = $('comparison-result'), exportButton = $('compare-export');
+  if (!engine || !series) {
+    exportButton.disabled = true;
+    output.textContent = 'Choose a recorded measurement series. DEMO is excluded unless you explicitly enable it.';
+    return;
+  }
+  const result = engine.compare(series, {mode, beforeSession:$('compare-before-session').value, afterSession:$('compare-after-session').value});
+  exportButton.disabled = !!result.error;
+  if (result.error) {
+    output.textContent = result.error;
+    return;
+  }
+  const n = value => Number(value).toFixed(1);
+  const phaseLabel = mode === 'sessions' ? 'Baseline session' : 'Earlier saved readings';
+  const followLabel = mode === 'sessions' ? 'Follow-up session' : 'Later saved readings';
+  const group = (label, stats) => `<div class="comparison-metric"><div class="muted small">${label} · ${stats.count} saved</div><strong>${n(stats.median)} ${escapeHTML(series.unit)}</strong><div class="muted small">Range ${n(stats.min)} to ${n(stats.max)} · ${escapeHTML(stamp(stats.first))} → ${escapeHTML(stamp(stats.last))}</div></div>`;
+  output.innerHTML = `<div class="comparison-metric-grid">${group(phaseLabel,result.baseline)}${group(followLabel,result.followup)}</div>
+    <p class="comparison-delta"><strong>Median difference: ${result.delta >= 0 ? '+' : ''}${n(result.delta)} ${escapeHTML(series.unit)}</strong> · follow-up minus baseline (descriptive only)</p>
+    <p class="small muted">${escapeHTML(series.kind)} · ${escapeHTML(series.identifier)} · ${escapeHTML(series.source)} · ${escapeHTML(series.source_device)}${series.hardware_id ? ` · Hardware ${escapeHTML(series.hardware_id)}` : ''} · ${series.frequency_mhz ?? '?'} MHz</p>
+    <ul class="comparison-cautions">${result.warnings.map(warning=>`<li>${escapeHTML(warning)}</li>`).join('')}</ul>`;
+}
+function exportComparisonCsv() {
+  const engine = window.OpenRFHistoryAnalysis;
+  const series = engine.makeSeries(state.observations, $('compare-include-demo').checked)
+    .find(item=>item.key === $('compare-series').value);
+  const comparison = engine.compare(series, {mode:$('compare-mode').value,
+    beforeSession:$('compare-before-session').value, afterSession:$('compare-after-session').value});
+  if (comparison.error) return;
+  const fields = ['phase','id','observed_at','kind','identifier','source','source_device','hardware_id','frequency_mhz','measurement_type','measurement_value','measurement_unit','latitude','longitude','accuracy_m','location_source','session_id','survey_capture_id','timestamp_basis','device_reported_at_utc'];
+  const makeRow = (phase, obs) => {
+    const record = {...obs, phase, measurement_type:series.metric, measurement_value:obs._value, measurement_unit:series.unit};
+    return fields.map(field=>csvCell(record[field])).join(',');
+  };
+  const csv = '\uFEFF' + fields.join(',') + '\r\n' + [
+    ...comparison.before.map(obs=>makeRow('BASELINE', obs)),
+    ...comparison.after.map(obs=>makeRow('FOLLOWUP', obs))].join('\r\n') + '\r\n';
+  const url = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  const link = document.createElement('a'); link.href = url; link.download = 'openrf-historical-comparison.csv';
+  document.body.append(link); link.click(); link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  flash('Exported historical comparison locally. No collection or upload performed.');
 }
 
 // MapLibre is preferred, but remote JavaScript or tiles can be blocked by VPNs,
@@ -1252,6 +1332,12 @@ for (const id of ['discovery-kind','discovery-source','discovery-session','disco
 $('discovery-reset').addEventListener('click',resetDiscoveryFilters);
 $('discovery-export').addEventListener('click',downloadShownDiscoveries);
 $('signal-select').addEventListener('change',()=>drawHistory());
+$('compare-series').addEventListener('change',()=>renderComparisonResult());
+$('compare-mode').addEventListener('change',()=>renderComparisonResult());
+$('compare-before-session').addEventListener('change',()=>renderComparisonResult());
+$('compare-after-session').addEventListener('change',()=>renderComparisonResult());
+$('compare-include-demo').addEventListener('change',renderComparison);
+$('compare-export').addEventListener('click',exportComparisonCsv);
 $('discoveries-list').addEventListener('click',e=>{
   const del=e.target.closest('[data-delete]'); const zoom=e.target.closest('[data-zoom]');
   if(zoom) zoomToRecord(Number(zoom.dataset.zoom));

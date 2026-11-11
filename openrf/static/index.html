@@ -8,12 +8,13 @@
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
   <link rel="stylesheet" href="/static/app.css">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
+  <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/app.js"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.16</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.17</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -110,6 +111,20 @@
       </section>
       <section class="page" id="page-scanner"><div class="section-heading"><div><h2>Detailed signal analysis</h2><p>Inspect saved measurements and signal history. For mapping and quick scans, use Layers &amp; Scan on the Survey Map.</p></div><span id="scanner-connection-pill" class="pill amber">CHECKING RADIO SUPPORT</span></div>
         <div class="two-columns"><div class="panel"><div class="panel-title"><h3>Radio source status</h3><span class="pill amber">INACTIVE</span></div><p class="scanner-message">No continuous RF capture is running. A user-started Wi-Fi access-point survey can use NetworkManager on a Linux host with a compatible visible adapter; WSL normally cannot use Windows built-in Wi-Fi.</p><button class="btn outline" data-jump="hardware">Inspect detected hardware</button></div><div class="panel"><div class="panel-title"><h3>Signal history</h3><span class="pill">RECORDED DATA</span></div><label for="signal-select" class="fieldlabel">Select an observed identifier</label><select id="signal-select" class="field"><option value="">No identifiers recorded</option></select><div id="history-graph" class="chart-wrap"><div class="empty">No RSSI measurements yet. Add manual survey readings or load synthetic demo records.</div></div><p class="muted small">RSSI is a received-power measurement—not distance. A graph does not establish transmitter location.</p></div></div>
+        <details class="panel history-compare-panel" id="history-comparison"><summary>Compare saved signal history <span class="pill">OFFLINE · HISTORICAL</span></summary>
+          <p class="muted small">Compare readings from the same recorded identifier, measurement unit, frequency and reported hardware/source. This does not scan for signals or estimate transmitter position.</p>
+          <label class="fieldlabel" for="compare-series">Recorded signal / measurement</label>
+          <select class="field" id="compare-series"><option value="">Select a recorded series</option></select>
+          <label class="switchline compare-demo"><input type="checkbox" id="compare-include-demo"> Include SYNTHETIC DEMO / HISTORICAL readings</label>
+          <div class="comparison-controls">
+            <label>Compare method<select class="field" id="compare-mode"><option value="time">Earlier half vs later half</option><option value="sessions">Two investigation sessions</option></select></label>
+            <label class="compare-session-field" hidden>Baseline session<select class="field" id="compare-before-session"><option value="">Choose baseline session</option></select></label>
+            <label class="compare-session-field" hidden>Follow-up session<select class="field" id="compare-after-session"><option value="">Choose follow-up session</option></select></label>
+          </div>
+          <div id="comparison-result" class="comparison-result" role="status" aria-live="polite">Select a recorded series to see the comparison.</div>
+          <div class="button-line"><button type="button" class="btn outline" id="compare-export" disabled>Export comparison CSV</button></div>
+          <p class="small muted">Readings are saved observations, never a live feed. Changes in RSSI or signal-quality percentages cannot reliably establish distance or direction. Original timestamps, receiver identity and observer positions are retained in the CSV.</p>
+        </details>
         <div class="panel wifi-survey"><div class="panel-title"><h3>Linux Wi-Fi survey (on demand)</h3><span class="pill">NO BACKGROUND SCANS</span></div><p class="muted small">Uses NetworkManager on a visible Linux Wi-Fi interface. A requested scan may send standard Wi-Fi probe frames; results may be cached. Nothing is recorded automatically. Quality % is not RSSI or distance.</p><button class="btn outline" id="scan-wifi-once">Scan Wi-Fi once</button><div class="capture-actions"><label class="capture-locate"><input id="scanner-capture-location" type="checkbox"> Attach observer position from scan time (optional)</label><button type="button" id="scanner-save-scan" class="btn primary" disabled>Save scan snapshot</button></div><div id="live-wifi-results" class="wifi-results"><div class="empty">No one-shot Wi-Fi survey has been requested.</div></div></div>
         <div class="panel scanner-records"><div class="panel-title"><h3>Available measurement records</h3><span id="scan-count" class="pill">0 readings</span></div><div id="signal-table" class="table-scroll"></div></div>
       </section>

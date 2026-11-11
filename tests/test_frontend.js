@@ -244,3 +244,13 @@ assert(safeCsv.includes('"\'=SUM(1,1)"'), 'spreadsheet formula injection neutral
 assert(safeCsv.includes('"hello,""world""\n=1"'), 'embedded quotes and newlines escaped');
 assert(safeCsv.includes(',-48,'), 'negative measured numbers must not gain a text prefix');
 console.log('v0.2.16 source/session/age/mapped/demo filters and safe local CSV contract passed.');
+
+// v0.2.17: explicitly historical, locally computed source-aware comparison view.
+assert(html.includes('/static/history-analysis.js'), 'standalone local history engine must load before app');
+assert(html.indexOf('/static/history-analysis.js') < html.indexOf('/static/app.js'), 'analysis helper must load before UI');
+assert(html.includes('id="history-comparison"') && html.includes('id="compare-mode"') && html.includes('id="compare-export"'), 'compare view and export controls');
+assert(html.includes('id="compare-include-demo"') && html.includes('id="compare-before-session"') && html.includes('id="compare-after-session"'), 'demo opt-in and investigation comparison selectors');
+assert(src.includes('OpenRFHistoryAnalysis') && src.includes('engine.compare(series,'), 'UI must use the source-aware comparison engine');
+assert(src.includes('csvCell(record[field])') && src.includes('openrf-historical-comparison.csv'), 'local comparison CSV must include spreadsheet injection mitigation');
+assert(css.includes('.history-compare-panel') && css.includes('.comparison-metric-grid'), 'touchscreen-safe comparison view');
+console.log('v0.2.17 saved comparison UI, export and provenance contracts passed.');
