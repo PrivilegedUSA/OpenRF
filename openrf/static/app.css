@@ -553,3 +553,29 @@
 #map-provider-status{margin:8px 0 0}
 
 .address-attribution{font-size:10px;color:#b5d0d5;padding:6px 9px;border-top:1px solid rgba(141,177,190,.2)}
+
+/* v0.2.30: native browser password/datalist popups must not obscure OpenRF suggestions. */
+.map-address-input-wrap input[type="search"]{appearance:none;-webkit-appearance:none}
+.map-address-input-wrap input[type="search"]::-webkit-search-cancel-button{appearance:none;-webkit-appearance:none}
+.address-option[aria-selected="true"]{background:#19525a;color:#fff;outline:2px solid #36ccb5;outline-offset:-2px}
+.map-address-input-wrap .address-suggestions{z-index:100;max-height:min(45vh,290px);overscroll-behavior:contain}
+
+/* Keep the MapTiler secret field outside the destination form: Firefox must
+   not classify the navigation search as a password-login field. */
+.map-destination-panel{background:#10222c;border:1px solid #274552;border-radius:10px;padding:10px 12px;margin:0 0 11px;min-width:0}
+.map-destination-panel>.map-destination-form{background:transparent;border:0;border-radius:0;padding:0;margin:0}
+.map-destination-panel>.map-provider-config{margin:10px 0 0}
+@media(max-width:620px){.map-destination-panel{padding:9px}}
+
+/* v0.2.30: one-tap destination picker. Crosshair everywhere, including pins
+   and the browser GPS marker; the normal grab cursor returns after selection. */
+#map.destination-picking,#map.destination-picking:active,
+#map.destination-picking .maplibregl-canvas-container,
+#map.destination-picking .maplibregl-canvas,
+#map.destination-picking .maplibregl-marker,
+#map.destination-picking .browser-location-marker,
+#map.destination-picking .raster-surface,
+#map.destination-picking .raster-pins,
+#map.destination-picking .raster-pin {cursor:crosshair!important}
+#map.destination-picking .raster-pin:hover {cursor:crosshair!important}
+.map-pick-destination[aria-pressed="true"] {color:#ffe2a8;text-decoration:underline}

@@ -188,13 +188,14 @@ class Handler(BaseHTTPRequestHandler):
             params = parse_qs(urlparse(self.path).query)
             if set(params) - {'q', 'online', 'mode'} or len(params.get('q', [])) != 1 or \
                (('online' in params) and params.get('online') != ['1']) or \
-               (('mode' in params) and params.get('mode') != ['final']):
+               (('mode' in params) and (len(params['mode']) != 1 or params['mode'][0] not in ('final', 'auto'))) :
                 return self._error(400, 'Provide one address search query.')
             if params.get('online') == ['1'] and self.headers.get('X-OpenRF-Address-Consent') != 'yes':
                 return self._error(403, 'Online address search requires an explicit in-app opt-in request.')
             try:
                 return self._json(200, address_search(params['q'][0], online_allowed=params.get('online') == ['1'],
-                                                     final=params.get('mode') == ['final']))
+                                                     final=params.get('mode') == ['final'],
+                                                     autocomplete=params.get('mode') == ['auto']))
             except GeocoderUnavailable as exc:
                 return self._error(503, str(exc), 'geocoder_unavailable')
             except GeocoderError as exc:

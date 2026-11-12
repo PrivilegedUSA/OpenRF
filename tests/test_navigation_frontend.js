@@ -118,7 +118,7 @@ assert(destinationForm.indexOf('map-address-input-wrap') < destinationForm.index
 assert(!destinationForm.includes('<button class="btn primary" type="submit">Route</button>'), 'old Route button removed');
 assert(css.includes('.map-destination-row{display:block') && css.includes('.map-destination-actions'), 'full-width input and separate action styling');
 assert(source.includes("style: 'liberty'"), 'lighter basemap is default');
-assert(source.includes('function addressLookupUrl(q, final = false)') && source.includes("'&online=1'"), 'outbound search requires explicit opt-in');
+assert(source.includes('function addressLookupUrl(q, final = false, autocomplete = false)') && source.includes("'&online=1'"), 'outbound search requires explicit opt-in');
 assert(source.includes('async function freshNavigationOrigin()') && source.includes('navigator.geolocation.getCurrentPosition'), 'start navigation requests one-shot location when old');
 assert(source.includes("setMapDestinationStatus(err.message,'error')") && source.includes("finally {button.disabled=false;}"), 'route errors stay visible and button recovers');
 assert(source.includes('Direct-line reference only') && source.includes('setNavigationRoutePreview(direct)'), 'no Valhalla must still draw labeled reference');
@@ -143,9 +143,9 @@ assert(html.includes('id="map-pick-destination"') && source.includes("$('map-pic
   'map-first destination picker works without geocoding');
 assert(source.includes('addressLookupUrl(value, true)') && source.includes("'&mode=final'"),
   'route submission requests Census fallback only in explicit final mode');
-assert(source.includes('},1450);') && source.includes('online=1'),
+assert(source.includes('navigationSuggestionDelay(addressProviderInfo,q)') && source.includes('online=1'),
   'online suggestions are throttled and remain opt-in');
-assert(html.includes('Census lookup for complete street addresses'),
+assert(html.includes('complete U.S. street addresses can show approximate Census matches'),
   'U.S. Census geocoding is distinguished from Photon autocomplete');
 console.log('v0.2.28 map picker and consented complete-address lookup contracts passed.');
 
@@ -160,6 +160,18 @@ assert(css.includes('.map-destination-form .map-online-address{display:grid!impo
        'checkbox and explanatory text wrap into separate rows without two-column splitting');
 assert(source.includes('Resolving destination…') && source.includes('Destination resolved. Checking local Valhalla'),
        'address lookup and local road routing show distinct states');
-assert(source.includes('if ($(' + "'map-online-address'" + ').checked || addressProviderInfo?.local_photon)'),
+assert(source.includes('if(!consent && !localPhoton) return;') && source.includes("$('map-online-address').checked"),
        'autocomplete cannot send a remote request without consent');
 console.log('v0.2.29 U.S. autocomplete setup, local credentials, consent, route status and checkbox layout passed.');
+
+// v0.2.30: remove native browser password autofill confusion and provide auto matches.
+assert(html.includes('type="search" name="openrf_destination_lookup" autocomplete="off"'),
+  'destination is a search field with no browser password autofill');
+assert(!/id="map-destination-query"[^>]*\slist=/.test(html),'native datalist no longer attached');
+assert(html.indexOf('id="map-maptiler-key"')>html.indexOf('</form>',html.indexOf('id="map-destination-form"')),
+  'provider secret must not be nested in the destination form');
+assert(source.includes('addressLookupUrl(q,false,true)') && source.includes('mode=auto'),
+  'suggestions can be requested before Start navigation with opt-in');
+assert(source.includes('function navigationSuggestionDelay(') && source.includes('keydown'),
+  'responsive debounce and keyboard list selection');
+console.log('v0.2.30 full-width search, browser password-form isolation, live Census match and keyboard semantics passed.');

@@ -1,4 +1,4 @@
-# OpenRF v0.2.29 — Private Address Provider Setup and Local Valhalla
+# OpenRF v0.2.30 — Private Address Provider Setup and Local Valhalla
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.29.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.30.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.29 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.30 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -278,7 +278,7 @@ The one-shot driver was tested with mocked NetworkManager responses, **not physi
 - Real road routes still depend on local Valhalla. If it is not reachable, lines are labeled direct references and **never** imply turn-by-turn navigation.
 
 
-## v0.2.29 — configure reliable U.S. address autocomplete
+## v0.2.30 — configure reliable U.S. address autocomplete
 
 Public Photon is a **demo service**, not a guaranteed address autocomplete backend. For more dependable U.S. suggestions, OpenRF now accepts an optional **MapTiler Geocoding API key** from its map UI:
 
@@ -290,3 +290,5 @@ Public Photon is a **demo service**, not a guaranteed address autocomplete backe
 The online opt-in is **off on each fresh page load**, including when a private provider is configured. Local Photon remains supported if separately installed. Without a key, public Photon may be throttled or unavailable; complete U.S. street addresses can still use the opt-in Census lookup when its service responds. Neither option guarantees street-by-street autocomplete. No address-search request automatically includes browser GPS, and no navigation request stores travel history. No geocoding service is bundled or required for manual survey features.
 
 Local Valhalla health (separate from address search): `bash tools/setup-valhalla-wsl.sh --status`. You can always choose the destination directly on the map to test routing without geocoding. This release does **not** implement continuous driving navigation, GPS-following or audible turn instructions.
+
+The Map destination picker also uses **tap once to select** with a crosshair cursor and a temporary yellow destination marker; it is not a draggable GPS pin. Press Escape or choose the picker again to cancel. No observation is recorded.

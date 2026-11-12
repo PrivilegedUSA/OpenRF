@@ -306,16 +306,22 @@ class RouteHTTPTests(unittest.TestCase):
                 status,data=self.request('GET','/api/navigation/geocode?q=123%20Main%20St&online=1',
                     headers={'X-OpenRF-Address-Consent':'yes'})
                 self.assertEqual(status,200)
-                stub.assert_called_once_with('123 Main St',online_allowed=True,final=False)
+                stub.assert_called_once_with('123 Main St',online_allowed=True,final=False,autocomplete=False)
             self.assertEqual(self.request('GET','/api/navigation/geocode?q=123%20Main%20St&online=0')[0],400)
             self.assertEqual(self.request('GET','/api/navigation/geocode?q=123%20Main%20St&url=https://evil.example')[0],400)
             self.assertEqual(self.request('GET','/api/navigation/geocode?q=123%20Main%20St&mode=final')[0],503)
             self.assertEqual(self.request('GET','/api/navigation/geocode?q=123%20Main%20St&mode=final&online=1')[0],403)
+            self.assertEqual(self.request('GET','/api/navigation/geocode?q=123%20Main%20St&mode=auto&online=1')[0],403)
+            with patch('openrf.server.address_search',return_value={'results':[], 'provider':'us-census-opt-in'}) as suggest:
+                status,_=self.request('GET','/api/navigation/geocode?q=25005%20Hwy%2088%2C%20Pioneer%2C%20CA&online=1&mode=auto',
+                    headers={'X-OpenRF-Address-Consent':'yes'})
+                self.assertEqual(status,200)
+                suggest.assert_called_once_with('25005 Hwy 88, Pioneer, CA', online_allowed=True,final=False,autocomplete=True)
             with patch('openrf.server.address_search',return_value={'results':[], 'provider':'us-census-opt-in'}) as stub:
                 status,data=self.request('GET','/api/navigation/geocode?q=123%20Main%20St&online=1&mode=final',
                     headers={'X-OpenRF-Address-Consent':'yes'})
                 self.assertEqual(status,200)
-                stub.assert_called_once_with('123 Main St',online_allowed=True,final=True)
+                stub.assert_called_once_with('123 Main St',online_allowed=True,final=True,autocomplete=False)
             self.assertEqual(self.request('GET','/api/navigation/geocode?q=x&mode=other&online=1',
                 headers={'X-OpenRF-Address-Consent':'yes'})[0],400)
 

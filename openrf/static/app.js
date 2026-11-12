@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPreview:null, navFitPending:false, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -670,6 +670,7 @@ function startMap() {
     const initial = state.preferredView || {center:[-98.5,39.8], zoom:2};
     state.preferredView = null;
     state.map = new maplibregl.Map({container:'map', style:`https://tiles.openfreemap.org/styles/${state.style}`, center:initial.center, zoom:initial.zoom, attributionControl:false, maplibreLogo:false});
+    syncDestinationPickMode();
     state.map.addControl(new maplibregl.NavigationControl(), 'top-right');
     // Separate location control follows zoom/compass in the native MapLibre stack.
     state.map.addControl({
@@ -694,12 +695,12 @@ function startMap() {
       openObservation(evt.lngLat.lat.toFixed(6), evt.lngLat.lng.toFixed(6));
     });
     state.map.on('click', 'survey-points', (evt) => {
-      if (state.areaChoosing || !evt.features?.length) return;
+      if (state.navPicking || state.areaChoosing || !evt.features?.length) return;
       const p = evt.features[0].properties;
       new maplibregl.Popup().setLngLat(evt.lngLat).setHTML(`<strong>${escapeHTML(p.label)}</strong><br>${escapeHTML(p.kind)} · ${escapeHTML(p.source)}<br><small>Observation position only</small>`).addTo(state.map);
     });
     state.map.on('click', 'survey-waypoints', evt => {
-      if (!evt.features?.length) return;
+      if (state.navPicking || !evt.features?.length) return;
       const w = evt.features[0].properties;
       new maplibregl.Popup().setLngLat(evt.lngLat).setHTML(`<strong>Survey waypoint #${escapeHTML(w.id)}</strong><br>Browser-reported observer position, not RF detection<br>${escapeHTML(w.note || '')}`).addTo(state.map);
     });
@@ -1059,6 +1060,7 @@ function startRasterMap(reason, view = null) {
     resize() { raster.render(); }
   };
   state.rasterMap = raster;
+  syncDestinationPickMode();
   updateOfflineAttribution();
   applyPendingLocation();
   $('map-mode').textContent = 'Try online vector';
@@ -1068,7 +1070,7 @@ function startRasterMap(reason, view = null) {
     root.dataset.rasterBound = 'true';
     let start = null;
     root.addEventListener('pointerdown',e=>{
-      if (!state.rasterMap || e.button !== 0 || e.target.closest('button, a')) return;
+      if (!state.rasterMap || state.navPicking || e.button !== 0 || e.target.closest('button, a')) return;
       state.rasterMap.stop();
       start = {x:e.clientX,y:e.clientY,center:[...state.rasterMap.center], moved:false};
       root.setPointerCapture(e.pointerId);
@@ -1087,6 +1089,7 @@ function startRasterMap(reason, view = null) {
     root.addEventListener('pointerup',e=>{
       if (!start || !state.rasterMap) return;
       const previous=start; start=null;
+      if (state.navPicking) return;
       if (previous.moved) return;
       const rect=root.getBoundingClientRect();
       const cp=worldPixel(state.rasterMap.center[0],state.rasterMap.center[1],state.rasterMap.zoom);
@@ -1349,6 +1352,7 @@ async function refreshAreaPlans(selectId=null) {
 }
 $('area-plan-choose').addEventListener('click',()=>{
   if (!state.map && !state.rasterMap) startMap();
+  if (state.navPicking) {state.navPicking=false;syncDestinationPickMode();}
   state.areaChoosing=true;state.areaFirstCorner=null;
   areaModeStatus('Click two opposite corners on the map. Map clicks will NOT create observations until selection ends.');
   $('map').scrollIntoView({block:'center',behavior:'smooth'});
@@ -1601,10 +1605,10 @@ $('map-test-provider').addEventListener('click',async()=>{
   }catch(err){$('map-provider-status').textContent=`Search test failed: ${err.message}`;}
   finally{button.disabled=false;}
 });
-function addressLookupUrl(q, final = false) {
+function addressLookupUrl(q, final = false, autocomplete = false) {
   // Public Photon is contacted only after an explicit unchecked-by-default opt-in.
   const online=$('map-online-address').checked ? '&online=1' : '';
-  return `/api/navigation/geocode?q=${encodeURIComponent(q)}${online}${final ? '&mode=final' : ''}`;
+  return `/api/navigation/geocode?q=${encodeURIComponent(q)}${online}${final ? '&mode=final' : (autocomplete ? '&mode=auto' : '')}`;
 }
 // Local saved places and typed coordinates are resolved without network access.
 // Text address suggestions query only configured local Photon or an EXPLICIT opt-in
@@ -1646,7 +1650,7 @@ async function resolveTypedPlace(query) {
     // Never use a guessed first result. Offer choices and require an explicit selection.
     if ($('map-destination-query').value.trim()===value) {
       state.navSearchCredit=reply.attribution||reply.provider||'';
-      showMapAddressMatches((reply.results||[]).map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]})));
+      showMapAddressMatches((reply.results||[]).map(d=>({name:d.name,coordinates:[d.longitude,d.latitude],source:d.source,accuracy_note:d.accuracy_note}))); 
     } else {
       for (const input of document.querySelectorAll('#nav-start-query,#nav-dest-query,.nav-stop-query')) {
         if (input.value.trim()===value) input.dispatchEvent(new Event('input'));
@@ -1722,64 +1726,144 @@ async function quickDestinationPreview(query) {
 }
 // Address autocomplete never uses the public Nominatim service.
 // Clicking a result stores its exact coordinates; typing anything new invalidates it.
+function hideMapAddressMatches() {
+  const box=$('map-address-options');
+  box.hidden=true;box.replaceChildren();
+  $('map-destination-query').setAttribute('aria-expanded','false');
+  $('map-destination-query').removeAttribute('aria-activedescendant');
+}
 function showMapAddressMatches(matches) {
   const box=$('map-address-options');
   box.replaceChildren();
-  for(const match of matches.slice(0,8)) {
+  const seen=new Set();
+  for(const match of matches) {
+    if(box.querySelectorAll('.address-option').length>=8) break;
+    if(!match || !match.name || !Array.isArray(match.coordinates)) continue;
+    const key=`${match.name.toLowerCase()}|${match.coordinates.join(',')}`;
+    if(seen.has(key)) continue;
+    seen.add(key);
     const button=document.createElement('button');button.type='button';
     button.className='address-option';button.setAttribute('role','option');
+    button.id=`map-address-option-${box.querySelectorAll('.address-option').length}`;
+    button.setAttribute('aria-selected','false');
     button.textContent=match.name;
     button.addEventListener('click',()=>{
+      // A suggestion represents a specific pinned location. Never silently
+      // route to the first fuzzy candidate.
+      state.navSearchToken++;
+      if(navAddressTimer) clearTimeout(navAddressTimer);
       state.navSelectedAddress=match;
+      navAddressCache.set(match.name,match);
       $('map-destination-query').value=match.name;
-      box.hidden=true;box.replaceChildren();
-      setMapDestinationStatus('U.S. destination selected. Press Start navigation to plan the route.');
+      hideMapAddressMatches();
+      setMapDestinationStatus(match.source==='us-census-opt-in' ?
+        'Approximate Census address-range location selected. Check the map pin and press Start navigation.' :
+        'Destination selected. Press Start navigation to calculate a road route.');
     });
     box.append(button);
   }
-  if(box.children.length && state.navSearchCredit){
+  if(box.querySelector('.address-option') && state.navSearchCredit){
     const credit=document.createElement('div');
     credit.className='address-attribution';
     credit.textContent=`Search source: ${state.navSearchCredit}`;
     box.append(credit);
   }
-  box.hidden=box.children.length===0;
+  box.hidden=!box.querySelector('.address-option');
+  $('map-destination-query').setAttribute('aria-expanded',String(!box.hidden));
+}
+function navigationSuggestionDelay(provider, query) {
+  // Public Photon is best effort and rate-limited. Dedicated/local providers
+  // can respond more quickly. Census only matches complete U.S. addresses.
+  if(provider?.local_photon || provider?.maptiler_configured) return 450;
+  return /^\d{1,8}[A-Za-z]?\s+[^,]+,\s*[^,]+,\s*[A-Za-z]{2}/.test(query) ? 850 : 1450;
+}
+function navigationLookupIsComplete(query) {
+  // Do not trigger Census for a house number or partial city. This is only a
+  // client-side hint; the backend validates again before contacting Census.
+  const parts=query.split(',').map(x=>x.trim());
+  return parts.length>=3 && /^\d{1,8}[A-Za-z]?\s+\S+/.test(parts[0]) &&
+    parts[1].length>=2 && /^[A-Za-z]{2}(?:\s+\d{0,5})?$/.test(parts[2]);
 }
 let navAddressTimer=null;
 $('map-destination-query').addEventListener('input',()=>{
+  if (state.navPickedPoint) {state.navPickedPoint=null;renderNavigationOverlay();}
   state.navSelectedAddress=null;
   state.navSearchCredit='';
   const q=$('map-destination-query').value.trim(), token=++state.navSearchToken;
-  const box=$('map-address-options');
-  box.hidden=true;box.replaceChildren();
+  hideMapAddressMatches();
   if(navAddressTimer) clearTimeout(navAddressTimer);
   if(q.length<3) return;
+  // Saved destinations are available immediately, even offline or when
+  // an external geocoder is broken. Address lookup itself is debounced.
+  const local=state.navDestinations.filter(d=>d.name.toLowerCase().includes(q.toLowerCase())).slice(0,5)
+    .map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]}));
+  if(local.length) showMapAddressMatches(local);
+  const consent=$('map-online-address').checked;
+  const localPhoton=addressProviderInfo?.local_photon;
+  if(!consent && !localPhoton) return;
+  // Without a dedicated typeahead provider, don't hammer public Photon with
+  // unfinished house-number strings. Census can match only after city/state.
+  if(!localPhoton && !addressProviderInfo?.maptiler_configured && /^\d{1,8}[A-Za-z]?\s/.test(q) &&
+     !navigationLookupIsComplete(q)) {
+    if(!local.length) setMapDestinationStatus('Finish the street, city and state (for example: 25005 State Hwy 88, Pioneer, CA) for an automatic Census match. Earlier suggestions need MapTiler or local Photon.');
+    return;
+  }
+  if(!local.length && navigationLookupIsComplete(q) && !addressProviderInfo?.maptiler_configured && !localPhoton) {
+    setMapDestinationStatus('Checking the completed U.S. street address automatically (Census address-range lookup)…');
+  }
   navAddressTimer=setTimeout(async()=>{
     try {
-      const local=state.navDestinations.filter(d=>d.name.toLowerCase().includes(q.toLowerCase())).slice(0,5)
-        .map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]}));
-      let remote=[];
-      if ($('map-online-address').checked || addressProviderInfo?.local_photon) {
-        try {
-          const reply=await api(addressLookupUrl(q));
-          remote=(reply.results||[]).map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]}));
-          if (token===state.navSearchToken) state.navSearchCredit=reply.attribution||reply.provider||'';
-          if (token===state.navSearchToken && remote.length) setMapDestinationStatus(`${remote.length} U.S. address suggestion(s) available. Select the intended location.`);
-        } catch(error) {
-          if (token===state.navSearchToken && !local.length) setMapDestinationStatus(error.message+' Open Address search setup for a MapTiler autocomplete key, or choose a destination on the map.','error');
-        }
-      }
+      // mode=auto permits an explicitly consented Census match for complete
+      // addresses BEFORE Start navigation. It never submits partial text to Census.
+      const reply=await api(addressLookupUrl(q,false,true));
       if(token!==state.navSearchToken || $('map-destination-query').value.trim()!==q) return;
-      const matches=[...local,...remote].slice(0,8);
-      showMapAddressMatches(matches);
-    }catch(error){ if(token===state.navSearchToken) setMapDestinationStatus(error.message); }
-  },1450);
+      state.navSearchCredit=reply.attribution||reply.provider||'';
+      const remote=(reply.results||[]).map(d=>({name:d.name,coordinates:[d.longitude,d.latitude],source:d.source,accuracy_note:d.accuracy_note}));
+      showMapAddressMatches([...local,...remote]);
+      if(remote.length) {
+        setMapDestinationStatus(`${remote.length} U.S. suggestion(s). Select the correct address, then Start navigation.`);
+      } else if(!local.length && navigationLookupIsComplete(q)) {
+        setMapDestinationStatus('No address match yet. Check house number, street, city and state, or choose a map point.');
+      }
+    } catch(error) {
+      if(token!==state.navSearchToken || $('map-destination-query').value.trim()!==q) return;
+      if(local.length) return;
+      const completed=navigationLookupIsComplete(q);
+      setMapDestinationStatus(completed ?
+        `Automatic address lookup is unavailable: ${error.message} Try Start navigation for a final Census lookup, or choose a point on the map.` :
+        `${error.message} For partial street-address suggestions, configure MapTiler or local Photon in Address search setup.`, 'error');
+    }
+  }, navigationSuggestionDelay(addressProviderInfo,q));
+});
+$('map-destination-query').addEventListener('keydown',event=>{
+  const box=$('map-address-options');
+  if(box.hidden) return;
+  const buttons=[...box.querySelectorAll('.address-option')];
+  if(!buttons.length) return;
+  let index=buttons.findIndex(b=>b.getAttribute('aria-selected')==='true');
+  if(event.key==='ArrowDown' || event.key==='ArrowUp') {
+    event.preventDefault();
+    index=event.key==='ArrowDown' ? (index+1)%buttons.length : (index<=0 ? buttons.length-1 : index-1);
+    buttons.forEach((b,i)=>b.setAttribute('aria-selected',String(i===index)));
+    $('map-destination-query').setAttribute('aria-activedescendant',buttons[index].id);
+    buttons[index].scrollIntoView?.({block:'nearest'});
+  } else if(event.key==='Enter') {
+    event.preventDefault();
+    buttons[index>=0?index:0].click();
+  } else if(event.key==='Escape') {
+    event.preventDefault(); hideMapAddressMatches();
+  }
+});
+$('map-destination-query').addEventListener('blur',()=>setTimeout(hideMapAddressMatches,175));
+$('map-destination-query').addEventListener('focus',()=>{
+  const q=$('map-destination-query').value.trim();
+  if(q.length>=3 && !state.navSelectedAddress) $('map-destination-query').dispatchEvent(new Event('input'));
 });
 $('map-online-address').addEventListener('change',()=>{
   // Explicit user choice is scoped to this page only, never persisted across reloads.
   state.navSearchToken++;
-  $('map-address-options').hidden=true;
-  $('map-address-options').replaceChildren();
+  if(navAddressTimer) clearTimeout(navAddressTimer);
+  hideMapAddressMatches();
   const enabled=$('map-online-address').checked;
   const named=addressProviderInfo?.maptiler_configured ? 'MapTiler' : 'the public Photon demo';
   setMapDestinationStatus(enabled ?
@@ -1809,7 +1893,7 @@ function wireTripAddressField(input) {
       let fromGeocoder=[];
       if($('map-online-address').checked || addressProviderInfo?.local_photon) {
         try {
-          const response=await api(addressLookupUrl(text));
+          const response=await api(addressLookupUrl(text,false,true));
           fromGeocoder=(response.results||[]).map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]}));
         } catch(error) {
           if(id===requestIndex && !local.length) setNavigationStatus(error.message);
@@ -1829,15 +1913,64 @@ function wireTripAddressField(input) {
         options.append(btn);
       }
       options.hidden=!options.children.length;
-    },1450);
+    },navigationSuggestionDelay(addressProviderInfo,text));
   });
   input.addEventListener('blur',()=>setTimeout(()=>{options.hidden=true;},180));
 }
 for(const id of ['nav-start-query','nav-dest-query']) wireTripAddressField($(id));
 
+// v0.2.30: explicit one-tap map destination selection. Normal map panning
+// resumes after one accepted tap; MapLibre and raster fallback share the same
+// screen-to-coordinate conversion, independent of the browser GPS marker.
+function syncDestinationPickMode() {
+  $('map').classList.toggle('destination-picking', state.navPicking);
+  for (const id of ['nav-pick-map','map-pick-destination']) {
+    $(id).setAttribute('aria-pressed', String(state.navPicking));
+  }
+  const map=state.map;
+  if (state.navPicking && map?.dragPan && state.navPickPanRestore?.map !== map) {
+    state.navPickPanRestore={map, pan:!!map.dragPan.isEnabled()};
+    map.dragPan.disable();
+  } else if (!state.navPicking && state.navPickPanRestore) {
+    const restore=state.navPickPanRestore;
+    state.navPickPanRestore=null;
+    if (restore.map===map && restore.pan) map.dragPan.enable();
+  }
+}
+function handleDestinationMapClick(event) {
+  if (!state.navPicking || (event.button !== undefined && event.button !== 0)) return;
+  // The controls, copyright disclosure and other map UI remain functional.
+  if (event.target.closest?.('.maplibregl-ctrl,.raster-control,.map-credits,.map-error,.raster-notice')) return;
+  const root=$('map'), rect=root.getBoundingClientRect();
+  const x=event.clientX-rect.left, y=event.clientY-rect.top;
+  if (!Number.isFinite(x) || !Number.isFinite(y) || x<0 || y<0 || x>rect.width || y>rect.height) return;
+  let lon, lat;
+  if (state.map && state.mapReady) {
+    const pos=state.map.unproject([x,y]);lon=pos.lng;lat=pos.lat;
+  } else if (state.rasterMap) {
+    const center=worldPixel(state.rasterMap.center[0],state.rasterMap.center[1],state.rasterMap.zoom);
+    [lon,lat]=pixelWorld(center[0]+x-rect.width/2,center[1]+y-rect.height/2,state.rasterMap.zoom);
+  } else return;
+  if (!Number.isFinite(lon) || !Number.isFinite(lat) || Math.abs(lon)>180 || Math.abs(lat)>90) return;
+  // Capture even taps on the blue GPS dot or survey pins: they must never
+  // substitute the observer position or trigger a popup / observation here.
+  event.preventDefault();event.stopImmediatePropagation();
+  consumeNavigationPick(lon,lat);
+}
+$('map').addEventListener('click',handleDestinationMapClick,true);
+window.addEventListener('keydown',event=>{
+  if (event.key==='Escape' && state.navPicking) {
+    event.preventDefault();state.navPicking=false;syncDestinationPickMode();
+    renderNavigationOverlay();setMapDestinationStatus('Map destination selection cancelled.');
+  }
+});
+
 function consumeNavigationPick(lon,lat) {
   if (!state.navPicking) return false;
+  if (!Number.isFinite(lon) || !Number.isFinite(lat) || Math.abs(lon)>180 || Math.abs(lat)>90) return false;
   state.navPicking = false;
+  state.navPickedPoint = [lon,lat];
+  syncDestinationPickMode();
   $('nav-dest-lat').value = lat.toFixed(7);
   $('nav-dest-lon').value = lon.toFixed(7);
   $('map-destination-query').value = `${lat.toFixed(7)}, ${lon.toFixed(7)}`;
@@ -1857,7 +1990,8 @@ function renderNavigationOverlay() {
     return;
   }
   const preview = state.navPreview;
-  if (!preview || (!state.mapReady && !state.rasterMap)) {
+  const picked = state.navPickedPoint;
+  if ((!preview && !picked) || (!state.mapReady && !state.rasterMap)) {
     overlay.replaceChildren(); label.hidden=true; return;
   }
   const map=$('map'), width=map.clientWidth, height=map.clientHeight;
@@ -1876,11 +2010,17 @@ function renderNavigationOverlay() {
     }
     return [NaN,NaN];
   }
-  const points=(preview.type==='ROAD_ROUTE' && Array.isArray(preview.coordinates) ? preview.coordinates :
-    (preview.coordinates || [preview.origin,...(preview.stops||[]),preview.destination]));
+  const points=preview ? (preview.type==='ROAD_ROUTE' && Array.isArray(preview.coordinates) ? preview.coordinates :
+    (preview.coordinates || [preview.origin,...(preview.stops||[]),preview.destination])) : [picked];
   const projected=points.map(project);
   if(!projected.length || projected.some(pair=>pair.some(n=>!Number.isFinite(n)))) {overlay.replaceChildren();return;}
   overlay.setAttribute('viewBox',`0 0 ${width} ${height}`);
+  if (!preview) {
+    const [x,y]=projected[0];
+    overlay.innerHTML=`<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="15" fill="#ffca65" fill-opacity=".25" stroke="#fff" stroke-width="2"/>`+
+      `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="6" fill="#ffca65"/>`;
+    label.textContent='DESTINATION PIN SELECTED · START NAVIGATION';label.hidden=false;return;
+  }
   const path=projected.map((xy,i)=>`${i?'L':'M'} ${xy[0].toFixed(2)} ${xy[1].toFixed(2)}`).join(' ');
   const last=projected[projected.length-1], first=projected[0];
   const road=preview.type==='ROAD_ROUTE' && preview.is_driving_route===true;
@@ -1989,15 +2129,22 @@ $('nav-use-location').addEventListener('click',()=>{
   },{enableHighAccuracy:true,maximumAge:0,timeout:15000});
 });
 function beginDestinationMapPick() {
-  state.navPicking=true;state.navPreview=null;state.navFitPending=false;
+  if (state.navPicking) {
+    state.navPicking=false;syncDestinationPickMode();renderNavigationOverlay();
+    setMapDestinationStatus('Map destination selection cancelled.');return;
+  }
+  if (state.areaChoosing) cancelAreaChoosing();
+  state.navPicking=true;state.navPickedPoint=null;state.navPreview=null;state.navFitPending=false;
   showPage('map',{autoLocate:false});
+  syncDestinationPickMode();
   renderNavigationOverlay();
-  setMapDestinationStatus('Tap a point on the map, then press Start navigation. No survey observation will be created.');
+  setMapDestinationStatus('Tap any point on the map once to place a destination pin, then press Start navigation. Normal panning resumes after selection. No observation will be created.');
 }
 $('nav-pick-map').addEventListener('click',beginDestinationMapPick);
 $('map-pick-destination').addEventListener('click',beginDestinationMapPick);
 $('nav-clear-preview').addEventListener('click',()=>{
-  state.navPicking=false;state.navPreview=null;state.navFitPending=false;
+  state.navPicking=false;state.navPickedPoint=null;state.navPreview=null;state.navFitPending=false;
+  syncDestinationPickMode();
   $('nav-preview-summary').textContent='';
   $('nav-directions').replaceChildren();
   setNavigationStatus('Preview cleared; saved destinations are unchanged.');

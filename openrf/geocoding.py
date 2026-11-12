@@ -165,15 +165,26 @@ def _explicitly_foreign(props):
 def _full_us_street_address(query: str):
     # City-only queries and partial house numbers cannot be resolved by Census.
     # Its one-line endpoint requires a reasonably complete street address.
-    return bool(re.match(r'^\d{1,8}[A-Za-z]?\s+\S+', query) and ',' in query and
-                len(query.split(',')) >= 2)
+    segments=[s.strip() for s in query.split(',')]
+    if len(segments) < 3 or not all(segments[:3]):
+        return False
+    street,city,state=segments[:3]
+    # Require a house number AND street, city, and an explicit U.S. state code
+    # (or state name). Never query Census for unfinished fragments such as
+    # '25005 Hwy 88, Pioneer' while the user is still typing a destination.
+    if not re.match(r'^\d{1,8}[A-Za-z]?\s+[A-Za-z0-9]', street):
+        return False
+    if not re.search(r'[A-Za-z]{2}', city):
+        return False
+    return bool(re.fullmatch(r'[A-Za-z]{2}(?:\s+\d{0,5}(?:-\d{0,4})?)?|[A-Za-z][A-Za-z .-]{3,40}(?:\s+\d{0,5})?', state, re.I))
 
 
 def _census_search(query, opener):
-    """One-shot U.S. Census street geocoder, not an autocomplete endpoint.
+    """U.S. Census street-address match (not partial-address autocomplete).
 
-    Explicitly opted-in and only used for a complete street address at route
-    submission. Coordinates are approximate TIGER address ranges.
+    Caller must opt in. A sufficiently complete address can be queried on a
+    debounced input event, or on explicit route submission. TIGER coordinates
+    are approximate and never silently selected.
     """
     url = 'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?' + urlencode({
         'address': query, 'benchmark': 'Public_AR_Current', 'format': 'json'})
@@ -211,7 +222,7 @@ def _census_search(query, opener):
             'accuracy_note':'Interpolated street address position, not verified building or entrance.'}
 
 
-def search(query: str, *, open_connection=None, online_allowed=False, final=False):
+def search(query: str, *, open_connection=None, online_allowed=False, final=False, autocomplete=False):
     if not isinstance(query, str):
         raise GeocoderError('Search text must be a string.')
     query = query.strip()
@@ -220,7 +231,7 @@ def search(query: str, *, open_connection=None, online_allowed=False, final=Fals
     active = provider(online_allowed=online_allowed)
     # A complete typed street address may be submitted even if Photon is blocked.
     # Require explicit network consent; do not send partial typed strings to Census.
-    if final and online_allowed and not os.environ.get('OPENRF_PHOTON_PORT') and \
+    if (final or autocomplete) and online_allowed and not os.environ.get('OPENRF_PHOTON_PORT') and \
        not _maptiler_key() and _full_us_street_address(query):
         census = _census_search(query, open_connection or urlopen)
         if census['results']:
