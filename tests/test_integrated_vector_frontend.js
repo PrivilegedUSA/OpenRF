@@ -21,18 +21,18 @@ assert(source.includes('house number is NOT verified') || source.includes('House
 const start=source.indexOf('function destinationWorldPoint(clientX,clientY) {');
 const end=source.indexOf('\nfunction renderNavigationOverlay()', start);
 assert(start>0 && end>start);
-const ids=['map','navigation-preview-overlay','map-destination-query','nav-dest-query','nav-dest-lat','nav-dest-lon'];
+const ids=['map','navigation-preview-overlay','map-destination-query','nav-dest-query','nav-dest-lat','nav-dest-lon','map-begin-guidance'];
 function fixture(mapKind){
  const listeners={};const elements={};
  for(const id of ids){elements[id]={value:'', listeners:{},addEventListener(type,fn,capture){this.listeners[type]=fn;}, setPointerCapture(id){this.capture=id;},hasPointerCapture(id){return this.capture===id;},releasePointerCapture(id){this.capture=null;}};}
  elements.map.getBoundingClientRect=()=>({left:100,top:200,width:320,height:200});
- const st={mapReady:mapKind==='vector',map:mapKind==='vector'?{unproject([x,y]){return{lng:x/10-121,lat:38+y/10};}}:null,
+ const st={navFollowId:null,mapReady:mapKind==='vector',map:mapKind==='vector'?{unproject([x,y]){return{lng:x/10-121,lat:38+y/10};}}:null,
    rasterMap:mapKind==='raster'?{center:[-120.6,38.45],zoom:10}:null,
    navPickedPoint:[-120.6,38.45],navPreview:null,navFitPending:false,navSelectedAddress:{name:'Old'},navPinDragging:false,navPinJustDraggedAt:0};
  const records={status:[],render:0,hide:0,observations:0};
- const obj=Function('state','$','worldPixel','pixelWorld','hideMapAddressMatches','renderNavigationOverlay','setMapDestinationStatus',
+ const obj=Function('state','$','worldPixel','pixelWorld','hideMapAddressMatches','renderNavigationOverlay','setMapDestinationStatus','stopNavigationFollow',
   `${source.slice(start,end)}\nreturn {destinationWorldPoint,updateDraggedDestination};`)(st,id=>elements[id],
-  (lon,lat,z)=>[lon*10,lat*10],(x,y,z)=>[x/10,y/10],()=>records.hide++,()=>records.render++,m=>records.status.push(m));
+  (lon,lat,z)=>[lon*10,lat*10],(x,y,z)=>[x/10,y/10],()=>records.hide++,()=>records.render++,m=>records.status.push(m),()=>{});
  return {elements,st,records,obj};
 }
 const f=fixture('vector');

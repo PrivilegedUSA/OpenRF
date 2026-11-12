@@ -586,3 +586,53 @@
 .navigation-preview-overlay .nav-draggable-pin:active{cursor:grabbing}
 .navigation-preview-overlay .nav-drag-target{pointer-events:all;cursor:grab}
 #map-vector-status{margin:10px 0 0;line-height:1.5}
+
+/* v0.2.32 — Map-first navigation HUD, one form (no duplicate controls).
+   Compact on a 5-inch 800×480 viewport; options are collapsed by default. */
+#page-map .map-wrap{height:clamp(350px,calc(100dvh - 112px),1100px)!important;min-height:350px}
+#page-map .map-destination-panel{
+ position:absolute;top:8px;left:8px;right:auto;width:min(calc(100% - 16px),520px);
+ z-index:23;margin:0;padding:9px;border:1px solid #35616b;border-radius:10px;
+ background:#101d27ef;box-shadow:0 7px 20px #01070b88;
+ max-height:min(77%,570px);overflow-y:auto;overscroll-behavior:contain;
+}
+#page-map .map-destination-panel .map-destination-form{background:none;border:0;margin:0;padding:0}
+#page-map .map-destination-form>label{font-size:11px;margin:0 0 5px}
+#page-map .map-destination-row .field{height:40px;padding:8px 10px}
+#page-map .map-pick-destination{display:inline-block;font-size:11px;padding:5px 0;margin:2px 0;border:0}
+#page-map .map-destination-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:4px}
+#page-map .map-destination-actions>.btn{display:flex;width:100%;min-width:0;white-space:normal;min-height:39px;font-size:11px;padding:8px 6px}
+#page-map .nav-follow-button{background:#174c4f;color:#cbfff2;border:1px solid #34c9b1;border-radius:7px}
+#page-map .nav-follow-button:disabled{opacity:.44;cursor:not-allowed;filter:none}
+#page-map .map-navigation-options{margin-top:3px;border-top:1px solid #35616b6e;padding-top:4px}
+#page-map .map-navigation-options>summary{cursor:pointer;font-size:11px;font-weight:700;color:#9de6d7;padding:5px 2px}
+#page-map .map-navigation-options-inner{padding:6px 2px}
+#page-map .map-navigation-options .map-online-address{display:grid;grid-template-columns:18px 1fr;gap:3px 8px}
+#page-map .map-navigation-options .map-online-address input{grid-row:1;grid-column:1}
+#page-map .map-navigation-options .map-online-address span{grid-row:1;grid-column:2}
+#page-map .map-navigation-options .map-online-address small{grid-row:2;grid-column:2}
+#page-map #map-destination-status{font-size:10px!important;line-height:1.35;margin:5px 0 0}
+#page-map #map-destination-status[hidden]{display:none!important}
+#page-map .map-provider-config{margin:4px 0 0;border-top:1px solid #35616b66;padding-top:7px}
+#page-map .map-address-input-wrap .address-suggestions{z-index:200;max-height:220px;overflow-y:auto;background:#102630}
+/* MapLibre controls, route labels and the follow HUD stay below the overlay. */
+#page-map .map-wrap .maplibregl-ctrl-top-right{top:var(--openrf-nav-overlay-bottom,160px)!important}
+#page-map .map-wrap .raster-controls{top:var(--openrf-nav-overlay-bottom,160px)!important}
+#page-map .navigation-preview-label{top:var(--openrf-nav-overlay-bottom,165px);max-width:calc(100% - 75px)}
+#page-map .map-follow-hud{position:absolute;top:var(--openrf-nav-overlay-bottom,165px);left:8px;
+ z-index:21;width:min(calc(100% - 64px),500px);padding:10px;background:#0c2530ef;
+ border:1px solid #34c9b1;border-radius:9px;box-shadow:0 5px 18px #0009;
+}
+#page-map .map-follow-hud[hidden]{display:none!important}
+#page-map .map-follow-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;font-size:12px}
+#page-map #map-follow-instruction{font-size:15px;font-weight:750;color:#e6fff9;line-height:1.35}
+#page-map #map-follow-quality{display:block;color:#9ebac2;font-size:10px;line-height:1.4;margin-top:6px}
+#page-map .map-follow-hud:not([hidden])~.navigation-preview-label{display:none}
+#page-map .navigation-preview-overlay .nav-draggable-pin{cursor:grab;pointer-events:all}
+#page-map .navigation-preview-overlay .nav-draggable-pin:active{cursor:grabbing}
+@media(max-width:550px){
+ #page-map .map-wrap{height:calc(100dvh - 95px)!important;min-height:340px}
+ #page-map .map-destination-panel{width:calc(100% - 16px);max-height:65%;padding:8px}
+ #page-map .map-destination-form>label .small{font-size:10px!important}
+ #page-map .map-destination-actions>.btn{min-height:38px}
+}

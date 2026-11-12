@@ -27,7 +27,7 @@ const crossing=preview([179,0],[-179,0]);
 assert(crossing.distance_km>200&&crossing.distance_km<240,'shortest antimeridian distance');
 assert(html.includes('id="map-destination-form"') && html.includes('id="map-trip-planner"') && html.includes('id="nav-preview-form"'));
 assert(!html.includes('id="page-navigation"'), 'no separate navigation page: map is main workspace');
-assert(html.indexOf('id="map-destination-form"') < html.indexOf('class="map-wrap"'), 'destination search above map');
+assert(html.indexOf('class="map-wrap"') < html.indexOf('id="map-destination-form"'), 'destination search overlaid inside the map');
 assert(html.indexOf('class="map-wrap"') < html.indexOf('id="map-trip-planner"'), 'trip planner below map');
 assert(html.indexOf('id="survey-waypoint-manager"') < html.indexOf('id="offline-basemap-settings"'), 'offline controls below GPS waypoints');
 assert(html.indexOf('id="offline-basemap-settings"') < html.indexOf('id="offline-map-select"'), 'offline selector inside optional settings');
@@ -158,7 +158,7 @@ assert(source.includes("'/api/navigation/geocoding/config'") && source.includes(
        'no static API key, browser uses local configuration endpoint');
 assert(css.includes('.map-destination-form .map-online-address{display:grid!important;grid-template-columns:16px'),
        'checkbox and explanatory text wrap into separate rows without two-column splitting');
-assert(source.includes('Resolving destination…') && source.includes('Destination resolved. Checking local Valhalla'),
+assert(source.includes('Resolving destination…') && source.includes('Getting directions from local Valhalla'),
        'address lookup and local road routing show distinct states');
 assert(source.includes('if(!consent && !localPhoton) return;') && source.includes("$('map-online-address').checked"),
        'autocomplete cannot send a remote request without consent');

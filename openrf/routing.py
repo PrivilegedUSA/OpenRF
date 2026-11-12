@@ -89,6 +89,7 @@ def normalize_result(data: dict, requested: list):
         directions = []
         for index, leg in enumerate(legs):
             part = decode_polyline6(leg['shape'])
+            offset = len(route) - (1 if route and part[0] == route[-1] else 0)
             if route and part[0] == route[-1]:
                 route.extend(part[1:])
             else:
@@ -96,8 +97,12 @@ def normalize_result(data: dict, requested: list):
             for maneuver in leg.get('maneuvers', []):
                 instruction = maneuver.get('instruction')
                 if isinstance(instruction, str):
+                    shape_index = maneuver.get('begin_shape_index', 0)
+                    if isinstance(shape_index, bool) or not isinstance(shape_index, int) or shape_index < 0 or shape_index >= len(part):
+                        raise ValueError('Invalid maneuver index')
                     directions.append({'leg': index + 1, 'instruction': instruction[:400],
-                                       'length_miles': round(float(maneuver.get('length', 0)), 2)})
+                                       'length_miles': round(float(maneuver.get('length', 0)), 2),
+                                       'shape_index': offset + shape_index})
             if len(route) > 100_000:
                 raise ValueError('Route too long')
     except (KeyError, ValueError, TypeError, OverflowError) as exc:

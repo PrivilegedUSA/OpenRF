@@ -14,7 +14,7 @@ assert(start>0&&end>start&&begin>0&&beginEnd>begin,'map picking functions are pr
 assert(css.includes('#map.destination-picking,#map.destination-picking:active'), 'map-specific crosshair mode');
 assert.match(css,/cursor:crosshair!important/);
 assert.match(source,/DESTINATION PLACED · DRAG PIN TO ADJUST/);
-const ids=['map','nav-pick-map','map-pick-destination','nav-dest-lat','nav-dest-lon','map-destination-query','nav-dest-query'];
+const ids=['map','map-begin-guidance','nav-pick-map','map-pick-destination','nav-dest-lat','nav-dest-lon','map-destination-query','nav-dest-query'];
 function makeHarness(type) {
   const elements=Object.fromEntries(ids.map(id=>[id,{
     value:'',attrs:{},listeners:{},
@@ -40,9 +40,9 @@ function makeHarness(type) {
   const deps=[state,id=>{assert(elements[id],`missing element: ${id}`);return elements[id];},win,
     (lon,lat,z)=>[lon*10,lat*10],(x,y,z)=>[x/10,y/10],
     ()=>{calls.render++;},msg=>calls.status.push(msg),msg=>calls.status.push(msg),
-    (...args)=>calls.pages.push(args),()=>calls.cancelArea++];
+    (...args)=>calls.pages.push(args),()=>calls.cancelArea++,()=>{}];
   const runner=Function('state','$','window','worldPixel','pixelWorld','renderNavigationOverlay',
-    'setNavigationStatus','setMapDestinationStatus','showPage','cancelAreaChoosing',
+    'setNavigationStatus','setMapDestinationStatus','showPage','cancelAreaChoosing','stopNavigationFollow',
     `${source.slice(start,end)}\n${source.slice(begin,beginEnd)}\nreturn {beginDestinationMapPick,consumeNavigationPick,handleDestinationMapClick};`);
   const actions=runner(...deps);
   const tap=(target={closest:()=>null})=>{

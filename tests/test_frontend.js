@@ -263,5 +263,6 @@ assert(src.includes("api('/api/survey/waypoints','POST'") && src.includes('new D
 assert(src.includes('function visibleWaypoints()') && src.includes("if (!$('waypoint-show-map').checked) return []"), 'waypoints are not shown without explicit map opt-in');
 assert(src.includes('survey-waypoint-data') && src.includes('raster-waypoint-pin'), 'waypoint map support exists in vector and raster modes');
 assert(src.includes("confirm('Export precise browser-reported location coordinates"), 'coordinate export explicitly warns');
-assert(!src.includes('watchPosition('), 'no background browser location tracking');
+assert(src.includes("$('map-begin-guidance').addEventListener('click'") && src.includes('navigator.geolocation.watchPosition('), 'GPS follow only starts through explicit navigation control');
+assert(src.includes('navigator.geolocation.clearWatch(state.navFollowId)') && src.includes("if(page!=='map' && state.navFollowId!==null) stopNavigationFollow()"), 'GPS follow can be stopped and never continues when navigating away');
 console.log('v0.2.20 manually saved browser waypoints, provenance, opt-in map and privacy export checks passed.');

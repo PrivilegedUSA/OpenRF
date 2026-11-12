@@ -75,6 +75,21 @@ def style(name: str, *, offline=False) -> dict:
     definition['layers']=[layer for layer in definition['layers'] if not layer['id'].startswith('openrf-') or layer['type']=='background']
     for source in list(definition['sources']):
         if source.startswith('openrf-'): del definition['sources'][source]
+    # The approved prototype omitted country labels at continental zoom.
+    # Add an OpenMapTiles place-layer label to the runtime copy, preserving the
+    # original approved JSON resources (offline regional tiles may lack countries).
+    countries = {
+        'id':'openrf-country-labels', 'type':'symbol', 'source':'openmaptiles',
+        'source-layer':'place', 'minzoom':0, 'maxzoom':5,
+        'filter':['==',['get','class'],'country'],
+        'layout':{'text-field':['coalesce',['get','name:en'],['get','name'],''],
+                  'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],0,12,4,18],
+                  'text-letter-spacing':0.12,'text-max-width':10},
+        'paint':{'text-color':'#bdd8da' if name=='dark' else '#365663',
+                 'text-halo-color':'#101d27' if name=='dark' else '#eaf1f0',
+                 'text-halo-width':1.4}
+    }
+    definition['layers'].append(countries)
     if offline:
         info=status()
         if not info['ready'] or not info['fonts_ready']:
