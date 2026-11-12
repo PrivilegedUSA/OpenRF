@@ -29,7 +29,7 @@ assert(sheet.includes('<li>') && sheet.includes('OPENRF'));
 assert(sheet.includes('no live traffic') && !sheet.includes('<script'));
 for(const id of ['map-directions-review','map-directions-list','map-print-directions','map-save-directions-html','map-save-directions-json','map-follow-distance'])
  assert(html.includes(`id="${id}"`),id);
-assert(html.includes('/static/route_guidance.js?v=0.2.36'));
+assert(html.includes('/static/route_guidance.js?v=0.2.37'));
 assert(server.includes("'/static/route_guidance.js'"));
 assert(js.includes("$('page-map').classList.add('navigation-driving')"));
 assert(js.includes('routeGuide.guidance('));
@@ -37,4 +37,4 @@ assert(js.includes('routeGuide.sheet('));
 assert(js.includes('navigator.geolocation.watchPosition('));
 assert(css.includes('navigation-driving .map-destination-panel'));
 assert(css.includes('navigation-driving .map-follow-hud'));
-console.log('v0.2.36 route geometry, incremental maneuvers, offline sheet, export controls and follow mode checks passed');
+console.log('v0.2.37 route geometry, incremental maneuvers, offline sheet, export controls and follow mode checks passed');

@@ -33,8 +33,9 @@ const {followPosition}=Function('state','$','routeGuide','updateBrowserLocationM
  src.slice(begin,end)+'; return {followPosition}')(state,$,routeGuide,()=>updates++,()=>{});
 const now=Date.now();
 followPosition({timestamp:now,coords:{latitude:38.4,longitude:-120.6,accuracy:107}});
-assert.match(elements['map-follow-instruction'].textContent,/approximate location/i);
-assert.match(elements['map-follow-planned'].textContent,/Planned \(not current\): Turn left/);
+assert.match(elements['map-follow-instruction'].textContent,/^Planned: Depart Main Street/);
+assert.match(elements['map-follow-distance'].textContent,/LIVE turn timing paused/);
+assert.match(elements['map-follow-planned'].textContent,/Planned route.*not live turn timing/);
 assert.equal(elements['map-follow-planned'].hidden,false);
 assert.equal(cam.at(-1).pitch,42); // route-aligned camera is visual, not live turn timing
 assert.match(elements['map-follow-camera-note'].textContent,/planned road/);

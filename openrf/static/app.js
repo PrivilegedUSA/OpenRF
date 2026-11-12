@@ -4,7 +4,9 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, navFollowCameraSuspended:false, navFollowLastPosition:null, rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, navFollowCameraSuspended:false, navFollowLastPosition:null,
+  navDemoActive:false,navDemoPaused:false,navDemoProgress:0,navDemoTimer:null,navDemoLastTime:0,
+  navDemoMarker:null,navDemoMarkerMap:null,navDemoFix:null,rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -1056,7 +1058,7 @@ function startRasterMap(reason, view = null) {
         pin.title=`Browser-reported survey waypoint #${w.id}; observer position, not RF detection`;
         nextPins.append(pin);
       });
-      if (state.browserLocation) {
+      if (state.browserLocation && !state.navDemoActive) {
         const p = worldPixel(state.browserLocation.lon,state.browserLocation.lat,raster.zoom);
         const dx = ((p[0]-center[0]+size*1.5)%size)-size/2;
         const dy = p[1]-center[1];
@@ -1065,6 +1067,16 @@ function startRasterMap(reason, view = null) {
           marker.style.left=`${width/2+dx}px`; marker.style.top=`${height/2+dy}px`;
           marker.title='Browser-reported location (not a transmitter or survey observation)';
           nextPins.append(marker);
+        }
+      }
+      // Explicit DEMO marker is not a browser GPS dot or recorded observation.
+      if(state.navDemoActive&&state.navDemoFix){
+        const point=worldPixel(state.navDemoFix.lon,state.navDemoFix.lat,raster.zoom);
+        const dx=((point[0]-center[0]+size*1.5)%size)-size/2,dy=point[1]-center[1];
+        if(Math.abs(dx)<=width/2+25&&Math.abs(dy)<=height/2+25){
+          const pin=document.createElement('div');pin.className='openrf-demo-position raster-demo-position';
+          pin.style.left=`${width/2+dx}px`;pin.style.top=`${height/2+dy}px`;
+          pin.title='DEMO route simulation — not a GPS fix';pin.textContent='DEMO';nextPins.append(pin);
         }
       }
       pins.replaceChildren(nextPins);
@@ -2392,7 +2404,18 @@ $('nav-destination-list').addEventListener('click',event=>{
 // provide active rerouting, spoken prompts, lane guidance, or a safety guarantee.
 // Watch positions are held only in memory and never uploaded/saved by OpenRF.
 function stopNavigationFollow(){
-  if(state.navFollowId!==null && navigator.geolocation?.clearWatch && state.navFollowId!==-1)
+  // Stop every DEMO playback interval and remove its synthetic map marker.
+  if(state.navDemoTimer!==null)clearInterval(state.navDemoTimer);
+  state.navDemoTimer=null;state.navDemoActive=false;state.navDemoPaused=false;
+  state.navDemoProgress=0;state.navDemoLastTime=0;state.navDemoFix=null;
+  if(state.navDemoMarker?.remove)state.navDemoMarker.remove();
+  state.navDemoMarker=null;state.navDemoMarkerMap=null;
+  $('page-map').classList.remove('navigation-demo');
+  const geoElement=state.geoMarker?.getElement?.();if(geoElement)geoElement.hidden=false;
+  const demoPanel=$('map-demo-panel');if(demoPanel)demoPanel.open=false;
+  const demoInfo=$('map-demo-status');if(demoInfo)demoInfo.textContent='DEMO inactive. Play simulates the Valhalla route; no GPS or recordings.';
+  $('map-demo-play').hidden=false;$('map-demo-pause').hidden=true;$('map-demo-pause').textContent='Pause';$('map-demo-end').hidden=true;
+  if(state.navFollowId!==null && state.navFollowId>=0 && navigator.geolocation?.clearWatch)
     navigator.geolocation.clearWatch(state.navFollowId);
   state.navGnssEpoch=(state.navGnssEpoch||0)+1;
   if(state.navGnssTimer!==null)clearInterval(state.navGnssTimer);
@@ -2413,7 +2436,7 @@ function navigationNearestShape(coords,lon,lat){
   return {index:0,offset_m:Infinity};
 }
 function followPosition(pos){
-  if(state.navFollowId===null)return;
+  if(state.navFollowId===null || state.navDemoActive)return;
   const route=state.navPreview;
   if(route?.type!=='ROAD_ROUTE'||!route.is_driving_route){stopNavigationFollow();return;}
   // During a fresh gpsd fix, do not overwrite the GNSS camera with a coarser
@@ -2426,10 +2449,10 @@ function followPosition(pos){
   const cameraNote=$('map-follow-camera-note');
   const distanceLabel=$('map-follow-distance');
   const planned=$('map-follow-planned');
+  const listed=routeGuide.routeSteps(route);
+  const first=listed[0];
   if(planned){
-    const listed=routeGuide.routeSteps(route);
-    const first=listed.find(t=>!/^depart\b/i.test(t.instruction))||listed[0];
-    planned.textContent=first?`Planned (not current): ${first.instruction}`:'Planned route available in turn list.';
+    planned.textContent='Planned route · next steps are listed below (not live turn timing).';
     planned.hidden=false;
   }
   if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180||
@@ -2460,8 +2483,8 @@ function followPosition(pos){
   const activeBearing=movingHeading!==null?movingHeading:0;
   let offRoute=false;
   if(!precise){
-    message.textContent=`Route follow · approximate location (±${Math.round(accuracy)} m)`;
-    distanceLabel.textContent='Live turn timing unavailable · see planned turns below';
+    message.textContent=first?`Planned: ${first.instruction}`:'Planned driving route ready';
+    distanceLabel.textContent=`Approximate location ±${Math.round(accuracy)} m · LIVE turn timing paused`;
     detail.textContent=`${sourceName} reported ±${Math.round(accuracy)} m, ${Math.round(Math.max(0,age)/1000)} s old. This is not a verified road position or driving heading. The camera may align to the PLANNED road, but that does not indicate where the vehicle is pointing. Live turn timing stays disabled. No history saved.`;
   }else{
     const progress=routeGuide.guidance(route,lon,lat,accuracy,state.navFollowProgress||0);
@@ -2586,6 +2609,107 @@ $('map-begin-guidance').addEventListener('click',()=>{
   catch(err){stopNavigationFollow();setMapDestinationStatus(`GPS follow could not start: ${err.message}`,'error');}
 });
 $('map-stop-guidance').addEventListener('click',()=>{stopNavigationFollow();setMapDestinationStatus('GPS follow stopped. Road plan remains available.');});
+// v0.2.37: Explicit, in-memory-only DEMO travel along the already confirmed
+// local Valhalla route. This is not real GPS, live navigation or an observation.
+function renderDemoRouteMarker(frame){
+  if(state.map && state.mapReady && window.maplibregl?.Marker){
+    if(state.navDemoMarker && state.navDemoMarkerMap!==state.map){
+      state.navDemoMarker.remove();state.navDemoMarker=null;
+    }
+    if(!state.navDemoMarker){
+      const node=document.createElement('div');
+      node.className='openrf-demo-position';node.textContent='DEMO';
+      node.title='DEMO route vehicle — simulated coordinates, not actual GPS';
+      state.navDemoMarker=new maplibregl.Marker({element:node,anchor:'center'}).setLngLat([frame.lon,frame.lat]).addTo(state.map);
+      state.navDemoMarkerMap=state.map;
+    }else state.navDemoMarker.setLngLat([frame.lon,frame.lat]);
+  }else if(state.rasterMap)state.rasterMap.render();
+}
+function showDemoRouteFrame(frame){
+  state.navDemoFix=frame;
+  const distance=$('map-follow-distance'),message=$('map-follow-instruction');
+  // A DEMO itinerary may advance independently of any actual browser GPS fix.
+  message.textContent=frame.arrived?'DEMO · Destination reached':
+    `DEMO · ${frame.next?.instruction||'Continue along the planned route'}`;
+  distance.textContent=frame.arrived?'Simulated trip complete':
+    `SIMULATED · ${frame.next?'Next step in '+routeGuide.distanceText(frame.next.distance_m)+' · ':''}${routeGuide.distanceText(frame.remaining_m)} remaining`;
+  $('map-follow-camera-note').textContent='DEMO camera: planned route direction only · NOT your real position or heading.';
+  $('map-follow-planned').hidden=true;
+  $('map-follow-source').textContent='DEMO / HISTORICAL TEST ONLY · No live GPS, radio observations, or tracking history.';
+  $('map-follow-quality').textContent='Simulated movement sampled from saved Valhalla route geometry. Not a receiver fix. No GPS collected, uploaded, or saved. Never use simulation for driving.';
+  $('map-demo-status').textContent=frame.arrived?'DEMO complete. Replay or Stop DEMO.':
+    `${state.navDemoPaused?'Paused':'Playing'} · ${routeGuide.distanceText(frame.along_m)} of ${routeGuide.distanceText(frame.total_m)} · ${$('map-demo-speed').value}× simulated time`;
+  renderDemoRouteMarker(frame);
+  if(state.navFollowCameraSuspended)return;
+  const now=Date.now();
+  if(now-state.navFollowLast<260)return;
+  state.navFollowLast=now;
+  if(state.map&&state.mapReady){
+    state.map.easeTo({center:[frame.lon,frame.lat],zoom:16.8,pitch:55,bearing:frame.heading,
+      offset:[0,Math.min(145,$('map').clientHeight*.29)],duration:310});
+  }else if(state.rasterMap){state.rasterMap.stop();state.rasterMap.center=[frame.lon,frame.lat];state.rasterMap.zoom=16;state.rasterMap.render();}
+}
+function advanceNavigationDemo(now){
+  if(!state.navDemoActive || !state.navPreview?.is_driving_route)return;
+  const clock=Number.isFinite(now)?now:performance.now();
+  const elapsed=state.navDemoPaused?0:Math.max(0,Math.min(2,(clock-state.navDemoLastTime)/1000));
+  state.navDemoLastTime=clock;
+  if(!state.navDemoPaused){
+    const multiplier=Math.max(1,Math.min(20,Number($('map-demo-speed').value)||5));
+    // 35 simulated driving mph, optionally accelerated for desktop review.
+    state.navDemoProgress+=elapsed*35*0.44704*multiplier;
+  }
+  const frame=routeGuide.sampleRoute(state.navPreview,state.navDemoProgress);
+  showDemoRouteFrame(frame);
+  if(frame.arrived){
+    state.navDemoPaused=true;
+    $('map-demo-pause').textContent='Replay';
+    $('map-demo-status').textContent='DEMO complete · Replay or Stop DEMO.';
+    if(state.navDemoTimer!==null)clearInterval(state.navDemoTimer);
+    state.navDemoTimer=null;
+  }
+}
+function playNavigationDemo(){
+  if(!state.navPreview?.is_driving_route || state.navFollowId===null){
+    setMapDestinationStatus('Get a real Valhalla road plan and Start navigation before testing DEMO.','error');return;
+  }
+  if(state.navDemoActive){
+    if(state.navDemoPaused && routeGuide.sampleRoute(state.navPreview,state.navDemoProgress).arrived)state.navDemoProgress=0;
+    state.navDemoPaused=false;state.navDemoLastTime=performance.now();
+    $('map-demo-pause').textContent='Pause';advanceNavigationDemo(state.navDemoLastTime);
+    if(state.navDemoTimer===null)state.navDemoTimer=setInterval(()=>advanceNavigationDemo(performance.now()),300);
+    return;
+  }
+  // DEMO explicitly replaces real GPS acquisition: no simultaneous watch/polls.
+  if(state.navFollowId>=0 && navigator.geolocation?.clearWatch)navigator.geolocation.clearWatch(state.navFollowId);
+  state.navGnssEpoch++;
+  if(state.navGnssTimer!==null)clearInterval(state.navGnssTimer);
+  state.navGnssTimer=null;state.navGnssBusy=false;state.navGnssLast=0;
+  state.navFollowId=-2;state.navDemoActive=true;state.navDemoPaused=false;
+  state.navDemoProgress=0;state.navDemoLastTime=performance.now();state.navFollowLast=0;
+  state.navFollowCameraSuspended=false;
+  $('page-map').classList.add('navigation-demo');
+  const geoElement=state.geoMarker?.getElement?.();if(geoElement)geoElement.hidden=true;
+  $('map-demo-play').hidden=true;$('map-demo-pause').hidden=false;$('map-demo-end').hidden=false;
+  $('map-demo-pause').textContent='Pause';
+  advanceNavigationDemo(state.navDemoLastTime);
+  if(!state.navDemoPaused)state.navDemoTimer=setInterval(()=>advanceNavigationDemo(performance.now()),300);
+}
+$('map-demo-play').addEventListener('click',playNavigationDemo);
+$('map-demo-pause').addEventListener('click',()=>{
+  if(!state.navDemoActive)return;
+  if(state.navDemoPaused){playNavigationDemo();return;}
+  state.navDemoPaused=true;state.navDemoLastTime=performance.now();
+  $('map-demo-pause').textContent='Resume';
+  $('map-demo-status').textContent='DEMO paused · Resume or End DEMO.';
+});
+$('map-demo-end').addEventListener('click',()=>{
+  if(!state.navDemoActive)return;
+  stopNavigationFollow();
+  setMapDestinationStatus('DEMO ended. The real road plan is still available; no GPS history was saved.');
+});
+
+
 // When leaving the map, do not silently continue collecting browser positions.
 $('map-destination-form').addEventListener('submit',async event=>{
   event.preventDefault();

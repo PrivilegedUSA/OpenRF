@@ -716,3 +716,20 @@
 
 /* v0.2.36: label route-oriented perspective separately from measured moving heading. */
 #page-map .map-follow-camera-note{display:block;margin:3px 0 5px;color:#8ee4db;font-size:10px;line-height:1.35}
+
+/* v0.2.37 — opt-in DEMO route preview, separate from browser GPS and RF data */
+#page-map .map-demo-panel{border-top:1px solid #275360;padding-top:5px;margin-top:5px}
+#page-map .map-demo-panel summary{font-size:11px;font-weight:700;color:#ffd68c;cursor:pointer}
+#page-map .map-demo-controls{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:7px 0 4px}
+#page-map .map-demo-controls .btn{font-size:11px;min-height:30px;white-space:nowrap}
+#page-map .map-demo-controls label{display:flex;align-items:center;gap:4px;font-size:11px}
+#page-map .map-demo-controls select.field{padding:3px 5px;min-height:30px;width:auto;font-size:11px}
+#page-map .map-demo-panel small{display:block;font-size:10px;color:#d2bb92;line-height:1.4;margin-top:3px}
+#page-map.navigation-demo .map-follow-hud{border:2px solid #d5a456}
+#page-map.navigation-demo #map-follow-instruction{color:#ffe1a1}
+#page-map .openrf-demo-position{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:#e7a530;border:2px solid #fff;box-shadow:0 0 0 7px #e7a53044,0 2px 6px #000a;
+  color:#101d27;font:800 8px system-ui,sans-serif;letter-spacing:-.2px;pointer-events:none}
+#page-map .raster-demo-position{position:absolute;transform:translate(-50%,-50%);z-index:8}
+#page-map.navigation-demo .browser-location-marker{display:none!important}
+@media(max-width:520px){#page-map .map-demo-panel summary{font-size:11px}#page-map .map-demo-controls{gap:4px}}

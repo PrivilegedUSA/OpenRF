@@ -43,9 +43,10 @@ const {followPosition}=Function('state','$','updateBrowserLocationMarker','stopN
  `${js.slice(start,end)};return {followPosition}`)(state,id=>els[id],()=>updates++,()=>{},routeGuide);
 const now=Date.now();
 followPosition({timestamp:now,coords:{latitude:38.4,longitude:-120.6,accuracy:107,heading:null,speed:null}});
-assert.match(els['map-follow-instruction'].textContent,/approximate location \(±107 m\)/i);
+assert.match(els['map-follow-instruction'].textContent,/^Planned: Turn right onto Ponderosa Way/);
+assert.match(els['map-follow-distance'].textContent,/Approximate location.*107 m.*LIVE turn timing paused/i);
 assert.match(els['map-follow-quality'].textContent,/not a verified road position/i);
-assert(!els['map-follow-instruction'].textContent.includes('Turn right'));
+assert(els['map-follow-instruction'].textContent.startsWith('Planned:'),'approximate fix must not be called LIVE turn guidance');
 assert.equal(camera.at(-1).zoom,15.25);
 assert.equal(camera.at(-1).pitch,42);
 assert(camera.at(-1).bearing>70 && camera.at(-1).bearing<110);

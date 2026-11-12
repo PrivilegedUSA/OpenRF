@@ -79,6 +79,35 @@
     if(distance(start,end)<2)return null;
     return {heading:bearing(start,end),offset_m:point.offset_m,along_m:point.along_m};
   }
+  // Deterministic DEMO route sampler. Uses only verified Valhalla road geometry,
+  // never calls a geolocation API and never produces a real-world observation.
+  function sampleRoute(route,meters){
+    const cumulative=routeMetric(route),coords=route.coordinates,total=cumulative.at(-1);
+    if(!Number.isFinite(meters))throw Error('Invalid simulation distance.');
+    const along=clamp(meters,0,total);
+    function sample(m){
+      if(m<=0)return coords[0].slice();
+      if(m>=total)return coords.at(-1).slice();
+      let lo=0,hi=cumulative.length-1;
+      while(lo+1<hi){const mid=(lo+hi)>>1;if(cumulative[mid]<=m)lo=mid;else hi=mid;}
+      const segment=cumulative[hi]-cumulative[lo];
+      const t=segment>0?clamp((m-cumulative[lo])/segment,0,1):0;
+      return [coords[lo][0]+(coords[hi][0]-coords[lo][0])*t,
+        coords[lo][1]+(coords[hi][1]-coords[lo][1])*t];
+    }
+    const point=sample(along),ahead=sample(Math.min(total,along+45));
+    const behind=sample(Math.max(0,along-45));
+    const target=distance(point,ahead)>2?ahead:point;
+    const origin=distance(point,ahead)>2?point:behind;
+    // At departure show the first planned maneuver as the DEMO headline;
+    // after moving ahead, continue showing upcoming turns normally.
+    const first=(route.maneuvers||[])[0];
+    const initial=(along<10 && first && first.shape_index===0 && typeof first.instruction==='string')
+      ?{...first,distance_m:0}:null;
+    const next=initial||nextTurn(route,{cumulative,along_m:along});
+    return {lon:point[0],lat:point[1],heading:distance(origin,target)>2?bearing(origin,target):0,
+      along_m:along,total_m:total,remaining_m:Math.max(0,total-along),next,arrived:along>=total-1};
+  }
   function nextTurn(route,position){
     const {cumulative,along_m}=position;
     const maneuvers=(route.maneuvers||[]).filter(m=>Number.isInteger(m.shape_index)&&m.shape_index>=0&&m.shape_index<cumulative.length&&typeof m.instruction==='string');
@@ -111,6 +140,6 @@
     const rows=steps.map(s=>`<li><strong>${htmlEscape(s.instruction)}</strong><span>${s.length_miles.toFixed(2)} mi · Leg ${s.leg}</span></li>`).join('');
     return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OpenRF Directions</title><style>body{font:16px/1.5 system-ui,Arial,sans-serif;max-width:780px;margin:32px auto;padding:0 20px;color:#182129}h1{margin-bottom:4px}header{border-bottom:2px solid #35616b;margin-bottom:20px;padding-bottom:15px}ol{padding-left:28px}li{break-inside:avoid;margin:0 0 14px;padding-left:6px}li span{display:block;color:#555;font-size:13px}footer{border-top:1px solid #aaa;padding-top:12px;color:#666;font-size:12px}@media print{body{margin:0;max-width:none;padding:0}button{display:none}}</style></head><body><header><small>OPENRF · OFFLINE-CAPABLE ROUTE SHEET</small><h1>Driving directions</h1><p><b>From:</b> ${origin}<br><b>To:</b> ${destination}</p><p><b>Distance:</b> ${miles.toFixed(2)} mi · <b>Estimated time:</b> ${minutes} min (no live traffic)</p></header><main><h2>Planned turns (${steps.length})</h2><ol>${rows}</ol></main><footer>Calculated using local Valhalla / © OpenStreetMap contributors. Planning only. Review route restrictions, signage and conditions. Not live guidance. No GPS history is included.</footer></body></html>`;
   }
-  root.OpenRFRouteGuidance=Object.freeze({distance,bearing,locate,routeVisualHeading,nextTurn,distanceText,guidance,routeSteps,sheet});
+  root.OpenRFRouteGuidance=Object.freeze({distance,bearing,locate,routeVisualHeading,sampleRoute,nextTurn,distanceText,guidance,routeSteps,sheet});
   if(typeof module!=='undefined'&&module.exports)module.exports=root.OpenRFRouteGuidance;
 })(typeof window!=='undefined'?window:globalThis);
