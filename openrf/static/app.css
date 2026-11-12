@@ -527,3 +527,9 @@
 #map-destination-status.map-route-error{color:#ffd0a0;font-weight:600}
 #map-destination-status.map-route-success{color:#8eebd4}
 @media(max-width:620px){.map-destination-row{flex-wrap:nowrap}.map-destination-row .map-address-input-wrap{flex:0 0 100%}.map-destination-actions{gap:7px}.map-online-address{flex-basis:180px}.map-destination-actions .nav-start-button{flex:0 0 auto}}
+
+/* v0.2.27: keep opt-in consent separate and give Start navigation a full touch-friendly row. */
+.map-destination-form .map-destination-actions{display:flex;flex-direction:column;align-items:stretch;gap:10px}
+.map-destination-form .map-online-address{width:100%;flex:0 0 auto}
+.map-destination-form .nav-start-button{width:100%;min-height:43px;flex:0 0 auto;display:flex}
+@media(max-width:620px){.map-destination-form .map-destination-actions{gap:9px}.map-destination-form .map-online-address{flex-basis:auto}.map-destination-form .nav-start-button{width:100%;flex-basis:auto}}

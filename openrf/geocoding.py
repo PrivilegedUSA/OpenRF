@@ -49,6 +49,36 @@ def provider(online_allowed=False):
     return 'photon-public-opt-in' if online_allowed else None
 
 
+def _photon_label(props):
+    street = str(props.get('street') or '').strip()
+    number = str(props.get('housenumber') or '').strip()
+    name = str(props.get('name') or '').strip()
+    first = ' '.join(x for x in (number, street) if x)
+    if not first:
+        first = name
+    elif name and name.casefold() not in first.casefold():
+        first = first + ' (' + name + ')'
+    parts = [first]
+    for key in ('city', 'county', 'state', 'postcode', 'country'):
+        val = str(props.get(key) or '').strip()
+        if val and val.casefold() not in {x.casefold() for x in parts}:
+            # Keep county optional for rural addresses, avoiding duplicate municipality labels.
+            if key == 'county' and props.get('city'):
+                continue
+            parts.append(val)
+    return ', '.join(parts)
+
+
+def _explicitly_foreign(props):
+    code = str(props.get('countrycode') or props.get('country_code') or '').upper().strip()
+    if code and code != 'US':
+        return True
+    country = str(props.get('country') or '').strip().casefold()
+    if country and country not in ('united states', 'united states of america', 'usa', 'us'):
+        return True
+    return False
+
+
 def search(query: str, *, open_connection=None, online_allowed=False):
     if not isinstance(query, str):
         raise GeocoderError('Search text must be a string.')
@@ -65,18 +95,18 @@ def search(query: str, *, open_connection=None, online_allowed=False):
                 raise ValueError()
         except ValueError:
             raise GeocoderError('Invalid OPENRF_PHOTON_PORT value.') from None
-        url = f'http://127.0.0.1:{port}/api?' + urlencode({'q': query, 'limit': 5, 'lang': 'en'})
+        url = f'http://127.0.0.1:{port}/api?' + urlencode({'q': query, 'countrycode': 'US', 'limit': 8, 'lang': 'en'})
     elif active == 'photon-public-opt-in':
         if len(query) < 4:
             raise GeocoderError('Enter at least 4 characters for online Photon address search.')
         if open_connection is None:
             _public_allowed()
-        url = 'https://photon.komoot.io/api/?' + urlencode({'q': query, 'limit': 5, 'lang': 'en'})
+        url = 'https://photon.komoot.io/api/?' + urlencode({'q': query, 'countrycode': 'US', 'limit': 8, 'lang': 'en'})
     else:
         key = os.environ['OPENRF_MAPTILER_KEY']
-        url = f'https://api.maptiler.com/geocoding/{quote(query, safe="")}.json?' + urlencode({'key': key, 'limit': 5, 'language': 'en', 'autocomplete': 'true'})
+        url = f'https://api.maptiler.com/geocoding/{quote(query, safe="")}.json?' + urlencode({'key': key, 'limit': 8, 'country': 'us', 'language': 'en', 'autocomplete': 'true'})
     opener = open_connection or urlopen
-    req = Request(url, headers={'User-Agent': 'OpenRF/0.2.26 (opt-in address search; personal project)', 'Accept': 'application/json'})
+    req = Request(url, headers={'User-Agent': 'OpenRF/0.2.27 (opt-in US address search; personal project)', 'Accept': 'application/json'})
     try:
         with opener(req, timeout=5) as response:
             raw = response.read(500_001)
@@ -97,16 +127,21 @@ def search(query: str, *, open_connection=None, online_allowed=False):
             if not math.isfinite(lat) or not math.isfinite(lon) or abs(lat) > 90 or abs(lon) > 180:
                 continue
             props = f.get('properties') or {}
+            if _explicitly_foreign(props):
+                continue
             name = props.get('place_name') or props.get('name') or ''
             if active in {'local-photon', 'photon-public-opt-in'}:
-                name = ', '.join(str(props[x]) for x in ('name', 'street', 'housenumber', 'city', 'state', 'country')
-                                 if props.get(x) and str(props[x]) not in str(name).split(', ')) or str(name)
+                name = _photon_label(props)
             if not isinstance(name, str) or not name.strip():
                 continue
-            result.append({'name': name[:200], 'latitude': lat, 'longitude': lon, 'source': active})
-            if len(result) >= 5:
+            result.append({'name': name[:200], 'latitude': lat, 'longitude': lon, 'source': active,
+                           'category': 'street_address' if props.get('housenumber') else 'place_or_street'})
+            if len(result) >= 8:
                 break
         except (KeyError, ValueError, TypeError, IndexError):
             continue
-    return {'results': result, 'provider': active, 'external_query': active in ('maptiler-opt-in', 'photon-public-opt-in'),
+    # Specific addresses come before city-name matches, but we never silently select one.
+    if any(c.isdigit() for c in query):
+        result.sort(key=lambda row: row['category'] != 'street_address')
+    return {'results': result, 'country_filter': 'US', 'provider': active, 'external_query': active in ('maptiler-opt-in', 'photon-public-opt-in'),
             'attribution': data.get('attribution') if active == 'maptiler-opt-in' else '© OpenStreetMap contributors / Photon (komoot)'}

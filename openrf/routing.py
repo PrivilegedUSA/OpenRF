@@ -140,3 +140,24 @@ def local_route(locations: list, *, open_connection=None, port=None):
     except (UnicodeError, json.JSONDecodeError) as exc:
         raise RouteError('Local Valhalla returned an invalid JSON response.') from exc
     return normalize_result(data, points)
+
+
+def local_status(*, open_connection=None, port=None):
+    """Probe only the loopback Valhalla HTTP service. Reachable != tile coverage."""
+    if port is None:
+        port = os.environ.get('OPENRF_VALHALLA_PORT', '8002')
+    try:
+        port = int(port)
+        if not 1 <= port <= 65535:
+            raise ValueError()
+    except (TypeError, ValueError):
+        return {'reachable': False, 'detail': 'Invalid local Valhalla port setting.'}
+    req = Request(f'http://127.0.0.1:{port}/status', headers={'Accept': 'application/json'})
+    try:
+        with (open_connection or urlopen)(req, timeout=2) as reply:
+            if reply.status != 200:
+                return {'reachable': False, 'detail': 'Local Valhalla HTTP service is not ready.'}
+            reply.read(4096)
+    except (HTTPError, URLError, TimeoutError, OSError):
+        return {'reachable': False, 'detail': 'No local Valhalla service responding. See docs/LOCAL_VALHALLA_WSL.md.'}
+    return {'reachable': True, 'detail': 'Local Valhalla responds. Road tile coverage is verified only by an actual route request.'}

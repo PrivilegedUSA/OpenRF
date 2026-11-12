@@ -1,3 +1,11 @@
+## v0.2.27 — U.S. address candidates and optional local routing installer
+
+- Search queries to Photon use the US country filter; MapTiler uses `country=us`. Explicitly foreign results are discarded, and supported street-address components are formatted in the expected U.S. order.
+- Text addresses must be selected from the results to avoid routing to an unrelated first geocoder match. Saved named destinations and coordinate pairs still resolve without geocoding.
+- The Start navigation button occupies a full-width separate row below the online-search opt-in control on touchscreen and desktop sizes.
+- An explicit local Valhalla status check and optional Docker/WSL setup helper were added. Setup downloads Northern California OSM data only when the user runs `--install`; road graphs remain private and outside Git. Road coverage, turn-by-turn guidance, and hardware performance remain unverified.
+- No required new Python dependencies, RF changes, or private database migration.
+
 ## v0.2.26 — Readable map, address-search opt-in and navigation entry cleanup
 
 - Restored the legible OpenFreeMap Liberty basemap as the default, retaining optional dark style.

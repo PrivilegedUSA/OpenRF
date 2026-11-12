@@ -1,4 +1,4 @@
-# OpenRF v0.2.26 — Map-first Routing & Address Search
+# OpenRF v0.2.27 — U.S. Address Search and Local Valhalla Setup
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.26.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.27.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.26 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.27 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.27 — U.S. destination matching and local Valhalla setup
+
+- **Start navigation** now takes its own full-width row below the opt-in search checkbox.
+- Photon and MapTiler address queries are limited to the United States. Photon street-address results include the house number, street, city and state where supplied. Choose a specific suggestion before routing; OpenRF does not silently accept a guessed first match.
+- Added a read-only local Valhalla status check on Plan a trip and an optional guided WSL/Docker helper under `tools/setup-valhalla-wsl.sh`. Valhalla itself and Northern California road data are **not** bundled, and setup has **not** been run for you. See [Local Valhalla setup](docs/LOCAL_VALHALLA_WSL.md).
+- Public Photon remains an opt-in, best-effort demonstration service, not guaranteed U.S. street-address coverage. No automatic lookups or tracking.
+- Existing reports, maps, sensor and investigation data are preserved. No database migration is required.
 
 ## v0.2.26 — Address lookup and navigation entry cleanup
 
@@ -53,7 +61,7 @@ No Python packages or virtual environment are required. Python 3.11 or newer is 
 - **Recenter button:** compact location crosshair below the map’s zoom and compass controls. A recent browser fix recenters immediately; otherwise it requests a new permitted fix without background tracking or saving.
 - **Clean map opening:** optional offline basemap and map-file controls now sit below the main map and GPS survey waypoints. The small Survey Map layout opens without those panels pushing the map down the screen. Map controls remain available under **Map settings** and Layers. Required map attribution remains accessible.
 - **Observation form:** Use my location now sits after the accuracy field, keeping coordinate and accuracy controls together. Existing secure location provenance remains unchanged.
-- **Routing architecture:** reviewed the prior Rural Route history (MapLibre, previous HERE/Google Directions and later TomTom integration). Plan a local Linux-native Valhalla adapter using OSM-derived regional road graphs, with origin/destination and maneuver data normalized through OpenRF's JSON API; no live routing engine was bundled or configured in v0.2.24. See [routing design notes](docs/ROUTING_ENGINE_DECISION.md) and [release checks](docs/RELEASE_0.2.26_TESTS.md).
+- **Routing architecture:** reviewed the prior Rural Route history (MapLibre, previous HERE/Google Directions and later TomTom integration). Plan a local Linux-native Valhalla adapter using OSM-derived regional road graphs, with origin/destination and maneuver data normalized through OpenRF's JSON API; no live routing engine was bundled or configured in v0.2.24. See [routing design notes](docs/ROUTING_ENGINE_DECISION.md) and [release checks](docs/RELEASE_0.2.24_TESTS.md).
 - No schema migration, new Python dependencies, traffic API keys, third-party location requests, RF hardware data, or changes to the local sensor system.
 
 ## v0.2.23 — Navigation foundation and compact map UI

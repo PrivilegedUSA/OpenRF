@@ -123,3 +123,17 @@ assert(source.includes('async function freshNavigationOrigin()') && source.inclu
 assert(source.includes("setMapDestinationStatus(err.message,'error')") && source.includes("finally {button.disabled=false;}"), 'route errors stay visible and button recovers');
 assert(source.includes('Direct-line reference only') && source.includes('setNavigationRoutePreview(direct)'), 'no Valhalla must still draw labeled reference');
 console.log('v0.2.26 map-first full-width destination, route action, opt-in address search and visible errors passed.');
+
+// v0.2.27 — map-first destination remains full-width, separate full-width Start navigation row.
+assert(html.includes('id="nav-check-local-router"') && html.includes('id="nav-router-status"'),
+  'the trip planner offers an explicit local Valhalla connectivity check');
+assert(css.includes('.map-destination-form .nav-start-button{width:100%'),
+  'Start navigation fills its own full-width row on touch screens');
+assert(css.includes('.map-destination-form .map-destination-actions{display:flex;flex-direction:column'),
+  'address-search consent sits above, not beside, Start navigation');
+assert(source.includes('function showMapAddressMatches(matches)') &&
+       source.includes('Select the correct U.S. address from the suggestions before starting navigation.'),
+  'ambiguous address searches must prompt selection rather than silently using first result');
+assert(!source.includes("return {name:reply.results[0].name,coordinates:"),
+  'address searches cannot silently route to the first fuzzy geocoder result');
+console.log('v0.2.27 U.S.-only destination-choice and full-width action contracts passed.');

@@ -20,6 +20,8 @@ jobs:
         run: |
           python -m compileall -q openrf
           python -m unittest discover -s tests -v
+      - name: Check optional Valhalla setup script syntax
+        run: bash -n tools/setup-valhalla-wsl.sh
       - name: Check JavaScript and mapping regressions
         run: |
           node --check openrf/static/app.js

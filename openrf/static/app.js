@@ -1589,8 +1589,16 @@ async function resolveTypedPlace(query) {
   catch (error) {
     if (!/This is an address/.test(error.message)) throw error;
     const reply=await api(addressLookupUrl(value));
-    if (!reply.results?.length) throw Error('Address not found. Try including city and state, or pick a point on the map.');
-    return {name:reply.results[0].name,coordinates:navGeometry.point(reply.results[0].latitude,reply.results[0].longitude)};
+    if (!reply.results?.length) throw Error('No U.S. address matches. Try house number, street, city and state; or choose a map point.');
+    // Never use a guessed first result. Offer choices and require an explicit selection.
+    if ($('map-destination-query').value.trim()===value) {
+      showMapAddressMatches((reply.results||[]).map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]})));
+    } else {
+      for (const input of document.querySelectorAll('#nav-start-query,#nav-dest-query,.nav-stop-query')) {
+        if (input.value.trim()===value) input.dispatchEvent(new Event('input'));
+      }
+    }
+    throw Error('Select the correct U.S. address from the suggestions before starting navigation.');
   }
 }
 function setNavigationRoutePreview(result) {
@@ -1658,6 +1666,24 @@ async function quickDestinationPreview(query) {
   return planned;
 }
 // Address autocomplete never uses the public Nominatim service.
+// Clicking a result stores its exact coordinates; typing anything new invalidates it.
+function showMapAddressMatches(matches) {
+  const box=$('map-address-options');
+  box.replaceChildren();
+  for(const match of matches.slice(0,8)) {
+    const button=document.createElement('button');button.type='button';
+    button.className='address-option';button.setAttribute('role','option');
+    button.textContent=match.name;
+    button.addEventListener('click',()=>{
+      state.navSelectedAddress=match;
+      $('map-destination-query').value=match.name;
+      box.hidden=true;box.replaceChildren();
+      setMapDestinationStatus('U.S. destination selected. Press Start navigation to plan the route.');
+    });
+    box.append(button);
+  }
+  box.hidden=box.children.length===0;
+}
 let navAddressTimer=null;
 $('map-destination-query').addEventListener('input',()=>{
   state.navSelectedAddress=null;
@@ -1677,21 +1703,9 @@ $('map-destination-query').addEventListener('input',()=>{
       } catch(error) {
         if (token===state.navSearchToken && !local.length) setMapDestinationStatus(error.message);
       }
-      if(token!==state.navSearchToken) return;
-      const matches=[...local,...remote].slice(0,7);
-      for(const match of matches) {
-        const button=document.createElement('button');button.type='button';
-        button.className='address-option';button.setAttribute('role','option');
-        button.textContent=match.name;
-        button.addEventListener('click',()=>{
-          state.navSelectedAddress=match;
-          $('map-destination-query').value=match.name;
-          box.hidden=true;box.replaceChildren();
-          setMapDestinationStatus('Address selected. Press Start navigation to request a road route from local Valhalla.');
-        });
-        box.append(button);
-      }
-      box.hidden=matches.length===0;
+      if(token!==state.navSearchToken || $('map-destination-query').value.trim()!==q) return;
+      const matches=[...local,...remote].slice(0,8);
+      showMapAddressMatches(matches);
     }catch(error){ if(token===state.navSearchToken) setMapDestinationStatus(error.message); }
   },800);
 });
@@ -1861,6 +1875,11 @@ async function previewNavigation() {
   showPage('map',{autoLocate:false});
   setTimeout(applyNavigationFit,120);
 }
+$('nav-check-local-router').addEventListener('click',async ()=>{
+  const out=$('nav-router-status');out.textContent='Checking local Valhalla…';
+  try { const reply=await api('/api/navigation/routing/status');out.textContent=reply.detail; }
+  catch(error){out.textContent=`Routing status unavailable: ${error.message}`;}
+});
 $('nav-preview-form').addEventListener('submit',async event=>{
   event.preventDefault();
   try {await previewNavigation();} catch(err){setNavigationStatus(err.message);}

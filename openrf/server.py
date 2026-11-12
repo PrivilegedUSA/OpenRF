@@ -19,7 +19,7 @@ from .map_areas import (list_areas, get_area, save_area, remove_area, area_geojs
 from .tile_archive import import_xyz_zip, TileArchiveError, MAX_ZIP_BYTES
 from .hardware import status_report, enumerate_serial_ports, serial_port_diagnostics
 from .readiness import readiness_report
-from .routing import local_route, RouteUnavailable, RouteError
+from .routing import local_route, local_status, RouteUnavailable, RouteError
 from .geocoding import search as address_search, provider as geocoder_provider, GeocoderUnavailable, GeocoderError
 from .drivers.wifi_nmcli import scan_once, WifiScanUnavailable
 from .drivers.serial_openrf import query_port, SerialSensorError
@@ -178,6 +178,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, raw, mime, {'Content-Disposition': f'{disposition}; filename="{name}"'})
             except ValueError:
                 return self._error(400, 'Invalid report selection')
+        if path == '/api/navigation/routing/status':
+            return self._json(200, local_status())
         if path == '/api/navigation/geocoding/status':
             return self._json(200, {'provider': geocoder_provider(),
                                     'enabled': bool(geocoder_provider()),

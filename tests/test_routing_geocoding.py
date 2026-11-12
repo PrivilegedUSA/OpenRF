@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openrf.routing import (RouteError, RouteUnavailable, coordinates,
-                            decode_polyline6, local_route, normalize_result)
+                            decode_polyline6, local_route, local_status, normalize_result)
 from openrf.geocoding import (GeocoderUnavailable, GeocoderError,
                               provider, search)
 from openrf.server import create_server
@@ -77,6 +77,21 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(result['maneuvers'][0]['instruction'],'Head north.')
         self.assertNotIn('police',json.dumps(result).lower())
 
+    def test_status_probe_never_routes_or_reaches_public_network(self):
+        urls=[]
+        class StatusResponse(Response):
+            status=200
+        def status_reply(req, timeout):
+            urls.append(req.full_url)
+            self.assertEqual(timeout,2)
+            return StatusResponse(b'{"version":"3.7"}')
+        online=local_status(open_connection=status_reply,port=8002)
+        self.assertTrue(online['reachable'])
+        self.assertIn('coverage',online['detail'])
+        self.assertEqual(urls,['http://127.0.0.1:8002/status'])
+        self.assertFalse(local_status(open_connection=status_reply,port='bad')['reachable'])
+        self.assertEqual(len(urls),1)
+
     def test_unavailable_never_fakes_road(self):
         def unavailable(req, timeout):
             raise OSError('connection refused')
@@ -123,6 +138,44 @@ class GeocodingTests(unittest.TestCase):
         self.assertIn('api.maptiler.com/geocoding/',urls[0])
         self.assertEqual(data['results'][0]['name'],'Example Road, California')
 
+    def test_us_only_photon_filters_and_formats_house_numbers(self):
+        urls=[]
+        def opener(req, timeout):
+            urls.append(req.full_url)
+            return Response(json.dumps({'features':[
+              {'geometry':{'coordinates':[-120.75,38.35]},'properties':{
+                'street':'Broadway','housenumber':'123','name':'Broadway',
+                'city':'Jackson','state':'California','postcode':'95642',
+                'country':'United States','countrycode':'US'}},
+              {'geometry':{'coordinates':[2.3522,48.8566]},'properties':{
+                'name':'Broadway','city':'Paris','countrycode':'FR','country':'France'}},
+              {'geometry':{'coordinates':[-120.7,38.3]},'properties':{
+                'name':'Jackson','countrycode':'US','country':'United States'}}
+            ]}).encode())
+        with patch.dict(os.environ, {'OPENRF_PHOTON_PORT':'2322','OPENRF_MAPTILER_KEY':''}):
+            data=search('123 Broadway Jackson',open_connection=opener)
+        self.assertEqual(data['country_filter'],'US')
+        self.assertEqual(len(data['results']),2)
+        self.assertEqual(data['results'][0]['name'], '123 Broadway, Jackson, California, 95642, United States')
+        self.assertEqual(data['results'][0]['category'], 'street_address')
+        self.assertIn('countrycode=US',urls[0])
+        self.assertNotIn('lat=',urls[0])
+        self.assertNotIn('lon=',urls[0])
+
+    def test_maptiler_queries_only_us_without_browser_location(self):
+        urls=[]
+        def opener(req, timeout):
+            urls.append(req.full_url)
+            return Response(json.dumps({'features':[
+                {'geometry':{'coordinates':[-120.1,38.1]},'properties':{
+                 'place_name':'Example Street, California, United States','country':'United States'}}
+            ]}).encode())
+        with patch.dict(os.environ, {'OPENRF_PHOTON_PORT':'','OPENRF_MAPTILER_KEY':'dummy'}):
+            data=search('Example Street',open_connection=opener)
+        self.assertIn('country=us',urls[0])
+        self.assertEqual(len(data['results']),1)
+        self.assertNotIn('latitude=',urls[0])
+
     def test_explicit_public_photon_permission_and_url(self):
         requests=[]
         def opener(req, timeout):
@@ -143,6 +196,7 @@ class GeocodingTests(unittest.TestCase):
         self.assertTrue(requests[0].startswith('https://photon.komoot.io/api/?'))
         self.assertNotIn('latitude=',requests[0])
         self.assertNotIn('longitude=',requests[0])
+        self.assertIn('countrycode=US',requests[0])
 
 
 class RouteHTTPTests(unittest.TestCase):
@@ -175,6 +229,14 @@ class RouteHTTPTests(unittest.TestCase):
             status,data=self.request('GET','/api/navigation/geocoding/status')
             self.assertEqual(status,200);self.assertFalse(data['enabled'])
             self.assertEqual(self.request('GET','/api/navigation/geocode?q=Jackson')[0],503)
+
+    def test_router_status_loopback_only_and_not_a_route_guarantee(self):
+        with patch('openrf.server.local_status',return_value={
+            'reachable':False,'detail':'Local Valhalla is not running'}) as mock:
+            status, data=self.request('GET','/api/navigation/routing/status')
+        self.assertEqual(status,200)
+        self.assertFalse(data['reachable'])
+        mock.assert_called_once_with()
 
     def test_public_online_lookup_must_be_individually_authorized(self):
         with patch.dict(os.environ, {'OPENRF_MAPTILER_KEY':'','OPENRF_PHOTON_PORT':''}):
