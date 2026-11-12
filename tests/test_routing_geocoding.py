@@ -133,7 +133,7 @@ class GeocodingTests(unittest.TestCase):
                 {'geometry':{'coordinates':[-120.1,38.1]},'properties':{'place_name':'Example Road, California'}}
             ]}).encode())
         with patch.dict(os.environ, {'OPENRF_PHOTON_PORT':'','OPENRF_MAPTILER_KEY':'test-secret'}):
-            data=search('Example Road',open_connection=opener)
+            data=search('Example Road',open_connection=opener,online_allowed=True)
         self.assertTrue(data['external_query'])
         self.assertIn('api.maptiler.com/geocoding/',urls[0])
         self.assertEqual(data['results'][0]['name'],'Example Road, California')
@@ -171,7 +171,7 @@ class GeocodingTests(unittest.TestCase):
                  'place_name':'Example Street, California, United States','country':'United States'}}
             ]}).encode())
         with patch.dict(os.environ, {'OPENRF_PHOTON_PORT':'','OPENRF_MAPTILER_KEY':'dummy'}):
-            data=search('Example Street',open_connection=opener)
+            data=search('Example Street',open_connection=opener,online_allowed=True)
         self.assertIn('country=us',urls[0])
         self.assertEqual(len(data['results']),1)
         self.assertNotIn('latitude=',urls[0])

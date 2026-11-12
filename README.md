@@ -1,4 +1,4 @@
-# OpenRF v0.2.28 — Address Lookup Fallback and Local Valhalla
+# OpenRF v0.2.29 — Private Address Provider Setup and Local Valhalla
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.28.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.29.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.28 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.29 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -276,3 +276,17 @@ The one-shot driver was tested with mocked NetworkManager responses, **not physi
 - Choose destination on map is now directly beside destination entry and works without internet address lookup.
 - On submit, inspect and select the returned address; do not silently route to a fuzzy or interpolated result.
 - Real road routes still depend on local Valhalla. If it is not reachable, lines are labeled direct references and **never** imply turn-by-turn navigation.
+
+
+## v0.2.29 — configure reliable U.S. address autocomplete
+
+Public Photon is a **demo service**, not a guaranteed address autocomplete backend. For more dependable U.S. suggestions, OpenRF now accepts an optional **MapTiler Geocoding API key** from its map UI:
+
+1. Create or use a MapTiler account/API key at https://cloud.maptiler.com/ (plan usage and key restrictions apply). A map tile URL or unrelated OpenMap/OpenFreeMap key is **not** a MapTiler geocoding API key.
+2. On the Survey Map, expand **Address search setup** and paste the key into **MapTiler API key**. Click **Save key locally**. Do not post or commit the key. It is stored at `~/.config/openrf/geocoding.json` in Ubuntu with owner-only file permissions; it is outside the source ZIP, updater-managed paths, and Git. You can remove it using the UI.
+3. Check **Online U.S. address search**, then open the panel and click **Test suggestions**. This tests a fixed sample city name; it sends no GPS. If the test reports HTTP 403, check the key, its permitted geocoding service and key restrictions. If DNS/TLS/proxy errors appear, check Ubuntu connectivity.
+4. Type part of a U.S. address and **select the intended suggestion**. Press **Start navigation**. Unresolved address text is never silently routed to the first fuzzy result. If local Valhalla is ready and has road coverage, the result follows actual roads. If Valhalla is unavailable, only an explicitly labeled straight line appears.
+
+The online opt-in is **off on each fresh page load**, including when a private provider is configured. Local Photon remains supported if separately installed. Without a key, public Photon may be throttled or unavailable; complete U.S. street addresses can still use the opt-in Census lookup when its service responds. Neither option guarantees street-by-street autocomplete. No address-search request automatically includes browser GPS, and no navigation request stores travel history. No geocoding service is bundled or required for manual survey features.
+
+Local Valhalla health (separate from address search): `bash tools/setup-valhalla-wsl.sh --status`. You can always choose the destination directly on the map to test routing without geocoding. This release does **not** implement continuous driving navigation, GPS-following or audible turn instructions.

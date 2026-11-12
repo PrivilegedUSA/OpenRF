@@ -1548,6 +1548,59 @@ function setMapDestinationStatus(message, kind = '') {
   el.classList.toggle('map-route-error',kind==='error');
   el.classList.toggle('map-route-success',kind==='success');
 }
+let addressProviderInfo = null;
+async function refreshAddressProviderStatus() {
+  const result=await api('/api/navigation/geocoding/status');
+  addressProviderInfo=result;
+  const label=result.local_photon ? 'Local Photon' :
+    (result.maptiler_configured ? 'MapTiler configured' : 'Public Photon (best effort)');
+  $('map-provider-summary').textContent=`· ${label}`;
+  $('map-provider-status').textContent=result.local_photon ?
+    'Local Photon is configured. Address queries stay on this device.' :
+    result.maptiler_configured ?
+      `MapTiler key stored in ${result.credential_source==='environment'?'the server environment':'private Ubuntu configuration'}. Enable online search above to send typed addresses. The key is never shown here.` :
+      'No MapTiler key saved. Public Photon is available as a best-effort option, but may be unreachable or rate-limited. Save a MapTiler key for dedicated autocomplete.';
+  return result;
+}
+refreshAddressProviderStatus().catch(err=>{$('map-provider-status').textContent=`Could not read provider settings: ${err.message}`;});
+$('map-save-provider').addEventListener('click',async()=>{
+  const key=$('map-maptiler-key').value.trim();
+  if(!key){$('map-provider-status').textContent='Enter a MapTiler API key first (or choose Remove saved key).';return;}
+  const button=$('map-save-provider');button.disabled=true;
+  try{
+    await api('/api/navigation/geocoding/config','POST',{maptiler_key:key});
+    $('map-maptiler-key').value='';
+    await refreshAddressProviderStatus();
+    $('map-provider-status').textContent+=' Key saved locally. Check Online U.S. address search, then type your destination.';
+    if($('map-online-address').checked) $('map-destination-query').dispatchEvent(new Event('input'));
+  }catch(err){$('map-provider-status').textContent=`Could not save key: ${err.message}`;}
+  finally{button.disabled=false;}
+});
+$('map-remove-provider').addEventListener('click',async()=>{
+  const button=$('map-remove-provider');button.disabled=true;
+  try{
+    await api('/api/navigation/geocoding/config','POST',{maptiler_key:''});
+    $('map-maptiler-key').value='';
+    await refreshAddressProviderStatus();
+    if(addressProviderInfo?.credential_source==='environment')
+      $('map-provider-status').textContent='A MapTiler key is still set through OPENRF_MAPTILER_KEY in Ubuntu; remove that environment variable to disable it.';
+  }catch(err){$('map-provider-status').textContent=err.message;}
+  finally{button.disabled=false;}
+});
+$('map-test-provider').addEventListener('click',async()=>{
+  if(!$('map-online-address').checked && !addressProviderInfo?.local_photon){
+    $('map-provider-status').textContent='Enable Online U.S. address search above to test an external provider.';return;
+  }
+  const button=$('map-test-provider');button.disabled=true;
+  $('map-provider-status').textContent='Testing a sample U.S. place name (not your current address or GPS)…';
+  try{
+    const results=await api(addressLookupUrl('Pioneer, California'));
+    $('map-provider-status').textContent=results.results?.length ?
+      `${results.provider} responded with ${results.results.length} U.S. suggestion(s). Try typing a destination.` :
+      `${results.provider} responded, but found no U.S. suggestions for the test query.`;
+  }catch(err){$('map-provider-status').textContent=`Search test failed: ${err.message}`;}
+  finally{button.disabled=false;}
+});
 function addressLookupUrl(q, final = false) {
   // Public Photon is contacted only after an explicit unchecked-by-default opt-in.
   const online=$('map-online-address').checked ? '&online=1' : '';
@@ -1592,6 +1645,7 @@ async function resolveTypedPlace(query) {
     if (!reply.results?.length) throw Error('No U.S. address matches. Try house number, street, city and state; or choose a map point.');
     // Never use a guessed first result. Offer choices and require an explicit selection.
     if ($('map-destination-query').value.trim()===value) {
+      state.navSearchCredit=reply.attribution||reply.provider||'';
       showMapAddressMatches((reply.results||[]).map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]})));
     } else {
       for (const input of document.querySelectorAll('#nav-start-query,#nav-dest-query,.nav-stop-query')) {
@@ -1609,6 +1663,7 @@ function setNavigationRoutePreview(result) {
   renderNavigationOverlay();
 }
 async function planRoadRoute(points) {
+  setMapDestinationStatus('Destination resolved. Checking local Valhalla road routing…');
   try {
     const data=await api('/api/navigation/route','POST',{
       locations:points.map(p=>({latitude:p[1],longitude:p[0]}))});
@@ -1682,11 +1737,18 @@ function showMapAddressMatches(matches) {
     });
     box.append(button);
   }
+  if(box.children.length && state.navSearchCredit){
+    const credit=document.createElement('div');
+    credit.className='address-attribution';
+    credit.textContent=`Search source: ${state.navSearchCredit}`;
+    box.append(credit);
+  }
   box.hidden=box.children.length===0;
 }
 let navAddressTimer=null;
 $('map-destination-query').addEventListener('input',()=>{
   state.navSelectedAddress=null;
+  state.navSearchCredit='';
   const q=$('map-destination-query').value.trim(), token=++state.navSearchToken;
   const box=$('map-address-options');
   box.hidden=true;box.replaceChildren();
@@ -1697,11 +1759,15 @@ $('map-destination-query').addEventListener('input',()=>{
       const local=state.navDestinations.filter(d=>d.name.toLowerCase().includes(q.toLowerCase())).slice(0,5)
         .map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]}));
       let remote=[];
-      try {
-        const reply=await api(addressLookupUrl(q));
-        remote=(reply.results||[]).map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]}));
-      } catch(error) {
-        if (token===state.navSearchToken && !local.length) setMapDestinationStatus(error.message+' You can still submit a complete U.S. street address using Start navigation.','error');
+      if ($('map-online-address').checked || addressProviderInfo?.local_photon) {
+        try {
+          const reply=await api(addressLookupUrl(q));
+          remote=(reply.results||[]).map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]}));
+          if (token===state.navSearchToken) state.navSearchCredit=reply.attribution||reply.provider||'';
+          if (token===state.navSearchToken && remote.length) setMapDestinationStatus(`${remote.length} U.S. address suggestion(s) available. Select the intended location.`);
+        } catch(error) {
+          if (token===state.navSearchToken && !local.length) setMapDestinationStatus(error.message+' Open Address search setup for a MapTiler autocomplete key, or choose a destination on the map.','error');
+        }
       }
       if(token!==state.navSearchToken || $('map-destination-query').value.trim()!==q) return;
       const matches=[...local,...remote].slice(0,8);
@@ -1714,9 +1780,11 @@ $('map-online-address').addEventListener('change',()=>{
   state.navSearchToken++;
   $('map-address-options').hidden=true;
   $('map-address-options').replaceChildren();
-  setMapDestinationStatus($('map-online-address').checked ?
-    'Online address search enabled. Photon provides optional suggestions; submit a complete U.S. street address for Census lookup if Photon fails. Typed addresses leave this device; GPS is not sent.' :
-    'Online address lookup off. Use saved places, coordinates or Choose on map; opt in to submit a street address.');
+  const enabled=$('map-online-address').checked;
+  const named=addressProviderInfo?.maptiler_configured ? 'MapTiler' : 'the public Photon demo';
+  setMapDestinationStatus(enabled ?
+    `Online U.S. search enabled using ${named}. Address text leaves this device; GPS isn't sent. Select a suggestion before starting.` :
+    'Online address lookup off. Saved places, coordinates, and choosing a map point still work.');
   if ($('map-destination-query').value.trim().length>=3) $('map-destination-query').dispatchEvent(new Event('input'));
 });
 
@@ -1739,11 +1807,13 @@ function wireTripAddressField(input) {
       const local=state.navDestinations.filter(d=>d.name.toLowerCase().includes(text.toLowerCase())).slice(0,5)
         .map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]}));
       let fromGeocoder=[];
-      try {
-        const response=await api(addressLookupUrl(text));
-        fromGeocoder=(response.results||[]).map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]}));
-      } catch(error) {
-        if(id===requestIndex && !local.length) setNavigationStatus(error.message);
+      if($('map-online-address').checked || addressProviderInfo?.local_photon) {
+        try {
+          const response=await api(addressLookupUrl(text));
+          fromGeocoder=(response.results||[]).map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]}));
+        } catch(error) {
+          if(id===requestIndex && !local.length) setNavigationStatus(error.message);
+        }
       }
       if(id!==requestIndex) return;
       for(const match of [...local,...fromGeocoder].slice(0,7)) {
@@ -1956,7 +2026,7 @@ $('nav-destination-list').addEventListener('click',event=>{
 });
 $('map-destination-form').addEventListener('submit',async event=>{
   event.preventDefault();
-  setMapDestinationStatus('Looking up destination and checking local Valhalla…');
+  setMapDestinationStatus('Resolving destination…');
   const button=$('map-start-navigation');button.disabled=true;
   try {await quickDestinationPreview($('map-destination-query').value);} catch(err){setMapDestinationStatus(err.message,'error');}
   finally {button.disabled=false;}

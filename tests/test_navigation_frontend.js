@@ -148,3 +148,18 @@ assert(source.includes('},1450);') && source.includes('online=1'),
 assert(html.includes('Census lookup for complete street addresses'),
   'U.S. Census geocoding is distinguished from Photon autocomplete');
 console.log('v0.2.28 map picker and consented complete-address lookup contracts passed.');
+
+// v0.2.29: reliable provider is explicitly configured, never sent as an outbound browser key.
+assert(html.includes('id="map-provider-config"') && html.includes('id="map-maptiler-key"') &&
+       html.includes('id="map-test-provider"'), 'optional private MapTiler setup is visible from the map');
+assert(html.includes('id="map-save-provider"') && html.includes('id="map-remove-provider"'),
+       'operator can store/remove a local provider key');
+assert(source.includes("'/api/navigation/geocoding/config'") && source.includes('refreshAddressProviderStatus'),
+       'no static API key, browser uses local configuration endpoint');
+assert(css.includes('.map-destination-form .map-online-address{display:grid!important;grid-template-columns:16px'),
+       'checkbox and explanatory text wrap into separate rows without two-column splitting');
+assert(source.includes('Resolving destination…') && source.includes('Destination resolved. Checking local Valhalla'),
+       'address lookup and local road routing show distinct states');
+assert(source.includes('if ($(' + "'map-online-address'" + ').checked || addressProviderInfo?.local_photon)'),
+       'autocomplete cannot send a remote request without consent');
+console.log('v0.2.29 U.S. autocomplete setup, local credentials, consent, route status and checkbox layout passed.');

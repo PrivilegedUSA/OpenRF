@@ -9,6 +9,8 @@ import json
 import math
 import os
 import re
+import tempfile
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from collections import deque
 import threading
@@ -42,12 +44,92 @@ def _public_allowed():
         _public_times.append(now)
 
 
+def _config_file():
+    """Local-only configuration, kept outside the updated Git/source tree."""
+    home = os.environ.get('OPENRF_CONFIG_HOME')
+    return (Path(home) if home else Path.home()/'.config'/'openrf') / 'geocoding.json'
+
+
+def _stored_maptiler_key():
+    path=_config_file()
+    if path.is_symlink():
+        return ''
+    try:
+        data=json.loads(path.read_text(encoding='utf-8'))
+        key=data.get('maptiler_key') if isinstance(data,dict) else None
+        return key if isinstance(key,str) and re.fullmatch(r'[A-Za-z0-9_.-]{8,256}',key) else ''
+    except (OSError, ValueError, UnicodeError):
+        return ''
+
+
+def _maptiler_key():
+    return os.environ.get('OPENRF_MAPTILER_KEY') or _stored_maptiler_key()
+
+
+def configuration_status():
+    env=bool(os.environ.get('OPENRF_MAPTILER_KEY'))
+    key=bool(_maptiler_key())
+    local=bool(os.environ.get('OPENRF_PHOTON_PORT'))
+    return {
+        'provider_when_enabled': provider(online_allowed=True),
+        'provider':provider(online_allowed=False),
+        'enabled':bool(provider(online_allowed=False)),
+        'public_opt_in_available':True,
+        'maptiler_configured':key,
+        'credential_source':'environment' if env else ('private_file' if key else None),
+        'local_photon':local,
+        'external_consent_required':not local,
+        'public_photon_guaranteed':False,
+        'census_complete_street_address_only':True,
+        'privacy':'External address requests require explicit opt-in. No browser GPS is sent to an address provider.'
+    }
+
+
+def save_maptiler_key(key):
+    """Write only the credential, atomically, as a 0600 local file."""
+    if not isinstance(key,str):
+        raise GeocoderError('Expected a MapTiler API key string.')
+    if key and not re.fullmatch(r'[A-Za-z0-9_.-]{8,256}',key):
+        raise GeocoderError('MapTiler key must be 8–256 letters, numbers, dots, dashes or underscores.')
+    path=_config_file()
+    root=path.parent
+    if path.is_symlink() or root.is_symlink():
+        raise GeocoderError('Address provider configuration cannot be a symbolic link.')
+    if not key:
+        try: path.unlink(missing_ok=True)
+        except OSError as exc: raise GeocoderError('Cannot remove private address provider configuration.') from exc
+        return configuration_status()
+    root.mkdir(mode=0o700,parents=True,exist_ok=True)
+    if root.is_symlink():
+        raise GeocoderError('Address provider configuration cannot be a symbolic link.')
+    tmp=None
+    try:
+        fd,tmp=tempfile.mkstemp(prefix='.geocoding-',suffix='.tmp',dir=root)
+        with os.fdopen(fd,'w',encoding='utf-8') as stream:
+            os.fchmod(stream.fileno(),0o600)
+            json.dump({'maptiler_key':key},stream)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(tmp,path)
+        tmp=None
+    except OSError as exc:
+        raise GeocoderError('Could not save the private address provider configuration.') from exc
+    finally:
+        if tmp:
+            try: os.unlink(tmp)
+            except OSError: pass
+    return configuration_status()
+
+
 def provider(online_allowed=False):
     if os.environ.get('OPENRF_PHOTON_PORT'):
         return 'local-photon'
-    if os.environ.get('OPENRF_MAPTILER_KEY'):
+    # A configured provider NEVER overrides the current page's consent toggle.
+    if not online_allowed:
+        return None
+    if _maptiler_key():
         return 'maptiler-opt-in'
-    return 'photon-public-opt-in' if online_allowed else None
+    return 'photon-public-opt-in'
 
 
 def _photon_label(props):
@@ -139,7 +221,7 @@ def search(query: str, *, open_connection=None, online_allowed=False, final=Fals
     # A complete typed street address may be submitted even if Photon is blocked.
     # Require explicit network consent; do not send partial typed strings to Census.
     if final and online_allowed and not os.environ.get('OPENRF_PHOTON_PORT') and \
-       not os.environ.get('OPENRF_MAPTILER_KEY') and _full_us_street_address(query):
+       not _maptiler_key() and _full_us_street_address(query):
         census = _census_search(query, open_connection or urlopen)
         if census['results']:
             return census
@@ -162,7 +244,7 @@ def search(query: str, *, open_connection=None, online_allowed=False, final=Fals
             _public_allowed()
         url = 'https://photon.komoot.io/api/?' + urlencode({'q': query, 'countrycode': 'US', 'limit': 8, 'lang': 'en'})
     else:
-        key = os.environ['OPENRF_MAPTILER_KEY']
+        key = _maptiler_key()
         url = f'https://api.maptiler.com/geocoding/{quote(query, safe="")}.json?' + urlencode({'key': key, 'limit': 8, 'country': 'us', 'language': 'en', 'autocomplete': 'true'})
     opener = open_connection or urlopen
     req = Request(url, headers={'User-Agent': 'OpenRF/0.2.28 (opt-in US address search; personal project)', 'Accept': 'application/json'})
@@ -173,9 +255,9 @@ def search(query: str, *, open_connection=None, online_allowed=False, final=Fals
                 raise GeocoderError('Geocoder response too large.')
             data = json.loads(raw)
     except HTTPError as exc:
-        raise GeocoderError(f'Address search failed (HTTP {exc.code}). Check the configured provider and quota.') from exc
+        raise GeocoderUnavailable(f'{active} returned HTTP {exc.code}. Check service availability, API-key restrictions or quota in Address search setup.') from exc
     except (URLError, TimeoutError, OSError) as exc:
-        raise GeocoderUnavailable(f'{active} address suggestions are unavailable. Complete U.S. street addresses can be submitted for Census lookup; otherwise choose a point on the map or use a saved place.') from exc
+        raise GeocoderUnavailable(f'{active} cannot reach its address service from Ubuntu (connection, TLS, DNS or proxy issue). Check internet access, or configure a MapTiler key under Address search setup.') from exc
     except (UnicodeError, json.JSONDecodeError) as exc:
         raise GeocoderError('Geocoder returned malformed JSON.') from exc
     result = []
@@ -188,7 +270,7 @@ def search(query: str, *, open_connection=None, online_allowed=False, final=Fals
             props = f.get('properties') or {}
             if _explicitly_foreign(props):
                 continue
-            name = props.get('place_name') or props.get('name') or ''
+            name = f.get('place_name') or props.get('place_name') or props.get('name') or ''
             if active in {'local-photon', 'photon-public-opt-in'}:
                 name = _photon_label(props)
             if not isinstance(name, str) or not name.strip():

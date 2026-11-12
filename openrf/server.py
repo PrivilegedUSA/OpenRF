@@ -20,7 +20,9 @@ from .tile_archive import import_xyz_zip, TileArchiveError, MAX_ZIP_BYTES
 from .hardware import status_report, enumerate_serial_ports, serial_port_diagnostics
 from .readiness import readiness_report
 from .routing import local_route, local_status, RouteUnavailable, RouteError
-from .geocoding import search as address_search, provider as geocoder_provider, GeocoderUnavailable, GeocoderError
+from .geocoding import (search as address_search, provider as geocoder_provider,
+                       configuration_status as geocoder_status, save_maptiler_key,
+                       GeocoderUnavailable, GeocoderError)
 from .drivers.wifi_nmcli import scan_once, WifiScanUnavailable
 from .drivers.serial_openrf import query_port, SerialSensorError
 from .storage import Repository, to_csv, to_geojson
@@ -181,11 +183,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/navigation/routing/status':
             return self._json(200, local_status())
         if path == '/api/navigation/geocoding/status':
-            return self._json(200, {'provider': geocoder_provider(),
-                                    'enabled': bool(geocoder_provider()),
-                                    'public_opt_in_available': True,
-                                    'us_census_full_address_available': True,
-                                    'privacy': 'Public Photon requests only with online=1 on an individual query; no outbound lookup by default.'})
+            return self._json(200, geocoder_status())
         if path == '/api/navigation/geocode':
             params = parse_qs(urlparse(self.path).query)
             if set(params) - {'q', 'online', 'mode'} or len(params.get('q', [])) != 1 or \
@@ -352,6 +350,10 @@ class Handler(BaseHTTPRequestHandler):
                     body.get('source_map_id'), body.get('output_map_id'),
                     body.get('rights_confirmed'), self.server.map_lock)
                 return self._json(201, built)
+            if path == '/api/navigation/geocoding/config':
+                if set(body) != {'maptiler_key'}:
+                    raise ValueError('Only maptiler_key may be configured.')
+                return self._json(200, save_maptiler_key(body['maptiler_key']))
             if path == '/api/navigation/route':
                 if set(body) != {'locations'}:
                     raise ValueError('Only an ordered locations array is allowed for driving routes.')

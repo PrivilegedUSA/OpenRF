@@ -1,3 +1,11 @@
+## v0.2.29 — Private MapTiler autocomplete setup and clearer map navigation
+
+- Optional MapTiler Geocoding key can be saved, tested and deleted directly from the map. Keys stay in private Ubuntu configuration outside Git; never embedded in source ZIP or returned by a status endpoint.
+- Public Photon remains a best-effort alternative. No external search happens unless the current browser page opts in, including when a MapTiler key exists.
+- Separate the address-search checkbox explanation onto a smaller second line; keep Start navigation full width.
+- Clarify address resolution versus local Valhalla route-calculation progress and errors; show search attribution with candidates.
+- Regression tests for key permissions, non-disclosure, consent, cross-origin rejection and U.S.-only suggestions; no private database migration.
+
 ## v0.2.28 — Address lookup fallback and map picker
 
 - Add explicit, opt-in U.S. Census one-line address geocoding for completed street addresses on route submission. This is **not** live autocomplete; candidate positions are approximate TIGER street ranges.
