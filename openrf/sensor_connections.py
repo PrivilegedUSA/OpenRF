@@ -25,6 +25,7 @@ class SensorDescriptor:
 
 def connections(hardware: dict) -> list[dict]:
     wifi = hardware.get('wifi_one_shot') or {}
+    ble = hardware.get('bluetooth_readiness') or {}
     return [
         SensorDescriptor('networkmanager-wifi', 'Linux Wi-Fi / NetworkManager',
             'ready' if wifi.get('possible') else 'unavailable',
@@ -37,7 +38,9 @@ def connections(hardware: dict) -> list[dict]:
             'Available ports: ' + (', '.join(hardware.get('serial_ports', [])[:8]) or 'none'),
             ('MHz', 'dBm')).__dict__,
         SensorDescriptor('linux-ble', 'Linux Bluetooth LE', 'not_implemented',
-            'Requires a BlueZ acquisition driver and supported controller. No BLE observations can be captured yet.').__dict__,
+            'Controller count: ' + str(ble.get('controller_count', 0)) +
+            '; BlueZ daemon: ' + str(ble.get('daemon', 'unknown')) +
+            '. Discovery driver not yet implemented; no BLE observations or nearby devices retrieved.').__dict__,
         SensorDescriptor('usb-sdr', 'USB software-defined radio', 'not_implemented',
             'Receiver drivers and spectrum sample pipeline are not yet connected.').__dict__,
         SensorDescriptor('external-gnss', 'External GPS / GNSS', 'not_implemented',
@@ -174,7 +177,7 @@ def verified_wifi_observation(scan: dict, network: dict, survey_location, sessio
     interface = str(scan.get('interface', 'unknown'))[:32]
     ssid = str(network.get('ssid') or '(unnamed)')[:100]
     notes = (f"NetworkManager Wi-Fi scan retrieval; SIGNAL {quality}% quality (NOT RSSI dBm). "
-             f"Channel {network.get('channel') or 'unknown'}, security {network.get('security') or 'unknown'}. "
+             f"Band {network.get('band') or 'unknown'}, mode {network.get('mode') or 'unknown'}, channel {network.get('channel') or 'unknown'}, security {network.get('security') or 'unknown'}. "
              "Beacon age not measured; cached scan results possible. "
              + ('Coordinates: browser-reported observer position, not independently verified GNSS or AP location.' if lat is not None else 'No survey coordinates recorded.'))
     return {

@@ -1,4 +1,4 @@
-# OpenRF v0.2.37 — Planned Turns & DEMO Drive Preview
+# OpenRF v0.2.38 — Wireless Survey Metadata & Map Settings Cleanup
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.37.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.38.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.37 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.38 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.38 — Wireless discovery foundation and settings gear fix
+
+- Map settings gear remains a small control at **bottom-right** next to Add and Layers even while open; close popup with a separate **X** or Escape. The bottom-left map attribution info remains unchanged.
+- One-shot NetworkManager Wi-Fi scan displays the reported BSSID, frequency, band, channel, security, mode, advertised AP rate and signal **quality %**, with band and SSID/BSSID filters. It does not invent RF hardware, RSSI/dBm, accurate AP distance or transmitter locations. Requires a compatible Linux-visible Wi-Fi adapter and nmcli. Survey saving still requires the actual server scan receipt.
+- Linux Bluetooth readiness checks hci controller visibility and BlueZ responsiveness. **No BLE device scan** or nearby-device tracking is implemented yet.
+- Fix serial HTTP probe/snapshot lock ordering that can cause an intermittent CI failure. This is a code-level fix, not confirmation of a successful GitHub run.
+- All existing custom Dark/Light maps, Valhalla routing, offline road/tile resources, navigation DEMO, observation records and Android archive remain in the source. No SQLite migration. See [v0.2.38 test plan](docs/RELEASE_0.2.38_TESTS.md).
 
 ## v0.2.37 — Real code: planned directions headline and opt-in DEMO route drive
 

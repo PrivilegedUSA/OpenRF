@@ -437,6 +437,7 @@ function renderHardware() {
     `Network interfaces: ${hw.network_interfaces.join(', ') || 'none'}`,
     `Linux Wi-Fi interfaces: ${hw.network_details?.filter(n=>n.wireless).map(n=>n.name).join(', ') || 'none visible'}`,
     `Bluetooth controller interfaces: ${hw.bluetooth_adapters?.join(', ') || 'none visible'}`,
+    `Bluetooth readiness: ${hw.bluetooth_readiness?.reason || 'unknown'}; no BLE scan running`,
     `NetworkManager utility: ${hw.command_availability.nmcli ? 'present' : 'not found'}`,
     `BlueZ utility: ${hw.command_availability.bluetoothctl ? 'present' : 'not found'}`,
     `RF tools: ${['iw','rtl_test','hackrf_info','gpsd'].filter(x=>hw.command_availability[x]).join(', ') || 'none found'}`,
@@ -497,6 +498,23 @@ function setMapSurveyOpen(open) {
   $('map-survey-panel').hidden = !open;
   $('map-survey-toggle').setAttribute('aria-expanded', String(open));
 }
+function wifiBandLabel(record) {
+  if (record.band) return record.band;
+  const mhz = Number(record.frequency_mhz);
+  if (mhz >= 2300 && mhz <= 2500) return '2.4 GHz';
+  if (mhz >= 4900 && mhz < 5925) return '5 GHz';
+  if (mhz >= 5925 && mhz <= 7125) return '6 GHz';
+  if (mhz >= 57000 && mhz <= 71000) return '60 GHz';
+  return 'Other / unknown';
+}
+function filteredWifiRecords(scan, band, text) {
+  const term = (text || '').toLocaleLowerCase().trim();
+  return (scan?.records || []).filter(n => {
+    const value = wifiBandLabel(n);
+    const bandOK = band === 'all' || (band === 'other' ? !['2.4 GHz','5 GHz','6 GHz'].includes(value) : value === band);
+    return bandOK && (!term || `${n.ssid || ''} ${n.bssid || ''}`.toLocaleLowerCase().includes(term));
+  }).slice().sort((a,b) => (b.signal_quality_percent ?? -1) - (a.signal_quality_percent ?? -1));
+}
 function renderWifiScan() {
   const out = $('live-wifi-results');
   if (!out) return;
@@ -505,10 +523,13 @@ function renderWifiScan() {
     out.innerHTML = '<div class="empty">No one-shot Wi-Fi survey has been requested. Results are shown only when a real Linux interface responds.</div>';
     return;
   }
-  const entries = scan.records || [];
-  out.innerHTML = `<p class="tiny">${escapeHTML(scan.interface)} · Retrieved ${escapeHTML(stamp(scan.retrieved_at_utc))} · ${entries.length} access point(s). ${escapeHTML(scan.freshness)}. Quality % is not RSSI in dBm. No GPS or transmitter coordinates.</p>` +
-    (entries.length ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>SSID</th><th>BSSID</th><th>FREQ.</th><th>CHANNEL</th><th>QUALITY</th><th>SECURITY</th><th>SAVE</th></tr></thead><tbody>${entries.map(n=>`<tr><td data-label="SSID">${escapeHTML(n.ssid)}</td><td data-label="BSSID">${escapeHTML(n.bssid)}</td><td data-label="Frequency">${format(n.frequency_mhz,' MHz')}</td><td data-label="Channel">${format(n.channel)}</td><td data-label="Quality">${format(n.signal_quality_percent,'%')}</td><td data-label="Security">${escapeHTML(n.security)}</td><td data-label="Save"><button type="button" class="btn mini outline" data-save-wifi="${escapeHTML(n.bssid)}" ${scan.scan_id ? '' : 'disabled'}>Save</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">NetworkManager returned no access points. This does not prove the area has no wireless signals.</div>');
+  const all = scan.records || [];
+  const entries = filteredWifiRecords(scan, $('wifi-results-band').value, $('wifi-results-search').value);
+  const bands = ['2.4 GHz','5 GHz','6 GHz'].map(b => `${b}: ${all.filter(x => wifiBandLabel(x) === b).length}`).join(' · ');
+  out.innerHTML = `<p class="tiny">${escapeHTML(scan.interface)} · Retrieved ${escapeHTML(stamp(scan.retrieved_at_utc))} · ${all.length} returned, ${entries.length} shown · ${escapeHTML(bands)}. ${escapeHTML(scan.freshness)}. Quality % is NOT RSSI/dBm. AP RATE is advertised, not measured throughput. No AP position inferred.</p>` +
+    (entries.length ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>SSID</th><th>BSSID</th><th>BAND</th><th>FREQ.</th><th>CHANNEL</th><th>QUALITY</th><th>SECURITY</th><th>MODE</th><th>RATE*</th><th>SAVE</th></tr></thead><tbody>${entries.map(n=>`<tr><td data-label="SSID">${escapeHTML(n.ssid)}</td><td data-label="BSSID">${escapeHTML(n.bssid)}</td><td data-label="Band">${escapeHTML(wifiBandLabel(n))}</td><td data-label="Frequency">${format(n.frequency_mhz,' MHz')}</td><td data-label="Channel">${format(n.channel)}</td><td data-label="Quality">${format(n.signal_quality_percent,'%')}</td><td data-label="Security">${escapeHTML(n.security)}</td><td data-label="Mode">${escapeHTML(n.mode || 'Unknown')}</td><td data-label="Advertised rate">${escapeHTML(n.advertised_rate || 'Unknown')}</td><td data-label="Save"><button type="button" class="btn mini outline" data-save-wifi="${escapeHTML(n.bssid)}" ${scan.scan_id ? '' : 'disabled'}>Save</button></td></tr>`).join('')}</tbody></table></div>` : `<div class="empty">${all.length ? 'No networks match the filters; change the band or search text.' : 'NetworkManager returned no access points. This does not prove the area has no wireless signals.'}</div>`);
 }
+for (const id of ['wifi-results-band','wifi-results-search']) $(id).addEventListener(id.endsWith('band') ? 'change' : 'input', renderWifiScan);
 
 // Historical charts use exactly the same identity contract as the comparison
 // engine; selecting an identifier never silently mixes devices, frequencies or %/dBm.
@@ -2028,6 +2049,19 @@ $('map-online-address').addEventListener('change',()=>{
   if ($('map-destination-query').value.trim().length>=3) $('map-destination-query').dispatchEvent(new Event('input'));
 });
 
+
+// The settings gear stays in its lower-right map-control slot when open.
+// Close the floating panel with its dedicated X, never by moving the gear.
+$('map-settings-close').addEventListener('click',()=>{
+  $('map-navigation-options').open=false;
+  $('map-navigation-options').querySelector('summary').focus();
+});
+window.addEventListener('keydown',event=>{
+  if(event.key==='Escape' && $('map-navigation-options').open){
+    $('map-navigation-options').open=false;
+    $('map-navigation-options').querySelector('summary').focus();
+  }
+});
 
 // Reuse the same opt-in address provider for trip start, stops, and destination.
 function wireTripAddressField(input) {

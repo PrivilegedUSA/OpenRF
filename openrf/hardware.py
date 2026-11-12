@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Protocol
 from .drivers.wifi_nmcli import linux_wifi_interfaces
+from .drivers.ble_readiness import readiness as ble_readiness
 
 
 @dataclass(frozen=True)
@@ -130,11 +131,8 @@ def status_report() -> dict:
         names = []
     network = [{'name': name, 'wireless': (net / name / 'wireless').exists() or
                 (net / name / 'phy80211').exists()} for name in names]
-    bluetooth_root = Path('/sys/class/bluetooth')
-    try:
-        bluetooth_adapters = sorted(p.name for p in bluetooth_root.iterdir() if p.name.startswith('hci')) if bluetooth_root.is_dir() else []
-    except OSError:
-        bluetooth_adapters = []
+    ble = ble_readiness()
+    bluetooth_adapters = ble['controllers']
     usb_devices = enumerate_usb_devices()
     serial_ports = enumerate_serial_ports()
     serial_details = serial_port_diagnostics()
@@ -183,6 +181,7 @@ def status_report() -> dict:
         'network_interfaces': names,
         'network_details': network,
         'bluetooth_adapters': bluetooth_adapters,
+        'bluetooth_readiness': ble,
         'usb_devices': usb_devices,
         'serial_ports': serial_ports,
         'serial_port_diagnostics': serial_details,

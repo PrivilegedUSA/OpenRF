@@ -1,3 +1,11 @@
+## v0.2.38 — Real Wi-Fi survey details, BLE readiness and persistent map settings gear (2026-11-12)
+
+- **User-requested map settings cleanup:** keep the compact gear anchored at bottom-right next to Add and Layers while the settings popup is open. The popup has its own accessible **X** close button and also closes on Escape. Original lower-left map credits/info stay untouched. The MapTiler key remains private and unchanged; no geocoding credentials in the ZIP.
+- **Actual Linux NetworkManager one-shot Wi-Fi:** request optional `MODE` and advertised `RATE` along with SSID, BSSID, channel, center frequency, signal-quality percentage and security. Label observed frequency bands 2.4/5/6/60 GHz (or unknown); allow local band and SSID/BSSID filtering and sorted quality display. Signal % is **NOT calibrated RSSI**, advertised RATE is not observed data throughput. Do not infer AP location from observer GPS. Existing manual save, evidence provenance and 10-minute scan receipt stay intact.
+- **Read-only Bluetooth readiness:** inventory Linux hci controller presence and whether the BlueZ control daemon responds, without starting pairing, scanning, advertising or collecting Bluetooth addresses. BLE discovery remains **not implemented**, even if hardware is visible. Windows built-in wireless may be unavailable to WSL.
+- **GitHub CI USB serial race:** release the per-server serial exchange lock before sending the HTTP response so a client sending a snapshot immediately after a probe response cannot encounter an artificial busy response. Still lock actual transactions. An isolated GitHub runner remains unverified.
+- No new required runtime libraries, migrations, credentials, fake RF observations or hardware assumptions. All sources remain in project/, private data outside project/, with the approved OpenRF map sources unchanged.
+
 ## v0.2.37 — Actual code: labeled DEMO route travel and planned maneuver headline (2026-11-12)
 
 - **Make the first Valhalla maneuver the main follow banner even with desktop ±100 m location**, using the explicit prefix **Planned:** and a separate accuracy line saying that LIVE timing is paused. No false road position or unsafe “turn now” is generated.

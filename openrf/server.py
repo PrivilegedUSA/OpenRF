@@ -431,8 +431,9 @@ class Handler(BaseHTTPRequestHandler):
                 session_id = int(path.split('/')[3])
                 return self._json(200, {'stopped': self.repo.stop_session(session_id)})
             if path in ('/api/sensors/serial/probe', '/api/sensors/serial/snapshot'):
-                # Browser can choose a currently inventoried port, not send sensor
-                # values. One physical protocol exchange, initiated by the user.
+                # Serialize the physical exchange, but RELEASE the mutex before
+                # writing HTTP response bytes. Clients can issue the next request
+                # immediately upon receiving a response (probe -> snapshot).
                 allowed = {'port'} if path.endswith('/probe') else {'port', 'survey_location', 'session_id'}
                 if set(body) - allowed:
                     raise ValueError('Unexpected fields: measured data cannot be submitted by the browser.')
@@ -442,25 +443,30 @@ class Handler(BaseHTTPRequestHandler):
                     port = body.get('port')
                     current_ports = enumerate_serial_ports()
                     if port not in current_ports or not isinstance(port, str):
-                        return self._error(409, 'Selected USB serial port is unavailable; refresh hardware inventory.')
-                    try:
-                        result = query_port(port, current_ports, snapshot=path.endswith('/snapshot'))
-                    except SerialSensorError as exc:
-                        self.server.serial_last_probe = {'port': port, 'status': 'failed',
-                            'detail': str(exc), 'error_code': exc.code, 'at_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
-                        return self._error(409, str(exc), error_code=exc.code)
-                    self.server.serial_last_probe = {'port': port, 'status': 'responding',
-                        'hardware_id': result['hardware_id'], 'firmware_version': result.get('firmware_version'),
-                        'at_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
-                        'identity_verified': False}
-                    if path.endswith('/probe'):
-                        return self._json(200, result)
-                    details = browser_location_details(body.get('survey_location'))
-                    session_id = body.get('session_id')
-                    return self._json(201, {'capture': self.repo.store_serial_capture(result, session_id, details),
-                                             'snapshot': result})
+                        reply_status, reply = 409, {'error': 'Selected USB serial port is unavailable; refresh hardware inventory.'}
+                    else:
+                        try:
+                            result = query_port(port, current_ports, snapshot=path.endswith('/snapshot'))
+                        except SerialSensorError as exc:
+                            self.server.serial_last_probe = {'port': port, 'status': 'failed',
+                                'detail': str(exc), 'error_code': exc.code,
+                                'at_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
+                            reply_status, reply = 409, {'error': str(exc), 'error_code': exc.code}
+                        else:
+                            self.server.serial_last_probe = {'port': port, 'status': 'responding',
+                                'hardware_id': result['hardware_id'], 'firmware_version': result.get('firmware_version'),
+                                'at_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+                                'identity_verified': False}
+                            if path.endswith('/probe'):
+                                reply_status, reply = 200, result
+                            else:
+                                details = browser_location_details(body.get('survey_location'))
+                                session_id = body.get('session_id')
+                                reply_status, reply = 201, {'capture': self.repo.store_serial_capture(result, session_id, details),
+                                                            'snapshot': result}
                 finally:
                     self.server.serial_lock.release()
+                return self._json(reply_status, reply)
             if path == '/api/wifi/scan':
                 # Explicit foreground scan only. No background process or sensor data storage.
                 if not self.server.wifi_scan_lock.acquire(blocking=False):

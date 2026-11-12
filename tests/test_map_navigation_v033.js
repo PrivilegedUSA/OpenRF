@@ -19,6 +19,7 @@ assert(html.includes('class="map-navigation-options map-navigation-settings"'));
 assert(html.includes('aria-label="Address search and navigation settings"'));
 assert(html.includes('class="map-follow-details"'));
 assert(css.includes('#page-map .map-navigation-settings[open]'));
+assert(html.includes('id="map-settings-close"') && css.includes('.map-settings-popup'), 'persistent gear with separate X-close panel');
 assert(css.includes('bottom:50px;left:8px'));
 assert(js.includes("$('map-online-address').checked=stored === null ? true : stored === 'on'"));
 assert(js.includes("window.localStorage?.setItem('openrf-address-online'"));
