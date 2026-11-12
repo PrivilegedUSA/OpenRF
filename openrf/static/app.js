@@ -4,10 +4,11 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'dark', rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPreview:null, navFitPending:false, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPreview:null, navFitPending:false, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
+  if (url.startsWith('/api/navigation/geocode?') && url.includes('&online=1')) options.headers['X-OpenRF-Address-Consent']='yes';
   if (body !== null) { options.headers['Content-Type'] = 'application/json'; options.body = JSON.stringify(body); }
   const res = await fetch(url, options);
   const json = await res.json();
@@ -1541,7 +1542,17 @@ function navigationInputPoint(prefix) {
 }
 const navAddressCache=new Map();
 function setNavigationStatus(message) { $('nav-status').textContent=message; }
-function setMapDestinationStatus(message) { $('map-destination-status').textContent=message; }
+function setMapDestinationStatus(message, kind = '') {
+  const el=$('map-destination-status');
+  el.textContent=message;
+  el.classList.toggle('map-route-error',kind==='error');
+  el.classList.toggle('map-route-success',kind==='success');
+}
+function addressLookupUrl(q) {
+  // Public Photon is contacted only after an explicit unchecked-by-default opt-in.
+  const online=$('map-online-address').checked ? '&online=1' : '';
+  return `/api/navigation/geocode?q=${encodeURIComponent(q)}${online}`;
+}
 // Local saved places and typed coordinates are resolved without network access.
 // Text address suggestions query only configured local Photon or an EXPLICIT opt-in
 // MapTiler provider; never send browser location automatically to the geocoder.
@@ -1577,7 +1588,7 @@ async function resolveTypedPlace(query) {
   try { return findLocalDestination(value,state.navDestinations); }
   catch (error) {
     if (!/This is an address/.test(error.message)) throw error;
-    const reply=await api(`/api/navigation/geocode?q=${encodeURIComponent(value)}`);
+    const reply=await api(addressLookupUrl(value));
     if (!reply.results?.length) throw Error('Address not found. Try including city and state, or pick a point on the map.');
     return {name:reply.results[0].name,coordinates:navGeometry.point(reply.results[0].latitude,reply.results[0].longitude)};
   }
@@ -1612,15 +1623,36 @@ async function planRoadRoute(points) {
     return {road:null,text:`Road routing unavailable: ${err.message} Direct-line reference only — do not drive along this line.`};
   }
 }
+async function freshNavigationOrigin() {
+  if (state.navOriginManual) return navigationInputPoint('nav-start');
+  try { return locationForQuickPreview(); }
+  catch (error) {
+    if (!navigator.geolocation) throw error;
+  }
+  setMapDestinationStatus('Getting a fresh browser position for the starting point…');
+  const position=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,
+    {enableHighAccuracy:true,maximumAge:0,timeout:15000})).catch(err=>{
+      throw Error(`Could not get starting location (${err.code===1?'permission denied':err.code===3?'timed out':'position unavailable'}). Check browser permissions or set an origin in Plan a trip.`);
+    });
+  const {latitude,longitude,accuracy}=position.coords||{};
+  const age=(Date.now()-position.timestamp)/1000;
+  if (!Number.isFinite(latitude)||Math.abs(latitude)>90||!Number.isFinite(longitude)||Math.abs(longitude)>180||
+      !Number.isFinite(accuracy)||accuracy<0||!Number.isFinite(age)||age< -5||age>60) {
+    throw Error('New browser position was invalid or stale. Choose a starting point in Plan a trip.');
+  }
+  state.browserLocation={lat:latitude,lon:longitude,accuracy,capturedAt:Date.now()};
+  updateBrowserLocationMarker();
+  return [longitude,latitude];
+}
 async function quickDestinationPreview(query) {
   const chosen=await resolveTypedPlace(query);
-  const origin=state.navOriginManual ? navigationInputPoint('nav-start') : locationForQuickPreview();
+  const origin=await freshNavigationOrigin();
   $('nav-dest-name').value=chosen.name;
   $('nav-dest-query').value=chosen.name;
   $('nav-dest-lat').value=chosen.coordinates[1];
   $('nav-dest-lon').value=chosen.coordinates[0];
   const planned=await planRoadRoute([origin,chosen.coordinates]);
-  setMapDestinationStatus(`${chosen.name} · ${planned.text}`);
+  setMapDestinationStatus(`${chosen.name} · ${planned.text}`, planned.road ? 'success' : 'error');
   $('nav-preview-summary').textContent=planned.text;
   if(planned.road) setNavigationStatus(planned.text);
   return planned;
@@ -1640,7 +1672,7 @@ $('map-destination-query').addEventListener('input',()=>{
         .map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]}));
       let remote=[];
       try {
-        const reply=await api(`/api/navigation/geocode?q=${encodeURIComponent(q)}`);
+        const reply=await api(addressLookupUrl(q));
         remote=(reply.results||[]).map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]}));
       } catch(error) {
         if (token===state.navSearchToken && !local.length) setMapDestinationStatus(error.message);
@@ -1655,13 +1687,23 @@ $('map-destination-query').addEventListener('input',()=>{
           state.navSelectedAddress=match;
           $('map-destination-query').value=match.name;
           box.hidden=true;box.replaceChildren();
-          setMapDestinationStatus('Address selected. Press Route to calculate with local Valhalla.');
+          setMapDestinationStatus('Address selected. Press Start navigation to request a road route from local Valhalla.');
         });
         box.append(button);
       }
       box.hidden=matches.length===0;
     }catch(error){ if(token===state.navSearchToken) setMapDestinationStatus(error.message); }
-  },400);
+  },800);
+});
+$('map-online-address').addEventListener('change',()=>{
+  // Explicit user choice is scoped to this page only, never persisted across reloads.
+  state.navSearchToken++;
+  $('map-address-options').hidden=true;
+  $('map-address-options').replaceChildren();
+  setMapDestinationStatus($('map-online-address').checked ?
+    'Online Photon enabled for typed address searches. These queries leave this device; no GPS position is sent. Service may be rate-limited.' :
+    'Online address lookup off. Saved destinations, coordinates, and configured local search remain available.');
+  if ($('map-destination-query').value.trim().length>=3) $('map-destination-query').dispatchEvent(new Event('input'));
 });
 
 
@@ -1684,7 +1726,7 @@ function wireTripAddressField(input) {
         .map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]}));
       let fromGeocoder=[];
       try {
-        const response=await api(`/api/navigation/geocode?q=${encodeURIComponent(text)}`);
+        const response=await api(addressLookupUrl(text));
         fromGeocoder=(response.results||[]).map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]}));
       } catch(error) {
         if(id===requestIndex && !local.length) setNavigationStatus(error.message);
@@ -1703,7 +1745,7 @@ function wireTripAddressField(input) {
         options.append(btn);
       }
       options.hidden=!options.children.length;
-    },400);
+    },800);
   });
   input.addEventListener('blur',()=>setTimeout(()=>{options.hidden=true;},180));
 }
@@ -1717,7 +1759,7 @@ function consumeNavigationPick(lon,lat) {
   $('map-destination-query').value = `${lat.toFixed(7)}, ${lon.toFixed(7)}`;
   $('nav-dest-query').value=$('map-destination-query').value;
   state.navSelectedAddress=null;
-  setMapDestinationStatus('Destination selected on map. Select Preview to display a geographic reference.');
+  setMapDestinationStatus('Destination selected on map. Press Start navigation to plan a route.');
   setNavigationStatus('Map selection filled destination coordinates. Use Preview to see the direct line.');
   renderNavigationOverlay();
   return true;
@@ -1894,7 +1936,9 @@ $('nav-destination-list').addEventListener('click',event=>{
 $('map-destination-form').addEventListener('submit',async event=>{
   event.preventDefault();
   setMapDestinationStatus('Looking up destination and checking local Valhalla…');
-  try {await quickDestinationPreview($('map-destination-query').value);} catch(err){setMapDestinationStatus(err.message);}
+  const button=$('map-start-navigation');button.disabled=true;
+  try {await quickDestinationPreview($('map-destination-query').value);} catch(err){setMapDestinationStatus(err.message,'error');}
+  finally {button.disabled=false;}
 });
 for(const id of ['nav-start-lat','nav-start-lon']) {
   $(id).addEventListener('input',()=>{state.navOriginManual=true;

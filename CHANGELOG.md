@@ -1,3 +1,12 @@
+## v0.2.26 — Readable map, address-search opt-in and navigation entry cleanup
+
+- Restored the legible OpenFreeMap Liberty basemap as the default, retaining optional dark style.
+- Destination input now spans the available width; a single compact paper-plane **Start navigation** button appears below. The action plans a route or labeled direct-line reference; continuous turn-by-turn navigation is NOT implemented.
+- Added unchecked-by-default opt-in for public Photon address autocomplete: only typed address queries are sent, never browser GPS. An operator can still self-host Photon or configure MapTiler. The public demo service is rate-limited, online-only, and not a guaranteed production provider.
+- Fixed stale-location route attempts by requesting a fresh browser fix on demand when necessary; no tracking or saved route history.
+- Made address lookup/routing failures clearly visible instead of silently returning to the map. Missing Valhalla produces a labeled dashed direct-line reference, NOT driving directions.
+- Preserved local data, hardware readiness, manual observations, map tiles, investigations and archived Android code. Route preferences such as avoiding highways, mapped ALPR cameras or incidents remain planned only, not implemented.
+
 ## v0.2.25 — Dark map, optional geocoding, local Valhalla road routing
 
 - Defaulted the MapLibre basemap to OpenFreeMap Dark and improved the recenter icon contrast on its white button.

@@ -513,3 +513,17 @@
 .map-address-input-wrap .field{width:100%;padding:9px 10px}
 .map-address-input-wrap .address-suggestions{position:absolute;top:calc(100% + 3px);left:0;right:0}
 @media(max-width:620px){.map-destination-row .map-address-input-wrap{flex:1 1 calc(100% - 29px)}.map-destination-row .map-address-input-wrap .field{width:100%}}
+
+/* v0.2.26 — Full-width address field with a single explicit route-planning action. */
+.map-destination-row{display:block;min-width:0}
+.map-destination-row .map-address-input-wrap{display:block;width:100%;min-width:0;flex:none}
+.map-destination-row .map-address-input-wrap .field{width:100%;min-width:0}
+.map-destination-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap}
+.map-online-address{display:flex!important;gap:6px;align-items:center;flex:1 1 170px;margin:0!important;color:#b8d0d9;font-weight:400!important;font-size:11px!important;line-height:1.35}
+.map-online-address input{accent-color:#35cbb2;flex:none}
+.map-online-address small{font-size:10px;color:#8caab8}
+.map-destination-actions .nav-start-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:8px 12px;white-space:nowrap;font-size:12px;flex:0 0 auto}
+.nav-start-icon{width:16px;height:16px;transform:rotate(-15deg);flex:none}
+#map-destination-status.map-route-error{color:#ffd0a0;font-weight:600}
+#map-destination-status.map-route-success{color:#8eebd4}
+@media(max-width:620px){.map-destination-row{flex-wrap:nowrap}.map-destination-row .map-address-input-wrap{flex:0 0 100%}.map-destination-actions{gap:7px}.map-online-address{flex-basis:180px}.map-destination-actions .nav-start-button{flex:0 0 auto}}

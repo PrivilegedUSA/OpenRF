@@ -123,6 +123,27 @@ class GeocodingTests(unittest.TestCase):
         self.assertIn('api.maptiler.com/geocoding/',urls[0])
         self.assertEqual(data['results'][0]['name'],'Example Road, California')
 
+    def test_explicit_public_photon_permission_and_url(self):
+        requests=[]
+        def opener(req, timeout):
+            requests.append(req.full_url)
+            return Response(json.dumps({'features':[
+                {'geometry':{'coordinates':[-120.77,38.35]},'properties':
+                 {'name':'Main Street','city':'Jackson','state':'California','country':'United States'}}
+            ]}).encode())
+        with patch.dict(os.environ, {'OPENRF_PHOTON_PORT':'','OPENRF_MAPTILER_KEY':''}):
+            self.assertEqual(provider(online_allowed=True),'photon-public-opt-in')
+            with self.assertRaises(GeocoderUnavailable):
+                search('123 Main Street Jackson',open_connection=opener)
+            self.assertEqual(requests,[])
+            result=search('123 Main Street Jackson',open_connection=opener,online_allowed=True)
+        self.assertEqual(result['provider'],'photon-public-opt-in')
+        self.assertTrue(result['external_query'])
+        self.assertEqual(result['results'][0]['latitude'],38.35)
+        self.assertTrue(requests[0].startswith('https://photon.komoot.io/api/?'))
+        self.assertNotIn('latitude=',requests[0])
+        self.assertNotIn('longitude=',requests[0])
+
 
 class RouteHTTPTests(unittest.TestCase):
     def setUp(self):
@@ -135,13 +156,14 @@ class RouteHTTPTests(unittest.TestCase):
     def tearDown(self):
         self.server.shutdown();self.server.server_close();self.thread.join(timeout=3);self.tmp.cleanup()
 
-    def request(self, method, url, body=None):
+    def request(self, method, url, body=None, headers=None):
         c=HTTPConnection('127.0.0.1',self.server.server_port,timeout=2)
-        headers={'Host':f'localhost:{self.server.server_port}'}
+        actual={'Host':f'localhost:{self.server.server_port}'}
         if body is not None:
-            headers['Content-Type']='application/json'
+            actual['Content-Type']='application/json'
             body=json.dumps(body)
-        c.request(method,url,body=body,headers=headers)
+        actual.update(headers or {})
+        c.request(method,url,body=body,headers=actual)
         r=c.getresponse();data=r.read();status=r.status;ct=r.getheader('Content-Type');c.close()
         return status,json.loads(data) if 'json' in ct else data
 
@@ -153,6 +175,18 @@ class RouteHTTPTests(unittest.TestCase):
             status,data=self.request('GET','/api/navigation/geocoding/status')
             self.assertEqual(status,200);self.assertFalse(data['enabled'])
             self.assertEqual(self.request('GET','/api/navigation/geocode?q=Jackson')[0],503)
+
+    def test_public_online_lookup_must_be_individually_authorized(self):
+        with patch.dict(os.environ, {'OPENRF_MAPTILER_KEY':'','OPENRF_PHOTON_PORT':''}):
+            self.assertEqual(self.request('GET','/api/navigation/geocode?q=123%20Main%20St')[0],503)
+            self.assertEqual(self.request('GET','/api/navigation/geocode?q=123%20Main%20St&online=1')[0],403)
+            with patch('openrf.server.address_search',return_value={'results':[], 'provider':'photon-public-opt-in'}) as stub:
+                status,data=self.request('GET','/api/navigation/geocode?q=123%20Main%20St&online=1',
+                    headers={'X-OpenRF-Address-Consent':'yes'})
+                self.assertEqual(status,200)
+                stub.assert_called_once_with('123 Main St',online_allowed=True)
+            self.assertEqual(self.request('GET','/api/navigation/geocode?q=123%20Main%20St&online=0')[0],400)
+            self.assertEqual(self.request('GET','/api/navigation/geocode?q=123%20Main%20St&url=https://evil.example')[0],400)
 
     def test_route_validation_no_implicit_network(self):
         self.assertEqual(self.request('POST','/api/navigation/route',{'locations':[]})[0],422)

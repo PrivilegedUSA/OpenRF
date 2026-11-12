@@ -101,11 +101,25 @@ console.log('v0.2.25 user-triggered recenter, old-fix rejection, privacy and map
 assert(html.includes('id="map-address-options"') && html.includes('id="nav-add-stop"') && html.includes('id="nav-stops"'));
 assert(html.indexOf('id="map-trip-planner"') < html.indexOf('id="map-control-settings"'), 'trip planner accordion above map settings');
 assert(html.includes('id="nav-start-query"') && html.includes('id="nav-dest-query"'), 'trip planner uses address inputs, not just coordinates');
-assert(source.includes("style: 'dark'"), 'open map with dark OpenFreeMap style');
+assert(source.includes("style: 'liberty'"), 'restore standard readable map style');
 assert(css.includes('.openrf-recenter-button{background:#fff!important'), 'white location button');
 assert(css.includes('stroke:#101820!important'), 'dark crosshair on white background');
 assert(source.includes("'/api/navigation/route'") && source.includes('nav-stop-query'), 'backend route with ordered stops');
 assert(source.includes('renderNavigationOverlay') && source.includes('road-route'), 'draw actual road geometry');
 assert(source.includes('/api/navigation/geocode?q=') && source.includes('setTimeout(async()=>'), 'debounced optional address suggestions');
 assert(!source.includes('map-open-trip'), 'main map no longer uses extra large Plan a trip button');
-console.log('v0.2.25 Valhalla trip UI, address autocomplete, map theme, and recenter contrast passed.');
+console.log('v0.2.26 Valhalla trip UI, optional address autocomplete, map theme, and recenter contrast passed.');
+
+// v0.2.26: full-width destination, explicit opt-in address search, and clear route action.
+assert(html.includes('id="map-start-navigation"') && html.includes('Start navigation'), 'start button remains labeled and accessible');
+assert(html.includes('class="nav-start-icon"') && html.includes('id="map-online-address"'), 'button has paper-plane icon and explicit public search checkbox');
+const destinationForm=html.slice(html.indexOf('id="map-destination-form"'),html.indexOf('</form>',html.indexOf('id="map-destination-form"')));
+assert(destinationForm.indexOf('map-address-input-wrap') < destinationForm.indexOf('map-destination-actions'), 'destination input occupies full width, action appears afterward');
+assert(!destinationForm.includes('<button class="btn primary" type="submit">Route</button>'), 'old Route button removed');
+assert(css.includes('.map-destination-row{display:block') && css.includes('.map-destination-actions'), 'full-width input and separate action styling');
+assert(source.includes("style: 'liberty'"), 'lighter basemap is default');
+assert(source.includes('function addressLookupUrl(q)') && source.includes("'&online=1'"), 'outbound search requires explicit opt-in');
+assert(source.includes('async function freshNavigationOrigin()') && source.includes('navigator.geolocation.getCurrentPosition'), 'start navigation requests one-shot location when old');
+assert(source.includes("setMapDestinationStatus(err.message,'error')") && source.includes("finally {button.disabled=false;}"), 'route errors stay visible and button recovers');
+assert(source.includes('Direct-line reference only') && source.includes('setNavigationRoutePreview(direct)'), 'no Valhalla must still draw labeled reference');
+console.log('v0.2.26 map-first full-width destination, route action, opt-in address search and visible errors passed.');
