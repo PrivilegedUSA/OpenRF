@@ -6,16 +6,16 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.32">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.33">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
-  <script defer src="/static/navigation.js?v=0.2.32"></script>
-  <script defer src="/static/app.js?v=0.2.32"></script>
+  <script defer src="/static/navigation.js?v=0.2.33"></script>
+  <script defer src="/static/app.js?v=0.2.33"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.32</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.33</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -50,18 +50,19 @@
 <div class="map-destination-actions">            <button class="btn primary nav-start-button" type="submit" id="map-start-navigation" title="Calculate a road route with local Valhalla"><svg class="nav-start-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="m3 11 18-8-8 18-2-8-8-2Z"/></svg> Get directions</button><button class="btn nav-follow-button" type="button" id="map-begin-guidance" disabled title="Start GPS follow-view after getting real directions">Start navigation</button></div>
           <p id="map-destination-status" class="small muted" role="status" aria-live="polite" hidden>Starting point: browser location. Select a U.S. address suggestion before routing. Get directions with local Valhalla, then start the optional GPS follow-view. No spoken guidance or automatic rerouting yet.</p>
         </form>
-<details id="map-navigation-options" class="map-navigation-options"><summary>Online address search & provider settings</summary><div class="map-navigation-options-inner">
-          <label class="map-online-address"><input type="checkbox" id="map-online-address"><span>Online U.S. address search</span><small>Opt in to send typed addresses to the selected service. No GPS sent. As you type, complete U.S. street addresses can show approximate Census matches. Earlier partial-address suggestions require an available autocomplete provider.</small></label>
-</div>            <details class="map-provider-config" id="map-provider-config"><summary>Address search setup <span id="map-provider-summary">· Public Photon (best effort)</span></summary>
+        </div>
+<details id="map-navigation-options" class="map-navigation-options map-navigation-settings"><summary aria-label="Address search and navigation settings" title="Address search settings">⚙</summary><div class="map-settings-heading">Address search settings</div><div class="map-navigation-options-inner">
+          <label class="map-online-address"><input type="checkbox" id="map-online-address"><span>Online U.S. address search</span><small>When enabled, typed addresses are sent to your selected geocoder (MapTiler when configured, otherwise public Photon/Census). Your GPS coordinates are never sent. Disable here to search local saved places only.</small></label>
+</div>            <details class="map-provider-config" id="map-provider-config"><summary>Provider <span id="map-provider-summary">· Public Photon (best effort)</span></summary>
               <p class="muted small">The public Photon demo may not respond. For more dependable street-address autocomplete, add your own <a href="https://cloud.maptiler.com/" target="_blank" rel="noopener noreferrer">MapTiler geocoding API key</a> (account required; provider terms and quotas apply). This key stays in private Ubuntu configuration, outside Git and OpenRF releases.</p>
               <label for="map-maptiler-key">MapTiler API key (optional)</label><input id="map-maptiler-key" class="field" type="password" autocomplete="new-password" maxlength="256" placeholder="Paste a MapTiler key (not in chat)">
               <div class="map-provider-actions"><button class="btn outline" type="button" id="map-save-provider">Save key locally</button><button class="btn outline" type="button" id="map-remove-provider">Remove saved key</button><button class="btn outline" type="button" id="map-test-provider">Test suggestions</button></div>
               <p class="muted small" role="status" aria-live="polite" id="map-provider-status">No credentials are included in the app or uploaded automatically.</p>
             </details>
 </details>
-        </div>
 
-<aside id="map-follow-hud" class="map-follow-hud" hidden aria-live="polite"><div class="map-follow-top"><strong>GPS follow · beta</strong><button type="button" class="btn outline mini" id="map-stop-guidance">Stop</button></div><div id="map-follow-instruction">Waiting for a fresh GPS fix…</div><small id="map-follow-quality">Uses browser positions on this device only; no automatic rerouting or spoken guidance. Do not interact while driving.</small></aside><details class="map-credits" id="map-credits"><summary aria-label="Open map data credits and licenses" title="Map credits">ⓘ</summary><div class="map-credits-links"><strong>Map credits</strong><span id="offline-map-attribution" hidden></span><div id="online-map-credits"><span>Online vector basemap:</span><a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a><a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">© OpenMapTiles</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors (ODbL)</a></div></div></details><div id="map-error" class="map-error" hidden><strong>Map could not load.</strong><p>Online vector map unavailable. Offline coordinates and any installed local raster package remain accessible.</p></div><div class="map-legend"><span><i class="legend-dot man"></i> Survey location</span><span><i class="legend-dot dem"></i> DEMO (optional)</span></div>
+
+<aside id="map-follow-hud" class="map-follow-hud" hidden aria-live="polite"><div class="map-follow-top"><span class="map-follow-icon" aria-hidden="true">⌖</span><strong id="map-follow-instruction">Waiting for a browser position…</strong><button type="button" class="btn outline mini" id="map-stop-guidance">Stop</button></div><details class="map-follow-details"><summary>Location accuracy and guidance details</summary><small id="map-follow-quality">Browser location can be approximate on desktop computers, even when permission is allowed. No recorded positions, automatic rerouting or spoken directions.</small></details></aside><details class="map-credits" id="map-credits"><summary aria-label="Open map data credits and licenses" title="Map credits">ⓘ</summary><div class="map-credits-links"><strong>Map credits</strong><span id="offline-map-attribution" hidden></span><div id="online-map-credits"><span>Online vector basemap:</span><a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a><a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">© OpenMapTiles</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors (ODbL)</a></div></div></details><div id="map-error" class="map-error" hidden><strong>Map could not load.</strong><p>Online vector map unavailable. Offline coordinates and any installed local raster package remain accessible.</p></div><div class="map-legend"><span><i class="legend-dot man"></i> Survey location</span><span><i class="legend-dot dem"></i> DEMO (optional)</span></div>
           <button type="button" id="map-add-observation" class="map-add-observation" aria-label="Add a manual observation" title="Add a manual observation (enter a location or tap the map)">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
           </button>

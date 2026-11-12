@@ -145,7 +145,7 @@ assert(source.includes('addressLookupUrl(value, true)') && source.includes("'&mo
   'route submission requests Census fallback only in explicit final mode');
 assert(source.includes('navigationSuggestionDelay(addressProviderInfo,q)') && source.includes('online=1'),
   'online suggestions are throttled and remain opt-in');
-assert(html.includes('complete U.S. street addresses can show approximate Census matches'),
+assert(html.includes('typed addresses are sent to your selected geocoder') || html.includes('typed addresses are sent to MapTiler/Photon/Census'),
   'U.S. Census geocoding is distinguished from Photon autocomplete');
 console.log('v0.2.28 map picker and consented complete-address lookup contracts passed.');
 

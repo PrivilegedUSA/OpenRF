@@ -1,4 +1,4 @@
-# OpenRF v0.2.32 — Map-First Directions and GPS Follow View (Beta)
+# OpenRF v0.2.33 — Compact Navigation Controls & GPS Accuracy Diagnostics
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.32.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.33.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.32 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.33 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -31,7 +31,7 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
 
-## v0.2.32 — Map overlay, drivable directions, and opt-in GPS-follow beta
+## v0.2.33 — Map overlay, drivable directions, and opt-in GPS-follow beta
 
 - The destination search form now **overlays the Survey Map** instead of pushing it downward. **Get directions** calculates a planned road route first. Only a confirmed local Valhalla **ROAD_ROUTE** enables **Start navigation**.
 - **Start navigation** asks the browser for continuous high-accuracy positions *only after the user presses it*. It offers a follow-camera (zoom ~16.5, pitch 42°, device heading when movement is reported) and a prominent next planned Valhalla maneuver. The browser coordinates are held only in temporary process/browser memory; **no GPS trail is saved or uploaded**. Stop ends the browser geolocation watch; leaving the Map page also ends it. Poor or stale fixes pause maneuver guidance. This is **experimental GPS-follow assistance, not tested active turn-by-turn navigation**: no voice, lane guidance, reliable positioning, traffic, road-closure updates, or automatic rerouting. Do not adjust the screen while driving.
@@ -40,7 +40,7 @@ No Python packages or virtual environment are required. Python 3.11 or newer is 
 - Runtime OpenRF Dark and Light styles add zoomed-out **country labels** from the online OpenMapTiles `place` source when provided. The approved JSON files remain unchanged; the offline Amador/Calaveras tile package does not cover the whole U.S. and cannot guarantee country labels at continental zoom.
 - MapTiler/Photon/Census geocoding and opt-in privacy remain unchanged. **True live early address autocomplete** still needs a working configured provider and network; regional offline street-name hints do **not** verify house numbers.
 - Maps, SQLite records, surveys, wireless discovery, GPS waypoint capture, investigations, reports, archived Android code, and local Valhalla installations are preserved. No SQLite schema migration or additional Python dependencies.
-- See `docs/RELEASE_0.2.32_TESTS.md` for WSL testing, privacy and hardware limitations.
+- See `docs/RELEASE_0.2.33_TESTS.md` for WSL testing, privacy and hardware limitations.
 
 ## v0.2.31 — Approved OpenRF Maps integration
 
