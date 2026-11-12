@@ -1,3 +1,11 @@
+## v0.2.36 — Decouple visual follow from precise GNSS guidance (2026-11-12)
+
+- Fixed the MapLibre follow camera being held flat/north-up by the ±75 m live maneuver accuracy gate. Now a confirmed Valhalla route immediately opens a **planned** forward-looking perspective, and a recent nearby approximate browser fix can recenter a tilted, route-oriented camera without pretending road geometry is a measured heading. Bright teal planned route retained.
+- Added route-geometry look-ahead to derive a camera bearing as **planned direction only**, separately from actual moving GPS heading. High-quality moving GNSS remains the sole source of device heading; poor/stale GPS never enables live turn distance or turn-now claims.
+- The follow panel reports camera source, accuracy and planned/live distinction. Manual pan suspends camera snapback; the crosshair resumes. Never save trail data. The raster fallback cannot tilt or rotate.
+- Reused the original v0.2.35 source and retained custom offline vectors, local Valhalla route and turn lists, print/export route sheets, observations, RF tools and Android legacy.
+- Added `tests/test_follow_camera_v036.js` and adjusted older camera expectations to reflect the new camera-only behavior. No migration, new services, or private data in ZIP. See `docs/RELEASE_0.2.36_TESTS.md`.
+
 ## v0.2.35 — GPS-follow planned turns and optional native GNSS (2026-11-12)
 
 - Show a clearly labeled planned maneuver inside the GPS-follow HUD even for coarse/stale/denied browser fixes, with an expandable complete planned-turn list available while following; never label a planned turn as the active current instruction without a fresh accurate fix.

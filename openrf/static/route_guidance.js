@@ -51,6 +51,34 @@
     best.along_m=Math.max(0,best.along_m,Number.isFinite(prior)?prior-25:0);
     return {...best,total_m:cumulative.at(-1),cumulative};
   }
+  // Visual camera orientation along the verified route, deliberately distinct
+  // from GPS heading. Used when there is no reliable measured moving bearing.
+  // The blue position marker always stays at the reported position; the bearing
+  // here does not constitute vehicle heading or active maneuver guidance.
+  function routeVisualHeading(route,lon,lat,prior=0){
+    const point=locate(route,lon,lat,prior),coords=route.coordinates;
+    const cumulative=point.cumulative;
+    if(point.total_m<=0)return null;
+    const forward=Math.min(point.total_m,point.along_m+75);
+    const backward=Math.max(0,point.along_m-75);
+    function at(m){
+      if(m<=0)return coords[0];
+      if(m>=point.total_m)return coords.at(-1);
+      let j=Math.min(point.index,coords.length-2);
+      // The nearest point can lie on a different segment after prior jitter;
+      // seek the intended cumulative distance from either side.
+      while(j>0 && cumulative[j]>m)j--;
+      while(j<coords.length-2 && cumulative[j+1]<m)j++;
+      const segment=cumulative[j+1]-cumulative[j];
+      const t=segment>0?clamp((m-cumulative[j])/segment,0,1):0;
+      return [coords[j][0]+(coords[j+1][0]-coords[j][0])*t,
+        coords[j][1]+(coords[j+1][1]-coords[j][1])*t];
+    }
+    let start=at(point.along_m),end=at(forward);
+    if(distance(start,end)<8){start=at(backward);end=at(point.along_m);}
+    if(distance(start,end)<2)return null;
+    return {heading:bearing(start,end),offset_m:point.offset_m,along_m:point.along_m};
+  }
   function nextTurn(route,position){
     const {cumulative,along_m}=position;
     const maneuvers=(route.maneuvers||[]).filter(m=>Number.isInteger(m.shape_index)&&m.shape_index>=0&&m.shape_index<cumulative.length&&typeof m.instruction==='string');
@@ -83,6 +111,6 @@
     const rows=steps.map(s=>`<li><strong>${htmlEscape(s.instruction)}</strong><span>${s.length_miles.toFixed(2)} mi · Leg ${s.leg}</span></li>`).join('');
     return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OpenRF Directions</title><style>body{font:16px/1.5 system-ui,Arial,sans-serif;max-width:780px;margin:32px auto;padding:0 20px;color:#182129}h1{margin-bottom:4px}header{border-bottom:2px solid #35616b;margin-bottom:20px;padding-bottom:15px}ol{padding-left:28px}li{break-inside:avoid;margin:0 0 14px;padding-left:6px}li span{display:block;color:#555;font-size:13px}footer{border-top:1px solid #aaa;padding-top:12px;color:#666;font-size:12px}@media print{body{margin:0;max-width:none;padding:0}button{display:none}}</style></head><body><header><small>OPENRF · OFFLINE-CAPABLE ROUTE SHEET</small><h1>Driving directions</h1><p><b>From:</b> ${origin}<br><b>To:</b> ${destination}</p><p><b>Distance:</b> ${miles.toFixed(2)} mi · <b>Estimated time:</b> ${minutes} min (no live traffic)</p></header><main><h2>Planned turns (${steps.length})</h2><ol>${rows}</ol></main><footer>Calculated using local Valhalla / © OpenStreetMap contributors. Planning only. Review route restrictions, signage and conditions. Not live guidance. No GPS history is included.</footer></body></html>`;
   }
-  root.OpenRFRouteGuidance=Object.freeze({distance,bearing,locate,nextTurn,distanceText,guidance,routeSteps,sheet});
+  root.OpenRFRouteGuidance=Object.freeze({distance,bearing,locate,routeVisualHeading,nextTurn,distanceText,guidance,routeSteps,sheet});
   if(typeof module!=='undefined'&&module.exports)module.exports=root.OpenRFRouteGuidance;
 })(typeof window!=='undefined'?window:globalThis);

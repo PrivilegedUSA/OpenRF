@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, navFollowCameraSuspended:false, navFollowLastPosition:null, rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -707,6 +707,15 @@ function startMap() {
     }, 'top-right');
     state.map.on('style.load', () => { updateOfflineAttribution(); state.mapReady = true; $('map-error').hidden = true; installMarkerLayer(); updateMap(); updateBrowserLocationMarker(); applyPendingLocation(); renderAreaOverlay(); renderNavigationOverlay(); applyNavigationFit(); });
     state.map.on('movestart', event => { if (event.originalEvent) state.mapNavigationEpoch++; });
+    // Rural Route-style behavior: a deliberate pan suspends camera following
+    // without ending position acquisition. The recenter control resumes it.
+    state.map.on('dragstart', () => {
+      if (state.navFollowId!==null) {
+        state.navFollowCameraSuspended=true;
+        const info=$('map-follow-camera-note');
+        if(info) info.textContent='Map moved manually · tap the crosshair to resume following.';
+      }
+    });
     state.map.on('move', () => {renderAreaOverlay(); renderNavigationOverlay();});
     state.map.on('click', (evt) => {
       if (consumeNavigationPick(evt.lngLat.lng, evt.lngLat.lat)) return;
@@ -780,6 +789,15 @@ function applyPendingLocation() {
 // The crosshair button is a manual convenience, not continuous GPS tracking.
 // Reuse a recent browser fix immediately; otherwise ask for a new permissioned fix.
 function recenterMapToBrowserLocation() {
+  if(state.navFollowId!==null){
+    state.navFollowCameraSuspended=false;
+    state.navFollowLast=0;
+    if(state.navFollowLastPosition){
+      // Reapply the latest real reading; never manufacture another fix.
+      followPosition(state.navFollowLastPosition);
+      return;
+    }
+  }
   const loc = state.browserLocation;
   const age = loc ? Date.now() - loc.capturedAt : Infinity;
   if (!loc || !Number.isFinite(loc.lat) || !Number.isFinite(loc.lon) ||
@@ -2379,7 +2397,7 @@ function stopNavigationFollow(){
   state.navGnssEpoch=(state.navGnssEpoch||0)+1;
   if(state.navGnssTimer!==null)clearInterval(state.navGnssTimer);
   state.navGnssTimer=null;state.navGnssBusy=false;state.navGnssLast=0;
-  state.navFollowId=null;state.navFollowPriorFix=null;state.navFollowHeading=null;
+  state.navFollowId=null;state.navFollowPriorFix=null;state.navFollowHeading=null;state.navFollowCameraSuspended=false;state.navFollowLastPosition=null;
   $('page-map').classList.remove('navigation-driving');
   $('map-follow-hud').hidden=true;
   $('map-follow-hud').classList.remove('navigation-guiding');
@@ -2405,6 +2423,7 @@ function followPosition(pos){
   const sourceName=pos.origin==='gpsd'?'Local gpsd GNSS':'Browser location';
   const age=Date.now()-pos.timestamp;
   const message=$('map-follow-instruction'),detail=$('map-follow-quality');
+  const cameraNote=$('map-follow-camera-note');
   const distanceLabel=$('map-follow-distance');
   const planned=$('map-follow-planned');
   if(planned){
@@ -2421,6 +2440,7 @@ function followPosition(pos){
     $('map-follow-hud').classList.remove('navigation-guiding');
     return;
   }
+  state.navFollowLastPosition=pos; // In-memory only; discarded on Stop.
   state.browserLocation={lat,lon,accuracy,capturedAt:Date.now(),source:pos.origin==='gpsd'?'gpsd':'browser',source_device:pos.source_device||null};
   updateBrowserLocationMarker();
   const precise=accuracy<=75,usableMap=accuracy<=1000;
@@ -2440,9 +2460,9 @@ function followPosition(pos){
   const activeBearing=movingHeading!==null?movingHeading:0;
   let offRoute=false;
   if(!precise){
-    message.textContent=`Approximate location (±${Math.round(accuracy)} m) — turn guidance paused.`;
-    distanceLabel.textContent='';
-    detail.textContent=`${sourceName} reported ±${Math.round(accuracy)} m, ${Math.round(Math.max(0,age)/1000)} s old. Location permission does not guarantee a GNSS fix. ${usableMap?'Broad map-follow available.':'Too imprecise to center the map.'} A local gpsd receiver can supply GNSS through the optional Pi bridge. No receiver is assumed. No data saved.`;
+    message.textContent=`Route follow · approximate location (±${Math.round(accuracy)} m)`;
+    distanceLabel.textContent='Live turn timing unavailable · see planned turns below';
+    detail.textContent=`${sourceName} reported ±${Math.round(accuracy)} m, ${Math.round(Math.max(0,age)/1000)} s old. This is not a verified road position or driving heading. The camera may align to the PLANNED road, but that does not indicate where the vehicle is pointing. Live turn timing stays disabled. No history saved.`;
   }else{
     const progress=routeGuide.guidance(route,lon,lat,accuracy,state.navFollowProgress||0);
     offRoute=progress.offroute;
@@ -2460,17 +2480,36 @@ function followPosition(pos){
     }
   }
   $('map-follow-hud').classList.toggle('navigation-guiding',precise&&!offRoute);
-  if(!usableMap)return;
-  const bearing=(precise&&!offRoute)?activeBearing:0;
-  const zoom=precise&&!offRoute?16.5:(accuracy<=200?13.5:12);
-  const pitch=precise&&!offRoute && movingHeading!==null?48:0;
+  // Camera presentation is distinct from turn certainty. Even a stationary
+  // desktop with an approximate location can have a route-oriented, tilted
+  // camera; the rotation comes from VALHALLA geometry, not measured heading.
+  // Never promote that rotation to a live driver bearing or 'turn now'.
+  let bearing=0,zoom=accuracy<=200?13.5:12,pitch=0,camMode='north';
+  const reliableMotion=precise&&!offRoute&&movingHeading!==null;
+  if(reliableMotion){
+    bearing=activeBearing;zoom=16.5;pitch=48;camMode='moving';
+  }else if(usableMap && accuracy<=300){
+    const view=routeGuide.routeVisualHeading(route,lon,lat,state.navFollowProgress||0);
+    if(view && view.offset_m <= Math.max(300,3*accuracy)){
+      bearing=view.heading;zoom=accuracy<=75?16:15.25;pitch=42;camMode='route';
+    }
+  }
+  if(cameraNote){
+    cameraNote.textContent=state.navFollowCameraSuspended?'Map moved manually · tap the crosshair to resume following.':
+      camMode==='moving'?'Camera: measured moving heading · GPS follow.':
+      camMode==='route'?'Camera: aligned to the planned road, NOT your actual driving heading.':
+      usableMap?'Camera: north-up follow; route direction uncertain.':'Camera: too imprecise to follow safely.';
+  }
+  if(!usableMap || state.navFollowCameraSuspended)return;
   if(Date.now()-state.navFollowLast>700){
     state.navFollowLast=Date.now();
     if(state.map&&state.mapReady){
-      // Put the driver below map center so more upcoming road is visible.
       state.map.easeTo({center:[lon,lat],zoom,pitch,bearing,
         offset:[0,pitch?Math.min(125,$('map').clientHeight*.24):0],duration:650});
-    }else if(state.rasterMap){state.rasterMap.stop();state.rasterMap.center=[lon,lat];state.rasterMap.zoom=Math.min(16,Math.floor(zoom));state.rasterMap.render();}
+    }else if(state.rasterMap){
+      // Raster mode cannot pitch or rotate. Center on the real fix only.
+      state.rasterMap.stop();state.rasterMap.center=[lon,lat];state.rasterMap.zoom=Math.min(16,Math.floor(zoom));state.rasterMap.render();
+    }
   }
 }
 // A loopback-only, read-only gpsd request. No polling except during an active
@@ -2506,21 +2545,26 @@ $('map-begin-guidance').addEventListener('click',()=>{
   }
   stopNavigationFollow();
   state.navFollowLast=0;state.navFollowProgress=0;state.navFollowPriorFix=null;
+  state.navFollowCameraSuspended=false;state.navFollowLastPosition=null;
   $('page-map').classList.add('navigation-driving');
-  // Enter follow camera immediately when a recent browser position exists;
-  // future watch callbacks refine bearing only when actual movement is known.
-  const cached=state.browserLocation;
-  if(cached && Number.isFinite(cached.lat)&&Number.isFinite(cached.lon)&&Number.isFinite(cached.accuracy) &&
-     cached.accuracy<=1000 && Date.now()-cached.capturedAt<=15000 && Date.now()-cached.capturedAt>=-5000 && state.map && state.mapReady){
-    const near=cached.accuracy<=75;
-    state.map.easeTo({center:[cached.lon,cached.lat],zoom:near?16.5:(cached.accuracy<=200?13.5:12),pitch:0,bearing:0,duration:500});
+  // Enter a route-perspective preview immediately, even before the first fix.
+  // This is the PLANNED route's start, not a fabricated GPS reading. The first
+  // actual browser/gpsd reading then places the camera at the reported position.
+  const routeCoords=state.navPreview.coordinates;
+  if(state.map && state.mapReady && routeCoords?.length>=2){
+    const initialHeading=routeGuide.routeVisualHeading(state.navPreview,routeCoords[0][0],routeCoords[0][1],0);
+    state.map.easeTo({center:routeCoords[0],zoom:15.25,pitch:42,bearing:initialHeading?.heading||0,
+      offset:[0,Math.min(125,$('map').clientHeight*.24)],duration:500});
+  }else if(state.rasterMap && routeCoords?.length){
+    state.rasterMap.stop();state.rasterMap.center=routeCoords[0];state.rasterMap.zoom=15;state.rasterMap.render();
   }
   const plannedTurns=routeGuide.routeSteps(state.navPreview);
   $('map-follow-turn-list').innerHTML=plannedTurns.map(t=>`<li>${escapeHTML(t.instruction)}<small>${t.length_miles.toFixed(2)} mi · leg ${t.leg}</small></li>`).join('');
   $('map-follow-turns').open=false;
   $('map-follow-source').textContent='Position source: browser; checking optional local gpsd only during this navigation session.';
   $('map-follow-hud').hidden=false;
-  $('map-follow-instruction').textContent='Requesting fresh GPS positions…';
+  $('map-follow-instruction').textContent='Planned-route perspective · requesting GPS…';
+  $('map-follow-camera-note').textContent='Camera is aligned with the START of the planned route, not a live vehicle fix.';
   $('map-follow-distance').textContent='Planned turns are available below while a fresh fix is requested';
   $('map-follow-quality').textContent='Firefox permission alone does not guarantee precise GNSS. Reported accuracy will appear here; approximate fixes can center the map but never advance turns. Nothing saved.';
   // Some browsers may invoke a mocked callback synchronously; set a sentinel

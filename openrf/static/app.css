@@ -713,3 +713,6 @@
 #page-map.navigation-driving .map-follow-hud{z-index:32}
 
 #page-map .map-follow-source{display:block;font-size:10px;color:#8db8b6;line-height:1.3;margin:2px 0}
+
+/* v0.2.36: label route-oriented perspective separately from measured moving heading. */
+#page-map .map-follow-camera-note{display:block;margin:3px 0 5px;color:#8ee4db;font-size:10px;line-height:1.35}

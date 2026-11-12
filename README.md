@@ -1,4 +1,4 @@
-# OpenRF v0.2.35 — Planned Turns During GPS Follow & Local GNSS Bridge
+# OpenRF v0.2.36 — Route-Oriented Follow Camera
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.35.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.36.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.35 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.36 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.36 — Route-oriented follow view on desktop without false GPS heading
+
+- **Fixes desktop follow-camera behavior:** Starting navigation immediately enters a tilted, route-perspective view at the real Valhalla road plan's start, clearly labelled as a *planned route perspective*, not the device's location. With a recent browser position near the route (even ±107 m), it shifts the camera to that **reported position** and orients the camera along the *planned road*, while explicitly saying that this does **not** establish actual vehicle heading or precise turn timing.
+- With verified **accurate, moving** GPS with real heading, the camera uses measured heading instead, tilts/zooms and displays upcoming maneuver distance. An approximate fix always shows **planned (not current)** turns rather than live turn timing; no fake movement or GPS readings are produced.
+- Manual dragging suspends automatic camera updates to avoid Rural Route-style snapback; tapping the map's crosshair resumes camera following. Stale fixes, far-away routes and missing GPS remain accurately labelled; nothing is saved or uploaded.
+- In raster fallback mode the map can recenter but cannot rotate or pitch; MapLibre is required for the route-oriented camera. The user must have a real confirmed Valhalla ROAD_ROUTE before entering navigation. No voice guidance/automatic rerouting yet. Real Firefox and GNSS road tests are pending.
+- No new Python dependencies, database migration, map tiles, credentials, or sensors. See [v0.2.36 testing](docs/RELEASE_0.2.36_TESTS.md).
 
 ## v0.2.35 — Planned turns, GPS follow and optional local gpsd bridge
 

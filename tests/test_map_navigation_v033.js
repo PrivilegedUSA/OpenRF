@@ -43,12 +43,12 @@ const {followPosition}=Function('state','$','updateBrowserLocationMarker','stopN
  `${js.slice(start,end)};return {followPosition}`)(state,id=>els[id],()=>updates++,()=>{},routeGuide);
 const now=Date.now();
 followPosition({timestamp:now,coords:{latitude:38.4,longitude:-120.6,accuracy:107,heading:null,speed:null}});
-assert.match(els['map-follow-instruction'].textContent,/Approximate location \(±107 m\)/);
-assert.match(els['map-follow-quality'].textContent,/Location permission does not guarantee/i);
+assert.match(els['map-follow-instruction'].textContent,/approximate location \(±107 m\)/i);
+assert.match(els['map-follow-quality'].textContent,/not a verified road position/i);
 assert(!els['map-follow-instruction'].textContent.includes('Turn right'));
-assert.equal(camera.at(-1).zoom,13.5);
-assert.equal(camera.at(-1).pitch,0);
-assert.equal(camera.at(-1).bearing,0);
+assert.equal(camera.at(-1).zoom,15.25);
+assert.equal(camera.at(-1).pitch,42);
+assert(camera.at(-1).bearing>70 && camera.at(-1).bearing<110);
 assert.equal(updates,1,'a coarse but recent fix updates the unsaved location dot');
 state.navFollowLast=0;
 followPosition({timestamp:now-30000,coords:{latitude:38.4,longitude:-120.6,accuracy:8}});

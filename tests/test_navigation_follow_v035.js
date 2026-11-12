@@ -19,7 +19,7 @@ assert(begin>=0&&end>begin);
 const elements={
  'map-follow-instruction':{textContent:''},'map-follow-distance':{textContent:''},
  'map-follow-quality':{textContent:''},'map-follow-source':{textContent:''},
- 'map-follow-planned':{textContent:'',hidden:false},
+ 'map-follow-planned':{textContent:'',hidden:false},'map-follow-camera-note':{textContent:''},
  'map-follow-hud':{classList:{toggle(){},remove(){}}},'map':{clientHeight:500}
 };
 let updates=0, cam=[];
@@ -33,10 +33,11 @@ const {followPosition}=Function('state','$','routeGuide','updateBrowserLocationM
  src.slice(begin,end)+'; return {followPosition}')(state,$,routeGuide,()=>updates++,()=>{});
 const now=Date.now();
 followPosition({timestamp:now,coords:{latitude:38.4,longitude:-120.6,accuracy:107}});
-assert.match(elements['map-follow-instruction'].textContent,/Approximate location/);
+assert.match(elements['map-follow-instruction'].textContent,/approximate location/i);
 assert.match(elements['map-follow-planned'].textContent,/Planned \(not current\): Turn left/);
 assert.equal(elements['map-follow-planned'].hidden,false);
-assert.equal(cam.at(-1).pitch,0);
+assert.equal(cam.at(-1).pitch,42); // route-aligned camera is visual, not live turn timing
+assert.match(elements['map-follow-camera-note'].textContent,/planned road/);
 state.navFollowLast=0; // camera throttles frequent fixes in production
 followPosition({timestamp:now,origin:'gpsd',source_device:'ttyUSB0',coords:{latitude:38.4,longitude:-120.6,accuracy:8,heading:90,speed:5}});
 assert.equal(elements['map-follow-instruction'].textContent,'Turn left onto Oak Street');
