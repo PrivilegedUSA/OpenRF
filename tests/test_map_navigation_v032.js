@@ -2,6 +2,7 @@
 'use strict';
 const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('node:path');
 const base=path.join(__dirname,'../openrf/static');
+const routeGuide=require('../openrf/static/route_guidance.js');
 const source=fs.readFileSync(path.join(base,'app.js'),'utf8');
 const html=fs.readFileSync(path.join(base,'index.html'),'utf8');
 const css=fs.readFileSync(path.join(base,'app.css'),'utf8');
@@ -27,6 +28,7 @@ assert(begin>0&&end>begin);
 let markerUpdates=0, stops=0;
 const els={
   'map-follow-instruction':{textContent:''},'map-follow-quality':{textContent:''},
+  'map-follow-distance':{textContent:''},'map-follow-hud':{classList:{toggle(){},remove(){}}},
   'map':{clientHeight:400}
 };
 const cam=[];
@@ -34,13 +36,14 @@ const state={navFollowId:11,navPreview:{type:'ROAD_ROUTE',is_driving_route:true,
  coordinates:[[-120.6,38.4],[-120.599,38.4],[-120.598,38.4],[-120.597,38.4]],
  maneuvers:[{instruction:'Turn right soon.',shape_index:3}]},
  navFollowProgress:0,navFollowLast:0,mapReady:true,map:{easeTo(o){cam.push(o)}},rasterMap:null};
-const methods=Function('state','$','updateBrowserLocationMarker','stopNavigationFollow',
- `${source.slice(begin,end)};return {navigationNearestShape,followPosition};`)(state,id=>els[id],()=>markerUpdates++,()=>stops++);
+const methods=Function('state','$','updateBrowserLocationMarker','stopNavigationFollow','routeGuide',
+ `${source.slice(begin,end)};return {navigationNearestShape,followPosition};`)(state,id=>els[id],()=>markerUpdates++,()=>stops++,routeGuide);
 let now=Date.now();
 methods.followPosition({timestamp:now,coords:{latitude:38.4,longitude:-120.6,accuracy:8,heading:125,speed:7}});
 assert.equal(els['map-follow-instruction'].textContent,'Turn right soon.');
+assert.match(els['map-follow-distance'].textContent,/ft|mi/);
 assert.equal(cam.length,1);
-assert.equal(cam[0].pitch,42);
+assert.equal(cam[0].pitch,48);
 assert.equal(cam[0].bearing,125);
 assert.equal(cam[0].zoom,16.5);
 assert.equal(markerUpdates,1);

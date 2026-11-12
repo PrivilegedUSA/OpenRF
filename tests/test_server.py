@@ -42,8 +42,8 @@ class ApiTests(unittest.TestCase):
     def test_health_static_hardware_and_exports(self):
         s,data=self.call('GET','/api/health')
         self.assertEqual(s,200)
-        self.assertEqual(data['version'],'0.2.33')
-        for path in ('/','/static/app.css','/static/app.js','/static/history-analysis.js','/api/export.csv','/api/export.geojson'):
+        self.assertEqual(data['version'],'0.2.34')
+        for path in ('/','/static/app.css','/static/app.js','/static/history-analysis.js','/static/route_guidance.js','/api/export.csv','/api/export.geojson'):
             status,_=self.call('GET',path)
             self.assertEqual(status,200,path)
         s,data=self.call('GET','/api/hardware')
@@ -175,7 +175,7 @@ class ApiTests(unittest.TestCase):
             self.assertEqual(status,200)
             self.assertFalse(probed['identity_verified'])
             status, saved = self.call('POST', '/api/sensors/serial/snapshot', {'port':'ttyUSB0'})
-            self.assertEqual(status,201)
+            self.assertEqual(status,201, f'Unexpected USB snapshot response: {saved}')
             self.assertEqual(saved['capture']['saved_count'],1)
             self.assertEqual(saved['snapshot']['records'][0]['rssi_dbm'],-71)
             self.assertEqual(mock.call_count,2)

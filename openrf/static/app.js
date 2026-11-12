@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navFollowLast:0, navFollowProgress:0, rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -1697,13 +1697,52 @@ async function resolveTypedPlace(query) {
         if (input.value.trim()===value) input.dispatchEvent(new Event('input'));
       }
     }
-    throw Error('Select the matching address from the suggestions, then press Start navigation again. Census address pins may be approximate.');
+    throw Error('Select the matching address from the suggestions, then press Get directions again. Census address pins may be approximate.');
   }
 }
+// A route sheet is generated entirely in the browser from a real local Valhalla
+// response. No travel positions are saved, and export happens only on click.
+const routeGuide=window.OpenRFRouteGuidance;
+function renderDirectionsReview(route) {
+  const pane=$('map-directions-review');
+  if(route?.type!=='ROAD_ROUTE'||route.is_driving_route!==true){pane.hidden=true;pane.open=false;return;}
+  const turns=routeGuide.routeSteps(route);
+  pane.hidden=false;pane.open=false;
+  $('map-directions-summary').textContent=`Directions · ${route.distance_miles} mi · ${Math.round(route.duration_seconds/60)} min · ${turns.length} turns`;
+  $('map-directions-list').innerHTML=turns.map(t=>`<li><strong>${escapeHTML(t.instruction)}</strong><small>${t.length_miles.toFixed(2)} mi · Leg ${t.leg}</small></li>`).join('');
+}
+function routeLabels(){return {origin:state.navOriginManual?$('nav-start-query').value.trim()||'Chosen start':'Browser-reported starting location',destination:$('map-destination-query').value.trim()||$('nav-dest-name').value.trim()||'Selected map point'};}
+function saveRouteSheet(filename,mime,body){
+  const blob=new Blob([body],{type:mime}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),10000);
+}
+function currentRoadPlan(){
+  const route=state.navPreview;
+  if(route?.type!=='ROAD_ROUTE'||!route.is_driving_route)throw Error('Get verified road directions before printing or exporting.');
+  return route;
+}
+$('map-save-directions-html').addEventListener('click',()=>runAction(async()=>{
+  saveRouteSheet('OpenRF-driving-directions.html','text/html;charset=utf-8',routeGuide.sheet(currentRoadPlan(),routeLabels()));
+  setMapDestinationStatus('Printable HTML directions saved locally. This file can be opened without internet.','success');
+}));
+$('map-save-directions-json').addEventListener('click',()=>runAction(async()=>{
+  const route=currentRoadPlan();
+  if(!confirm('Export full route geometry and coordinates as JSON? The file remains on your device but could reveal precise locations if shared.'))return;
+  saveRouteSheet('OpenRF-driving-route.json','application/json',JSON.stringify({format:'openrf-route-plan',version:1,saved_at_utc:new Date().toISOString(),labels:routeLabels(),route},null,2));
+  setMapDestinationStatus('Full road-plan JSON saved locally. Handle location coordinates privately.','success');
+}));
+$('map-print-directions').addEventListener('click',()=>runAction(async()=>{
+  const view=window.open('','_blank');
+  if(!view)throw Error('Firefox blocked the print tab. Allow popups for 127.0.0.1 or use Save HTML.');
+  view.document.open();view.document.write(routeGuide.sheet(currentRoadPlan(),routeLabels()));view.document.close();
+  view.focus();view.print();
+}));
 function setNavigationRoutePreview(result) {
   stopNavigationFollow();
   $('map-begin-guidance').disabled=!(result?.type==='ROAD_ROUTE' && result.is_driving_route===true);
   state.navPreview=result;
+  renderDirectionsReview(result);
   state.navFitPending=true;
   applyNavigationFit();
   setTimeout(applyNavigationFit,120);
@@ -1719,9 +1758,9 @@ async function planRoadRoute(points) {
     setNavigationRoutePreview(road);
     const steps=(road.maneuvers||[]).slice(0,80);
     $('nav-directions').innerHTML=steps.length ? '<h4>Planned turns · no active guidance</h4><ol>'+
-      steps.map(step=>`<li>${escapeHTML(step.instruction)}</li>`).join('')+'</ol>' : '';
+      steps.map(step=>`<li>${escapeHTML(step.instruction)} <small>(${Number(step.length_miles||0).toFixed(2)} mi)</small></li>`).join('')+'</ol>' : '';
     const minutes=Math.round(road.duration_seconds/60);
-    return {road, text:`Road plan · ${road.distance_miles} mi · ~${minutes} min (no traffic). Review turns under Plan a trip; start GPS follow when ready.`};
+    return {road, text:`Road plan · ${road.distance_miles} mi · ~${minutes} min (no traffic). Expand Directions on the map, then start GPS follow when ready.`};
   } catch (err) {
     const first=points[0], last=points[points.length-1];
     $('nav-directions').replaceChildren();
@@ -1731,7 +1770,7 @@ async function planRoadRoute(points) {
       // Northern California Valhalla graph. Show an error, never an interstate
       // line that a driver could mistake for a suggested route.
       stopNavigationFollow();
-      state.navPreview=null;state.navFitPending=false;
+      state.navPreview=null;if(typeof renderDirectionsReview==='function')renderDirectionsReview(null);state.navFitPending=false;
       $('map-begin-guidance').disabled=true;
       renderNavigationOverlay();
       return {road:null,text:`No drivable road route for this destination: ${err.message} The installed local road graph may cover only Northern California. Add regional/nationwide Valhalla data before routing across the U.S.; no route was drawn.`};
@@ -1822,8 +1861,8 @@ function showMapAddressMatches(matches) {
       $('map-destination-query').value=match.name;
       hideMapAddressMatches();
       setMapDestinationStatus(match.source==='us-census-opt-in' ?
-        'Approximate Census address-range location selected. Check the map pin and press Start navigation.' :
-        'Destination selected. Press Start navigation to calculate a road route.');
+        'Approximate Census address-range location selected. Check the map pin and press Get directions.' :
+        'Destination selected. Press Get directions to calculate a road route.');
     });
     box.append(button);
   }
@@ -1852,7 +1891,7 @@ function navigationLookupIsComplete(query) {
 let navAddressTimer=null;
 $('map-destination-query').addEventListener('input',()=>{
   if(state.navPreview){
-    stopNavigationFollow();state.navPreview=null;state.navFitPending=false;state.navPickedPoint=null;
+    stopNavigationFollow();state.navPreview=null;if(typeof renderDirectionsReview==='function')renderDirectionsReview(null);state.navFitPending=false;state.navPickedPoint=null;
     $('map-begin-guidance').disabled=true;renderNavigationOverlay();
   }
   if (state.navPickedPoint) {state.navPickedPoint=null;renderNavigationOverlay();}
@@ -2089,7 +2128,7 @@ function updateDraggedDestination(clientX,clientY){
   if (!point || !Number.isFinite(point[0]) || !Number.isFinite(point[1]) || Math.abs(point[0])>180 || Math.abs(point[1])>90) return false;
   stopNavigationFollow();
   state.navPickedPoint=point;
-  state.navPreview=null;state.navFitPending=false;
+  state.navPreview=null;if(typeof renderDirectionsReview==='function')renderDirectionsReview(null);state.navFitPending=false;
   $('map-begin-guidance').disabled=true;
   state.navSelectedAddress=null;
   $('map-destination-query').value=`${point[1].toFixed(7)}, ${point[0].toFixed(7)}`;
@@ -2292,7 +2331,7 @@ function beginDestinationMapPick() {
   if (state.areaChoosing) cancelAreaChoosing();
   stopNavigationFollow();
   $('map-begin-guidance').disabled=true;
-  state.navPicking=true;state.navPickedPoint=null;state.navPreview=null;state.navFitPending=false;
+  state.navPicking=true;state.navPickedPoint=null;state.navPreview=null;if(typeof renderDirectionsReview==='function')renderDirectionsReview(null);state.navFitPending=false;
   showPage('map',{autoLocate:false});
   syncDestinationPickMode();
   renderNavigationOverlay();
@@ -2303,7 +2342,7 @@ $('map-pick-destination').addEventListener('click',beginDestinationMapPick);
 $('nav-clear-preview').addEventListener('click',()=>{
   stopNavigationFollow();
   $('map-begin-guidance').disabled=true;
-  state.navPicking=false;state.navPickedPoint=null;state.navPreview=null;state.navFitPending=false;
+  state.navPicking=false;state.navPickedPoint=null;state.navPreview=null;if(typeof renderDirectionsReview==='function')renderDirectionsReview(null);state.navFitPending=false;
   syncDestinationPickMode();
   $('nav-preview-summary').textContent='';
   $('nav-directions').replaceChildren();
@@ -2335,73 +2374,87 @@ $('nav-destination-list').addEventListener('click',event=>{
 // provide active rerouting, spoken prompts, lane guidance, or a safety guarantee.
 // Watch positions are held only in memory and never uploaded/saved by OpenRF.
 function stopNavigationFollow(){
-  if(state.navFollowId!==null && navigator.geolocation?.clearWatch)
+  if(state.navFollowId!==null && navigator.geolocation?.clearWatch && state.navFollowId!==-1)
     navigator.geolocation.clearWatch(state.navFollowId);
-  state.navFollowId=null;
+  state.navFollowId=null;state.navFollowPriorFix=null;state.navFollowHeading=null;
+  $('page-map').classList.remove('navigation-driving');
   $('map-follow-hud').hidden=true;
+  $('map-follow-hud').classList.remove('navigation-guiding');
   if(state.map && state.mapReady) state.map.easeTo({pitch:0,bearing:0,duration:300});
 }
 function navigationNearestShape(coords,lon,lat){
-  // At most ~2500 coarse samples, then refine locally; suitable for a low-power Pi.
-  const stride=Math.max(1,Math.ceil(coords.length/2500));
-  const factor=Math.cos(lat*Math.PI/180);
-  const sq=(point)=>((point[0]-lon)*factor)**2+(point[1]-lat)**2;
-  let best=0, distance=Infinity;
-  for(let i=0;i<coords.length;i+=stride){const d=sq(coords[i]);if(d<distance){distance=d;best=i;}}
-  for(let i=Math.max(0,best-stride);i<=Math.min(coords.length-1,best+stride);i++){
-    const d=sq(coords[i]);if(d<distance){distance=d;best=i;}
+  // Retained for older callers; road-follow now projects onto line segments.
+  const route=state.navPreview;
+  if(route?.type==='ROAD_ROUTE' && route.coordinates===coords){
+    const match=routeGuide.locate(route,lon,lat,state.navFollowProgress||0);
+    return {index:match.index,offset_m:match.offset_m};
   }
-  return {index:best,offset_m:Math.sqrt(distance)*111195};
+  return {index:0,offset_m:Infinity};
 }
 function followPosition(pos){
   if(state.navFollowId===null)return;
   const route=state.navPreview;
-  if(route?.type!=='ROAD_ROUTE' || !route.is_driving_route){stopNavigationFollow();return;}
+  if(route?.type!=='ROAD_ROUTE'||!route.is_driving_route){stopNavigationFollow();return;}
   const {latitude:lat,longitude:lon,accuracy,heading,speed}=pos.coords||{};
   const age=Date.now()-pos.timestamp;
-  const message=$('map-follow-instruction'), detail=$('map-follow-quality');
+  const message=$('map-follow-instruction'),detail=$('map-follow-quality');
+  const distanceLabel=$('map-follow-distance');
   if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180||
      !Number.isFinite(accuracy)||accuracy<0||!Number.isFinite(age)||age< -5000||age>15000){
     message.textContent='No recent valid browser location. Guidance paused.';
-    detail.textContent=`Reported accuracy: ${Number.isFinite(accuracy)?'±'+Math.round(accuracy)+' m':'unavailable'} · Fix age: ${Number.isFinite(age)?Math.round(age/1000)+' s':'unknown'}. Check Firefox permission and Windows Location services. No data saved.`;
+    distanceLabel.textContent='';
+    detail.textContent=`Reported accuracy: ${Number.isFinite(accuracy)?'±'+Math.round(accuracy)+' m':'unavailable'} · Fix age: ${Number.isFinite(age)?Math.round(age/1000)+' s':'unknown'}. Check browser location permission. No data saved.`;
+    $('map-follow-hud').classList.remove('navigation-guiding');
     return;
   }
   state.browserLocation={lat,lon,accuracy,capturedAt:Date.now()};
   updateBrowserLocationMarker();
-  // Permission means the browser may return a position, NOT a GPS-quality fix.
-  // Typical WSL/desktop positions are based on nearby Wi-Fi/IP and may be ±100 m or worse.
-  // Coarse fixes can center a broad map view, but MUST NOT advance the turn list.
-  const precise=accuracy<=75;
-  const usableMap=accuracy<=1000;
-  const headingValid=Number.isFinite(heading)&&heading>=0&&heading<360&&Number.isFinite(speed)&&speed>1.4;
-  if(!precise){
-    message.textContent=`Approximate location (±${Math.round(accuracy)} m) — turn guidance paused.`;
-    detail.textContent=`Firefox reported ±${Math.round(accuracy)} m, ${Math.round(Math.max(0,age)/1000)} s old. Location permission is on, but this computer may lack GNSS. ${usableMap?'Broad map-follow available.':'Too imprecise to center the map.'} A compatible GPS receiver is needed for reliable moving guidance. No data saved.`;
-  } else {
-    const nearest=navigationNearestShape(route.coordinates,lon,lat);
-    if(nearest.offset_m>Math.max(85,accuracy*2)){
-      message.textContent='Location off planned road or uncertain. Turn guidance paused.';
-      detail.textContent=`Firefox ±${Math.round(accuracy)} m · Estimated distance to route ${Math.round(nearest.offset_m)} m. No automatic rerouting. Stop safely to plan again.`;
-    } else {
-      // Prevent backward jumps as GPS drifts along curves.
-      state.navFollowProgress=Math.max(state.navFollowProgress,nearest.index);
-      const maneuvers=(route.maneuvers||[]).filter(m=>Number.isInteger(m.shape_index)&&m.shape_index>=state.navFollowProgress+2);
-      const next=maneuvers[0];
-      message.textContent=next?next.instruction:'Continue along the planned route.';
-      detail.textContent=`Firefox ±${Math.round(accuracy)} m · ${headingValid?'Heading available':'No moving heading reported; using north-up map'} · GPS-follow beta only. No voice or rerouting. Never operate while driving.`;
+  const precise=accuracy<=75,usableMap=accuracy<=1000;
+  const moving=Number.isFinite(speed)&&speed>1.4;
+  let movingHeading=Number.isFinite(heading)&&heading>=0&&heading<360&&moving?heading:null;
+  // If heading is missing, infer only from meaningful movement between TWO
+  // fresh, accurate fixes. Never infer heading from an approximate desktop dot.
+  const prev=state.navFollowPriorFix;
+  if(movingHeading===null && precise && prev && prev.accuracy<=75){
+    const elapsed=(pos.timestamp-prev.timestamp)/1000;
+    const traveled=routeGuide.distance([prev.lon,prev.lat],[lon,lat]);
+    if(elapsed>0.6 && elapsed<=20 && traveled>Math.max(20,accuracy+prev.accuracy) && traveled/elapsed>=1.4 && traveled/elapsed<65){
+      movingHeading=routeGuide.bearing([prev.lon,prev.lat],[lon,lat]);
     }
   }
+  state.navFollowPriorFix={lat,lon,accuracy,timestamp:pos.timestamp};
+  const activeBearing=movingHeading!==null?movingHeading:0;
+  let offRoute=false;
+  if(!precise){
+    message.textContent=`Approximate location (±${Math.round(accuracy)} m) — turn guidance paused.`;
+    distanceLabel.textContent='';
+    detail.textContent=`Firefox reported ±${Math.round(accuracy)} m, ${Math.round(Math.max(0,age)/1000)} s old. Location permission does not guarantee a GNSS fix. ${usableMap?'Broad map-follow available.':'Too imprecise to center the map.'} Precise moving guidance needs a compatible receiver and browser/device bridge. No data saved.`;
+  }else{
+    const progress=routeGuide.guidance(route,lon,lat,accuracy,state.navFollowProgress||0);
+    offRoute=progress.offroute;
+    if(offRoute){
+      message.textContent='Location off planned road or uncertain. Turn guidance paused.';
+      distanceLabel.textContent='';
+      detail.textContent=`Location ±${Math.round(accuracy)} m · Estimated route offset ${Math.round(progress.offset_m)} m. No automatic rerouting. Stop safely to request directions again.`;
+    }else{
+      state.navFollowProgress=progress.along_m;
+      const turn=progress.next;
+      message.textContent=turn?turn.instruction:'Continue to your destination.';
+      distanceLabel.textContent=turn?`In ${routeGuide.distanceText(turn.distance_m)} · ${routeGuide.distanceText(progress.remaining_m)} remaining`:`${routeGuide.distanceText(progress.remaining_m)} remaining`;
+      detail.textContent=`Reported GPS ±${Math.round(accuracy)} m · ${movingHeading===null?'Moving heading unavailable: north-up map':'Moving heading available: forward-facing map'} · Route offset ${Math.round(progress.offset_m)} m · No automatic rerouting or spoken prompts. No history saved.`;
+    }
+  }
+  $('map-follow-hud').classList.toggle('navigation-guiding',precise&&!offRoute);
   if(!usableMap)return;
-  // For coarse desktop fixes, show a broad north-up view rather than an
-  // inaccurate low-level street camera that falsely suggests lane precision.
-  const bearing=(precise&&headingValid)?heading:0;
-  const zoom=precise?16.5:(accuracy<=200?13.5:12);
-  const pitch=precise?42:0;
+  const bearing=(precise&&!offRoute)?activeBearing:0;
+  const zoom=precise&&!offRoute?16.5:(accuracy<=200?13.5:12);
+  const pitch=precise&&!offRoute && movingHeading!==null?48:0;
   if(Date.now()-state.navFollowLast>700){
     state.navFollowLast=Date.now();
     if(state.map&&state.mapReady){
+      // Put the driver below map center so more upcoming road is visible.
       state.map.easeTo({center:[lon,lat],zoom,pitch,bearing,
-        offset:[0,precise?Math.min(85,$('map').clientHeight*.18):0],duration:650});
+        offset:[0,pitch?Math.min(125,$('map').clientHeight*.24):0],duration:650});
     }else if(state.rasterMap){state.rasterMap.stop();state.rasterMap.center=[lon,lat];state.rasterMap.zoom=Math.min(16,Math.floor(zoom));state.rasterMap.render();}
   }
 }
@@ -2413,9 +2466,19 @@ $('map-begin-guidance').addEventListener('click',()=>{
     setMapDestinationStatus('This browser cannot provide GPS follow positions. Route directions remain available.','error');return;
   }
   stopNavigationFollow();
-  state.navFollowLast=0;state.navFollowProgress=0;
+  state.navFollowLast=0;state.navFollowProgress=0;state.navFollowPriorFix=null;
+  $('page-map').classList.add('navigation-driving');
+  // Enter follow camera immediately when a recent browser position exists;
+  // future watch callbacks refine bearing only when actual movement is known.
+  const cached=state.browserLocation;
+  if(cached && Number.isFinite(cached.lat)&&Number.isFinite(cached.lon)&&Number.isFinite(cached.accuracy) &&
+     cached.accuracy<=1000 && Date.now()-cached.capturedAt<=15000 && Date.now()-cached.capturedAt>=-5000 && state.map && state.mapReady){
+    const near=cached.accuracy<=75;
+    state.map.easeTo({center:[cached.lon,cached.lat],zoom:near?16.5:(cached.accuracy<=200?13.5:12),pitch:0,bearing:0,duration:500});
+  }
   $('map-follow-hud').hidden=false;
   $('map-follow-instruction').textContent='Requesting fresh GPS positions…';
+  $('map-follow-distance').textContent='Waiting for an accurate moving fix';
   $('map-follow-quality').textContent='Firefox permission alone does not guarantee precise GNSS. Reported accuracy will appear here; approximate fixes can center the map but never advance turns. Nothing saved.';
   // Some browsers may invoke a mocked callback synchronously; set a sentinel
   // before the actual watch ID is assigned.

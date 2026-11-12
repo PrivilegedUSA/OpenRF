@@ -671,3 +671,32 @@
 #page-map .map-follow-details summary{cursor:pointer;font-size:10px;color:#a6d4d2}
 #page-map #map-follow-quality{font-size:10px;color:#aac1c9;margin-top:4px}
 @media(max-width:550px){#page-map .map-destination-panel{max-height:42%;padding:7px}#page-map .map-follow-hud{bottom:48px;max-width:calc(100% - 16px)}}
+
+/* v0.2.34 — route review stays on the map, driving mode prioritizes the road. */
+#page-map .map-directions-review{position:absolute;z-index:22;top:var(--openrf-nav-overlay-bottom,165px);left:9px;right:62px;max-width:430px;max-height:50%;overflow-y:auto;background:#102b35f5;color:#e1f8f2;border:1px solid #35616b;border-radius:9px;box-shadow:0 5px 15px #0009}
+#page-map .map-directions-review[hidden]{display:none!important}
+#page-map .map-directions-review>summary{cursor:pointer;list-style:disclosure-closed;padding:9px 12px;color:#9ce6d6;font-size:12px;font-weight:750}
+#page-map .map-directions-review[open]>summary{border-bottom:1px solid #35616b}
+#page-map .map-directions-body{padding:8px 12px}
+#page-map .map-directions-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:10px}
+#page-map .map-directions-actions .btn{font-size:11px;min-height:30px;padding:6px 3px}
+#page-map .map-directions-body ol{margin:4px 0 10px;padding-left:24px;max-height:40vh;overflow-y:auto}
+#page-map .map-directions-body li{font-size:12px;line-height:1.55;margin:0 0 12px;break-inside:avoid}
+#page-map .map-directions-body li small{display:block;color:#92b3b7}
+#page-map .map-follow-instructions{display:grid;flex:1;min-width:0;gap:2px}
+#page-map #map-follow-distance{font-size:11px;color:#70e2c9;font-weight:700}
+#page-map.navigation-driving .map-destination-panel,
+#page-map.navigation-driving .map-navigation-settings,
+#page-map.navigation-driving .map-directions-review,
+#page-map.navigation-driving .navigation-preview-label{display:none!important}
+#page-map.navigation-driving .map-follow-hud{top:10px;bottom:auto;max-width:calc(100% - 20px);left:10px;right:10px;width:auto;padding:10px 11px;border-color:#35aa9a;box-shadow:0 6px 18px #000b}
+#page-map.navigation-driving .map-follow-hud.navigation-guiding{border-left:4px solid #34c9b1}
+#page-map.navigation-driving #map-follow-instruction{font-size:14px;line-height:1.3}
+#page-map.navigation-driving .map-follow-details summary{font-size:10px}
+@media(max-width:550px){#page-map .map-directions-review{left:9px;right:9px;max-width:none}#page-map.navigation-driving .map-follow-hud{top:7px;bottom:auto}}
+/* Keep the map settings control uniform with Add and Layers at the lower right. */
+#page-map .map-navigation-settings:not([open]){left:auto;right:90px;bottom:9px;width:32px;height:32px;border:0;padding:0;z-index:25}
+#page-map .map-navigation-settings:not([open])>summary{width:32px;height:32px;min-width:32px;min-height:32px;font-size:17px;border:0;border-radius:8px;background:#0c2833ec;box-shadow:0 2px 9px #0007}
+#page-map .map-navigation-settings[open]{left:auto;right:8px;bottom:48px;width:min(355px,calc(100vw - 25px));max-height:70vh}
+#page-map.navigation-driving .map-wrap .maplibregl-ctrl-top-right,
+#page-map.navigation-driving .map-wrap .raster-controls{top:130px!important}

@@ -132,7 +132,7 @@ assert(css.includes('.map-destination-form .nav-start-button{width:100%'),
 assert(css.includes('.map-destination-form .map-destination-actions{display:flex;flex-direction:column'),
   'address-search consent sits above, not beside, Start navigation');
 assert(source.includes('function showMapAddressMatches(matches)') &&
-       source.includes('Select the matching address from the suggestions, then press Start navigation again.'),
+       source.includes('Select the matching address from the suggestions, then press Get directions again.'),
   'ambiguous address searches must prompt selection rather than silently using first result');
 assert(!source.includes("return {name:reply.results[0].name,coordinates:"),
   'address searches cannot silently route to the first fuzzy geocoder result');

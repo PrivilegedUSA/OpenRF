@@ -1,3 +1,11 @@
+## v0.2.34 — Road-sheet exports and focused GPS following
+
+- Added an offline-only route guidance geometry/itinerary helper. Projects GPS onto road *segments* and estimates distance to the next Valhalla maneuver, with strict accuracy and off-route gates; does not invent movement or turn timing.
+- Start navigation explicitly enters a cleaner map-focused driving view and shows the next maneuver and remaining distance when GNSS is sufficiently precise. Uses device moving heading, or travel between reliable fresh fixes; without trustworthy heading, stays north-up. No automatic rerouting/voice yet.
+- Added a collapsible, numbered local road-direction list on the Survey Map. Print, save portable offline HTML, or opt-in full-coordinate JSON export without a server upload; route sheet survives without GPS.
+- Preserved surveys, offline map resources, draggable destination, stored investigations, GPS privacy and Valhalla routing. No schema migration. Added regression tests for route progression, printable escaping, endpoint permissions and camera safety.
+- Investigated historic intermittent CI serial-capture assertion; improved failure diagnostics, no unverified hardware claims. Desktop Firefox, Raspberry Pi GNSS and actual driving behavior remain unverified.
+
 ## v0.2.33 — 2026-11-12
 
 - Implement a separate gear-operated search-settings panel near bottom-left of the Survey Map, leaving destination, map picker, Get directions and Start navigation as the compact map overlay. MapTiler keys remain in the same private Ubuntu file; no duplicate search controls or offline tile changes.
