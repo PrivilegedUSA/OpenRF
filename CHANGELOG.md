@@ -1,3 +1,10 @@
+## v0.2.35 — GPS-follow planned turns and optional native GNSS (2026-11-12)
+
+- Show a clearly labeled planned maneuver inside the GPS-follow HUD even for coarse/stale/denied browser fixes, with an expandable complete planned-turn list available while following; never label a planned turn as the active current instruction without a fresh accurate fix.
+- Add an explicitly started, read-only localhost gpsd bridge. Normalize UTC fix time/age, receiver identity, speed/heading and conservative horizontal accuracy; clearly report unavailable, stale and missing-accuracy states. Browser geolocation remains fallback; prefer valid fresh local GNSS over a coarse browser position. Stop polling when navigation ends or map page closes. No automatic location recording.
+- Retain camera positioning beneath map center and pitch/heading only for accurate moving fixes; no artificial position, direction, speed, police alerts or automatic rerouting.
+- Add Python GNSS adapter/API privacy tests and JS follow behavior regression; preserve downloadable offline HTML/JSON directions, Valhalla routes, map tiles, RF tools and all older source. Raspberry Pi GNSS/Firefox vehicle behavior is not physically verified. Existing CI serial-capture flakiness is still under investigation.
+
 ## v0.2.34 — Road-sheet exports and focused GPS following
 
 - Added an offline-only route guidance geometry/itinerary helper. Projects GPS onto road *segments* and estimates distance to the next Valhalla maneuver, with strict accuracy and off-route gates; does not invent movement or turn timing.

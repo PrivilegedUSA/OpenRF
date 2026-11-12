@@ -700,3 +700,16 @@
 #page-map .map-navigation-settings[open]{left:auto;right:8px;bottom:48px;width:min(355px,calc(100vw - 25px));max-height:70vh}
 #page-map.navigation-driving .map-wrap .maplibregl-ctrl-top-right,
 #page-map.navigation-driving .map-wrap .raster-controls{top:130px!important}
+
+/* v0.2.35: route review is always accessible when following; never call a planned
+   turn a current maneuver without a fresh accurate position. */
+#page-map.navigation-driving .map-follow-hud{max-height:min(57%,390px);overflow-y:auto}
+#page-map .map-follow-planned{font-size:11px;line-height:1.35;color:#f7d88b;margin:4px 0 5px}
+#page-map .map-follow-planned[hidden]{display:none}
+#page-map .map-follow-turns>summary{cursor:pointer;color:#a2eee0;font-size:11px;padding:4px 0}
+#page-map .map-follow-turns ol{margin:4px 0 6px;padding:2px 0 2px 21px;max-height:145px;overflow:auto}
+#page-map .map-follow-turns li{font-size:11px;line-height:1.4;margin-bottom:6px;color:#e5f0ef}
+#page-map .map-follow-turns li small{display:block;color:#a3c2c5}
+#page-map.navigation-driving .map-follow-hud{z-index:32}
+
+#page-map .map-follow-source{display:block;font-size:10px;color:#8db8b6;line-height:1.3;margin:2px 0}

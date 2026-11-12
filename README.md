@@ -1,4 +1,4 @@
-# OpenRF v0.2.34 — Compact Navigation Controls & GPS Accuracy Diagnostics
+# OpenRF v0.2.35 — Planned Turns During GPS Follow & Local GNSS Bridge
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.34.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.35.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.34 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.35 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,13 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.35 — Planned turns, GPS follow and optional local gpsd bridge
+
+- Start navigation shows the **next planned turn** even when the browser provides a coarse/stale position, clearly marked **planned (not current)**. The expandable numbered turn list is accessible within the driving view. Only fresh and sufficiently accurate positions advance live turn timing.
+- Optional **local read-only gpsd** bridge for Linux/Raspberry Pi (`127.0.0.1:2947`, `?WATCH`/`?POLL`). It is queried only during explicitly started navigation, stops when the user stops or leaves the Map, does not persist location records, and reports device, UTC timestamp, fix age, horizontal accuracy estimate, course and speed if available. Missing/stale/unknown accuracy is not treated as a valid fix. The browser remains the fallback.
+- With a real, accurate, **moving** position and heading, the map keeps the driver below center in a tilted heading-up view; approximate desktop browser positions still use a broad north-up view. GPS follow remains a **beta**, not verified vehicle navigation; no spoken turn alerts, automatic reroute or road-level guarantees.
+- Existing Valhalla routing, printable route sheet, offline vector maps, RF investigations and saved observations remain intact; no new dependencies or database migration. See [v0.2.35 tests and optional gpsd setup](docs/RELEASE_0.2.35_TESTS.md).
 
 ## v0.2.34 — Map overlay, drivable directions, and opt-in GPS-follow beta
 

@@ -29,6 +29,7 @@ jobs:
           node --check openrf/static/navigation.js
           node --check openrf/static/route_guidance.js
           node tests/test_route_guidance.js
+          node tests/test_navigation_follow_v035.js
           node tests/test_frontend.js
           node tests/test_history_analysis.js
           node tests/test_signal_explorer.js

@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -2376,6 +2376,9 @@ $('nav-destination-list').addEventListener('click',event=>{
 function stopNavigationFollow(){
   if(state.navFollowId!==null && navigator.geolocation?.clearWatch && state.navFollowId!==-1)
     navigator.geolocation.clearWatch(state.navFollowId);
+  state.navGnssEpoch=(state.navGnssEpoch||0)+1;
+  if(state.navGnssTimer!==null)clearInterval(state.navGnssTimer);
+  state.navGnssTimer=null;state.navGnssBusy=false;state.navGnssLast=0;
   state.navFollowId=null;state.navFollowPriorFix=null;state.navFollowHeading=null;
   $('page-map').classList.remove('navigation-driving');
   $('map-follow-hud').hidden=true;
@@ -2395,19 +2398,30 @@ function followPosition(pos){
   if(state.navFollowId===null)return;
   const route=state.navPreview;
   if(route?.type!=='ROAD_ROUTE'||!route.is_driving_route){stopNavigationFollow();return;}
+  // During a fresh gpsd fix, do not overwrite the GNSS camera with a coarser
+  // browser-network fix. Fall back automatically if local GNSS stops reporting.
+  if(pos.origin!=='gpsd' && state.navGnssLast && Date.now()-state.navGnssLast<5000)return;
   const {latitude:lat,longitude:lon,accuracy,heading,speed}=pos.coords||{};
+  const sourceName=pos.origin==='gpsd'?'Local gpsd GNSS':'Browser location';
   const age=Date.now()-pos.timestamp;
   const message=$('map-follow-instruction'),detail=$('map-follow-quality');
   const distanceLabel=$('map-follow-distance');
+  const planned=$('map-follow-planned');
+  if(planned){
+    const listed=routeGuide.routeSteps(route);
+    const first=listed.find(t=>!/^depart\b/i.test(t.instruction))||listed[0];
+    planned.textContent=first?`Planned (not current): ${first.instruction}`:'Planned route available in turn list.';
+    planned.hidden=false;
+  }
   if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180||
      !Number.isFinite(accuracy)||accuracy<0||!Number.isFinite(age)||age< -5000||age>15000){
-    message.textContent='No recent valid browser location. Guidance paused.';
+    message.textContent='No recent valid browser location or GNSS fix. Live guidance paused.';
     distanceLabel.textContent='';
-    detail.textContent=`Reported accuracy: ${Number.isFinite(accuracy)?'±'+Math.round(accuracy)+' m':'unavailable'} · Fix age: ${Number.isFinite(age)?Math.round(age/1000)+' s':'unknown'}. Check browser location permission. No data saved.`;
+    detail.textContent=`Reported accuracy: ${Number.isFinite(accuracy)?'±'+Math.round(accuracy)+' m':'unavailable'} · Fix age: ${Number.isFinite(age)?Math.round(age/1000)+' s':'unknown'}. Check location source and device permissions. No data saved.`;
     $('map-follow-hud').classList.remove('navigation-guiding');
     return;
   }
-  state.browserLocation={lat,lon,accuracy,capturedAt:Date.now()};
+  state.browserLocation={lat,lon,accuracy,capturedAt:Date.now(),source:pos.origin==='gpsd'?'gpsd':'browser',source_device:pos.source_device||null};
   updateBrowserLocationMarker();
   const precise=accuracy<=75,usableMap=accuracy<=1000;
   const moving=Number.isFinite(speed)&&speed>1.4;
@@ -2415,20 +2429,20 @@ function followPosition(pos){
   // If heading is missing, infer only from meaningful movement between TWO
   // fresh, accurate fixes. Never infer heading from an approximate desktop dot.
   const prev=state.navFollowPriorFix;
-  if(movingHeading===null && precise && prev && prev.accuracy<=75){
+  if(movingHeading===null && precise && prev && prev.accuracy<=75 && prev.source===pos.origin){
     const elapsed=(pos.timestamp-prev.timestamp)/1000;
     const traveled=routeGuide.distance([prev.lon,prev.lat],[lon,lat]);
     if(elapsed>0.6 && elapsed<=20 && traveled>Math.max(20,accuracy+prev.accuracy) && traveled/elapsed>=1.4 && traveled/elapsed<65){
       movingHeading=routeGuide.bearing([prev.lon,prev.lat],[lon,lat]);
     }
   }
-  state.navFollowPriorFix={lat,lon,accuracy,timestamp:pos.timestamp};
+  state.navFollowPriorFix={lat,lon,accuracy,timestamp:pos.timestamp,source:pos.origin};
   const activeBearing=movingHeading!==null?movingHeading:0;
   let offRoute=false;
   if(!precise){
     message.textContent=`Approximate location (±${Math.round(accuracy)} m) — turn guidance paused.`;
     distanceLabel.textContent='';
-    detail.textContent=`Firefox reported ±${Math.round(accuracy)} m, ${Math.round(Math.max(0,age)/1000)} s old. Location permission does not guarantee a GNSS fix. ${usableMap?'Broad map-follow available.':'Too imprecise to center the map.'} Precise moving guidance needs a compatible receiver and browser/device bridge. No data saved.`;
+    detail.textContent=`${sourceName} reported ±${Math.round(accuracy)} m, ${Math.round(Math.max(0,age)/1000)} s old. Location permission does not guarantee a GNSS fix. ${usableMap?'Broad map-follow available.':'Too imprecise to center the map.'} A local gpsd receiver can supply GNSS through the optional Pi bridge. No receiver is assumed. No data saved.`;
   }else{
     const progress=routeGuide.guidance(route,lon,lat,accuracy,state.navFollowProgress||0);
     offRoute=progress.offroute;
@@ -2438,10 +2452,11 @@ function followPosition(pos){
       detail.textContent=`Location ±${Math.round(accuracy)} m · Estimated route offset ${Math.round(progress.offset_m)} m. No automatic rerouting. Stop safely to request directions again.`;
     }else{
       state.navFollowProgress=progress.along_m;
+      if(planned)planned.hidden=true;
       const turn=progress.next;
       message.textContent=turn?turn.instruction:'Continue to your destination.';
       distanceLabel.textContent=turn?`In ${routeGuide.distanceText(turn.distance_m)} · ${routeGuide.distanceText(progress.remaining_m)} remaining`:`${routeGuide.distanceText(progress.remaining_m)} remaining`;
-      detail.textContent=`Reported GPS ±${Math.round(accuracy)} m · ${movingHeading===null?'Moving heading unavailable: north-up map':'Moving heading available: forward-facing map'} · Route offset ${Math.round(progress.offset_m)} m · No automatic rerouting or spoken prompts. No history saved.`;
+      detail.textContent=`${sourceName} ±${Math.round(accuracy)} m · ${movingHeading===null?'Moving heading unavailable: north-up map':'Moving heading available: forward-facing map'} · Route offset ${Math.round(progress.offset_m)} m · No automatic rerouting or spoken prompts. No history saved.`;
     }
   }
   $('map-follow-hud').classList.toggle('navigation-guiding',precise&&!offRoute);
@@ -2458,12 +2473,36 @@ function followPosition(pos){
     }else if(state.rasterMap){state.rasterMap.stop();state.rasterMap.center=[lon,lat];state.rasterMap.zoom=Math.min(16,Math.floor(zoom));state.rasterMap.render();}
   }
 }
+// A loopback-only, read-only gpsd request. No polling except during an active
+// user-started navigation session; server never stores or logs position fields.
+async function pollLocalNavigationGnss(){
+  if(state.navFollowId===null || state.navGnssBusy)return;
+  state.navGnssBusy=true;
+  const epoch=state.navGnssEpoch;
+  try{
+    const response=await fetch('/api/navigation/gnss',{cache:'no-store',headers:{'X-OpenRF-GNSS-Consent':'navigation-follow'}});
+    if(!response.ok)return;
+    const fix=await response.json();
+    if(state.navFollowId===null || epoch!==state.navGnssEpoch)return;
+    const status=$('map-follow-source');
+    if(status){
+      status.textContent=fix.status==='fix' ? `Local GNSS: ${fix.source_device||'gpsd receiver'} · UTC fix ±${Math.round(fix.accuracy_m)} m, age ${fix.fix_age_s} s` :
+        `Local GNSS: ${fix.status||'unavailable'} · browser fallback. ${fix.message||''}`;
+    }
+    if(fix.status!=='fix')return;
+    if(!Number.isFinite(fix.latitude)||!Number.isFinite(fix.longitude)||!Number.isFinite(fix.accuracy_m)||fix.accuracy_m<0)return;
+    const timestamp=Date.parse(fix.utc_timestamp);
+    if(!Number.isFinite(timestamp)||Math.abs(Date.now()-timestamp)>15000)return;
+    state.navGnssLast=Date.now();
+    followPosition({origin:'gpsd',source_device:fix.source_device,timestamp,coords:{
+      latitude:fix.latitude,longitude:fix.longitude,accuracy:fix.accuracy_m,
+      heading:fix.heading_degrees,speed:fix.speed_mps}});
+  }catch(_err){ /* local gpsd unavailable: browser geolocation remains the fallback */ }
+  finally{state.navGnssBusy=false;}
+}
 $('map-begin-guidance').addEventListener('click',()=>{
   if(state.navPreview?.type!=='ROAD_ROUTE'||!state.navPreview.is_driving_route){
     setMapDestinationStatus('Get a confirmed Valhalla road route first; direct lines cannot start GPS follow.','error');return;
-  }
-  if(!navigator.geolocation?.watchPosition){
-    setMapDestinationStatus('This browser cannot provide GPS follow positions. Route directions remain available.','error');return;
   }
   stopNavigationFollow();
   state.navFollowLast=0;state.navFollowProgress=0;state.navFollowPriorFix=null;
@@ -2476,16 +2515,29 @@ $('map-begin-guidance').addEventListener('click',()=>{
     const near=cached.accuracy<=75;
     state.map.easeTo({center:[cached.lon,cached.lat],zoom:near?16.5:(cached.accuracy<=200?13.5:12),pitch:0,bearing:0,duration:500});
   }
+  const plannedTurns=routeGuide.routeSteps(state.navPreview);
+  $('map-follow-turn-list').innerHTML=plannedTurns.map(t=>`<li>${escapeHTML(t.instruction)}<small>${t.length_miles.toFixed(2)} mi · leg ${t.leg}</small></li>`).join('');
+  $('map-follow-turns').open=false;
+  $('map-follow-source').textContent='Position source: browser; checking optional local gpsd only during this navigation session.';
   $('map-follow-hud').hidden=false;
   $('map-follow-instruction').textContent='Requesting fresh GPS positions…';
-  $('map-follow-distance').textContent='Waiting for an accurate moving fix';
+  $('map-follow-distance').textContent='Planned turns are available below while a fresh fix is requested';
   $('map-follow-quality').textContent='Firefox permission alone does not guarantee precise GNSS. Reported accuracy will appear here; approximate fixes can center the map but never advance turns. Nothing saved.';
   // Some browsers may invoke a mocked callback synchronously; set a sentinel
   // before the actual watch ID is assigned.
   state.navFollowId=-1;
+  state.navGnssLast=0;
+  // Poll only after the user explicitly starts navigation. gpsd is optional.
+  state.navGnssTimer=setInterval(pollLocalNavigationGnss,2500);
+  pollLocalNavigationGnss();
+  if(!navigator.geolocation?.watchPosition){
+    $('map-follow-quality').textContent='Browser GPS unavailable. Looking for an optional local gpsd receiver; planned turns remain available. No data saved.';
+    return;
+  }
   try{ state.navFollowId=navigator.geolocation.watchPosition(followPosition,err=>{
-    $('map-follow-instruction').textContent=`GPS follow unavailable (${err.code===1?'permission denied':err.code===3?'timed out':'position unavailable'}).`;
-    $('map-follow-quality').textContent=`${err.message||'No position returned.'} Permission is separate from accuracy; check Firefox location access and Windows Location services. No travel history saved.`;
+    if(state.navGnssLast && Date.now()-state.navGnssLast<5000)return;
+    $('map-follow-instruction').textContent=`Browser position unavailable (${err.code===1?'permission denied':err.code===3?'timed out':'position unavailable'}). Planned turns remain available.`;
+    $('map-follow-quality').textContent=`${err.message||'No position returned.'} Permission is separate from accuracy; check Firefox location access or a local gpsd receiver. No travel history saved.`;
   },{enableHighAccuracy:true,maximumAge:0,timeout:12000}); }
   catch(err){stopNavigationFollow();setMapDestinationStatus(`GPS follow could not start: ${err.message}`,'error');}
 });

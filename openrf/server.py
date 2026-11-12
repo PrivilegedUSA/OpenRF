@@ -22,6 +22,7 @@ from . import vector_maps
 from .hardware import status_report, enumerate_serial_ports, serial_port_diagnostics
 from .readiness import readiness_report
 from .routing import local_route, local_status, RouteUnavailable, RouteError
+from .gnss import read_local_gpsd
 from .geocoding import (search as address_search, provider as geocoder_provider,
                        configuration_status as geocoder_status, save_maptiler_key,
                        GeocoderUnavailable, GeocoderError)
@@ -222,6 +223,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, raw, mime, {'Content-Disposition': f'{disposition}; filename="{name}"'})
             except ValueError:
                 return self._error(400, 'Invalid report selection')
+        if path == '/api/navigation/gnss':
+            # Deliberate follow-mode poll only; never a background service.
+            # Header prevents casual cross-origin/prefetch location reads.
+            if self.headers.get('X-OpenRF-GNSS-Consent') != 'navigation-follow' or not self._allowed_origin():
+                return self._error(403, 'Local GNSS requires active navigation consent.')
+            if urlparse(self.path).query:
+                return self._error(400, 'GNSS polling does not accept query parameters.')
+            return self._json(200, read_local_gpsd())
         if path == '/api/navigation/routing/status':
             return self._json(200, local_status())
         if path == '/api/navigation/geocoding/status':
