@@ -199,6 +199,66 @@ class GeocodingTests(unittest.TestCase):
         self.assertIn('countrycode=US',requests[0])
 
 
+    def test_opt_in_census_complete_street_address_has_explicit_final_mode(self):
+        calls=[]
+        def opener(req, timeout):
+            calls.append((req.full_url,timeout))
+            self.assertIn('geocoding.geo.census.gov/geocoder/locations/onelineaddress?',req.full_url)
+            self.assertIn('benchmark=Public_AR_Current',req.full_url)
+            self.assertIn('address=1600',req.full_url)
+            return Response(json.dumps({'result':{'addressMatches':[{
+                'matchedAddress':'1600 PENNSYLVANIA AVE NW, WASHINGTON, DC, 20500',
+                'coordinates':{'x':-77.0365,'y':38.8977}
+            }]}}).encode())
+        with patch.dict(os.environ, {'OPENRF_PHOTON_PORT':'','OPENRF_MAPTILER_KEY':''}):
+            data=search('1600 Pennsylvania Ave NW, Washington, DC',
+                        open_connection=opener, online_allowed=True,final=True)
+        self.assertEqual(len(calls),1)
+        self.assertEqual(data['provider'],'us-census-opt-in')
+        self.assertTrue(data['external_query'])
+        self.assertEqual(data['results'][0]['category'],'street_address')
+        self.assertIn('approximate',data['accuracy_note'].lower() if 'approximate' in data['accuracy_note'].lower() else data['results'][0]['accuracy_note'].lower())
+        self.assertEqual(data['results'][0]['coordinates'] if 'coordinates' in data['results'][0] else data['results'][0]['longitude'],-77.0365)
+
+    def test_city_only_search_does_not_query_census(self):
+        requests=[]
+        def opener(req, timeout):
+            requests.append(req.full_url)
+            self.assertIn('photon.komoot.io/api/?',req.full_url)
+            return Response(json.dumps({'features':[]}).encode())
+        with patch.dict(os.environ, {'OPENRF_PHOTON_PORT':'','OPENRF_MAPTILER_KEY':''}):
+            self.assertEqual(search('Pioneer, CA',online_allowed=True,final=True,
+                                    open_connection=opener)['results'],[])
+            with self.assertRaises(GeocoderUnavailable):
+                search('1600 Pennsylvania Ave NW, Washington, DC',online_allowed=False,
+                       final=True,open_connection=opener)
+        self.assertEqual(len(requests),1)
+
+    def test_census_no_match_never_makes_up_destination(self):
+        urls=[]
+        def opener(req, timeout):
+            urls.append(req.full_url)
+            if 'geocoding.geo.census.gov' in req.full_url:
+                return Response(b'{"result":{"addressMatches":[]}}')
+            return Response(b'{"features":[]}')
+        with patch.dict(os.environ, {'OPENRF_PHOTON_PORT':'','OPENRF_MAPTILER_KEY':''}):
+            data=search('99999 Imaginary Rd, Jackson, CA',online_allowed=True,
+                        final=True,open_connection=opener)
+        self.assertEqual(len(urls),2)
+        self.assertEqual(data['results'],[])
+
+    def test_census_ignores_invalid_and_nonfinite_positions(self):
+        def opener(req, timeout):
+            return Response(json.dumps({'result':{'addressMatches':[{
+                'matchedAddress':'123 MAIN ST, EXAMPLE, CA', 'coordinates':{'x':float('nan'),'y':38.1}},
+                {'matchedAddress':'456 MAIN ST, EXAMPLE, CA', 'coordinates':{'x':-120.5,'y':38.1}}
+            ]}}).encode())
+        with patch.dict(os.environ, {'OPENRF_PHOTON_PORT':'','OPENRF_MAPTILER_KEY':''}):
+            data=search('456 Main St, Example, CA',online_allowed=True,final=True,open_connection=opener)
+        self.assertEqual(len(data['results']),1)
+        self.assertEqual(data['results'][0]['longitude'],-120.5)
+
+
 class RouteHTTPTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory()
@@ -246,9 +306,18 @@ class RouteHTTPTests(unittest.TestCase):
                 status,data=self.request('GET','/api/navigation/geocode?q=123%20Main%20St&online=1',
                     headers={'X-OpenRF-Address-Consent':'yes'})
                 self.assertEqual(status,200)
-                stub.assert_called_once_with('123 Main St',online_allowed=True)
+                stub.assert_called_once_with('123 Main St',online_allowed=True,final=False)
             self.assertEqual(self.request('GET','/api/navigation/geocode?q=123%20Main%20St&online=0')[0],400)
             self.assertEqual(self.request('GET','/api/navigation/geocode?q=123%20Main%20St&url=https://evil.example')[0],400)
+            self.assertEqual(self.request('GET','/api/navigation/geocode?q=123%20Main%20St&mode=final')[0],503)
+            self.assertEqual(self.request('GET','/api/navigation/geocode?q=123%20Main%20St&mode=final&online=1')[0],403)
+            with patch('openrf.server.address_search',return_value={'results':[], 'provider':'us-census-opt-in'}) as stub:
+                status,data=self.request('GET','/api/navigation/geocode?q=123%20Main%20St&online=1&mode=final',
+                    headers={'X-OpenRF-Address-Consent':'yes'})
+                self.assertEqual(status,200)
+                stub.assert_called_once_with('123 Main St',online_allowed=True,final=True)
+            self.assertEqual(self.request('GET','/api/navigation/geocode?q=x&mode=other&online=1',
+                headers={'X-OpenRF-Address-Consent':'yes'})[0],400)
 
     def test_route_validation_no_implicit_network(self):
         self.assertEqual(self.request('POST','/api/navigation/route',{'locations':[]})[0],422)

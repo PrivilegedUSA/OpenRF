@@ -6,16 +6,16 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.27">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.28">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
-  <script defer src="/static/navigation.js?v=0.2.27"></script>
-  <script defer src="/static/app.js?v=0.2.27"></script>
+  <script defer src="/static/navigation.js?v=0.2.28"></script>
+  <script defer src="/static/app.js?v=0.2.28"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.27</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.28</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -45,7 +45,8 @@
         <form id="map-destination-form" class="map-destination-form" autocomplete="off" aria-label="Preview a destination on the map">
           <label for="map-destination-query">Destination <span class="small muted">(street address, saved place or coordinates)</span></label>
           <div class="map-destination-row"><div class="map-address-input-wrap"><input class="field" id="map-destination-query" list="map-destination-suggestions" placeholder="Search an address or saved place" maxlength="140" required><div id="map-address-options" class="address-suggestions" role="listbox" aria-label="Address suggestions" hidden></div></div><datalist id="map-destination-suggestions"></datalist></div>
-          <div class="map-destination-actions"><label class="map-online-address"><input type="checkbox" id="map-online-address"> Online address suggestions <small>(opt-in · sends typed address to Photon; U.S. only)</small></label><button class="btn primary nav-start-button" type="submit" id="map-start-navigation" title="Plan route; active turn-by-turn guidance is not yet available"><svg class="nav-start-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="m3 11 18-8-8 18-2-8-8-2Z"/></svg> Start navigation</button></div>
+          <button type="button" class="map-pick-destination" id="map-pick-destination">⌖ Choose destination on map</button>
+          <div class="map-destination-actions"><label class="map-online-address"><input type="checkbox" id="map-online-address"> Online U.S. address search <small>(opt-in · Photon suggestions; Census lookup for complete street addresses)</small></label><button class="btn primary nav-start-button" type="submit" id="map-start-navigation" title="Plan route; active turn-by-turn guidance is not yet available"><svg class="nav-start-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="m3 11 18-8-8 18-2-8-8-2Z"/></svg> Start navigation</button></div>
           <p id="map-destination-status" class="small muted" role="status" aria-live="polite">Starting point: browser location. Select a U.S. address suggestion before routing. Road plans require local Valhalla; active driving guidance is not yet available.</p>
         </form>
         <div class="map-wrap"><div id="map"></div><svg id="navigation-preview-overlay" class="navigation-preview-overlay" aria-hidden="true" preserveAspectRatio="none"></svg><div id="navigation-preview-label" class="navigation-preview-label" hidden>DIRECT LINE · NOT A ROAD ROUTE</div><details class="map-credits" id="map-credits"><summary aria-label="Open map data credits and licenses" title="Map credits">ⓘ</summary><div class="map-credits-links"><strong>Map credits</strong><span id="offline-map-attribution" hidden></span><div id="online-map-credits"><span>Online vector basemap:</span><a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a><a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">© OpenMapTiles</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors (ODbL)</a></div></div></details><div id="map-error" class="map-error" hidden><strong>Map could not load.</strong><p>Online vector map unavailable. Offline coordinates and any installed local raster package remain accessible.</p></div><div class="map-legend"><span><i class="legend-dot man"></i> Survey location</span><span><i class="legend-dot dem"></i> DEMO (optional)</span></div>
@@ -78,7 +79,7 @@
         <div class="navigation-grid">
           <form id="nav-preview-form" class="panel nav-form">
             <h3>Plan a trip · detailed controls</h3>
-            <p class="muted small">Street address suggestions require a configured local Photon or opt-in MapTiler search. Valhalla provides planned routes only when a local service is installed. No live turn guidance or police alerts.</p>
+            <p class="muted small">Street address suggestions require Photon or MapTiler; complete U.S. street addresses can use Census lookup after online opt-in. Valhalla provides planned routes only when a local service is installed. No live turn guidance or police alerts.</p>
             <h4>Starting point</h4>
             <label for="nav-start-query">Starting address <input id="nav-start-query" class="field" type="text" placeholder="Current browser location (default)" maxlength="140"></label>
             <details class="nav-advanced-coords"><summary>Coordinates (advanced)</summary><div class="navigation-coordinate-grid"><label>Latitude<input id="nav-start-lat" type="number" min="-90" max="90" step="any" class="field" placeholder="38.48"></label><label>Longitude<input id="nav-start-lon" type="number" min="-180" max="180" step="any" class="field" placeholder="-120.62"></label></div></details>

@@ -184,16 +184,19 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, {'provider': geocoder_provider(),
                                     'enabled': bool(geocoder_provider()),
                                     'public_opt_in_available': True,
+                                    'us_census_full_address_available': True,
                                     'privacy': 'Public Photon requests only with online=1 on an individual query; no outbound lookup by default.'})
         if path == '/api/navigation/geocode':
             params = parse_qs(urlparse(self.path).query)
-            if set(params) - {'q', 'online'} or len(params.get('q', [])) != 1 or \
-               (('online' in params) and params.get('online') != ['1']):
+            if set(params) - {'q', 'online', 'mode'} or len(params.get('q', [])) != 1 or \
+               (('online' in params) and params.get('online') != ['1']) or \
+               (('mode' in params) and params.get('mode') != ['final']):
                 return self._error(400, 'Provide one address search query.')
             if params.get('online') == ['1'] and self.headers.get('X-OpenRF-Address-Consent') != 'yes':
                 return self._error(403, 'Online address search requires an explicit in-app opt-in request.')
             try:
-                return self._json(200, address_search(params['q'][0], online_allowed=params.get('online') == ['1']))
+                return self._json(200, address_search(params['q'][0], online_allowed=params.get('online') == ['1'],
+                                                     final=params.get('mode') == ['final']))
             except GeocoderUnavailable as exc:
                 return self._error(503, str(exc), 'geocoder_unavailable')
             except GeocoderError as exc:

@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 from urllib.error import HTTPError, URLError
 from collections import deque
 import threading
@@ -79,13 +80,71 @@ def _explicitly_foreign(props):
     return False
 
 
-def search(query: str, *, open_connection=None, online_allowed=False):
+def _full_us_street_address(query: str):
+    # City-only queries and partial house numbers cannot be resolved by Census.
+    # Its one-line endpoint requires a reasonably complete street address.
+    return bool(re.match(r'^\d{1,8}[A-Za-z]?\s+\S+', query) and ',' in query and
+                len(query.split(',')) >= 2)
+
+
+def _census_search(query, opener):
+    """One-shot U.S. Census street geocoder, not an autocomplete endpoint.
+
+    Explicitly opted-in and only used for a complete street address at route
+    submission. Coordinates are approximate TIGER address ranges.
+    """
+    url = 'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?' + urlencode({
+        'address': query, 'benchmark': 'Public_AR_Current', 'format': 'json'})
+    req = Request(url, headers={'User-Agent': 'OpenRF/0.2.28 (opt-in US street lookup)', 'Accept': 'application/json'})
+    try:
+        with opener(req, timeout=12) as response:
+            raw = response.read(500_001)
+            if len(raw) > 500_000:
+                raise GeocoderError('U.S. Census response exceeded size limit.')
+            data = json.loads(raw)
+    except HTTPError as exc:
+        raise GeocoderUnavailable(f'U.S. Census address service returned HTTP {exc.code}.') from exc
+    except (URLError, TimeoutError, OSError) as exc:
+        raise GeocoderUnavailable('U.S. Census address service is unreachable from this Ubuntu session.') from exc
+    except (UnicodeError, json.JSONDecodeError) as exc:
+        raise GeocoderError('U.S. Census returned malformed JSON.') from exc
+    matches = (data.get('result') or {}).get('addressMatches') or []
+    result=[]
+    for match in matches[:8]:
+        try:
+            point=match['coordinates']
+            lon,lat=float(point['x']),float(point['y'])
+            name=str(match['matchedAddress']).strip()
+            if not name or not math.isfinite(lat) or not math.isfinite(lon) or not (-90<=lat<=90 and -180<=lon<=180):
+                continue
+            # U.S. Census's public street-address geocoder covers U.S. TIGER ranges.
+            result.append({'name':name[:200], 'latitude':lat, 'longitude':lon,
+                           'source':'us-census-opt-in', 'category':'street_address',
+                           'accuracy_note':'Approximate address-range geocode; verify pin on map.'})
+        except (ValueError, TypeError, KeyError):
+            continue
+    return {'results':result, 'country_filter':'US', 'provider':'us-census-opt-in',
+            'external_query':True,
+            'attribution':'U.S. Census Bureau / TIGER address ranges',
+            'accuracy_note':'Interpolated street address position, not verified building or entrance.'}
+
+
+def search(query: str, *, open_connection=None, online_allowed=False, final=False):
     if not isinstance(query, str):
         raise GeocoderError('Search text must be a string.')
     query = query.strip()
     if not 3 <= len(query) <= 120 or any(ord(c) < 32 for c in query):
         raise GeocoderError('Enter at least 3 characters, up to 120 characters.')
     active = provider(online_allowed=online_allowed)
+    # A complete typed street address may be submitted even if Photon is blocked.
+    # Require explicit network consent; do not send partial typed strings to Census.
+    if final and online_allowed and not os.environ.get('OPENRF_PHOTON_PORT') and \
+       not os.environ.get('OPENRF_MAPTILER_KEY') and _full_us_street_address(query):
+        census = _census_search(query, open_connection or urlopen)
+        if census['results']:
+            return census
+        # No Census match: Photon may still index this specific address.
+        # Never substitute an unverified location automatically.
     if active is None:
         raise GeocoderUnavailable('Address lookup is off. Enable Online address suggestions on the Map, or configure local Photon or MapTiler. Saved places and coordinates still work.')
     if active == 'local-photon':
@@ -106,9 +165,9 @@ def search(query: str, *, open_connection=None, online_allowed=False):
         key = os.environ['OPENRF_MAPTILER_KEY']
         url = f'https://api.maptiler.com/geocoding/{quote(query, safe="")}.json?' + urlencode({'key': key, 'limit': 8, 'country': 'us', 'language': 'en', 'autocomplete': 'true'})
     opener = open_connection or urlopen
-    req = Request(url, headers={'User-Agent': 'OpenRF/0.2.27 (opt-in US address search; personal project)', 'Accept': 'application/json'})
+    req = Request(url, headers={'User-Agent': 'OpenRF/0.2.28 (opt-in US address search; personal project)', 'Accept': 'application/json'})
     try:
-        with opener(req, timeout=5) as response:
+        with opener(req, timeout=9) as response:
             raw = response.read(500_001)
             if len(raw) > 500_000:
                 raise GeocoderError('Geocoder response too large.')
@@ -116,7 +175,7 @@ def search(query: str, *, open_connection=None, online_allowed=False):
     except HTTPError as exc:
         raise GeocoderError(f'Address search failed (HTTP {exc.code}). Check the configured provider and quota.') from exc
     except (URLError, TimeoutError, OSError) as exc:
-        raise GeocoderUnavailable(f'{active} address search is unavailable. Check its local service or network access.') from exc
+        raise GeocoderUnavailable(f'{active} address suggestions are unavailable. Complete U.S. street addresses can be submitted for Census lookup; otherwise choose a point on the map or use a saved place.') from exc
     except (UnicodeError, json.JSONDecodeError) as exc:
         raise GeocoderError('Geocoder returned malformed JSON.') from exc
     result = []

@@ -1548,10 +1548,10 @@ function setMapDestinationStatus(message, kind = '') {
   el.classList.toggle('map-route-error',kind==='error');
   el.classList.toggle('map-route-success',kind==='success');
 }
-function addressLookupUrl(q) {
+function addressLookupUrl(q, final = false) {
   // Public Photon is contacted only after an explicit unchecked-by-default opt-in.
   const online=$('map-online-address').checked ? '&online=1' : '';
-  return `/api/navigation/geocode?q=${encodeURIComponent(q)}${online}`;
+  return `/api/navigation/geocode?q=${encodeURIComponent(q)}${online}${final ? '&mode=final' : ''}`;
 }
 // Local saved places and typed coordinates are resolved without network access.
 // Text address suggestions query only configured local Photon or an EXPLICIT opt-in
@@ -1588,7 +1588,7 @@ async function resolveTypedPlace(query) {
   try { return findLocalDestination(value,state.navDestinations); }
   catch (error) {
     if (!/This is an address/.test(error.message)) throw error;
-    const reply=await api(addressLookupUrl(value));
+    const reply=await api(addressLookupUrl(value, true));
     if (!reply.results?.length) throw Error('No U.S. address matches. Try house number, street, city and state; or choose a map point.');
     // Never use a guessed first result. Offer choices and require an explicit selection.
     if ($('map-destination-query').value.trim()===value) {
@@ -1598,7 +1598,7 @@ async function resolveTypedPlace(query) {
         if (input.value.trim()===value) input.dispatchEvent(new Event('input'));
       }
     }
-    throw Error('Select the correct U.S. address from the suggestions before starting navigation.');
+    throw Error('Select the matching address from the suggestions, then press Start navigation again. Census address pins may be approximate.');
   }
 }
 function setNavigationRoutePreview(result) {
@@ -1701,13 +1701,13 @@ $('map-destination-query').addEventListener('input',()=>{
         const reply=await api(addressLookupUrl(q));
         remote=(reply.results||[]).map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]}));
       } catch(error) {
-        if (token===state.navSearchToken && !local.length) setMapDestinationStatus(error.message);
+        if (token===state.navSearchToken && !local.length) setMapDestinationStatus(error.message+' You can still submit a complete U.S. street address using Start navigation.','error');
       }
       if(token!==state.navSearchToken || $('map-destination-query').value.trim()!==q) return;
       const matches=[...local,...remote].slice(0,8);
       showMapAddressMatches(matches);
     }catch(error){ if(token===state.navSearchToken) setMapDestinationStatus(error.message); }
-  },800);
+  },1450);
 });
 $('map-online-address').addEventListener('change',()=>{
   // Explicit user choice is scoped to this page only, never persisted across reloads.
@@ -1715,8 +1715,8 @@ $('map-online-address').addEventListener('change',()=>{
   $('map-address-options').hidden=true;
   $('map-address-options').replaceChildren();
   setMapDestinationStatus($('map-online-address').checked ?
-    'Online Photon enabled for typed address searches. These queries leave this device; no GPS position is sent. Service may be rate-limited.' :
-    'Online address lookup off. Saved destinations, coordinates, and configured local search remain available.');
+    'Online address search enabled. Photon provides optional suggestions; submit a complete U.S. street address for Census lookup if Photon fails. Typed addresses leave this device; GPS is not sent.' :
+    'Online address lookup off. Use saved places, coordinates or Choose on map; opt in to submit a street address.');
   if ($('map-destination-query').value.trim().length>=3) $('map-destination-query').dispatchEvent(new Event('input'));
 });
 
@@ -1759,7 +1759,7 @@ function wireTripAddressField(input) {
         options.append(btn);
       }
       options.hidden=!options.children.length;
-    },800);
+    },1450);
   });
   input.addEventListener('blur',()=>setTimeout(()=>{options.hidden=true;},180));
 }
@@ -1774,7 +1774,7 @@ function consumeNavigationPick(lon,lat) {
   $('nav-dest-query').value=$('map-destination-query').value;
   state.navSelectedAddress=null;
   setMapDestinationStatus('Destination selected on map. Press Start navigation to plan a route.');
-  setNavigationStatus('Map selection filled destination coordinates. Use Preview to see the direct line.');
+  setNavigationStatus('Map selection filled destination coordinates. Start navigation requests local Valhalla road routing when available.');
   renderNavigationOverlay();
   return true;
 }
@@ -1918,12 +1918,14 @@ $('nav-use-location').addEventListener('click',()=>{
     status.textContent=`Position unavailable (${err.code===1?'permission denied':err.code===3?'timed out':'no fix'}). Enter coordinates manually.`;
   },{enableHighAccuracy:true,maximumAge:0,timeout:15000});
 });
-$('nav-pick-map').addEventListener('click',()=>{
+function beginDestinationMapPick() {
   state.navPicking=true;state.navPreview=null;state.navFitPending=false;
   showPage('map',{autoLocate:false});
   renderNavigationOverlay();
-  flash('Tap a map location to set the navigation destination. No observation is created.');
-});
+  setMapDestinationStatus('Tap a point on the map, then press Start navigation. No survey observation will be created.');
+}
+$('nav-pick-map').addEventListener('click',beginDestinationMapPick);
+$('map-pick-destination').addEventListener('click',beginDestinationMapPick);
 $('nav-clear-preview').addEventListener('click',()=>{
   state.navPicking=false;state.navPreview=null;state.navFitPending=false;
   $('nav-preview-summary').textContent='';

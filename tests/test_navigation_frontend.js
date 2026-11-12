@@ -118,7 +118,7 @@ assert(destinationForm.indexOf('map-address-input-wrap') < destinationForm.index
 assert(!destinationForm.includes('<button class="btn primary" type="submit">Route</button>'), 'old Route button removed');
 assert(css.includes('.map-destination-row{display:block') && css.includes('.map-destination-actions'), 'full-width input and separate action styling');
 assert(source.includes("style: 'liberty'"), 'lighter basemap is default');
-assert(source.includes('function addressLookupUrl(q)') && source.includes("'&online=1'"), 'outbound search requires explicit opt-in');
+assert(source.includes('function addressLookupUrl(q, final = false)') && source.includes("'&online=1'"), 'outbound search requires explicit opt-in');
 assert(source.includes('async function freshNavigationOrigin()') && source.includes('navigator.geolocation.getCurrentPosition'), 'start navigation requests one-shot location when old');
 assert(source.includes("setMapDestinationStatus(err.message,'error')") && source.includes("finally {button.disabled=false;}"), 'route errors stay visible and button recovers');
 assert(source.includes('Direct-line reference only') && source.includes('setNavigationRoutePreview(direct)'), 'no Valhalla must still draw labeled reference');
@@ -132,8 +132,19 @@ assert(css.includes('.map-destination-form .nav-start-button{width:100%'),
 assert(css.includes('.map-destination-form .map-destination-actions{display:flex;flex-direction:column'),
   'address-search consent sits above, not beside, Start navigation');
 assert(source.includes('function showMapAddressMatches(matches)') &&
-       source.includes('Select the correct U.S. address from the suggestions before starting navigation.'),
+       source.includes('Select the matching address from the suggestions, then press Start navigation again.'),
   'ambiguous address searches must prompt selection rather than silently using first result');
 assert(!source.includes("return {name:reply.results[0].name,coordinates:"),
   'address searches cannot silently route to the first fuzzy geocoder result');
 console.log('v0.2.27 U.S.-only destination-choice and full-width action contracts passed.');
+
+// v0.2.28: optional Census lookup for complete address submission, and a click-to-route map fallback.
+assert(html.includes('id="map-pick-destination"') && source.includes("$('map-pick-destination').addEventListener('click',beginDestinationMapPick)"),
+  'map-first destination picker works without geocoding');
+assert(source.includes('addressLookupUrl(value, true)') && source.includes("'&mode=final'"),
+  'route submission requests Census fallback only in explicit final mode');
+assert(source.includes('},1450);') && source.includes('online=1'),
+  'online suggestions are throttled and remain opt-in');
+assert(html.includes('Census lookup for complete street addresses'),
+  'U.S. Census geocoding is distinguished from Photon autocomplete');
+console.log('v0.2.28 map picker and consented complete-address lookup contracts passed.');

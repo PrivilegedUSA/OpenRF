@@ -1,4 +1,4 @@
-# OpenRF v0.2.27 — U.S. Address Search and Local Valhalla Setup
+# OpenRF v0.2.28 — Address Lookup Fallback and Local Valhalla
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.27.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.28.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.27 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.28 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -31,7 +31,7 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
 
-## v0.2.27 — U.S. destination matching and local Valhalla setup
+## v0.2.28 — U.S. destination matching and local Valhalla setup
 
 - **Start navigation** now takes its own full-width row below the opt-in search checkbox.
 - Photon and MapTiler address queries are limited to the United States. Photon street-address results include the house number, street, city and state where supplied. Choose a specific suggestion before routing; OpenRF does not silently accept a guessed first match.
@@ -268,3 +268,11 @@ Detailed architecture: `docs/ARCHITECTURE.md`. License selection is pending; do 
 5. Check observations, investigations and exports from v0.2.1 survive; no database migration. Use `python3 -m unittest discover -s tests -v` and `node tests/test_frontend.js`.
 
 The one-shot driver was tested with mocked NetworkManager responses, **not physical RF hardware**, and the site behavior was checked with a fixture browser location, **not an actual Windows location fix**.
+
+## v0.2.28 — robust full-street address lookup
+
+- Route submission of a complete U.S. street address (e.g. `100 Main St, Jackson, CA`) can use the U.S. Census Bureau one-line geocoder after **explicit online lookup opt-in**. It returns a street-range approximation, not a verified entrance. Confirm the pin on the map before relying on it.
+- Live typing suggestions still use Photon/MapTiler; public Photon is a demonstration endpoint and may reject or time out. Census is **not** a live autocomplete service, and city-only searches need Photon, saved places or the map picker.
+- Choose destination on map is now directly beside destination entry and works without internet address lookup.
+- On submit, inspect and select the returned address; do not silently route to a fuzzy or interpolated result.
+- Real road routes still depend on local Valhalla. If it is not reachable, lines are labeled direct references and **never** imply turn-by-turn navigation.

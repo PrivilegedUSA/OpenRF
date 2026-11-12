@@ -1,3 +1,11 @@
+## v0.2.28 — Address lookup fallback and map picker
+
+- Add explicit, opt-in U.S. Census one-line address geocoding for completed street addresses on route submission. This is **not** live autocomplete; candidate positions are approximate TIGER street ranges.
+- Keep Photon suggestions as an optional best-effort feature; improve message when the public demo refuses requests. Increase typing debounce to reduce unnecessary requests.
+- Add a one-tap Choose on map destination shortcut next to the destination field to route with Valhalla even when all address services are unavailable.
+- Preserve local routing and route-label honesty; do not change investigation or GPS storage.
+- Add focused backend and frontend regression checks, release test instructions.
+
 ## v0.2.27 — U.S. address candidates and optional local routing installer
 
 - Search queries to Photon use the US country filter; MapTiler uses `country=us`. Explicitly foreign results are discarded, and supported street-address components are formatted in the expected U.S. order.
