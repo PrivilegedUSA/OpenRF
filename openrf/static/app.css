@@ -579,3 +579,10 @@
 #map.destination-picking .raster-pin {cursor:crosshair!important}
 #map.destination-picking .raster-pin:hover {cursor:crosshair!important}
 .map-pick-destination[aria-pressed="true"] {color:#ffe2a8;text-decoration:underline}
+
+/* v0.2.31: a single draggable destination pin overlays the live basemap.
+   Ordinary pan/zoom remains enabled everywhere outside its hit target. */
+.navigation-preview-overlay .nav-draggable-pin{pointer-events:all;cursor:grab;touch-action:none}
+.navigation-preview-overlay .nav-draggable-pin:active{cursor:grabbing}
+.navigation-preview-overlay .nav-drag-target{pointer-events:all;cursor:grab}
+#map-vector-status{margin:10px 0 0;line-height:1.5}

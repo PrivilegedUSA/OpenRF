@@ -6,16 +6,16 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.30">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.31">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
-  <script defer src="/static/navigation.js?v=0.2.30"></script>
-  <script defer src="/static/app.js?v=0.2.30"></script>
+  <script defer src="/static/navigation.js?v=0.2.31"></script>
+  <script defer src="/static/app.js?v=0.2.31"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.30</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.31</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -114,7 +114,7 @@
           </div>
         </div>
         </details>
-        <details class="map-area-manager map-control-settings" id="map-control-settings"><summary>Map settings <span class="small muted">(style, location and survey options)</span></summary><div class="button-line"><label class="switchline"><input id="show-demo-map" type="checkbox"> Show demo</label><button class="btn outline" id="map-geolocate">My browser location</button><button class="btn outline" id="map-style">Street map</button><button class="btn outline" id="map-mode">Offline / raster</button></div></details>
+        <details class="map-area-manager map-control-settings" id="map-control-settings"><summary>Map settings <span class="small muted">(style, location and survey options)</span></summary><div class="button-line"><label class="switchline"><input id="show-demo-map" type="checkbox"> Show demo</label><button class="btn outline" id="map-geolocate">My browser location</button><button class="btn outline" id="map-style">OpenRF Light</button><button class="btn outline" id="map-vector-source">Use offline regional vectors</button><button class="btn outline" id="map-mode">Offline / raster</button></div><p id="map-vector-status" class="muted small" role="status" aria-live="polite">Checking regional OpenRF vector maps…</p></details>
         <details class="map-area-manager survey-waypoint-manager" id="survey-waypoint-manager">
           <summary>GPS-linked survey waypoints <span class="small muted">(manual · private · no background tracking)</span></summary>
           <div class="survey-waypoint-inner">

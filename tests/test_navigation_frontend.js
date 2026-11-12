@@ -101,7 +101,7 @@ console.log('v0.2.25 user-triggered recenter, old-fix rejection, privacy and map
 assert(html.includes('id="map-address-options"') && html.includes('id="nav-add-stop"') && html.includes('id="nav-stops"'));
 assert(html.indexOf('id="map-trip-planner"') < html.indexOf('id="map-control-settings"'), 'trip planner accordion above map settings');
 assert(html.includes('id="nav-start-query"') && html.includes('id="nav-dest-query"'), 'trip planner uses address inputs, not just coordinates');
-assert(source.includes("style: 'liberty'"), 'restore standard readable map style');
+assert(source.includes("style: 'dark'") && source.includes("/api/vector/styles/"), 'approved OpenRF Dark basemap by default');
 assert(css.includes('.openrf-recenter-button{background:#fff!important'), 'white location button');
 assert(css.includes('stroke:#101820!important'), 'dark crosshair on white background');
 assert(source.includes("'/api/navigation/route'") && source.includes('nav-stop-query'), 'backend route with ordered stops');
@@ -117,7 +117,7 @@ const destinationForm=html.slice(html.indexOf('id="map-destination-form"'),html.
 assert(destinationForm.indexOf('map-address-input-wrap') < destinationForm.indexOf('map-destination-actions'), 'destination input occupies full width, action appears afterward');
 assert(!destinationForm.includes('<button class="btn primary" type="submit">Route</button>'), 'old Route button removed');
 assert(css.includes('.map-destination-row{display:block') && css.includes('.map-destination-actions'), 'full-width input and separate action styling');
-assert(source.includes("style: 'liberty'"), 'lighter basemap is default');
+assert(source.includes("style: 'dark'") && html.includes('id="map-style"'), 'custom Dark default, Light option available');
 assert(source.includes('function addressLookupUrl(q, final = false, autocomplete = false)') && source.includes("'&online=1'"), 'outbound search requires explicit opt-in');
 assert(source.includes('async function freshNavigationOrigin()') && source.includes('navigator.geolocation.getCurrentPosition'), 'start navigation requests one-shot location when old');
 assert(source.includes("setMapDestinationStatus(err.message,'error')") && source.includes("finally {button.disabled=false;}"), 'route errors stay visible and button recovers');

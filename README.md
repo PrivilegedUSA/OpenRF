@@ -1,4 +1,4 @@
-# OpenRF v0.2.30 — Private Address Provider Setup and Local Valhalla
+# OpenRF v0.2.31 — Approved OpenRF Maps Integration and Draggable Destinations
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,7 +6,7 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.30.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.31.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
@@ -30,6 +30,16 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.31 — Approved OpenRF Maps integration
+
+- Integrated **OpenRF Maps v0.1.11** into the existing Linux application (no replacement or duplicate map UI). **OpenRF Dark is the default**, and **OpenRF Light** is available in Map settings; both original approved JSON files remain byte-for-byte intact, and their empty standalone preview overlays are removed only from a served copy.
+- The main Python HTTP server now serves the **bundled Amador/Calaveras vector MBTiles** (5,703 map tiles), offline Noto Sans glyphs, and the local MapLibre runtime. No second preview server or new account is required. Bundled regional tiles occupy ~25 MiB uncompressed; only the local map itself is distributed, not the full Northern California Valhalla source or private data.
+- Under **Map settings**, choose **Use offline regional vectors** to switch from OpenRF's online vector source to local tiles without resetting surveys, pins, routes or the browser location. Offline map data is available only in the declared region; **outside this area, local tiles are missing**. The older raster package/coordinate fallback remains intact and separate.
+- One-tap **Choose destination on map** still restores ordinary map panning after placement. You can now **drag the teal destination pin** to adjust the destination before starting navigation; the address/coordinates update and any stale route preview is invalidated. Dragging never records a survey observation or background GPS track.
+- Added opt-in-free, **offline regional OSM street-name completions** once a house number and at least two street-name letters are typed (for example, `25005 State`). They fill only a possible **road name**, not an address match; **the house number is NOT verified**. Complete address matching via Census (approximate, after online opt-in), configured MapTiler/local Photon typeahead, and local Valhalla road routing remain unchanged. No invented address coordinates or invented driving routes.
+- Map credits remain accessible. Data: © OpenStreetMap contributors (ODbL), Geofabrik-derived regional source, OpenMapTiles-style output; MapLibre and glyph notices are recorded under `docs/OPENRF_MAP_STYLE_NOTICES.md`. Select a compatible open-source license before any public distribution.
+- See `docs/RELEASE_0.2.31_TESTS.md` for WSL checks, test coverage, limits, and instructions for installing an updated regional vector archive in private local storage.
 
 ## v0.2.28 — U.S. destination matching and local Valhalla setup
 

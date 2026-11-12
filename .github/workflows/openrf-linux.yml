@@ -36,3 +36,4 @@ jobs:
           node tests/test_navigation_frontend.js
           node tests/test_live_autocomplete.js
           node tests/test_map_destination_pick.js
+          node tests/test_integrated_vector_frontend.js

@@ -5,6 +5,7 @@ import argparse
 import json
 import logging
 import os
+import sqlite3
 import threading
 import time
 from http import HTTPStatus
@@ -17,6 +18,7 @@ from .offline_maps import (available_maps, tile_bytes, import_map, remove_map,
                            MapNotFound, MapExists, MapBusy, TileMissing, MAX_IMPORT_BYTES)
 from .map_areas import (list_areas, get_area, save_area, remove_area, area_geojson, area_tile_manifest, build_subset, AreaError)
 from .tile_archive import import_xyz_zip, TileArchiveError, MAX_ZIP_BYTES
+from . import vector_maps
 from .hardware import status_report, enumerate_serial_ports, serial_port_diagnostics
 from .readiness import readiness_report
 from .routing import local_route, local_status, RouteUnavailable, RouteError
@@ -89,17 +91,57 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path in ('/static/vendor/maplibre-gl.js', '/static/vendor/maplibre-gl.css'):
             suffix = '.js' if path.endswith('.js') else '.css'
-            asset = self.server.map_asset_directory / ('maplibre-gl-5.24.0' + suffix)
-            if asset.is_file() and not asset.is_symlink():
-                try:
-                    raw = asset.read_bytes()
-                except OSError:
-                    return self._error(500, 'Local map library could not be read')
-                return self._send(200, raw, 'text/javascript; charset=utf-8' if suffix == '.js' else 'text/css; charset=utf-8', cache_control='private, max-age=86400')
-            # Preserve the existing online vector map for users who have not
-            # installed the optional offline library; raster needs neither.
-            url = f'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl{suffix}'
-            return self._send(302, b'', 'text/plain', {'Location': url})
+            installed = self.server.map_asset_directory / ('maplibre-gl-5.24.0' + suffix)
+            bundled = STATIC_DIR / 'vendor' / ('maplibre-gl' + suffix)
+            asset = installed if installed.is_file() and not installed.is_symlink() else bundled
+            if not asset.is_file() or asset.is_symlink():
+                return self._error(503,'Local MapLibre runtime missing')
+            try: raw=asset.read_bytes()
+            except OSError: return self._error(500,'MapLibre runtime inaccessible')
+            return self._send(200,raw,'text/javascript; charset=utf-8' if suffix=='.js' else 'text/css; charset=utf-8',cache_control='private, max-age=86400')
+        # Approved OpenRF custom vector styles and regional OSM-derived tiles.
+        # Nothing is proxied to third parties; external online sources are
+        # referenced only by the explicitly selected online style JSON.
+        if path == '/api/vector/streets':
+            params=parse_qs(urlparse(self.path).query)
+            if set(params)-{'q'} or len(params.get('q',[])) != 1:
+                return self._error(400,'Supply a single street-name prefix')
+            query=params['q'][0]
+            if len(query)>140:
+                return self._error(400,'Street-name prefix too long')
+            return self._json(200,{'results':vector_maps.street_name_suggestions(query),
+                'source':'OSM-derived regional offline road names',
+                'geocoded':False,'house_numbers_verified':False,
+                'coverage':'Amador/Calaveras prototype region; no precise address coordinates'})
+        if path == '/api/vector/status':
+            return self._json(200, vector_maps.status())
+        if path in ('/api/vector/styles/dark.json','/api/vector/styles/light.json'):
+            mode = parse_qs(urlparse(self.path).query).get('offline',['0'])
+            if len(mode)!=1 or mode[0] not in ('0','1'):
+                return self._error(400,'Unsupported map source')
+            try:
+                return self._json(200,vector_maps.style(path.rsplit('/',1)[-1][:-5], offline=mode[0]=='1'))
+            except ValueError as exc:
+                return self._error(503,str(exc))
+        if path.startswith('/api/vector/tiles/'):
+            import re
+            m=re.fullmatch(r'/api/vector/tiles/(\d{1,2})/(\d{1,8})/(\d{1,8})\.pbf',path)
+            if not m:return self._error(404,'Unknown vector tile')
+            try:
+                raw, compressed=vector_maps.tile(*(int(i) for i in m.groups()))
+                headers={'Content-Encoding':'gzip'} if compressed else {}
+                return self._send(200,raw,'application/vnd.mapbox-vector-tile',headers,cache_control='private, max-age=120')
+            except (ValueError,OSError,sqlite3.Error):
+                return self._error(404,'Vector tile unavailable outside regional coverage')
+        if path.startswith('/api/vector/fonts/'):
+            import re
+            m=re.fullmatch(r'/api/vector/fonts/([^/]+)/(\d{1,5})-(\d{1,5})\.pbf',path)
+            if not m:return self._error(404,'Invalid font request')
+            try:
+                raw=vector_maps.font(unquote(m.group(1)),int(m.group(2)),int(m.group(3)))
+                return self._send(200,raw,'application/x-protobuf',cache_control='private, max-age=86400')
+            except (ValueError,OSError):
+                return self._error(404,'Local glyph range unavailable')
         if path == '/api/meta':
             return self._json(200, {'version': __version__, 'platform': 'Linux / Raspberry Pi', 'mode': 'local-only', 'scan_active': False})
         if path == '/api/health':

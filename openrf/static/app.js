@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'liberty', rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -661,6 +661,27 @@ function exportComparisonCsv() {
 // network rules, or browser extensions. This independent local raster/coordinate
 // map needs no external JavaScript library and never requests OSM public tiles.
 // A user-provided, licensed MBTiles raster basemap is optional.
+function openrfMapStyleUrl() {
+  return `/api/vector/styles/${state.style === 'light' ? 'light' : 'dark'}.json${state.mapVectorOffline ? '?offline=1' : ''}`;
+}
+async function refreshOpenRFVectorMapStatus() {
+  try {
+    state.vectorStatus=await api('/api/vector/status');
+    const s=state.vectorStatus;
+    $('map-vector-status').textContent=s.ready && s.fonts_ready ?
+      `REGIONAL OFFLINE VECTOR READY · ${s.tile_count.toLocaleString()} local tiles · Amador / Calaveras · no tile network required. Coverage outside the region is blank.` :
+      `Regional offline vector unavailable: ${s.error || 'Map or glyph resources missing'}. Online OpenRF styles remain selectable.`;
+    if (!s.ready && state.mapVectorOffline) {
+      state.mapVectorOffline=false;
+      if(state.map) state.map.setStyle(openrfMapStyleUrl());
+    }
+  } catch(err) {$('map-vector-status').textContent=`Map assets status unavailable: ${err.message}`;}
+  updateOpenRFVectorButtons();
+}
+function updateOpenRFVectorButtons(){
+  $('map-vector-source').textContent=state.mapVectorOffline ? 'Use online vectors' : 'Use offline regional vectors';
+  $('map-style').textContent=state.style==='dark' ? 'OpenRF Light' : 'OpenRF Dark';
+}
 function startMap() {
   if (state.map || state.rasterMap) return;
   if (!window.maplibregl) { const view = state.preferredView; state.preferredView = null; return startRasterMap('MapLibre is unavailable. Using the built-in raster/coordinate map.', view); }
@@ -669,7 +690,7 @@ function startMap() {
     // Keep the overview visible while permission is requested; apply a later GPS fix via flyTo.
     const initial = state.preferredView || {center:[-98.5,39.8], zoom:2};
     state.preferredView = null;
-    state.map = new maplibregl.Map({container:'map', style:`https://tiles.openfreemap.org/styles/${state.style}`, center:initial.center, zoom:initial.zoom, attributionControl:false, maplibreLogo:false});
+    state.map = new maplibregl.Map({container:'map', style:openrfMapStyleUrl(), center:initial.center, zoom:initial.zoom, attributionControl:false, maplibreLogo:false});
     syncDestinationPickMode();
     state.map.addControl(new maplibregl.NavigationControl(), 'top-right');
     // Separate location control follows zoom/compass in the native MapLibre stack.
@@ -1120,8 +1141,9 @@ async function runAction(fn, fallback='Could not complete operation') {
 function updateOfflineAttribution() {
   const local = $('offline-map-attribution');
   const online = $('online-map-credits');
-  const offlineActive = !!state.rasterMap;
-  const text = state.offlineMap
+  const offlineActive = !!state.rasterMap || !!state.mapVectorOffline;
+  const text = state.mapVectorOffline && !state.rasterMap ?
+      'Regional OpenRF vector map: © OpenStreetMap contributors · Geofabrik · OpenMapTiles-style schema. Local Amador / Calaveras coverage only.' : state.offlineMap
     ? `Local package: ${state.offlineMap.name}. ${state.offlineMap.attribution || 'Attribution not specified in package; verify source license.'}`
     : 'Offline coordinate grid: no basemap data.';
   local.hidden = !offlineActive;
@@ -1738,8 +1760,8 @@ function showMapAddressMatches(matches) {
   const seen=new Set();
   for(const match of matches) {
     if(box.querySelectorAll('.address-option').length>=8) break;
-    if(!match || !match.name || !Array.isArray(match.coordinates)) continue;
-    const key=`${match.name.toLowerCase()}|${match.coordinates.join(',')}`;
+    if(!match || !match.name || (!match.streetCompletion && !Array.isArray(match.coordinates))) continue;
+    const key=`${match.name.toLowerCase()}|${match.streetCompletion || match.coordinates.join(',')}`;
     if(seen.has(key)) continue;
     seen.add(key);
     const button=document.createElement('button');button.type='button';
@@ -1752,6 +1774,16 @@ function showMapAddressMatches(matches) {
       // route to the first fuzzy candidate.
       state.navSearchToken++;
       if(navAddressTimer) clearTimeout(navAddressTimer);
+      if (match.streetCompletion) {
+        // A local street-name hint is NOT a geocoded street address. Only
+        // populate the text, never bind a navigation coordinate to it.
+        state.navSelectedAddress=null;
+        $('map-destination-query').value=match.streetCompletion+', ';
+        hideMapAddressMatches();
+        $('map-destination-query').focus();
+        setMapDestinationStatus('Regional street name completed from offline map data. The house number is NOT verified. Finish city and state, then select a real address match before routing.');
+        return;
+      }
       state.navSelectedAddress=match;
       navAddressCache.set(match.name,match);
       $('map-destination-query').value=match.name;
@@ -1788,7 +1820,7 @@ let navAddressTimer=null;
 $('map-destination-query').addEventListener('input',()=>{
   if (state.navPickedPoint) {state.navPickedPoint=null;renderNavigationOverlay();}
   state.navSelectedAddress=null;
-  state.navSearchCredit='';
+  state.navSearchCredit='';state.navStreetMatches=[];
   const q=$('map-destination-query').value.trim(), token=++state.navSearchToken;
   hideMapAddressMatches();
   if(navAddressTimer) clearTimeout(navAddressTimer);
@@ -1798,6 +1830,23 @@ $('map-destination-query').addEventListener('input',()=>{
   const local=state.navDestinations.filter(d=>d.name.toLowerCase().includes(q.toLowerCase())).slice(0,5)
     .map(d=>({name:d.name,coordinates:[d.longitude,d.latitude]}));
   if(local.length) showMapAddressMatches(local);
+  // Network-free street-name hints come from the actual bundled regional
+  // OSM vector tiles. They help finish typing but NEVER provide an address
+  // point or validate a house number.
+  if (/^\d{3,8}[A-Za-z]?\s+[A-Za-z]{2,}/.test(q) && !q.includes(',')) {
+    setTimeout(async()=>{
+      try {
+        const reply=await api(`/api/vector/streets?q=${encodeURIComponent(q)}`);
+        if(token!==state.navSearchToken || $('map-destination-query').value.trim()!==q) return;
+        const names=(reply.results||[]).map(r=>({name:r.label,streetCompletion:r.completion,source:'local-street-name-only'}));
+        if(names.length){
+          state.navStreetMatches=names;
+          showMapAddressMatches([...local,...names]);
+          setMapDestinationStatus('Local street-name suggestions available. House numbers are not verified; finish city/state to locate the actual address.');
+        }
+      } catch(e) { /* Optional local index must never block remote geocoding. */ }
+    },240);
+  }
   const consent=$('map-online-address').checked;
   const localPhoton=addressProviderInfo?.local_photon;
   if(!consent && !localPhoton) return;
@@ -1805,7 +1854,7 @@ $('map-destination-query').addEventListener('input',()=>{
   // unfinished house-number strings. Census can match only after city/state.
   if(!localPhoton && !addressProviderInfo?.maptiler_configured && /^\d{1,8}[A-Za-z]?\s/.test(q) &&
      !navigationLookupIsComplete(q)) {
-    if(!local.length) setMapDestinationStatus('Finish the street, city and state (for example: 25005 State Hwy 88, Pioneer, CA) for an automatic Census match. Earlier suggestions need MapTiler or local Photon.');
+    if(!local.length && !state.navStreetMatches?.length) setMapDestinationStatus('Finish the street, city and state (for example: 25005 State Hwy 88, Pioneer, CA) for an automatic Census match. Earlier suggestions need MapTiler or local Photon.');
     return;
   }
   if(!local.length && navigationLookupIsComplete(q) && !addressProviderInfo?.maptiler_configured && !localPhoton) {
@@ -1819,7 +1868,7 @@ $('map-destination-query').addEventListener('input',()=>{
       if(token!==state.navSearchToken || $('map-destination-query').value.trim()!==q) return;
       state.navSearchCredit=reply.attribution||reply.provider||'';
       const remote=(reply.results||[]).map(d=>({name:d.name,coordinates:[d.longitude,d.latitude],source:d.source,accuracy_note:d.accuracy_note}));
-      showMapAddressMatches([...local,...remote]);
+      showMapAddressMatches([...local,...(state.navStreetMatches||[]),...remote]);
       if(remote.length) {
         setMapDestinationStatus(`${remote.length} U.S. suggestion(s). Select the correct address, then Start navigation.`);
       } else if(!local.length && navigationLookupIsComplete(q)) {
@@ -1976,11 +2025,69 @@ function consumeNavigationPick(lon,lat) {
   $('map-destination-query').value = `${lat.toFixed(7)}, ${lon.toFixed(7)}`;
   $('nav-dest-query').value=$('map-destination-query').value;
   state.navSelectedAddress=null;
-  setMapDestinationStatus('Destination selected on map. Press Start navigation to plan a route.');
+  setMapDestinationStatus('Destination placed. Drag the teal pin to fine-tune, then press Start navigation.');
   setNavigationStatus('Map selection filled destination coordinates. Start navigation requests local Valhalla road routing when available.');
   renderNavigationOverlay();
   return true;
 }
+// Tap once to drop a destination, then drag its pin to fine-tune without
+// entering selection mode or disabling ordinary map panning. Drag changes a
+// destination only: no observation, waypoint, or GPS trail is recorded.
+function destinationWorldPoint(clientX,clientY) {
+  const rect=$('map').getBoundingClientRect();
+  const x=clientX-rect.left,y=clientY-rect.top;
+  if (!Number.isFinite(x) || !Number.isFinite(y) || x<0 || y<0 || x>rect.width || y>rect.height) return null;
+  if (state.map && state.mapReady) {
+    const lnglat=state.map.unproject([x,y]);return [lnglat.lng,lnglat.lat];
+  }
+  if (state.rasterMap) {
+    const center=worldPixel(state.rasterMap.center[0],state.rasterMap.center[1],state.rasterMap.zoom);
+    return pixelWorld(center[0]+x-rect.width/2,center[1]+y-rect.height/2,state.rasterMap.zoom);
+  }
+  return null;
+}
+function updateDraggedDestination(clientX,clientY){
+  const point=destinationWorldPoint(clientX,clientY);
+  if (!point || !Number.isFinite(point[0]) || !Number.isFinite(point[1]) || Math.abs(point[0])>180 || Math.abs(point[1])>90) return false;
+  state.navPickedPoint=point;
+  state.navPreview=null;state.navFitPending=false;
+  state.navSelectedAddress=null;
+  $('map-destination-query').value=`${point[1].toFixed(7)}, ${point[0].toFixed(7)}`;
+  $('nav-dest-query').value=$('map-destination-query').value;
+  $('nav-dest-lat').value=point[1].toFixed(7);
+  $('nav-dest-lon').value=point[0].toFixed(7);
+  hideMapAddressMatches();
+  renderNavigationOverlay();
+  return true;
+}
+const destinationDragOverlay=$('navigation-preview-overlay');
+destinationDragOverlay.addEventListener('pointerdown',event=>{
+  if (!state.navPickedPoint || state.navPreview || !event.target.closest?.('.nav-draggable-pin')) return;
+  if(event.pointerType==='mouse' && event.button!==0) return;
+  event.preventDefault();event.stopPropagation();
+  state.navPinDragging=true;
+  destinationDragOverlay.setPointerCapture?.(event.pointerId);
+});
+destinationDragOverlay.addEventListener('pointermove',event=>{
+  if (!state.navPinDragging) return;
+  event.preventDefault();event.stopPropagation();
+  updateDraggedDestination(event.clientX,event.clientY);
+});
+function finishDestinationDrag(event){
+  if (!state.navPinDragging) return;
+  event.preventDefault();event.stopPropagation();state.navPinDragging=false;
+  state.navPinJustDraggedAt=Date.now();
+  if(destinationDragOverlay.hasPointerCapture?.(event.pointerId)) destinationDragOverlay.releasePointerCapture(event.pointerId);
+  setMapDestinationStatus('Destination pin adjusted. Press Start navigation to calculate a new road route.');
+}
+destinationDragOverlay.addEventListener('pointerup',finishDestinationDrag);
+destinationDragOverlay.addEventListener('pointercancel',finishDestinationDrag);
+destinationDragOverlay.addEventListener('click',event=>{
+  if(event.target.closest?.('.nav-draggable-pin')){event.stopPropagation();event.preventDefault();}
+});
+$('map').addEventListener('click',event=>{
+  if(Date.now()-state.navPinJustDraggedAt<450){event.preventDefault();event.stopImmediatePropagation();}
+},true);
 function renderNavigationOverlay() {
   const overlay = $('navigation-preview-overlay');
   const label = $('navigation-preview-label');
@@ -2017,9 +2124,15 @@ function renderNavigationOverlay() {
   overlay.setAttribute('viewBox',`0 0 ${width} ${height}`);
   if (!preview) {
     const [x,y]=projected[0];
-    overlay.innerHTML=`<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="15" fill="#ffca65" fill-opacity=".25" stroke="#fff" stroke-width="2"/>`+
-      `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="6" fill="#ffca65"/>`;
-    label.textContent='DESTINATION PIN SELECTED · START NAVIGATION';label.hidden=false;return;
+    // SVG pin captures its own pointer events but the rest of the overlay
+    // remains transparent to ordinary map pan/zoom gestures.
+    overlay.innerHTML=`<g class="nav-draggable-pin" transform="translate(${x.toFixed(2)} ${y.toFixed(2)})" aria-label="Drag destination pin to adjust location">`+
+      `<circle r="27" fill="#34c9b1" opacity=".18"/>`+
+      `<path d="M0 8 C-11 -6 -13 -17 -8 -22 A13 13 0 0 1 8 -22 C13 -17 11 -6 0 8Z" fill="#34c9b1" stroke="#101d27" stroke-width="2.5"/>`+
+      `<circle cy="-13" r="5.2" fill="#fff" stroke="#101d27" stroke-width="1"/>`+
+      `<circle r="31" fill="transparent" class="nav-drag-target"/>`+
+      `</g>`;
+    label.textContent='DESTINATION PLACED · DRAG PIN TO ADJUST';label.hidden=false;return;
   }
   const path=projected.map((xy,i)=>`${i?'L':'M'} ${xy[0].toFixed(2)} ${xy[1].toFixed(2)}`).join(' ');
   const last=projected[projected.length-1], first=projected[0];
@@ -2213,11 +2326,31 @@ $('add-discovery').addEventListener('click',()=>openObservation());
 $('new-session').addEventListener('click',()=>$('session-dialog').showModal());
 $('show-demo-map').addEventListener('change',e => {state.showDemo = e.target.checked;$('show-demo-map-sheet').checked=e.target.checked;updateMap();renderMapSurveyPanel();});
 $('map-style').addEventListener('click',()=>{
-  state.style = state.style==='liberty'?'dark':'liberty';
-  if (state.map) {state.mapReady=false;state.map.setStyle(`https://tiles.openfreemap.org/styles/${state.style}`);}
+  state.style = state.style==='dark'?'light':'dark';
+  if (state.map) {state.mapReady=false;state.map.setStyle(openrfMapStyleUrl());}
   if (state.rasterMap) {$('map').classList.toggle('raster-dark',state.style==='dark');}
-  $('map-style').textContent=state.style==='dark'?'Street map':'Dark map';
+  $('map-style').textContent=state.style==='dark'?'OpenRF Light':'OpenRF Dark';
 });
+$('map-vector-source').addEventListener('click',()=>{
+  if (!state.mapVectorOffline && !(state.vectorStatus?.ready && state.vectorStatus?.fonts_ready)) {
+    $('map-vector-status').textContent='Offline vector tiles are unavailable; verify local map installation first.';
+    return;
+  }
+  state.mapVectorOffline=!state.mapVectorOffline;
+  updateOpenRFVectorButtons();updateOfflineAttribution();
+  if (state.map) {
+    state.mapReady=false;
+    state.map.setStyle(openrfMapStyleUrl());
+  } else if (state.rasterMap) {
+    state.preferredView={center:[...state.rasterMap.center],zoom:state.rasterMap.zoom};
+    state.rasterMap.stop();state.rasterMap=null;
+    $('map').replaceChildren();$('map').classList.remove('raster-mode','raster-dark');startMap();
+  }
+  $('map-vector-status').textContent=state.mapVectorOffline ?
+    'Local regional vector source selected. Tile requests stay within OpenRF. Outside Amador/Calaveras, blank coverage is expected.' :
+    'Online OpenRF vector source selected. Map tiles and font requests may use OpenFreeMap.';
+});
+refreshOpenRFVectorMapStatus().catch(()=>{});
 $('map-geolocate').addEventListener('click',()=>locateMap(true));
 $('map-geolocate-sheet').addEventListener('click',()=>locateMap(true));
 $('map-style-sheet').addEventListener('click',()=>$('map-style').click());

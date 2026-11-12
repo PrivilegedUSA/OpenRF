@@ -7,13 +7,13 @@ const path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'../openrf/static/app.js'),'utf8');
 const css=fs.readFileSync(path.join(__dirname,'../openrf/static/app.css'),'utf8');
 const start=source.indexOf('function syncDestinationPickMode() {');
-const end=source.indexOf('\nfunction renderNavigationOverlay()',start);
+const end=source.indexOf('\n// Tap once to drop a destination',start);
 const begin=source.indexOf('function beginDestinationMapPick() {');
 const beginEnd=source.indexOf("$('nav-pick-map').addEventListener",begin);
 assert(start>0&&end>start&&begin>0&&beginEnd>begin,'map picking functions are present');
 assert(css.includes('#map.destination-picking,#map.destination-picking:active'), 'map-specific crosshair mode');
 assert.match(css,/cursor:crosshair!important/);
-assert.match(source,/DESTINATION PIN SELECTED · START NAVIGATION/);
+assert.match(source,/DESTINATION PLACED · DRAG PIN TO ADJUST/);
 const ids=['map','nav-pick-map','map-pick-destination','nav-dest-lat','nav-dest-lon','map-destination-query','nav-dest-query'];
 function makeHarness(type) {
   const elements=Object.fromEntries(ids.map(id=>[id,{
@@ -69,7 +69,7 @@ assert.deepEqual(v.state.navPickedPoint,[-121.2345,39.12345]);
 assert.equal(v.elements['map-destination-query'].value,'39.1234500, -121.2345000');
 assert.notEqual(v.state.navPickedPoint[0],v.state.browserLocation.lon);
 assert.equal(v.calls.pages.length,1);
-assert(v.calls.status.some(s=>s.includes('Destination selected on map')));
+assert(v.calls.status.some(s=>s.includes('Destination placed')));
 // Native controls must not trigger destination selection.
 v.actions.beginDestinationMapPick();
 const controls=v.tap({closest:()=>({className:'maplibregl-ctrl'})});
