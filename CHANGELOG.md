@@ -1,3 +1,12 @@
+## v0.2.51 — Destination action and floating map workspace overlays (2026-11-13)
+
+- Replace the misaligned Tools down-arrow/scroll jump with four left-side fixed SVG icon controls; new **Plan a trip**, **Map settings**, **GPS-linked surveys**, and **Offline maps** overlays keep the existing live HTML controls and original DOM nodes, without cloning or changing saved data. Close by icon/X/Escape; overlays stay inside the map viewport and scroll internally at 800×480.
+- Fix one-tap destination picking: map search collapses for placing a pin and a compact selected-location action card immediately exposes **Get directions**. The card mirrors Start navigation only when the already-existing Valhalla route gate verifies a real road route. Coordinate selection still never stores an RF survey point or assumes a transmitter position. Resetting/dragging a pin invalidates old guidance.
+- Prevent Map page re-selection from unexpectedly resetting an already-expanded destination search; preserve entered destinations and existing routing/survey behavior.
+- Distinguish MapTiler 400 (bad/overlong query/params), 401/403 (key restrictions), 429 (rate/quota), and other upstream HTTP errors without exposing key/URL. Error message offers saved locations, map selection or local Photon, rather than suggesting MapTiler setup when the provider is already configured. **An actual MapTiler request/key has not been tested.**
+- Extend regression tests for source/overlay privacy and MapTiler status code classification. Isolated Chromium tests verify 800×480, phone, desktop layout with stub background and overlaid panels; server routing, live tiles, hardware and Pi tests remain unverified beyond existing automated tests.
+- Preserve all v0.2.50 managed paths, offline map resources, Android archive, static source and existing Linux workflows. No new dependencies, migrations, RF scanning, transmitter-location claims, server exposure, automatic uploads or geocoder requests on startup.
+
 ## v0.2.50 — Map-first touchscreen layout, no extra Focus Map mode (2026-11-13)
 
 - Remove the redundant header Focus Map / Exit focus mode after user testing showed it exposed too little additional map space. The standard Map workspace now uses the full available viewport by default, including 800×480 five-inch landscape and 390×844 phone-sized screens. Other pages retain their existing layout and menu.

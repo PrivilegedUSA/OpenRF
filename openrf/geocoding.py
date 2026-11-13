@@ -266,7 +266,23 @@ def search(query: str, *, open_connection=None, online_allowed=False, final=Fals
                 raise GeocoderError('Geocoder response too large.')
             data = json.loads(raw)
     except HTTPError as exc:
-        raise GeocoderUnavailable(f'{active} returned HTTP {exc.code}. Check service availability, API-key restrictions or quota in Address search setup.') from exc
+        # MapTiler documents 400 = invalid/overlong query or parameters,
+        # 403 = missing/invalid/restricted key, 429 = rate/quota. Never echo
+        # request URLs, key material, or arbitrary upstream response bodies.
+        if active == 'maptiler-opt-in':
+            if exc.code == 400:
+                msg = ('MapTiler rejected this search (HTTP 400: invalid/overlong query or parameters). '
+                       'Try a shorter street, city and state. A 400 is not evidence of key restrictions or quota.')
+            elif exc.code in (401, 403):
+                msg = ('MapTiler denied access (HTTP %s). Check your stored key and '
+                       'API-key restrictions in Address search setup.' % exc.code)
+            elif exc.code == 429:
+                msg = 'MapTiler rate limit or quota reached (HTTP 429). Try later or use local Photon.'
+            else:
+                msg = 'MapTiler address service returned HTTP %s. You can still choose a point on the map.' % exc.code
+        else:
+            msg = f'{active} returned HTTP {exc.code}. Try again later, or use an available local provider.'
+        raise GeocoderUnavailable(msg) from exc
     except (URLError, TimeoutError, OSError) as exc:
         raise GeocoderUnavailable(f'{active} cannot reach its address service from Ubuntu (connection, TLS, DNS or proxy issue). Check internet access, or configure a MapTiler key under Address search setup.') from exc
     except (UnicodeError, json.JSONDecodeError) as exc:

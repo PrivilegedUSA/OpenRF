@@ -1,4 +1,4 @@
-# OpenRF v0.2.50 — Map-first Touchscreen Workspace
+# OpenRF v0.2.51 — Map Overlay Controls & Destination Actions
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.50.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.51.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.50 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.51 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,13 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.51 — Map overlay tools and selected destination action
+
+- The 800×480 map remains full-height. The old **Tools ↓** scroll shortcut has been replaced with **four floating left-side icons** for Trip planning, Map settings, GPS-linked survey points, and Offline maps. Each opens a scrollable panel over the map with the **existing live controls**; data and event handlers are not recreated or cloned. Layers/scan and manual observation buttons remain lower-right. Press ×, Escape, or the selected icon to close a panel. During active navigation the tool rail hides.
+- **Choose destination on map** hides the expanded search to make room for the map. A successful tap displays a small **Destination selected** card with **Get directions**, **Change pin**, and (only after a confirmed local Valhalla road route) **Start navigation**. The same route handler and safeguards are reused. A failed route remains a direct-line *reference only* if locally available; the UI does not claim road directions without Valhalla.
+- MapTiler HTTP errors distinguish invalid requests/queries (**400**), key authorization (**401/403**), rate/quota (**429**), and other upstream failures. These diagnostics do **not** independently verify your MapTiler account, key, or live network availability. Address text is external only when online lookup is enabled; key remains outside the ZIP.
+- New isolated Chromium viewport tests at 800×480, 390×844 and 1450×900 check the tool rail, panel navigation, non-scrolling overlays, and selected-destination action. Physical Pi touch, real map tiles, GPS and external geocoding have not been verified. Details: [v0.2.51 tests](docs/RELEASE_0.2.51_TESTS.md).
 
 ## v0.2.50 — Map-first layout replaces Focus Map
 

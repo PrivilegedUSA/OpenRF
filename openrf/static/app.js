@@ -72,7 +72,7 @@ function setMapSearchCollapsed(collapsed, restoreFocus = false) {
   if (!isCollapsed) $('map-destination-query').focus({preventScroll: true});
   else if (restoreFocus) mapSearchToggle.focus({preventScroll: true});
 }
-mapSearchToggle.addEventListener('click', () => setMapSearchCollapsed(!mapSearchForm.hidden, true));
+mapSearchToggle.addEventListener('click', () => { if (activeMapTool) closeMapToolOverlay(); setMapSearchCollapsed(!mapSearchForm.hidden, true); syncMapPickedAction(); });
 window.addEventListener('keydown', event => {
   if (event.key === 'Escape' && document.body.classList.contains('map-workspace') &&
       !mapSearchForm.hidden && !navigationOpen && !state.navPicking) {
@@ -81,18 +81,115 @@ window.addEventListener('keydown', event => {
   }
 });
 setMapSearchCollapsed(true);
-$('map-more-tools').addEventListener('click', () => {
-  $('map-tools-anchor').scrollIntoView({
-    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-    block: 'start'
-  });
+// v0.2.51: one overlay workspace, with a compact floating icon rail.
+// Move the *existing* panels, rather than cloning their IDs or forms. All
+// existing event listeners and local-only data operations remain intact.
+const mapToolGroups = {
+  trip: {title: 'Plan a trip', ids: ['map-trip-planner']},
+  settings: {title: 'Map settings', ids: ['map-control-settings']},
+  gps: {title: 'GPS-linked surveys', ids: ['survey-waypoint-manager','sdr-site-map-manager']},
+  offline: {title: 'Offline maps', ids: ['offline-basemap-settings','map-area-manager']}
+};
+const mapToolOverlay = $('map-tool-overlay');
+const mapToolContent = $('map-tool-content');
+const mapToolNodes = {};
+const mapToolPanes = {};
+let activeMapTool = null;
+for (const [kind, group] of Object.entries(mapToolGroups)) {
+  // Keep every panel attached to the document, even when its tab is hidden.
+  // Many existing startup handlers use document.getElementById on these inputs.
+  const pane = document.createElement('section');
+  pane.className = 'map-tool-pane';
+  pane.dataset.toolPane = kind;
+  pane.hidden = true;
+  mapToolNodes[kind] = group.ids.map(id => $(id));
+  pane.append(...mapToolNodes[kind]);
+  mapToolContent.append(pane);
+  mapToolPanes[kind] = pane;
+}
+// Keep the live browser-location status attached to an actual overlay panel.
+mapToolNodes.settings[0].append($('map-location-status'));
+$('map-tools-anchor').remove(); // former scroll-to-tools target
+function closeMapToolOverlay(restoreFocus = false) {
+  const old = activeMapTool;
+  mapToolOverlay.hidden = true;
+  activeMapTool = null;
+  for (const button of document.querySelectorAll('[data-map-tool]')) {
+    button.setAttribute('aria-expanded', 'false');
+    button.classList.remove('active');
+  }
+  // Retain form state while hidden; no page navigation or GPS request occurs.
+  syncMapPickedAction();
+  if (old && restoreFocus) document.querySelector(`[data-map-tool="${old}"]`)?.focus({preventScroll:true});
+}
+function openMapToolOverlay(kind) {
+  if (!Object.hasOwn(mapToolGroups, kind)) return;
+  if (activeMapTool === kind && !mapToolOverlay.hidden) {closeMapToolOverlay(true);return;}
+  if (state.navPicking) {state.navPicking=false;syncDestinationPickMode();renderNavigationOverlay();}
+  if (state.areaChoosing) cancelAreaChoosing();
+  setMapSurveyOpen(false);
+  const group = mapToolGroups[kind];
+  for (const [name, pane] of Object.entries(mapToolPanes)) pane.hidden = name !== kind;
+  for (const node of mapToolNodes[kind]) node.open = true;
+  activeMapTool = kind;
+  syncMapPickedAction();
+  $('map-tool-title').textContent = group.title;
+  mapToolOverlay.hidden = false;
+  // Search and tool overlays should not compete on a 5-inch screen.
+  setMapSearchCollapsed(true);
+  $('map-navigation-options').open = false;
+  for (const button of document.querySelectorAll('[data-map-tool]')) {
+    const selected = button.dataset.mapTool === kind;
+    button.setAttribute('aria-expanded', String(selected));
+    button.classList.toggle('active', selected);
+  }
+  mapToolOverlay.scrollTop = 0;
+  mapToolContent.scrollTop = 0;
+}
+for (const button of document.querySelectorAll('[data-map-tool]')) {
+  button.addEventListener('click', () => openMapToolOverlay(button.dataset.mapTool));
+}
+$('map-tool-close').addEventListener('click', () => closeMapToolOverlay(true));
+$('map-open-address-setup').addEventListener('click', () => {
+  closeMapToolOverlay();
+  $('map-navigation-options').open = true;
+  $('map-navigation-options').querySelector('summary').focus({preventScroll:true});
 });
+window.addEventListener('keydown',event => {
+  if (event.key==='Escape' && !mapToolOverlay.hidden) {
+    event.preventDefault();closeMapToolOverlay(true);
+  }
+});
+
+function syncMapPickedAction() {
+  const selected = Array.isArray(state.navPickedPoint) && !state.navPicking;
+  const popup = $('map-picked-action');
+  popup.hidden = !selected || Boolean(activeMapTool) || !mapSearchForm.hidden;
+  if (!selected) return;
+  const [lon,lat] = state.navPickedPoint;
+  $('map-picked-coordinates').textContent = `${lat.toFixed(5)}, ${lon.toFixed(5)} · map-selected point`;
+  const routeStatus=$('map-destination-status');
+  if (!routeStatus.hidden) $('map-picked-status').textContent=routeStatus.textContent;
+  const roadReady = !$('map-begin-guidance').disabled;
+  $('map-picked-begin').hidden = !roadReady;
+}
+$('map-picked-route').addEventListener('click', () => {
+  // Reuse the one existing route submit path and its Valhalla-only safety gate.
+  $('map-destination-form').requestSubmit($('map-start-navigation'));
+});
+$('map-picked-begin').addEventListener('click', () => {
+  if (!$('map-begin-guidance').disabled) $('map-begin-guidance').click();
+});
+$('map-picked-change').addEventListener('click', () => beginDestinationMapPick());
+$('map-picked-close').addEventListener('click', () => { $('map-picked-action').hidden = true; });
 
 function showPage(page, options = {}) {
   if(page!=='map' && state.navFollowId!==null) stopNavigationFollow();
+  const wasMap = document.body.classList.contains('map-workspace');
   document.body.classList.toggle('map-workspace', page === 'map');
-  // Always return to a small search control; preserve typed destination and plan.
-  if (page === 'map') setMapSearchCollapsed(true);
+  // Do not collapse an open search when another action selects the same page.
+  if (page === 'map' && !wasMap) setMapSearchCollapsed(true);
+  if (page !== 'map' && activeMapTool) closeMapToolOverlay();
   if (navigationOpen) {
     setNavigationOpen(false, false);
     $('page-title').setAttribute('tabindex', '-1');
@@ -1621,6 +1718,7 @@ function consumeAreaClick(lon, lat) {
   areaFormBounds([w,s,e,n]);
   areaModeStatus('Two corners selected. Set your zoom range, enter a name, then save the plan.');
   $('map-area-manager').open=true;
+  if (typeof openMapToolOverlay === 'function') openMapToolOverlay('offline');
   return true;
 }
 function areaViewportBounds() {
@@ -1733,7 +1831,8 @@ $('area-plan-choose').addEventListener('click',()=>{
   if (state.navPicking) {state.navPicking=false;syncDestinationPickMode();}
   state.areaChoosing=true;state.areaFirstCorner=null;
   areaModeStatus('Click two opposite corners on the map. Map clicks will NOT create observations until selection ends.');
-  $('map').scrollIntoView({block:'center',behavior:'smooth'});
+  // The overlay must close so both map corners can be tapped unobstructed.
+  if (activeMapTool) closeMapToolOverlay();
 });
 $('area-plan-cancel').addEventListener('click',cancelAreaChoosing);
 $('area-plan-viewport').addEventListener('click',()=>{
@@ -1938,6 +2037,8 @@ function setNavigationStatus(message) { $('nav-status').textContent=message; }
 function setMapDestinationStatus(message, kind = '') {
   const el=$('map-destination-status');
   el.hidden=false;el.textContent=message;
+  const pickedStatus = $('map-picked-status');
+  if (!($('map-picked-action').hidden)) {pickedStatus.textContent=message;pickedStatus.classList.toggle('map-route-error',kind==='error');}
   updateNavOverlayLayout();
   el.classList.toggle('map-route-error',kind==='error');
   el.classList.toggle('map-route-success',kind==='success');
@@ -2096,6 +2197,7 @@ $('map-print-directions').addEventListener('click',()=>runAction(async()=>{
 function setNavigationRoutePreview(result) {
   stopNavigationFollow();
   $('map-begin-guidance').disabled=!(result?.type==='ROAD_ROUTE' && result.is_driving_route===true);
+  syncMapPickedAction();
   state.navPreview=result;
   renderDirectionsReview(result);
   state.navFitPending=true;
@@ -2167,6 +2269,7 @@ async function quickDestinationPreview(query) {
   $('nav-dest-lon').value=chosen.coordinates[0];
   const planned=await planRoadRoute([origin,chosen.coordinates]);
   state.navPickedPoint=chosen.coordinates.slice(); // Also draggable for resolved street addresses and completed road routes.
+  syncMapPickedAction();
   renderNavigationOverlay();
   setMapDestinationStatus(`${chosen.name} · ${planned.text}`, planned.road ? 'success' : 'error');
   $('nav-preview-summary').textContent=planned.text;
@@ -2311,7 +2414,7 @@ $('map-destination-query').addEventListener('input',()=>{
       const completed=navigationLookupIsComplete(q);
       setMapDestinationStatus(completed ?
         `Automatic address lookup is unavailable: ${error.message} Try Start navigation for a final Census lookup, or choose a point on the map.` :
-        `${error.message} For partial street-address suggestions, configure MapTiler or local Photon in Address search setup.`, 'error');
+        `${error.message} You can still choose a point on the map, use a saved destination, or switch to local Photon.`, 'error');
     }
   }, navigationSuggestionDelay(addressProviderInfo,q));
 });
@@ -2434,7 +2537,7 @@ function syncDestinationPickMode() {
 function handleDestinationMapClick(event) {
   if (!state.navPicking || (event.button !== undefined && event.button !== 0)) return;
   // The controls, copyright disclosure and other map UI remain functional.
-  if (event.target.closest?.('.map-destination-panel,.map-navigation-settings,.map-follow-hud,.maplibregl-ctrl,.raster-control,.map-credits,.map-error,.raster-notice')) return;
+  if (event.target.closest?.('.map-destination-panel,.map-picked-action,.map-tool-overlay,.map-tool-rail,.map-navigation-settings,.map-follow-hud,.maplibregl-ctrl,.raster-control,.map-credits,.map-error,.raster-notice')) return;
   const root=$('map'), rect=root.getBoundingClientRect();
   const x=event.clientX-rect.left, y=event.clientY-rect.top;
   if (!Number.isFinite(x) || !Number.isFinite(y) || x<0 || y<0 || x>rect.width || y>rect.height) return;
@@ -2470,6 +2573,7 @@ function consumeNavigationPick(lon,lat) {
   $('map-destination-query').value = `${lat.toFixed(7)}, ${lon.toFixed(7)}`;
   $('nav-dest-query').value=$('map-destination-query').value;
   state.navSelectedAddress=null;
+  if (typeof syncMapPickedAction === 'function') syncMapPickedAction();
   setMapDestinationStatus('Destination placed. Drag the red pin to fine-tune, then choose Get directions.');
   setNavigationStatus('Map selection filled destination coordinates. Get directions requests local Valhalla road routing when available.');
   renderNavigationOverlay();
@@ -2504,6 +2608,7 @@ function updateDraggedDestination(clientX,clientY){
   $('nav-dest-lat').value=point[1].toFixed(7);
   $('nav-dest-lon').value=point[0].toFixed(7);
   hideMapAddressMatches();
+  if (typeof syncMapPickedAction === 'function') syncMapPickedAction();
   renderNavigationOverlay();
   return true;
 }
@@ -2646,6 +2751,7 @@ async function previewNavigation() {
   $('nav-preview-summary').textContent=planned.text;
   setNavigationStatus(planned.text);
   showPage('map',{autoLocate:false});
+  if (activeMapTool) closeMapToolOverlay();
   setTimeout(applyNavigationFit,120);
 }
 $('nav-check-local-router').addEventListener('click',async ()=>{
@@ -2701,7 +2807,10 @@ function beginDestinationMapPick() {
   $('map-begin-guidance').disabled=true;
   state.navPicking=true;state.navPickedPoint=null;state.navPreview=null;if(typeof renderDirectionsReview==='function')renderDirectionsReview(null);state.navFitPending=false;
   showPage('map',{autoLocate:false});
+  if (typeof setMapSearchCollapsed === 'function') setMapSearchCollapsed(true);
+  if (typeof activeMapTool !== 'undefined' && activeMapTool) closeMapToolOverlay();
   syncDestinationPickMode();
+  if (typeof syncMapPickedAction === 'function') syncMapPickedAction();
   renderNavigationOverlay();
   setMapDestinationStatus('Tap the map once to place a red destination pin, then Get directions. Ordinary map panning returns afterward; no observation is saved.');
 }
@@ -2711,7 +2820,7 @@ $('nav-clear-preview').addEventListener('click',()=>{
   stopNavigationFollow();
   $('map-begin-guidance').disabled=true;
   state.navPicking=false;state.navPickedPoint=null;state.navPreview=null;if(typeof renderDirectionsReview==='function')renderDirectionsReview(null);state.navFitPending=false;
-  syncDestinationPickMode();
+  syncDestinationPickMode();syncMapPickedAction();
   $('nav-preview-summary').textContent='';
   $('nav-directions').replaceChildren();
   setNavigationStatus('Preview cleared; saved destinations are unchanged.');
@@ -3055,6 +3164,7 @@ $('map-destination-form').addEventListener('submit',async event=>{
   const button=$('map-start-navigation');button.disabled=true;
   try {await quickDestinationPreview($('map-destination-query').value);} catch(err){setMapDestinationStatus(err.message,'error');}
   finally {button.disabled=false;}
+  syncMapPickedAction();
 });
 for(const id of ['nav-start-lat','nav-start-lon']) {
   $(id).addEventListener('input',()=>{state.navOriginManual=true;
@@ -3304,7 +3414,7 @@ $('live-ble-results').addEventListener('click',e=>{
 $('scan-wifi-once').addEventListener('click', scanWifiOnce);
 $('map-scan-wifi').addEventListener('click', scanWifiOnce);
 $('map-scan-ble').addEventListener('click', scanBleOnce);
-$('map-survey-toggle').addEventListener('click', () => setMapSurveyOpen($('map-survey-panel').hidden));
+$('map-survey-toggle').addEventListener('click', () => { if (activeMapTool) closeMapToolOverlay(); setMapSurveyOpen($('map-survey-panel').hidden); });
 $('map-survey-close').addEventListener('click', () => setMapSurveyOpen(false));
 for(const id of ['map-metric-mode','map-survey-age']) $(id).addEventListener('change',()=>{
   state.mapObservationId=null;

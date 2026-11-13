@@ -1,4 +1,4 @@
-/* v0.2.50 recorded frequency-bin history: zero made-up samples, no GPS export. */
+/* v0.2.51 recorded frequency-bin history: zero made-up samples, no GPS export. */
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -43,12 +43,12 @@ assert.equal(core.analyzeHistory([{capture:broken,data:data([-100,-90])}],'88.05
 assert.equal(core.analyzeHistory([{capture:cap1,data:makeDemo()}],'88.050000').skipped.unmatched,1);
 const html=read('index.html'), css=read('app.css'), ui=read('sdr-history.js');
 for(const name of ['sdr-history-details','sdr-history-frequency','sdr-history-run','sdr-history-export','sdr-history-session','sdr-history-same-tuning','sdr-history-status','sdr-history-chart','sdr-history-rows']) assert(html.includes(`id="${name}"`),name);
-assert(html.includes('/static/sdr-history.js?v=0.2.50'));
-assert(html.includes('FIELD CONSOLE · 0.2.50'));
+assert(html.includes('/static/sdr-history.js?v=0.2.51'));
+assert(html.includes('FIELD CONSOLE · 0.2.51'));
 assert(!html.includes('id="sdr-history-export" disabled="false"'));
 assert(html.includes('id="sdr-history-same-tuning" type="checkbox" checked'));
 assert(ui.includes('/api/sdr/captures') && ui.includes('.csv') && !ui.includes('/api/sdr/capture/start'));
 assert(ui.includes('replaceChildren()') && ui.includes('textContent') && !ui.includes('innerHTML'));
 assert(ui.includes("doc.addEventListener('openrf:sdr-sites-changed'"));
 assert(css.includes('.sdr-history-controls'));
-console.log('v0.2.50 recorded exact-bin history, privacy, skip handling, stale-UI and markup contracts passed');
+console.log('v0.2.51 recorded exact-bin history, privacy, skip handling, stale-UI and markup contracts passed');
