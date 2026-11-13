@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, navFollowCameraSuspended:false, navFollowLastPosition:null,
+const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, hardwareManager: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, navFollowCameraSuspended:false, navFollowLastPosition:null,
   navDemoActive:false,navDemoPaused:false,navDemoProgress:0,navDemoTimer:null,navDemoLastTime:0,
   navDemoMarker:null,navDemoMarkerMap:null,navDemoFix:null,rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, bleScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapObservationId:null, mapSurveySeriesKey:null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
@@ -71,15 +71,16 @@ function showPage(page, options = {}) {
 }
 
 async function refresh() {
-  const [records, sessions, stats, hardware, sensorData, captureData, diagnostics, readiness, waypointData] = await Promise.all([
+  const [records, sessions, stats, hardware, sensorData, captureData, diagnostics, readiness, waypointData, hardwareManager] = await Promise.all([
     api('/api/observations'), api('/api/sessions'), api('/api/stats'), api('/api/hardware'), api('/api/sensors'),
-    api('/api/captures'), api('/api/sensors/diagnostics'), api('/api/hardware/readiness'), api('/api/survey/waypoints')
+    api('/api/captures'), api('/api/sensors/diagnostics'), api('/api/hardware/readiness'), api('/api/survey/waypoints'), api('/api/hardware/manager')
   ]);
   state.observations = records.observations;
   state.sessions = sessions.sessions;
   state.waypoints = waypointData.waypoints || [];
   state.waypointsTruncated = Boolean(waypointData.truncated);
   state.hardware = hardware;
+  state.hardwareManager = hardwareManager;
   state.sensors = sensorData.sensors || [];
   state.serialTransport = sensorData.serial_transport || null;
   state.captures = captureData.captures || [];
@@ -91,7 +92,7 @@ async function refresh() {
   $('metric-demo').textContent = stats.demo;
   $('runtime-pill').textContent = hardware.environment;
   $('scanner-connection-pill').textContent = hardware.wifi_one_shot?.possible ? 'ON-DEMAND WI-FI POSSIBLE' : 'NO LINUX WI-FI SCANNER';
-  refreshDiscoverySessions(); renderDiscoveries(); renderSessions(); renderCaptures(); renderHardware(); renderSensorRegistry(); renderSerialPorts(); renderHardwareReadiness(); renderSignals(); updateMap(); renderMapSurveyPanel(); renderWaypoints();
+  refreshDiscoverySessions(); renderDiscoveries(); renderSessions(); renderCaptures(); renderHardware(); renderHardwareManager(); renderSensorRegistry(); renderSerialPorts(); renderHardwareReadiness(); renderSignals(); updateMap(); renderMapSurveyPanel(); renderWaypoints();
 }
 
 // Browser geolocation is used only at the operator's request in the manual
@@ -451,6 +452,25 @@ function downloadHardwareReadiness() {
   const a = document.createElement('a'); a.href = url;
   a.download = 'openrf-hardware-readiness.json'; document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function renderHardwareManager() {
+  const report = state.hardwareManager;
+  const summary = $('hardware-manager-summary');
+  const entries = $('hardware-manager-entries');
+  if (!report || !Array.isArray(report.entries)) {
+    summary.textContent = 'Hardware manager unavailable. Refresh inventory to retry.';
+    entries.innerHTML = '<div class="empty">No current read-only device status.</div>';
+    return;
+  }
+  const counts = report.summary || {};
+  summary.textContent = `Read-only check ${stamp(report.collected_at_utc)} · ${counts.linux_usb_descriptors_visible ?? 0} USB descriptors, ${counts.linux_serial_ports_visible ?? 0} serial ports, ${counts.linux_wifi_interfaces_visible ?? 0} Linux Wi-Fi interfaces, ${counts.linux_bluetooth_controllers_visible ?? 0} BLE controllers. No continuous RF capture is running or verified by this screen.`;
+  entries.innerHTML = report.entries.map(entry => `
+    <div class="hardware-manager-row">
+      <div class="hardware-manager-heading"><strong>${escapeHTML(entry.title)}</strong><span class="pill">${escapeHTML(entry.state.replaceAll('_', ' '))}</span></div>
+      <p>${escapeHTML(entry.evidence)}</p>
+      <div class="tiny"><strong>Next:</strong> ${escapeHTML(entry.next_step)}</div>
+    </div>`).join('');
 }
 
 function renderHardware() {
@@ -3245,13 +3265,13 @@ $('usb-sensor-probe').addEventListener('click',()=>runAction(()=>runSerialSensor
 $('usb-sensor-capture').addEventListener('click',()=>runAction(()=>runSerialSensor(true)));
 $('hardware-readiness-export').addEventListener('click', downloadHardwareReadiness);
 $('refresh-hardware').addEventListener('click',()=>runAction(async()=>{
-  const [hardware, registry, diagnostics, readiness] = await Promise.all([
-    api('/api/hardware'), api('/api/sensors'), api('/api/sensors/diagnostics'), api('/api/hardware/readiness')
+  const [hardware, registry, diagnostics, readiness, hardwareManager] = await Promise.all([
+    api('/api/hardware'), api('/api/sensors'), api('/api/sensors/diagnostics'), api('/api/hardware/readiness'), api('/api/hardware/manager')
   ]);
   state.hardware = hardware; state.sensors = registry.sensors;
   state.serialTransport = registry.serial_transport; state.diagnostics = diagnostics;
-  state.readiness = readiness;
-  renderHardware(); renderSensorRegistry(); renderSerialPorts(); renderHardwareReadiness();
+  state.readiness = readiness; state.hardwareManager = hardwareManager;
+  renderHardware(); renderHardwareManager(); renderSensorRegistry(); renderSerialPorts(); renderHardwareReadiness();
   flash('Read-only Linux hardware inventory and diagnostics refreshed. No RF scan started.');
 }));
 $('discovery-search').addEventListener('input',renderDiscoveries);

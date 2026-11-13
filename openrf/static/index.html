@@ -6,19 +6,19 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.43">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.44">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
-  <script defer src="/static/spectrum.js?v=0.2.43"></script>
-  <script defer src="/static/survey_map.js?v=0.2.43"></script>
-  <script defer src="/static/navigation.js?v=0.2.43"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.43"></script>
-  <script defer src="/static/app.js?v=0.2.43"></script>
+  <script defer src="/static/spectrum.js?v=0.2.44"></script>
+  <script defer src="/static/survey_map.js?v=0.2.44"></script>
+  <script defer src="/static/navigation.js?v=0.2.44"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.44"></script>
+  <script defer src="/static/app.js?v=0.2.44"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.43</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.44</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -281,7 +281,11 @@
           <p id="session-report-status" class="muted small" role="status" aria-live="polite">Choose an investigation. DEMO and precise coordinates are excluded by default. Notes may contain personal data—review reports before sharing.</p>
         </div>
         <div class="panel captures-panel"><div class="panel-title"><h3>Saved survey snapshots</h3><span id="capture-count" class="pill">0 captures</span></div><p class="muted small">User-saved one-shot retrievals, including scans that returned zero results. Wi-Fi percent quality is not dBm or distance. Locations are optional observer positions.</p><div id="captures-list"></div></div></section>
-      <section class="page" id="page-hardware"><div class="section-heading"><div><h2>Hardware and integrations</h2><p>Expandable driver interface for the future Raspberry Pi field kit.</p></div><span id="hardware-platform" class="pill">DETECTING...</span></div><div class="hardware-grid" id="hardware-cards"></div><p id="wifi-driver-status" class="muted small hardware-wifi-status">Checking one-shot Wi-Fi adapter readiness…</p><div class="panel hardware-inventory"><div class="panel-title"><h3>Detected host devices</h3><button id="refresh-hardware" class="btn outline">Refresh inventory</button></div><p class="muted small">Read-only Linux inventory. USB and serial entries do not mean that a receiver is supported, configured, or actively scanning.</p><div id="device-inventory" class="device-inventory"><div class="empty">Checking accessible Linux devices...</div></div></div><div class="panel sensor-registry"><div class="panel-title"><h3>Sensor connections</h3><span class="pill">DRIVER CONTRACT v1</span></div><p class="muted small">Only verified drivers can create SENSOR observations. USB detection alone does not mean live capture.</p><div id="sensor-registry-list" class="sensor-registry-list"><div class="empty">Checking sensor drivers…</div></div><div id="sensor-diagnostics" class="diagnostics-note">Checking connection readiness…</div></div>
+      <section class="page" id="page-hardware"><div class="section-heading"><div><h2>Hardware and integrations</h2><p>Expandable driver interface for the future Raspberry Pi field kit.</p></div><span id="hardware-platform" class="pill">DETECTING...</span></div><section class="panel hardware-manager" aria-label="Unified read-only device status">
+        <div class="panel-title"><h3>Connection overview</h3><span class="pill">READ-ONLY · NO LIVE RF CLAIMS</span></div>
+        <p class="muted small" id="hardware-manager-summary" role="status" aria-live="polite">Checking Linux hardware prerequisites…</p>
+        <div id="hardware-manager-entries" class="hardware-manager-entries"><div class="empty">No inventory retrieved yet.</div></div>
+      </section><div class="hardware-grid" id="hardware-cards"></div><p id="wifi-driver-status" class="muted small hardware-wifi-status">Checking one-shot Wi-Fi adapter readiness…</p><div class="panel hardware-inventory"><div class="panel-title"><h3>Detected host devices</h3><button id="refresh-hardware" class="btn outline">Refresh inventory</button></div><p class="muted small">Read-only Linux inventory. USB and serial entries do not mean that a receiver is supported, configured, or actively scanning.</p><div id="device-inventory" class="device-inventory"><div class="empty">Checking accessible Linux devices...</div></div></div><div class="panel sensor-registry"><div class="panel-title"><h3>Sensor connections</h3><span class="pill">DRIVER CONTRACT v1</span></div><p class="muted small">Only verified drivers can create SENSOR observations. USB detection alone does not mean live capture.</p><div id="sensor-registry-list" class="sensor-registry-list"><div class="empty">Checking sensor drivers…</div></div><div id="sensor-diagnostics" class="diagnostics-note">Checking connection readiness…</div></div>
       <section class="panel hardware-readiness" aria-label="Read-only hardware readiness">
         <div class="panel-title"><h3>Hardware readiness checklist</h3><button type="button" class="btn outline" id="hardware-readiness-export">Save diagnostic JSON</button></div>
         <p class="muted small">Read-only checks of Linux inventory and previous user-started probes. A visible port does not prove that a receiver can collect measurements. Export contains no USB serial numbers, Wi-Fi network IDs, or GPS locations.</p>

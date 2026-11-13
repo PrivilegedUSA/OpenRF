@@ -1,4 +1,4 @@
-# OpenRF v0.2.43 — Field Survey Planning & Evidence Dashboard
+# OpenRF v0.2.44 — Hardware Connection Overview & Field Survey Dashboard
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.43.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.44.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.43 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.44 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,13 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.44 — Unified read-only hardware management
+
+- Open **Hardware** to see a newly integrated connection overview for Wi-Fi, Bluetooth LE, USB Serial v1, SDR, GNSS, Sub-GHz, cellular and radar/laser. Each status lists only the supporting inventory/prerequisites and an appropriate next step; USB probes can be stale, failed or disconnected.
+- **Refresh inventory** updates the overview and previously available detailed hardware diagnostics. This action only reads local Linux inventory and prior user-initiated probe status. It does not initiate RF scans, radio transmissions, live SDR sampling, GPS logging or uploads.
+- No verified live receiver is implied by interface discovery, USB descriptors, BlueZ/nmcli tooling or a prior USB handshake. **Spectrum** remains a browser-local historical `rtl_power` CSV viewer / synthetic DEMO, not a live RF capture application.
+- See [release tests and limitations](docs/RELEASE_0.2.44_TESTS.md). No physical RF hardware or Raspberry Pi tests were performed when packaging this release.
 
 ## v0.2.43 — Field-survey planning and evidence dashboard (NO AUTO SCANS)
 

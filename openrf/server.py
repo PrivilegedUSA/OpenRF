@@ -21,6 +21,7 @@ from .tile_archive import import_xyz_zip, TileArchiveError, MAX_ZIP_BYTES
 from . import vector_maps
 from .hardware import status_report, enumerate_serial_ports, serial_port_diagnostics
 from .readiness import readiness_report
+from .hardware_manager import manager_report
 from .sdr import capability_report as sdr_capability_report
 from .routing import local_route, local_status, RouteUnavailable, RouteError
 from .gnss import read_local_gpsd
@@ -288,6 +289,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, sdr_capability_report())
         if path == '/api/hardware':
             return self._json(200, status_report())
+        if path == '/api/hardware/manager':
+            return self._json(200, manager_report(status_report(),
+                                                   last_probe=self.server.serial_last_probe))
         if path == '/api/hardware/readiness':
             return self._json(200, readiness_report(status_report(),
                 last_probe=self.server.serial_last_probe,

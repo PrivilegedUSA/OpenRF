@@ -24,4 +24,4 @@ assert(app.includes('escapeHTML(active.objective'));
 assert(app.includes('Never') === false || app.includes('No scanning')); // No side effect on render
 assert(!app.includes("localStorage.setItem('fieldPlan'"));
 assert(css.includes('.field-plan-fields') && css.includes('max-width:650px'));
-console.log('v0.2.43 field survey plan, navigation shortcuts, provenance and compact UI checks passed');
+console.log('v0.2.44 field survey plan, navigation shortcuts, provenance and compact UI checks passed');

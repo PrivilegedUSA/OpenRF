@@ -1,3 +1,11 @@
+## v0.2.44 — Unified read-only hardware connection overview (2026-11-13)
+
+- Add a concise **Connection overview** at the top of Hardware, with one row per Wi-Fi, BLE, OpenRF USB Serial v1, SDR, external GNSS, Sub-GHz, cellular and radar/laser capability. On 5-inch field layouts the rows stack vertically. Refresh inventory updates this overview alongside existing device inventory, sensor registry and diagnostics.
+- Introduce a read-only `GET /api/hardware/manager` contract: controller/device/tool counts, timestamp, evidence-limited states and specific next steps. A Linux interface or `rtl_power` executable is *prerequisite visibility*, **not** verified radio detection or live capture. Offline SDR CSV viewing remains distinct from live SDR receiver support.
+- Distinguish USB protocol outcomes: unprobed, permission denied, recent failure, recent device-reported response, stale (>5 minutes or future timestamp) and disconnected. A recent reply does not verify device identity, RF calibration or a measured signal. No background scanning or GPS logging added.
+- No new required packages, database migrations, Android builds, online services or network exposure. Existing offline MBTiles, navigation, survey workflow, Wi-Fi/BLE opt-in scans, USB protocol interactions, spectrum viewer, saved investigations and Android archive are retained.
+- Software-only regression coverage: 174 Python tests (including normalized state and local HTTP API), 23 JavaScript suites, Python compile, JavaScript syntax, Bash syntax and source-ZIP invariants. Physical receivers, field GNSS, Raspberry Pi/Firefox touchscreen, GitHub CI and real RF signal acquisition were **not** tested. See [v0.2.44 test guide](docs/RELEASE_0.2.44_TESTS.md).
+
 ## v0.2.43 — Explicit field-survey planning and saved-evidence dashboard (2026-11-13)
 
 - Add optional per-investigation planned receiver, site label, survey objective and private field notes. Add forward-only SQLite session-column migration; existing records are preserved and default to `UNASSIGNED`. Only active survey plans can be edited; strict field/length/enum validation prevents forged hardware declarations.

@@ -42,7 +42,7 @@ class ApiTests(unittest.TestCase):
     def test_health_static_hardware_and_exports(self):
         s,data=self.call('GET','/api/health')
         self.assertEqual(s,200)
-        self.assertEqual(data['version'],'0.2.43')
+        self.assertEqual(data['version'],'0.2.44')
         for path in ('/','/static/app.css','/static/app.js','/static/history-analysis.js','/static/route_guidance.js','/api/export.csv','/api/export.geojson'):
             status,_=self.call('GET',path)
             self.assertEqual(status,200,path)
@@ -50,6 +50,18 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(s,200)
         self.assertEqual(len(data['capabilities']),8)
         self.assertTrue(any(c['key'] == 'police_radar' and c['status'] == 'not_implemented' for c in data['capabilities']))
+
+    def test_unified_hardware_manager_endpoint_does_not_fake_rf_capture(self):
+        status,report=self.call('GET','/api/hardware/manager')
+        self.assertEqual(status,200)
+        self.assertEqual(report['kind'],'READ_ONLY_HARDWARE_MANAGER')
+        self.assertEqual(report['schema_version'],1)
+        self.assertFalse(report['active_continuous_rf_capture'])
+        self.assertEqual(report['verified_live_receivers'],0)
+        self.assertEqual(len(report['entries']),8)
+        self.assertTrue(any(e['key']=='sdr' and e['state']=='offline_analysis_only' for e in report['entries']))
+        self.assertTrue(any(e['key']=='radar' and e['state']=='not_implemented' for e in report['entries']))
+        self.assertNotIn('serial_number',str(report))
 
     def test_readiness_endpoint_is_read_only_and_private(self):
         from unittest.mock import patch

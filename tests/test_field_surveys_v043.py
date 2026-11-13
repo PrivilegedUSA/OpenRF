@@ -1,4 +1,4 @@
-"""OpenRF v0.2.43 field-plan migration, evidence provenance, local API and reporting."""
+"""OpenRF v0.2.44 field-plan migration, evidence provenance, local API and reporting."""
 from __future__ import annotations
 import json
 import sqlite3

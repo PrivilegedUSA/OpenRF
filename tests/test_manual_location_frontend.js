@@ -22,7 +22,8 @@ const endpoints = {
   '/api/captures': {captures:[]},
   '/api/sensors/diagnostics': {receiver_status:'unavailable'},
   '/api/hardware/readiness': {checklist:[],schema_version:1},
-  '/api/survey/waypoints': {waypoints:[],truncated:false}
+  '/api/survey/waypoints': {waypoints:[],truncated:false},
+  '/api/hardware/manager': {kind:'READ_ONLY_HARDWARE_MANAGER', entries:[], summary:{}}
 };
 const nodes = new Map();
 const $ = id => {if(!nodes.has(id)) nodes.set(id,{textContent:''}); return nodes.get(id);};
@@ -30,11 +31,11 @@ const state = {observations:[],sessions:[],waypoints:[],sensors:[],captures:[]};
 let calls = 0;
 const noop = () => {calls++;};
 const refresh = Function('api','state','$','refreshDiscoverySessions','renderDiscoveries','renderSessions',
-  'renderCaptures','renderHardware','renderSensorRegistry','renderSerialPorts',
+  'renderCaptures','renderHardware','renderHardwareManager','renderSensorRegistry','renderSerialPorts',
   'renderHardwareReadiness','renderSignals','updateMap','renderMapSurveyPanel','renderWaypoints',
   src.slice(refreshStart,refreshEnd) + '\nreturn refresh;')(
   async url => {assert(Object.hasOwn(endpoints,url), `Unexpected API call: ${url}`); return endpoints[url];},
-  state, $, ...Array.from({length:12},()=>noop));
+  state, $, ...Array.from({length:13},()=>noop));
 
 // Use simulated browser callbacks to verify location works without submitting,
 // and that earlier callback results cannot override a later dialog.
@@ -64,7 +65,7 @@ const locationHandlers = Function('$','navigator','Date',src.slice(observationSt
   assert.deepEqual(state.readiness,{checklist:[],schema_version:1});
   assert.equal(state.diagnostics.receiver_status,'unavailable');
   assert.equal(state.waypoints.length,0);
-  assert(calls>=12, 'renderers should execute after refresh completes');
+  assert(calls>=13, 'renderers should execute after refresh completes');
 
   assert(html.includes('id="observation-use-location"'));
   assert(html.includes('id="observation-location-status"'));
