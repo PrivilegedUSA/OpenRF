@@ -864,3 +864,12 @@
 .sdr-site-actions {display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:12px;}
 .sdr-site-actions>p {flex:1 1 240px;min-width:0;}
 .raster-sdr-site-pin {position:absolute;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:50%;border:3px solid #152535;background:#e798ed;pointer-events:none;z-index:3;box-shadow:0 0 9px #1b2430;}
+
+/* v0.2.48: on-demand recorded SDR frequency history, 800×480 friendly. */
+.sdr-history-controls{display:grid;grid-template-columns:minmax(135px,1fr) minmax(140px,1fr);gap:12px;align-items:end;margin:12px 0}
+.sdr-history-controls>label:not(.switchline){display:grid;gap:6px;color:#abcbd4;font-size:12px;min-width:0}
+.sdr-history-controls>.switchline{grid-column:1/-1;white-space:normal;min-height:33px}
+.sdr-history-details .sdr-analysis-table{min-width:740px}
+.sdr-history-chart{height:190px;margin:9px 0 12px}
+@media(max-width:600px){.sdr-history-controls{grid-template-columns:1fr}.sdr-history-details .sdr-analysis-table{min-width:740px}}
+.sdr-history-details .table-scroll{overflow-x:auto!important;max-width:100%}

@@ -1,4 +1,4 @@
-# OpenRF v0.2.47 — Opt-in SDR Survey Sites
+# OpenRF v0.2.48 — Recorded Frequency History
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.47.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.48.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.47 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.48 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,12 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.48 — On-demand recorded frequency history across saved SDR sweeps
+
+- **Spectrum → Review & compare frequency bins → Recorded frequency history** now shows an on-demand historical comparison for one **exact frequency-bin center** (up to 1 Hz precision) across as many as **16** most recent completed saved RTL-SDR recordings, optionally filtered by investigation. By default comparisons require identical requested start/stop/step settings; no interpolation is applied. Individual capture records are fetched only when the operator presses Analyze; no new scanning or external service is used.
+- A compact historical capture-order chart and table show per-capture arithmetic mean reported dB, bin sample counts, host capture-start UTC, optional investigation association, and browser-reported observer fix *accuracy only*. Rows with no exact bin, unreadable data, or incompatible tuning (when checked) are excluded and counted, **not shown as zero**. The chart uses capture order, not uniform time intervals.
+- **Export history CSV** is optional and **omits all observer latitude/longitude** (and never implies transmitter location). Values are not calibrated dBm; gain, receiver identity, antenna configuration and CSV frame timestamps remain unverified. This read-only feature requires preexisting completed recordings; DEMO and uncompleted captures are excluded. No database changes, receiver hardware access, background process or new dependency. See [test guide](docs/RELEASE_0.2.48_TESTS.md).
 
 ## v0.2.47 — Fresh browser observer location for short RTL-SDR captures (OFF by default)
 

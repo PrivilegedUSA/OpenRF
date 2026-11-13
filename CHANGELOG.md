@@ -1,3 +1,10 @@
+## v0.2.48 — Recorded SDR bin history (2026-11-13)
+
+- Added on-demand read-only frequency history across up to 16 completed private RTL-SDR sweeps with exact 1 Hz bin matching, optional investigation filter and same-tuning guard (on by default).
+- Added capture-order trend chart, count of excluded/missing records, historical sample table, and opt-in CSV export without precise coordinates. DEMO, failed and stopped captures cannot enter history.
+- Preserve local-only processing, bounded capture controls, map/navigation/offline tiles, previous capture comparisons, and archived Android source. No automatic scan, inferred transmitter location or calibrated dBm claim.
+- Added JavaScript tests and release smoke-test guide; no external SDR receiver or real GNSS tested.
+
 ## v0.2.47 — Opt-in mapped SDR survey sites (2026-11-13)
 
 - At explicit short RTL-SDR capture start only, optionally request one *fresh browser-reported operator location* with timestamp, age and accuracy; validate its shape and freshness in the local Python backend. Never call this verified GNSS, antenna site or transmitter source. Geolocation is OFF by default, cannot be supplied as RF evidence, and a requested denied/stale fix cancels that start request. Captures without a fix still work by default.
