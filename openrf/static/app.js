@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, hardwareManager: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, navFollowCameraSuspended:false, navFollowLastPosition:null,
+const state = { observations: [], sessions: [], waypoints: [], sdrSites: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, hardwareManager: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, navFollowCameraSuspended:false, navFollowLastPosition:null,
   navDemoActive:false,navDemoPaused:false,navDemoProgress:0,navDemoTimer:null,navDemoLastTime:0,
   navDemoMarker:null,navDemoMarkerMap:null,navDemoFix:null,rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, bleScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapObservationId:null, mapSurveySeriesKey:null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
@@ -71,13 +71,15 @@ function showPage(page, options = {}) {
 }
 
 async function refresh() {
-  const [records, sessions, stats, hardware, sensorData, captureData, diagnostics, readiness, waypointData, hardwareManager] = await Promise.all([
+  const [records, sessions, stats, hardware, sensorData, captureData, diagnostics, readiness, waypointData, hardwareManager, sdrSites] = await Promise.all([
     api('/api/observations'), api('/api/sessions'), api('/api/stats'), api('/api/hardware'), api('/api/sensors'),
-    api('/api/captures'), api('/api/sensors/diagnostics'), api('/api/hardware/readiness'), api('/api/survey/waypoints'), api('/api/hardware/manager')
+    api('/api/captures'), api('/api/sensors/diagnostics'), api('/api/hardware/readiness'), api('/api/survey/waypoints'), api('/api/hardware/manager'), api('/api/sdr/survey/sites')
   ]);
   state.observations = records.observations;
   state.sessions = sessions.sessions;
   state.waypoints = waypointData.waypoints || [];
+  state.sdrSites = sdrSites.sites || [];
+  renderSdrSiteMapStatus();
   state.waypointsTruncated = Boolean(waypointData.truncated);
   state.hardware = hardware;
   state.hardwareManager = hardwareManager;
@@ -926,7 +928,7 @@ function startMap() {
     state.map.on('click', (evt) => {
       if (consumeNavigationPick(evt.lngLat.lng, evt.lngLat.lat)) return;
       if (consumeAreaClick(evt.lngLat.lng, evt.lngLat.lat)) return;
-      const clickableLayers = ['survey-series-points','survey-points','survey-waypoints'].filter(id=>state.mapReady && state.map.getLayer(id));
+      const clickableLayers = ['survey-series-points','survey-points','survey-waypoints','survey-sdr-sites'].filter(id=>state.mapReady && state.map.getLayer(id));
       if (clickableLayers.length && state.map.queryRenderedFeatures(evt.point,{layers:clickableLayers}).length) return;
       if (state.browserLocation && Math.abs(evt.lngLat.lat-state.browserLocation.lat) < 0.0001 && Math.abs(evt.lngLat.lng-state.browserLocation.lon) < 0.0001) return;
       openObservation(evt.lngLat.lat.toFixed(6), evt.lngLat.lng.toFixed(6));
@@ -939,6 +941,11 @@ function startMap() {
       if (state.navPicking || state.areaChoosing || !evt.features?.length) return;
       const p=evt.features[0].properties;
       selectMapObservation(Number(p.id));
+    });
+    state.map.on('click', 'survey-sdr-sites', evt => {
+      if (state.navPicking || state.areaChoosing || !evt.features?.length) return;
+      const site=evt.features[0].properties;
+      new maplibregl.Popup().setLngLat(evt.lngLat).setHTML(`<strong>RECORDED SDR survey site</strong><br>Browser operator position ±${escapeHTML(site.accuracy_m)} m, not verified antenna or transmitter<br>Capture ${escapeHTML(site.capture_id)} · ${escapeHTML(site.start_mhz)}–${escapeHTML(site.stop_mhz)} MHz · NOT LIVE`).addTo(state.map);
     });
     state.map.on('click', 'survey-waypoints', evt => {
       if (state.navPicking || !evt.features?.length) return;
@@ -1144,11 +1151,49 @@ function installMarkerLayer() {
     'circle-color':['get','sample_color'],'circle-radius':11,
     'circle-stroke-color':'#f4f5e9','circle-stroke-width':3,'circle-opacity':0.96
   }});
+  state.map.addSource('survey-sdr-site-data',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+  state.map.addLayer({id:'survey-sdr-sites',type:'circle',source:'survey-sdr-site-data',paint:{
+    'circle-color':'#e798ed','circle-radius':8,'circle-stroke-color':'#152535',
+    'circle-stroke-width':3,'circle-opacity':0.95
+  }});
   state.map.addSource('survey-waypoint-data',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
   state.map.addLayer({id:'survey-waypoints',type:'circle',source:'survey-waypoint-data',paint:{
     'circle-color':'#f6d37a','circle-radius':6,'circle-stroke-color':'#09252c',
     'circle-stroke-width':2,'circle-opacity':0.95
   }});
+}
+function filteredSdrSites() {
+  const selected=$('sdr-sites-session-filter').value;
+  return state.sdrSites.filter(site => site.state==='COMPLETE' && site.observer_fix &&
+    Number.isFinite(site.observer_fix.latitude) && Number.isFinite(site.observer_fix.longitude) &&
+    (!selected || site.session_id===Number(selected)));
+}
+function visibleSdrSites() {
+  return $('sdr-sites-show-map').checked ? filteredSdrSites() : [];
+}
+function renderSdrSiteMapStatus() {
+  const selector=$('sdr-sites-session-filter'), old=selector.value;
+  selector.replaceChildren();
+  const all=document.createElement('option');all.value='';all.textContent='All saved SDR sweeps';selector.append(all);
+  for (const session of state.sessions) {
+    const option=document.createElement('option');option.value=String(session.id);
+    option.textContent=`${session.name} (#${session.id})`;selector.append(option);
+  }
+  selector.value=[...selector.options].some(o=>o.value===old)?old:'';
+  updateSdrSiteMapCount();
+}
+function updateSdrSiteMapCount() {
+  const count=filteredSdrSites().length;
+  $('sdr-sites-map-status').textContent = `${count} recorded, explicitly located SDR sweep(s) for this selection. ` +
+    `Pink markers are operator browser positions at sweep start, not verified receiver/antenna or transmitter coordinates. No route or heatmap is inferred.`;
+  $('sdr-sites-map-export').disabled = !count;
+}
+async function refreshSdrSitesOnly() {
+  try {
+    const response=await api('/api/sdr/survey/sites');
+    state.sdrSites=response.sites || [];
+    renderSdrSiteMapStatus(); updateMap();
+  } catch(err) { $('sdr-sites-map-status').textContent=`Could not load saved SDR sites: ${err.message}`; }
 }
 function updateMap() {
   if (state.rasterMap) return state.rasterMap.render();
@@ -1164,6 +1209,12 @@ function updateMap() {
         sample_color:surveySampleColor(active.series,row),value:row.value}
     })):[]});
   }
+  const sdrSource = state.map.getSource('survey-sdr-site-data');
+  if (sdrSource) sdrSource.setData({type:'FeatureCollection',features:visibleSdrSites().map(site=>({
+    type:'Feature',geometry:{type:'Point',coordinates:[site.observer_fix.longitude,site.observer_fix.latitude]},
+    properties:{capture_id:site.id,accuracy_m:site.observer_fix.accuracy_m,
+      start_mhz:site.settings.start_mhz,stop_mhz:site.settings.stop_mhz}
+  }))});
   const wp = state.map.getSource('survey-waypoint-data');
   if (wp) wp.setData({type:'FeatureCollection',features:visibleWaypoints().map(w=>({
     type:'Feature',geometry:{type:'Point',coordinates:[w.longitude,w.latitude]},
@@ -1274,6 +1325,16 @@ function startRasterMap(reason, view = null) {
         pin.title = `${o.label} (${o.kind}, ${o.source}) — observer position`;
         pin.addEventListener('click',e=>{e.stopPropagation(); selectMapObservation(o.id);});
         nextPins.append(pin);
+      });
+      visibleSdrSites().forEach(site=>{
+        const fix=site.observer_fix;
+        const position=worldPixel(fix.longitude,fix.latitude,raster.zoom);
+        const dx=((position[0]-center[0]+size*1.5)%size)-size/2,dy=position[1]-center[1];
+        if(Math.abs(dx)>width/2+15||Math.abs(dy)>height/2+15)return;
+        const marker=document.createElement('div');marker.className='raster-sdr-site-pin';
+        marker.style.left=`${width/2+dx}px`;marker.style.top=`${height/2+dy}px`;
+        marker.title=`Recorded SDR sweep ${site.id}; browser operator position ±${fix.accuracy_m} m, not transmitter`;
+        nextPins.append(marker);
       });
       visibleWaypoints().forEach(w=>{
         const position = worldPixel(w.longitude,w.latitude,raster.zoom);
@@ -2966,6 +3027,15 @@ document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',(
 document.querySelectorAll('[data-jump]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.jump)));
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
 $('map-add-observation').addEventListener('click',()=>openObservation());
+document.addEventListener('openrf:sdr-sites-changed', refreshSdrSitesOnly);
+$('sdr-sites-show-map').addEventListener('change',updateMap);
+$('sdr-sites-session-filter').addEventListener('change',()=>{updateSdrSiteMapCount();updateMap();});
+$('sdr-sites-map-export').addEventListener('click',()=>{
+  if (!filteredSdrSites().length || !confirm('Export precise browser operator coordinates for completed SDR sweeps? Sharing this GeoJSON may disclose your field survey positions.')) return;
+  const sessionId=$('sdr-sites-session-filter').value;
+  const a=document.createElement('a');a.href='/api/sdr/survey/sites.geojson'+(sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : '');
+  a.download='openrf-sdr-observer-sites.geojson';document.body.append(a);a.click();a.remove();
+});
 $('waypoint-session').addEventListener('change', renderWaypointSelection);
 $('waypoint-show-map').addEventListener('change', updateMap);
 $('waypoint-record').addEventListener('click', recordWaypoint);

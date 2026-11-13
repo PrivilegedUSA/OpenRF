@@ -18,6 +18,8 @@ import threading
 from datetime import date, datetime, time as clock, timezone
 from pathlib import Path
 
+from .sdr_survey import normalize_capture_fix
+
 MAX_CSV_BYTES = 2 * 1024 * 1024
 MAX_SAVED_CAPTURES = 50
 CAPTURE_RANGE_MHZ = (24, 1766)  # conservative software input guard, NOT verified hardware coverage
@@ -124,7 +126,7 @@ class SdrCaptureManager:
             return None
         # no absolute paths, stderr, USB identifiers, raw device details or secrets exposed
         return {key: record[key] for key in ('id', 'state', 'settings', 'started_at_utc',
-                  'finished_at_utc', 'summary', 'error', 'exit_code') if key in record}
+                  'finished_at_utc', 'summary', 'error', 'exit_code', 'observer_fix', 'session_id') if key in record}
 
     def status(self) -> dict:
         with self.lock:
@@ -153,8 +155,22 @@ class SdrCaptureManager:
                 continue
         return sorted(records, key=lambda r: r.get('started_at_utc', ''), reverse=True)[:MAX_SAVED_CAPTURES]
 
-    def start(self, settings: dict) -> dict:
+    def list_sites(self, session_id: int | None = None) -> list[dict]:
+        """Only completed, explicitly located captures; failed sweeps are not evidence."""
+        if session_id is not None and (type(session_id) is not int or session_id < 1):
+            raise CaptureError('Invalid investigation ID', 'invalid_session_id', 400)
+        return [capture for capture in self.list_saved()
+                if capture.get('state') == 'COMPLETE' and capture.get('observer_fix') is not None
+                and (session_id is None or capture.get('session_id') == session_id)]
+
+    def start(self, settings: dict, *, survey_location=None, session_id=None) -> dict:
         settings = validate_settings(settings)
+        try:
+            fix = normalize_capture_fix(survey_location)
+        except ValueError as exc:
+            raise CaptureError(str(exc), 'invalid_survey_location', 400) from exc
+        if session_id is not None and (type(session_id) is not int or not 1 <= session_id <= 2_147_483_647):
+            raise CaptureError('Invalid investigation ID', 'invalid_session_id', 400)
         with self.lock:
             if self.closed:
                 raise CaptureError('Capture manager is shutting down.')
@@ -170,7 +186,8 @@ class SdrCaptureManager:
             capture_file = self._record_path(capture_id, '.csv')
             record = {'id': capture_id, 'state': 'RUNNING', 'settings': settings,
                       'started_at_utc': utc_now(), 'receiver_identity_verified': False,
-                      'sample_timestamp_timezone': 'UNVERIFIED'}
+                      'sample_timestamp_timezone': 'UNVERIFIED',
+                      'session_id': session_id, 'observer_fix': fix}
             # -d 0 is a user-authorized request for index 0, *not* a device identity claim.
             # rtl_power writes a CSV file; never accept an arbitrary filename or command from HTTP.
             argv = [executable, '-d', '0', '-f', f"{settings['start_mhz']}M:{settings['stop_mhz']}M:{settings['step_khz']}k",

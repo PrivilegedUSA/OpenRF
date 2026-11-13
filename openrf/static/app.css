@@ -856,3 +856,11 @@
   .sdr-analysis-panel .sdr-analysis-table th,.sdr-analysis-panel .sdr-analysis-table td{display:table-cell;padding:9px 11px;border-bottom:1px solid #243f4a;white-space:nowrap;word-break:normal}
   .sdr-analysis-panel .sdr-analysis-table td::before{display:none}
 }
+
+/* v0.2.47: explicit browser-position SDR survey sites, separated from transmitter markers. */
+.sdr-survey-capture-settings {border-top:1px solid var(--line);margin:13px 0 10px;padding-top:13px;display:flex;flex-wrap:wrap;align-items:center;gap:9px 14px;}
+.sdr-survey-capture-settings>.switchline,.sdr-survey-capture-settings>p {width:100%;margin:0;}
+.sdr-survey-capture-settings>select {min-width:min(100%,250px);max-width:100%;}
+.sdr-site-actions {display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:12px;}
+.sdr-site-actions>p {flex:1 1 240px;min-width:0;}
+.raster-sdr-site-pin {position:absolute;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:50%;border:3px solid #152535;background:#e798ed;pointer-events:none;z-index:3;box-shadow:0 0 9px #1b2430;}

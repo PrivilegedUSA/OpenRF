@@ -24,6 +24,7 @@ from .readiness import readiness_report
 from .hardware_manager import manager_report
 from .sdr import capability_report as sdr_capability_report
 from .sdr_capture import SdrCaptureManager, CaptureError
+from .sdr_survey import capture_sites_geojson
 from .routing import local_route, local_status, RouteUnavailable, RouteError
 from .gnss import read_local_gpsd
 from .geocoding import (search as address_search, provider as geocoder_provider,
@@ -299,6 +300,26 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, report)
         if path == '/api/sdr/capture':
             return self._json(200, self.server.sdr_captures.status())
+        if path in ('/api/sdr/survey/sites', '/api/sdr/survey/sites.geojson'):
+            params = parse_qs(urlparse(self.path).query)
+            if set(params) - {'session_id'} or ('session_id' in params and len(params['session_id']) != 1):
+                return self._error(400, 'Optional single investigation ID only')
+            session_id = None
+            if 'session_id' in params:
+                text = params['session_id'][0]
+                if not text.isascii() or not text.isdecimal() or not 1 <= int(text) <= 2_147_483_647:
+                    return self._error(400, 'Invalid investigation ID')
+                session_id = int(text)
+            try:
+                sites = self.server.sdr_captures.list_sites(session_id)
+            except CaptureError as exc:
+                return self._error(exc.status, str(exc), exc.code)
+            if path.endswith('.geojson'):
+                raw = json.dumps(capture_sites_geojson(sites, session_id), ensure_ascii=False, indent=2).encode('utf-8')
+                return self._send(200, raw, 'application/geo+json; charset=utf-8',
+                    {'Content-Disposition': 'attachment; filename="openrf-sdr-observer-sites.geojson"'})
+            return self._json(200, {'sites': sites, 'count': len(sites),
+                'meaning': 'EXPLICIT_BROWSER_OPERATOR_POSITIONS_OF_COMPLETED_SDR_SWEEPS_NOT_TRANSMITTER_LOCATIONS'})
         if path == '/api/sdr/captures':
             return self._json(200, {'captures': self.server.sdr_captures.list_saved(),
                                     'storage': 'private_local_server_only'})
@@ -424,8 +445,18 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(body, dict):
                 raise ValueError('Expected a JSON object')
             if path == '/api/sdr/capture/start':
+                if set(body) - {'start_mhz', 'stop_mhz', 'step_khz', 'duration_seconds', 'survey_location', 'session_id'}:
+                    raise ValueError('Unexpected SDR capture fields; no browser-supplied RF readings accepted')
+                settings = {key: value for key, value in body.items() if key not in ('survey_location', 'session_id')}
+                session_id = body.get('session_id')
+                if session_id is not None:
+                    if type(session_id) is not int or session_id < 1:
+                        raise ValueError('Invalid investigation ID')
+                    if not any(row['id'] == session_id and row['status'] == 'ACTIVE' for row in self.repo.sessions()):
+                        raise ValueError('Investigation must exist and be active at sweep start')
                 try:
-                    return self._json(202, {'capture': self.server.sdr_captures.start(body)})
+                    return self._json(202, {'capture': self.server.sdr_captures.start(settings,
+                        survey_location=body.get('survey_location'), session_id=session_id)})
                 except CaptureError as exc:
                     return self._error(exc.status, str(exc), exc.code)
             if path == '/api/sdr/capture/stop':

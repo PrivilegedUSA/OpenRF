@@ -1,4 +1,4 @@
-# OpenRF v0.2.46 — Offline SDR Review and Capture Comparison
+# OpenRF v0.2.47 — Opt-in SDR Survey Sites
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.46.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.47.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.46 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.47 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.47 — Fresh browser observer location for short RTL-SDR captures (OFF by default)
+
+- **Spectrum → RTL-SDR receiver capture** has an optional unchecked **Request a fresh browser location for this sweep** checkbox and an optional **Link to active investigation** selector. When enabled, pressing **Start short capture** first requests a one-time browser geolocation fix with age and reported accuracy; stale, denied and invalid fixes **cancel the capture** rather than silently dropping location. No background GPS watch, tracking or automatic scan is added. Linking a sweep to an investigation records the association in the private capture metadata (it is not a new observation row or part of existing SQLite-based session counts).
+- Only **successfully completed** `rtl_power` sweeps with an explicitly attached location become **SDR survey sites**; failed/stopped captures and old unlocated captures never appear on the map. Location represents the operator's *browser location at sweep start*, not verified GPS antenna position or transmitter position. `rtl_power` dB remains uncalibrated and per-row CSV timestamps have unverified timezone.
+- **Map → Recorded SDR survey sites** below the map offers an off-by-default layer of pink observer-position markers, optional investigation filter, and explicitly requested precise-coordinate GeoJSON export. The Spectrum panel also offers a site GeoJSON export. The map displays points only—no emitter heatmap, route history, location inference, or synthesized signal reading.
+- Local API: `GET /api/sdr/survey/sites` and `GET /api/sdr/survey/sites.geojson` (optional `?session_id=<active-or-completed-id>` for past associated sweeps). No new runtime dependencies, database schema changes, required accounts, uploads or receiver drivers. Existing offline maps, Wi-Fi/BLE/serial discovery, navigation, captures, spectrum comparison and Android archival work are preserved. See [v0.2.47 test guide](docs/RELEASE_0.2.47_TESTS.md).
+- **Limitations:** The WSL browser may report an approximate desktop position or no location; exact coordinates remain local until an intentional export, but exported GeoJSON can reveal survey sites. No physical receiver, Raspberry Pi touchscreen or live GNSS device was tested.
 
 ## v0.2.46 — Offline SDR frequency-bin analysis and exact-bin comparisons
 

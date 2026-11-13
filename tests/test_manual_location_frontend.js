@@ -23,7 +23,8 @@ const endpoints = {
   '/api/sensors/diagnostics': {receiver_status:'unavailable'},
   '/api/hardware/readiness': {checklist:[],schema_version:1},
   '/api/survey/waypoints': {waypoints:[],truncated:false},
-  '/api/hardware/manager': {kind:'READ_ONLY_HARDWARE_MANAGER', entries:[], summary:{}}
+  '/api/hardware/manager': {kind:'READ_ONLY_HARDWARE_MANAGER', entries:[], summary:{}},
+  '/api/sdr/survey/sites': {sites:[],count:0}
 };
 const nodes = new Map();
 const $ = id => {if(!nodes.has(id)) nodes.set(id,{textContent:''}); return nodes.get(id);};
@@ -32,10 +33,10 @@ let calls = 0;
 const noop = () => {calls++;};
 const refresh = Function('api','state','$','refreshDiscoverySessions','renderDiscoveries','renderSessions',
   'renderCaptures','renderHardware','renderHardwareManager','renderSensorRegistry','renderSerialPorts',
-  'renderHardwareReadiness','renderSignals','updateMap','renderMapSurveyPanel','renderWaypoints',
+  'renderHardwareReadiness','renderSignals','updateMap','renderMapSurveyPanel','renderWaypoints','renderSdrSiteMapStatus',
   src.slice(refreshStart,refreshEnd) + '\nreturn refresh;')(
   async url => {assert(Object.hasOwn(endpoints,url), `Unexpected API call: ${url}`); return endpoints[url];},
-  state, $, ...Array.from({length:13},()=>noop));
+  state, $, ...Array.from({length:14},()=>noop));
 
 // Use simulated browser callbacks to verify location works without submitting,
 // and that earlier callback results cannot override a later dialog.

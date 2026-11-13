@@ -6,20 +6,20 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.46">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.47">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
-  <script defer src="/static/spectrum-analysis.js?v=0.2.46"></script>
-  <script defer src="/static/spectrum.js?v=0.2.46"></script>
-  <script defer src="/static/survey_map.js?v=0.2.46"></script>
-  <script defer src="/static/navigation.js?v=0.2.46"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.46"></script>
-  <script defer src="/static/app.js?v=0.2.46"></script>
+  <script defer src="/static/spectrum-analysis.js?v=0.2.47"></script>
+  <script defer src="/static/spectrum.js?v=0.2.47"></script>
+  <script defer src="/static/survey_map.js?v=0.2.47"></script>
+  <script defer src="/static/navigation.js?v=0.2.47"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.47"></script>
+  <script defer src="/static/app.js?v=0.2.47"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.46</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.47</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -152,6 +152,14 @@
             <p class="small muted">GeoJSON includes precise coordinates. Review before sharing. Waypoints never represent a continuous track, known police position or RF transmitter position.</p>
           </div>
         </details>
+        <details class="map-area-manager" id="sdr-site-map-manager"><summary>Recorded SDR survey sites <span class="small muted">(opt-in · operator locations only)</span></summary>
+          <p class="muted small">Completed RTL-SDR sweeps with a fresh browser location explicitly attached at sweep start. These points are <strong>operator browser positions</strong>, NOT verified antenna or transmitter positions. No continuous location tracking, emitter direction or power heatmap.</p>
+          <label for="sdr-sites-session-filter">Investigation to view</label>
+          <select class="field" id="sdr-sites-session-filter"><option value="">All saved SDR sweeps</option></select>
+          <label class="switchline"><input type="checkbox" id="sdr-sites-show-map"> Show saved SDR observer sites on map</label>
+          <p class="small muted" id="sdr-sites-map-status" role="status">No located sweeps loaded.</p>
+          <button type="button" class="btn outline" id="sdr-sites-map-export">Export precise site coordinates (GeoJSON)</button>
+        </details>
         <details class="map-area-manager" id="offline-basemap-settings"><summary>Offline basemap <span class="small muted">(optional · local tiles)</span></summary>
         <div class="offline-map-manager" aria-label="Offline map package selector"><label for="offline-map-select">Offline basemap</label><select class="field" id="offline-map-select" aria-label="Local raster map"><option value="">Coordinate grid · no map package</option></select><button type="button" class="btn outline" id="offline-map-refresh">Refresh maps</button><span id="offline-map-status" role="status" aria-live="polite">Local map packages are optional. No online tile downloading.</span></div>
         </details>
@@ -247,9 +255,15 @@
             <label>Step (kHz)<select id="sdr-capture-step" class="field"><option value="50">50</option><option value="100" selected>100</option><option value="200">200</option><option value="500">500</option></select></label>
             <label>Duration (seconds)<select id="sdr-capture-duration" class="field"><option value="5">5</option><option value="10" selected>10</option><option value="20">20</option><option value="30">30</option></select></label>
           </div>
+          <div class="sdr-survey-capture-settings">
+            <label class="switchline"><input type="checkbox" id="sdr-attach-location"> Request a fresh browser location for this sweep (optional; OFF by default)</label>
+            <label for="sdr-session">Link to active investigation (optional)</label><select id="sdr-session" class="field"><option value="">No investigation</option></select>
+            <p class="muted small">Opting in requests the operator browser position once, immediately before recording. This is NOT verified RTL-SDR antenna location, a GPS track, transmitter location, or an SDR measurement. A denied or stale fix cancels the start instead of silently saving an unlocated sweep.</p>
+          </div>
           <div class="sdr-actions"><button id="sdr-capture-start" type="button" class="btn primary" disabled>Start short capture</button><button id="sdr-capture-stop" type="button" class="btn danger-outline" disabled>Stop capture</button><button id="sdr-capture-refresh" type="button" class="btn outline">Refresh status</button></div>
           <p class="muted small" id="sdr-capture-status" role="status" aria-live="polite">No SDR capture requested. Receiver and driver have not been verified.</p>
           <div class="sdr-saved-row"><label for="sdr-saved-captures">Saved local captures</label><select class="field" id="sdr-saved-captures" aria-label="Saved RTL-SDR captures"><option value="">None loaded</option></select><button class="btn outline" id="sdr-saved-open" type="button" disabled>Review capture</button><a class="btn outline" id="sdr-saved-download" href="#" download hidden>Download CSV</a><button class="btn danger-outline" id="sdr-saved-delete" type="button" disabled>Delete</button></div>
+          <div class="sdr-site-actions"><p class="muted small" id="sdr-site-status" role="status">No completed capture selected. Location is saved only for opt-in successful sweeps.</p><button type="button" class="btn outline" id="sdr-site-export">Export located SDR sites (GeoJSON)</button></div>
           <p class="muted small">24–1766 MHz input guard is <strong>not</strong> a claim of supported receiver coverage. CSV power is relative, uncalibrated dB; timestamps inside the CSV have unknown timezone and provide no source location or identity. A finished capture is displayed as <strong>RECORDED · NOT LIVE</strong>.</p>
         </div>
         <div class="panel sdr-panel">

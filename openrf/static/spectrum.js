@@ -111,6 +111,33 @@
       }, 1500);
       if (!enabled && capturePoll) { global.clearInterval(capturePoll); capturePoll = null; }
     }
+    async function refreshSurveySessions() {
+      const selector = $('sdr-session'), previous = selector.value;
+      const {sessions} = await requestJSON('/api/sessions');
+      selector.replaceChildren();
+      const option = doc.createElement('option'); option.value=''; option.textContent='No investigation'; selector.appendChild(option);
+      for (const entry of sessions.filter(s => s.status === 'ACTIVE')) {
+        const item = doc.createElement('option'); item.value = String(entry.id);
+        item.textContent = `${entry.name} (#${entry.id})`; selector.appendChild(item);
+      }
+      selector.value = [...selector.options].some(o => o.value === previous) ? previous : '';
+    }
+    function freshBrowserFix() {
+      return new Promise((resolve, reject) => {
+        if (!global.navigator?.geolocation) return reject(Error('Browser geolocation unavailable. Uncheck location to record without it.'));
+        global.navigator.geolocation.getCurrentPosition(pos => {
+          const age = (Date.now() - pos.timestamp) / 1000;
+          const {latitude, longitude, accuracy} = pos.coords;
+          if (![age, latitude, longitude, accuracy].every(Number.isFinite) || age < 0 || age > 60 ||
+              latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180 || accuracy < 0)
+            return reject(Error('Browser location is stale or invalid. Request a fresh fix.'));
+          resolve({latitude, longitude, accuracy_m:accuracy,
+            fix_age_seconds:age, fix_reported_at_utc:new Date(pos.timestamp).toISOString()});
+        }, error => reject(Error(error.code === 1 ? 'Location permission denied.' :
+          error.code === 3 ? 'Location request timed out.' : 'Browser location unavailable.')),
+        {enableHighAccuracy:true, maximumAge:0, timeout:15000});
+      });
+    }
     async function refreshSaved() {
       const {captures} = await requestJSON('/api/sdr/captures');
       const select = $('sdr-saved-captures'), selected = select.value;
@@ -120,6 +147,8 @@
       for (const item of captures) {
         const option = doc.createElement('option'); option.value = item.id;
         option.dataset.state = item.state;
+        option.dataset.siteAccuracy = item.observer_fix?.accuracy_m ?? '';
+        option.dataset.surveySession = item.session_id ?? '';
         option.textContent = `${item.state} · ${item.started_at_utc} · ${item.settings.start_mhz}–${item.settings.stop_mhz} MHz`;
         select.appendChild(option);
       }
@@ -136,6 +165,7 @@
       baseline.value = oldBaseline && [...baseline.options].some(o => o.value === oldBaseline) ? oldBaseline : '';
       if (oldBaseline && baseline.value !== oldBaseline) clearComparison('Baseline capture was removed; select another.');
       updateSavedButtons();
+      doc.dispatchEvent(new Event('openrf:sdr-sites-changed'));
     }
     function updateSavedButtons() {
       const id = $('sdr-saved-captures').value;
@@ -146,6 +176,11 @@
       const link = $('sdr-saved-download'); link.hidden = !completed;
       if (completed) link.href = `/api/sdr/captures/${id}.csv`;
       else link.removeAttribute('href');
+      const selected = $('sdr-saved-captures').selectedOptions?.[0];
+      const accuracy = selected?.dataset.siteAccuracy;
+      $('sdr-site-status').textContent = completed && accuracy !== '' && accuracy != null
+        ? `RECORDED · browser operator location saved at sweep start (reported ±${Number(accuracy).toFixed(1)} m; NOT antenna or transmitter) · investigation ${selected.dataset.surveySession || 'none'}.`
+        : 'Selected capture has no completed opt-in observer site. No location will be inferred.';
     }
     async function reviewCapture(id) {
       if (!/^[0-9a-f]{16}$/.test(id)) throw Error('Invalid capture identifier');
@@ -193,6 +228,7 @@
         await refreshCapture();
         $('sdr-capture-start').disabled = !available || captureRunning;
         await refreshSaved();
+        await refreshSurveySessions();
       } catch (e) {
         statusLoaded = false;
         $('sdr-capture-start').disabled = true;
@@ -323,12 +359,18 @@
       };
       $('sdr-capture-start').disabled = true;
       try {
+        if ($('sdr-attach-location').checked) {
+          captureMessage('Requesting one fresh browser operator location before capture; not scanning yet…');
+          settings.survey_location = await freshBrowserFix();
+        }
+        const sessionId = $('sdr-session').value;
+        if (sessionId) settings.session_id = Number(sessionId);
         const result = await requestJSON('/api/sdr/capture/start', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(settings)});
         pendingCaptureId = result.capture.id;
         captureRunning = true;
         captureMessage('Requested RTL-SDR capture · awaiting real tool output. No sample verified yet.');
         await refreshCapture();
-      } catch (e) { captureMessage(`Capture not started: ${e.message}`); await checkStatus(true); }
+      } catch (e) { await checkStatus(true); captureMessage(`Capture not started: ${e.message}`); }
     });
     $('sdr-capture-stop').addEventListener('click', async () => {
       $('sdr-capture-stop').disabled = true;
@@ -341,6 +383,11 @@
     });
     $('sdr-capture-refresh').addEventListener('click', () => checkStatus(true));
     $('sdr-saved-captures').addEventListener('change', updateSavedButtons);
+    $('sdr-site-export').addEventListener('click', () => {
+      if (!global.confirm('Export precise browser operator coordinates for completed SDR sweeps? Sharing the GeoJSON can reveal your survey sites.')) return;
+      const a = doc.createElement('a'); a.href = '/api/sdr/survey/sites.geojson';
+      a.download = 'openrf-sdr-observer-sites.geojson'; doc.body.appendChild(a); a.click(); a.remove();
+    });
     $('sdr-saved-open').addEventListener('click', async () => {
       try { await reviewCapture($('sdr-saved-captures').value); }
       catch (e) { captureMessage(`Cannot review: ${e.message}`); }

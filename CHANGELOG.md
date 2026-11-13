@@ -1,3 +1,12 @@
+## v0.2.47 — Opt-in mapped SDR survey sites (2026-11-13)
+
+- At explicit short RTL-SDR capture start only, optionally request one *fresh browser-reported operator location* with timestamp, age and accuracy; validate its shape and freshness in the local Python backend. Never call this verified GNSS, antenna site or transmitter source. Geolocation is OFF by default, cannot be supplied as RF evidence, and a requested denied/stale fix cancels that start request. Captures without a fix still work by default.
+- Optionally associate a newly started capture with an active investigation using its ID; association lives in private capture JSON (existing SQL session observation and snapshot counts are unchanged). No automatic background GPS tracking, radio scanning, or receiver identity inference.
+- Expose location-bearing **completed** sweeps as read-only, locally stored SDR survey sites, plus a precise-coordinate opt-in GeoJSON export. Failed/stopped runs and old recordings without a location never appear as geolocated evidence. Mark sites as RECORDED / NOT LIVE, operator browser location at sweep start, unverified receiver identity and uncalibrated reported dB.
+- Show optional pink site markers on both vector and raster maps; layer OFF by default, filter by investigation, clear popup/legend caveats, no tracks or heatmaps. Keep the 800×480 touch interface compact.
+- Fix capture-start error message that was overwritten by an immediate hardware status refresh after a denied location request.
+- Add six backend validation/API/lifecycle tests, one JS survey integration contract test, updated older version assertions and refresh mock, and a Playwright 800×480 opt-in/location-denial UI smoke test. Preserve all existing source and bundled offline map resources. No new Python package, migration, RF driver, automatic upload or CI-success claim.
+
 ## v0.2.46 — Offline RTL-SDR bin analysis and capture comparison (2026-11-13)
 
 - Add pure browser-local SDR bin aggregation: frequency centers rounded to 1 Hz, arithmetic mean of reported dB across recorded frames, per-bin sample counts, median level and spaced strongest-bin table. No claim of calibrated dBm, signal classification, or transmitter position.

@@ -1,2 +1,2 @@
 """OpenRF local-first Linux RF investigation platform."""
-__version__ = "0.2.46"
+__version__ = "0.2.47"
