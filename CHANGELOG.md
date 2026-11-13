@@ -1,3 +1,9 @@
+## v0.2.42 — Browser-local offline SDR spectrum foundation (2026-11-13)
+
+- Add a dedicated responsive Spectrum workspace: local `rtl_power` CSV import, frequency-bin spectrum, historical waterfall, frame selection, view-only frequency range and distinct synthetic DEMO. No backend file upload, scans or saved observations.
+- Add `openrf/sdr.py` read-only driver contract and `/api/sdr/status`, update SDR hardware readiness and registry; installed commands are not verified hardware.
+- Add strict parser/model frontend tests, read-only API tests and validation guide. Preserve v0.2.41 sources, maps, RF/Wi-Fi/BLE, navigation and archived Android. No migrations or new dependencies. Real SDR hardware has not been tested.
+
 ## v0.2.41 — Read-only multi-location wireless survey positions (2026-11-13)
 
 - Add strict identity-preserving comparisons of saved Wi-Fi/BLE/RF/cellular measurements across multiple recorded observer coordinates; no automatic RF scanning, GPS tracking, source localization, heatmaps or invented travel paths.

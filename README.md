@@ -1,4 +1,4 @@
-# OpenRF v0.2.41 — GPS-linked Multi-location Signal Survey Inspection
+# OpenRF v0.2.42 — GPS-linked Multi-location Signal Survey Inspection
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.41.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.42.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.41 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.42 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.42 — Offline SDR spectrum/waterfall foundation (NO LIVE RF CAPTURE)
+
+- **Spectrum** is a new navigation page containing a responsive frequency-spectrum plot and chronological waterfall. It reads only a user-selected local `rtl_power` CSV; the file stays **inside the browser**, and the backend does not accept uploads or save those bins to SQLite. A slider lets you inspect historical frames. From/To MHz fields change the display only, not receiver tuning.
+- **Load synthetic DEMO** exercises the display with artificial spectrum peaks. DEMO is conspicuously labeled, never a measured live signal or investigation observation, and Clear removes it from memory.
+- Reported `rtl_power` bins are labeled **dB, not calibrated dBm**; the CSV timestamp's time zone is **unverified**. Invalid, overlarge, and malformed rows are rejected; frequency ranges and collection characteristics are never inferred from an absent receiver.
+- New read-only `GET /api/sdr/status` reports offline-file support, optional installed `rtl_power`/`rtl_test` tools and an explicit future receiver-driver contract. Hardware and sensor registry show tooling as **unverified**, not a connected SDR; no subprocess captures or RF transmissions occur.
+- Preserves Wi-Fi/BLE one-shot scans, GNSS/Valhalla/DEMO navigation, offline maps, saved investigations and Android archive without any database migration or extra dependency. See [v0.2.42 tests](docs/RELEASE_0.2.42_TESTS.md). Testing was software-only; no RTL-SDR/HackRF, genuine CSV data or Pi hardware was available to verify measurements.
 
 ## v0.2.41 — Multi-location saved wireless survey
 

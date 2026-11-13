@@ -21,6 +21,7 @@ from .tile_archive import import_xyz_zip, TileArchiveError, MAX_ZIP_BYTES
 from . import vector_maps
 from .hardware import status_report, enumerate_serial_ports, serial_port_diagnostics
 from .readiness import readiness_report
+from .sdr import capability_report as sdr_capability_report
 from .routing import local_route, local_status, RouteUnavailable, RouteError
 from .gnss import read_local_gpsd
 from .geocoding import (search as address_search, provider as geocoder_provider,
@@ -283,6 +284,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, {'captures': self.repo.captures()})
         if path == '/api/stats':
             return self._json(200, self.repo.stats())
+        if path == '/api/sdr/status':
+            return self._json(200, sdr_capability_report())
         if path == '/api/hardware':
             return self._json(200, status_report())
         if path == '/api/hardware/readiness':
@@ -320,7 +323,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, raw, 'text/csv; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.csv"'})
         if path in ('/', '/index.html'):
             file = STATIC_DIR / 'index.html'
-        elif path in ('/static/app.css', '/static/app.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/survey_map.js'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/survey_map.js', '/static/spectrum.js'):
             file = STATIC_DIR / Path(path).name
         else:
             return self._error(404, 'Not found')

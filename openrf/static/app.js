@@ -63,8 +63,9 @@ function showPage(page, options = {}) {
   }
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.toggle('active', el.dataset.page === page));
   document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === `page-${page}`));
-  const titles = {overview:'Field overview',map:'Survey map',scanner:'Signal analysis',discoveries:'Saved discoveries',sessions:'Investigations',hardware:'Hardware manager'};
+  const titles = {overview:'Field overview',map:'Survey map',scanner:'Signal analysis',spectrum:'Spectrum workspace',discoveries:'Saved discoveries',sessions:'Investigations',hardware:'Hardware manager'};
   $('page-title').textContent = titles[page] || 'OpenRF'; $('page-crumb').textContent = page.toUpperCase();
+  if (page === 'spectrum') document.dispatchEvent(new Event('openrf:spectrum-shown'));
   if (page === 'map') { startMap(); if (options.autoLocate !== false) locateMap(false); renderMapSurveyPanel(); setTimeout(() => { state.map?.resize(); state.rasterMap?.resize(); }, 80); }
   window.scrollTo(0, 0);
 }
@@ -440,7 +441,8 @@ function renderHardware() {
     `Bluetooth readiness: ${hw.bluetooth_readiness?.reason || 'unknown'}; no BLE scan running`,
     `NetworkManager utility: ${hw.command_availability.nmcli ? 'present' : 'not found'}`,
     `BlueZ utility: ${hw.command_availability.bluetoothctl ? 'present' : 'not found'}`,
-    `RF tools: ${['iw','rtl_test','hackrf_info','gpsd'].filter(x=>hw.command_availability[x]).join(', ') || 'none found'}`,
+    `RF tools: ${['iw','rtl_test','rtl_power','hackrf_info','gpsd'].filter(x=>hw.command_availability[x]).join(', ') || 'none found'}`,
+    `SDR spectrum: browser-local rtl_power CSV/DEMO only; live SDR capture NOT implemented; hardware unverified`,
     `USB serial endpoints: ${(hw.serial_ports || []).join(', ') || 'none visible'}` ,
     `RF capture: INACTIVE — ${hw.scan_status}`
   ].join('\n');

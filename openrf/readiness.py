@@ -104,9 +104,10 @@ def readiness_report(hardware: dict, *, last_probe: dict | None = None,
     add('serial_protocol', 'USB sensor protocol', protocol_state, protocol_note,
         'Select the currently visible port and run Probe sensor. This does not start a scan or verify the receiver.')
 
-    add('ble_sdr_gnss', 'BLE, SDR and external GNSS', 'not_implemented',
-        'BLE scan, SDR sampling, and external GNSS parsing are not integrated; device discovery is not measurement.',
-        'Integrate and validate dedicated drivers after obtaining supported hardware.')
+    add('ble_sdr_gnss', 'BLE, SDR and external GNSS', 'partial_unverified',
+        'BLE has opt-in BlueZ discovery, GNSS has an opt-in gpsd position read, and SDR has an OFFLINE CSV viewer. ' +
+        'None proves a connected validated RF receiver; SDR live sampling is NOT implemented.',
+        'Test each receiver/driver with compatible Linux-visible hardware; offline CSV is not live capture.')
     add('radar', 'Police radar / laser receiver', 'not_implemented',
         'X/K/Ka microwave and laser receiving hardware and alerts are not connected.',
         'Dedicated passive receiver and real-world testing are required.')

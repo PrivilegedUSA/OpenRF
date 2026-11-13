@@ -6,23 +6,25 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.41">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.42">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
-  <script defer src="/static/survey_map.js?v=0.2.41"></script>
-  <script defer src="/static/navigation.js?v=0.2.41"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.41"></script>
-  <script defer src="/static/app.js?v=0.2.41"></script>
+  <script defer src="/static/spectrum.js?v=0.2.42"></script>
+  <script defer src="/static/survey_map.js?v=0.2.42"></script>
+  <script defer src="/static/navigation.js?v=0.2.42"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.42"></script>
+  <script defer src="/static/app.js?v=0.2.42"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.41</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.42</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
         <button class="nav-btn" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
         <button class="nav-btn" data-page="scanner"><span class="nav-icon" aria-hidden="true">≋</span><span class="nav-label">Analysis</span></button>
+        <button class="nav-btn" data-page="spectrum"><span class="nav-icon" aria-hidden="true">▥</span><span class="nav-label">Spectrum</span></button>
         <button class="nav-btn" data-page="discoveries"><span class="nav-icon" aria-hidden="true">◈</span><span class="nav-label">Saved</span></button>
         <button class="nav-btn" data-page="sessions"><span class="nav-icon" aria-hidden="true">◷</span><span class="nav-label">Sessions</span></button>
         <button class="nav-btn" data-page="hardware"><span class="nav-icon" aria-hidden="true">▤</span><span class="nav-label">Hardware</span></button>
@@ -40,7 +42,7 @@
       <section class="page active" id="page-overview">
         <div class="hero"><div><div class="eyebrow accent">OPEN SOURCE RF FIELD PLATFORM</div><h2>Investigate the invisible.<br><em>Document what you can verify.</em></h2><p>Run locally on WSL now. Move the same backend to a Raspberry Pi later. No imaginary detections—every record retains its evidence source.</p><div class="actions"><button class="btn primary" data-jump="map">Open survey map</button><button class="btn ghost" data-jump="hardware">View sensor capabilities</button></div></div><div class="hero-graphic" aria-hidden="true"><div class="radar-ring r1"></div><div class="radar-ring r2"></div><div class="radar-ring r3"></div><div class="radar-cross h"></div><div class="radar-cross v"></div><div class="center-dot"></div></div></div>
         <div class="stat-grid"><div class="metric"><small>TOTAL OBSERVATIONS</small><strong id="metric-observations">—</strong><span>Records stored locally</span></div><div class="metric"><small>MAPPED SURVEY POINTS</small><strong id="metric-mapped">—</strong><span>Observer positions only</span></div><div class="metric"><small>INVESTIGATIONS</small><strong id="metric-sessions">—</strong><span>Manually started sessions</span></div><div class="metric"><small>SYNTHETIC RECORDS</small><strong id="metric-demo">—</strong><span>Clearly marked DEMO</span></div></div>
-        <div class="two-columns"><div class="panel"><div class="panel-title"><h3>Development console</h3><span class="pill amber">FOUNDATION RELEASE</span></div><p>Map surveys, persistent sessions and one-shot NetworkManager Wi-Fi snapshots are implemented. BLE, SDR and external GNSS capture still need physical hardware and drivers. No invented live readings.</p><div class="button-line"><button class="btn outline" id="load-demo">Load synthetic test records</button><button class="btn danger-outline" id="clear-demo">Remove demo records</button></div><p class="muted small">The demonstration dataset is optional and prominently labeled. It is hidden from the map unless you enable its layer.</p></div><div class="panel"><div class="panel-title"><h3>Quick export</h3><span class="pill">LOCAL</span></div><p>Save a private copy of your observations, including GPS accuracy and source information.</p><div class="button-line"><a class="btn outline" href="/api/export.csv" download>Download CSV</a><a class="btn outline" href="/api/export.geojson" download>Download GeoJSON</a></div><p class="muted small">Online vector streets require an internet connection. Offline coordinate surveys work without internet; local MBTiles raster maps can be installed separately.</p></div></div>
+        <div class="two-columns"><div class="panel"><div class="panel-title"><h3>Development console</h3><span class="pill amber">FOUNDATION RELEASE</span></div><p>Map surveys, persistent sessions, Wi-Fi/BLE one-shot discovery and offline spectrum-file analysis are implemented. Live SDR capture remains unavailable until receiver hardware and a tested driver exist. No invented live readings.</p><div class="button-line"><button class="btn outline" id="load-demo">Load synthetic test records</button><button class="btn danger-outline" id="clear-demo">Remove demo records</button></div><p class="muted small">The demonstration dataset is optional and prominently labeled. It is hidden from the map unless you enable its layer.</p></div><div class="panel"><div class="panel-title"><h3>Quick export</h3><span class="pill">LOCAL</span></div><p>Save a private copy of your observations, including GPS accuracy and source information.</p><div class="button-line"><a class="btn outline" href="/api/export.csv" download>Download CSV</a><a class="btn outline" href="/api/export.geojson" download>Download GeoJSON</a></div><p class="muted small">Online vector streets require an internet connection. Offline coordinate surveys work without internet; local MBTiles raster maps can be installed separately.</p></div></div>
       </section>
       <section class="page" id="page-map">
         <div class="section-heading map-first-heading"><div><h2>Survey map</h2></div></div>
@@ -230,6 +232,28 @@
           <div id="live-ble-results" class="wifi-results"><div class="empty">No BLE devices retrieved. Results are not saved or mapped until you choose Save.</div></div>
         </div>
         <div class="panel scanner-records"><div class="panel-title"><h3>Available measurement records</h3><span id="scan-count" class="pill">0 readings</span></div><div id="signal-table" class="table-scroll"></div></div>
+      </section>
+      <section class="page" id="page-spectrum" aria-label="Offline spectrum analysis workspace">
+        <div class="section-heading"><div><h2>Spectrum &amp; waterfall</h2><p>Offline receiver-file analysis and clearly labeled DEMO. No live SDR capture is running.</p></div><span class="pill amber" id="sdr-source-status" data-mode="inactive" role="status" aria-live="polite">NO SPECTRUM LOADED · LIVE CAPTURE UNAVAILABLE</span></div>
+        <div class="panel sdr-panel">
+          <div class="panel-title"><h3>Measurement source</h3><span class="pill">LOCAL FILE · PRIVATE</span></div>
+          <p class="muted small">Choose an existing <code>rtl_power</code> CSV file collected elsewhere or load a synthetic DEMO. The browser reads your chosen file locally; the source data is never uploaded or saved as an OpenRF observation. An installed SDR tool does not prove attached receiver hardware.</p>
+          <div class="sdr-actions"><label class="sdr-file-label" for="sdr-local-file">Open rtl_power CSV<input type="file" id="sdr-local-file" accept=".csv,text/csv,text/plain" aria-label="Choose local rtl_power CSV"></label><button id="sdr-demo" class="btn outline" type="button">Load synthetic DEMO</button><button id="sdr-clear" class="btn danger-outline" type="button">Clear view</button></div>
+          <p class="muted small sdr-filename" id="sdr-file-name">No file or demo loaded</p>
+          <p class="muted small" id="sdr-receiver-status" role="status">Receiver tooling not checked. Live hardware capture unavailable.</p>
+        </div>
+        <div class="panel sdr-panel">
+          <div class="panel-title"><h3>Display frequency range</h3><span class="pill">VIEW ONLY · NOT TUNING</span></div>
+          <div class="sdr-frequency-row"><label>From (MHz)<input class="field" id="sdr-min-mhz" inputmode="decimal" type="number" step="any" min="0" max="30000" placeholder="Auto"></label><label>To (MHz)<input class="field" id="sdr-max-mhz" inputmode="decimal" type="number" step="any" min="0" max="30000" placeholder="Auto"></label></div>
+          <p class="muted small">This range only filters the screen, and does not tune a device. Coverage depends entirely on the selected file or DEMO.</p>
+          <h3 class="sdr-chart-title">Spectrum <small>reported dB, not calibrated dBm</small></h3>
+          <canvas id="sdr-spectrum" class="sdr-canvas" height="215" aria-label="Frequency spectrum chart of selected historical or DEMO data" role="img"></canvas>
+          <div class="sdr-frame-row"><label for="sdr-frame-slider">Historical frame</label><input id="sdr-frame-slider" type="range" min="0" max="0" value="0" step="1" disabled></div>
+          <p class="muted small" id="sdr-frame-info" aria-live="polite">No measurements loaded</p>
+          <h3 class="sdr-chart-title">Waterfall <small>older at bottom · newer at top</small></h3>
+          <canvas id="sdr-waterfall" class="sdr-canvas" height="200" aria-label="Historical waterfall of selected frequency data" role="img"></canvas>
+          <p class="muted small">Waterfall colors use a fixed display scale for uncalibrated reported dB values. File timestamps may use the source computer's local timezone; no UTC assumption is made. Frequency bins show receiver reports, not signal identity, device position, or detected people. DEMO content is artificial and is never live.</p>
+        </div>
       </section>
       <section class="page" id="page-discoveries"><div class="section-heading"><div><h2>Discoveries</h2><p>Manual and imported measurements are separated from hardware observations by their source label.</p></div><div class="button-line"><button id="add-discovery" class="btn primary">+ Add observation</button></div></div><div class="panel"><div class="filters"><input id="discovery-search" class="field" placeholder="Search label, identifier or notes…" aria-label="Search observations"><select id="discovery-kind" class="field" aria-label="Filter category"><option value="ALL">All categories</option><option>WIFI</option><option>BLE</option><option>RF</option><option>CELLULAR</option><option>INFRASTRUCTURE</option><option>MANUAL</option></select><label class="switchline"><input type="checkbox" id="show-demo-list"> Include demo</label></div>
           <details class="discovery-refine" id="discovery-refine"><summary>More filters · source, investigation, age and map</summary><div class="discovery-refine-grid">

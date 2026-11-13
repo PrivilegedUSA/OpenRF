@@ -139,6 +139,7 @@ def status_report() -> dict:
     wifi_device = any(n['wireless'] for n in network)
     bluez = shutil.which('bluetoothctl') is not None
     nmcli = shutil.which('nmcli') is not None
+    rtl_power_installed = shutil.which('rtl_power') is not None
     wifi_scan_available = wifi_device and nmcli
 
     capabilities = [
@@ -153,9 +154,12 @@ def status_report() -> dict:
             'A Bluetooth controller is visible. User-started LE-only discovery requires a responsive BlueZ daemon; no background scanning.' if bluetooth_adapters else
             ('No Linux Bluetooth controller is visible in WSL.' if wsl else 'No Linux Bluetooth controller is visible.'),
             'Bluetooth controller visible to Linux and BlueZ bluetoothctl; explicit one-shot LE scan'),
-        SensorCapability('sdr', 'Software-defined radio', 'not_connected',
-            'USB devices are listed below, but no SDR driver or live RF capture is integrated yet.',
-            'RTL-SDR/HackRF or other supported receiver and Linux driver'),
+        SensorCapability('sdr', 'Software-defined radio',
+            'tools_present_unverified' if rtl_power_installed else 'not_connected',
+            'Offline rtl_power CSV spectrum/waterfall analysis is available. ' +
+            ('rtl_power command found, but receiver connectivity and RF capture are UNVERIFIED.' if rtl_power_installed
+             else 'No rtl_power command detected. No SDR is verified or recording.'),
+            'An authorized compatible receiver, OS USB access, rtl_power or another validated driver and real hardware testing for future live capture'),
         SensorCapability('usbserial', 'OpenRF USB serial v1',
             'detected_unverified' if serial_ports else 'not_connected',
             ('USB-serial endpoint(s) visible. Use the explicit protocol probe to determine if a compatible OpenRF controller responds.'
@@ -191,6 +195,7 @@ def status_report() -> dict:
             'iw': shutil.which('iw') is not None,
             'lsusb': shutil.which('lsusb') is not None,
             'rtl_test': shutil.which('rtl_test') is not None,
+            'rtl_power': rtl_power_installed,
             'hackrf_info': shutil.which('hackrf_info') is not None,
             'gpsd': shutil.which('gpsd') is not None,
         },

@@ -781,3 +781,23 @@
 .map-survey-howto{border-top:1px solid #2b4857;margin:8px 0;padding:8px 0;color:#add5d3;font-size:11px}
 .map-survey-howto summary{cursor:pointer;font-weight:650}
 .map-survey-howto p{line-height:1.5;margin:6px 0}
+
+/* v0.2.42 offline spectrum workspace; compact 800x480 field display. */
+#page-spectrum{max-width:1050px}#page-spectrum .section-heading{gap:10px;flex-wrap:wrap}
+#sdr-source-status{max-width:100%;white-space:normal;overflow-wrap:anywhere;line-height:1.4}
+#sdr-source-status[data-mode="demo"]{color:#ffd19c;border-color:#a36d2d}
+#sdr-source-status[data-mode="historical"]{color:#9ce9d0;border-color:#2a7a68}
+#sdr-source-status[data-mode="error"]{color:#ffabb2;border-color:#974b57}
+.sdr-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:11px 0}
+.sdr-file-label{display:inline-flex;align-items:center;justify-content:center;position:relative;min-height:43px;padding:10px 14px;border:1px solid #497f89;border-radius:8px;color:#d4f9f0;background:#163742;cursor:pointer;font-weight:700;font-size:12px}
+.sdr-file-label:focus-within{outline:2px solid #64d5bf;outline-offset:2px}
+.sdr-file-label input{position:absolute;opacity:0;width:1px;height:1px;overflow:hidden}
+.sdr-actions .btn{min-height:43px}.sdr-panel{margin-bottom:14px}.sdr-filename{overflow-wrap:anywhere}
+.sdr-frequency-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;max-width:480px;margin:15px 0}
+.sdr-frequency-row label{display:grid;gap:5px;font-size:12px;color:#a9c5cc}
+.sdr-frequency-row .field{width:100%}.sdr-chart-title{font-size:15px;margin:20px 0 7px}
+.sdr-chart-title small{font-size:11px;color:#8ca9b8;font-weight:400}
+.sdr-canvas{width:100%;height:auto;display:block;background:#091923;border:1px solid #314c5b;border-radius:8px}
+.sdr-frame-row{display:flex;align-items:center;gap:12px;font-size:12px;margin:12px 0;color:#a7c6d0}
+.sdr-frame-row input{accent-color:#33d1bf;flex:1;min-width:0;min-height:32px}
+@media(max-width:540px){.sdr-actions{display:grid;grid-template-columns:1fr 1fr}.sdr-file-label{grid-column:1/-1}.sdr-actions .btn{width:100%}.sdr-chart-title{margin-top:14px}}
