@@ -156,10 +156,10 @@ def status_report() -> dict:
             'Bluetooth controller visible to Linux and BlueZ bluetoothctl; explicit one-shot LE scan'),
         SensorCapability('sdr', 'Software-defined radio',
             'tools_present_unverified' if rtl_power_installed else 'not_connected',
-            'Offline rtl_power CSV spectrum/waterfall analysis is available. ' +
+            'Offline rtl_power CSV spectrum/waterfall analysis is available. Explicit bounded (5–30 s) rtl_power capture is available with the executable and compatible receiver. ' +
             ('rtl_power command found, but receiver connectivity and RF capture are UNVERIFIED.' if rtl_power_installed
              else 'No rtl_power command detected. No SDR is verified or recording.'),
-            'An authorized compatible receiver, OS USB access, rtl_power or another validated driver and real hardware testing for future live capture'),
+            'An authorized compatible Linux-visible RTL-SDR, OS USB access, rtl_power and real hardware testing before treating output as reliable; no continuous scanning'),
         SensorCapability('usbserial', 'OpenRF USB serial v1',
             'detected_unverified' if serial_ports else 'not_connected',
             ('USB-serial endpoint(s) visible. Use the explicit protocol probe to determine if a compatible OpenRF controller responds.'

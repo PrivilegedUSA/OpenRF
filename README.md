@@ -1,4 +1,4 @@
-# OpenRF v0.2.44 — Hardware Connection Overview & Field Survey Dashboard
+# OpenRF v0.2.45 — Opt-in Bounded RTL-SDR Captures & Field Survey Dashboard
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.44.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.45.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.44 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.45 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,17 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.45 — Receiver-index-0 RTL-SDR short sweeps (NO AUTO SCAN)
+
+- **Spectrum** now has an opt-in 5–30 second `rtl_power` capture control. It runs only after **Start short capture** is pressed; it never scans on startup or when Hardware inventory refreshes. **Stop capture** terminates the worker; partial or failed output is never presented as a successful measurement. A second capture is refused while one is running.
+- Requires a Linux-visible compatible RTL-SDR receiver and `rtl_power` installed **in Ubuntu/Raspberry Pi OS**. The UI will disable Start if `rtl_power` is missing, but a visible executable alone does **not** establish hardware. The local software input guard is 24–1766 MHz, 25–500 kHz bin steps and at most 2048 nominal bins. These bounds are not guaranteed receiver coverage; receiver index 0 is assumed, not identified.
+- Completed, validated `rtl_power` CSV recordings are stored under the private local data directory next to the active SQLite database (default `~/.local/share/openrf/sdr-captures/`). They remain outside the Git repository, source ZIP and observation database. Operators can review, download or delete captures. Limit: 50 capture metadata records (including failures) until old ones are deleted; each completed CSV is at most 2 MB.
+- Captures become **RECORDED · NOT LIVE** after the bounded process finishes. No streaming waterfall, continuous monitoring or automatic RF interpretation. CSV row time zones remain unverified; power is uncalibrated `rtl_power` dB, not dBm. No receiver serial identity, source location, device type or direction is inferred.
+- Legacy import of a selected local CSV and clearly labeled synthetic DEMO remain separate, browser-local features. No automatic upload, external service, database migration, mandatory new Python package, telemetry, SDR transmitter, or LAN access is introduced.
+- The HTTP endpoints `/api/sdr/capture/start` (POST), `/api/sdr/capture/stop` (POST), `/api/sdr/capture`, `/api/sdr/captures`, `/api/sdr/captures/<id>.csv` and DELETE for a saved ID remain loopback-only; the backend validates settings, restricts file IDs and invokes a bounded subprocess without a shell.
+- **To check optional tooling in Ubuntu:** `command -v rtl_power`. If not installed and you plan to connect a compatible receiver later, Ubuntu's `rtl-sdr` package typically supplies it (e.g. `sudo apt install rtl-sdr`). Under WSL the USB receiver must be explicitly passed through to Linux; native Windows detection is not sufficient. No real dongle was connected for this release.
+- See [v0.2.45 tests and limitations](docs/RELEASE_0.2.45_TESTS.md).
 
 ## v0.2.44 — Unified read-only hardware management
 

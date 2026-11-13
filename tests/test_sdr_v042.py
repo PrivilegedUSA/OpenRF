@@ -16,11 +16,12 @@ class SdrReadinessTests(unittest.TestCase):
     def test_never_claims_live_hardware_on_tool_visibility(self):
         for reported in ({'rtl_power': '/usr/bin/rtl_power', 'rtl_test': '/usr/bin/rtl_test'}, {}):
             data = capability_report(executable_lookup=reported.get, collected_at='2026-11-13T00:00:00+00:00')
-            self.assertFalse(data['hardware_capture_enabled'])
+            self.assertEqual(data['hardware_capture_enabled'], bool(reported))
             self.assertFalse(data['hardware_confirmed'])
-            self.assertEqual(data['mode'], 'OFFLINE_FILE_ANALYSIS_ONLY')
+            self.assertEqual(data['mode'], 'USER_STARTED_BOUNDED_CAPTURE_AVAILABLE' if reported else 'OFFLINE_FILE_ANALYSIS_ONLY')
             self.assertFalse(data['privacy']['upload_required'])
-            self.assertFalse(data['privacy']['data_stored_on_server'])
+            self.assertTrue(data['privacy']['data_stored_on_server'])
+            self.assertFalse(data['privacy']['offline_csv_view_stored_on_server'])
             self.assertEqual(data['driver_contract']['amplitude_unit'], 'rtl_power reported dB (NOT calibrated dBm)')
             self.assertEqual(data['tooling']['rtl_power_installed'], bool(reported))
 
@@ -28,7 +29,7 @@ class SdrReadinessTests(unittest.TestCase):
         hardware = {'wifi_one_shot': {'possible': False}, 'bluetooth_readiness': {}}
         sdr = next(s for s in connections(hardware) if s['sensor_id'] == 'usb-sdr')
         self.assertEqual(sdr['status'], 'offline_file_only')
-        self.assertIn('NO receiver capture', sdr['description'])
+        self.assertIn('no automatic scanning', sdr['description'])
 
 
 class SdrEndpointTests(unittest.TestCase):

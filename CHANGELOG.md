@@ -1,3 +1,11 @@
+## v0.2.45 — User-started bounded RTL-SDR CSV capture (2026-11-13)
+
+- Add `openrf/sdr_capture.py`, an explicit user-started 5–30 second `rtl_power` receiver-index-0 process with conservative input limits, no shell, no arbitrary browser paths, one capture at a time, stop/timeout and safe server shutdown termination. No boot-time or automatic scans.
+- Validate actual CSV rows and bound capture file size before marking success. Do not treat command presence or exit code alone as receiver proof. Capture state distinguishes `RUNNING`, `COMPLETE`, `STOPPED`, `FAILED` and previously interrupted files; power remains uncalibrated dB and sample timestamp timezone unverified.
+- Store operator-requested CSV and metadata under the private repository data folder, outside source/Git/SQLite observations. Add loopback-only start, stop, status, list, CSV download and delete endpoints with strict JSON/ID validation. 50 retained metadata records at most, explicit deletion in Spectrum.
+- Add compact Spectrum controls for frequency, bin step and duration, opt-in Start/Stop, saved capture review/download/delete and recorded-not-live provenance. Keep local-file historical import and SYNTHETIC DEMO separate from captured measurement records. Update read-only SDR capability and hardware readiness text without claiming a verified receiver.
+- Software-only validation using an obviously synthetic `rtl_power` stub; no physical dongle, real sampling/driver compatibility, Pi touchscreen or GitHub CI success has been verified. Existing Linux map, offline OSM resources, routing, observations, hardware integrations, reports, test suites and Android archive retained. See `docs/RELEASE_0.2.45_TESTS.md`.
+
 ## v0.2.44 — Unified read-only hardware connection overview (2026-11-13)
 
 - Add a concise **Connection overview** at the top of Hardware, with one row per Wi-Fi, BLE, OpenRF USB Serial v1, SDR, external GNSS, Sub-GHz, cellular and radar/laser capability. On 5-inch field layouts the rows stack vertically. Refresh inventory updates this overview alongside existing device inventory, sensor registry and diagnostics.

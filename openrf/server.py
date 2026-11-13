@@ -23,6 +23,7 @@ from .hardware import status_report, enumerate_serial_ports, serial_port_diagnos
 from .readiness import readiness_report
 from .hardware_manager import manager_report
 from .sdr import capability_report as sdr_capability_report
+from .sdr_capture import SdrCaptureManager, CaptureError
 from .routing import local_route, local_status, RouteUnavailable, RouteError
 from .gnss import read_local_gpsd
 from .geocoding import (search as address_search, provider as geocoder_provider,
@@ -39,6 +40,13 @@ from .sensor_connections import (connections, ScanReceiptStore, BleScanReceiptSt
 
 STATIC_DIR = Path(__file__).resolve().parent / 'static'
 DEFAULT_DB = Path.home() / '.local' / 'share' / 'openrf' / 'openrf.sqlite3'
+
+
+class OpenRFHTTPServer(ThreadingHTTPServer):
+    def server_close(self):
+        if hasattr(self, 'sdr_captures'):
+            self.sdr_captures.close()
+        super().server_close()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -148,7 +156,7 @@ class Handler(BaseHTTPRequestHandler):
             except (ValueError,OSError):
                 return self._error(404,'Local glyph range unavailable')
         if path == '/api/meta':
-            return self._json(200, {'version': __version__, 'platform': 'Linux / Raspberry Pi', 'mode': 'local-only', 'scan_active': False})
+            return self._json(200, {'version': __version__, 'platform': 'Linux / Raspberry Pi', 'mode': 'local-only', 'scan_active': self.server.sdr_captures.status()['running']})
         if path == '/api/health':
             return self._json(200, {'status': 'ok', 'version': __version__})
         if path == '/api/maps/areas':
@@ -286,7 +294,22 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/stats':
             return self._json(200, self.repo.stats())
         if path == '/api/sdr/status':
-            return self._json(200, sdr_capability_report())
+            report = sdr_capability_report()
+            report['capture'] = self.server.sdr_captures.status()
+            return self._json(200, report)
+        if path == '/api/sdr/capture':
+            return self._json(200, self.server.sdr_captures.status())
+        if path == '/api/sdr/captures':
+            return self._json(200, {'captures': self.server.sdr_captures.list_saved(),
+                                    'storage': 'private_local_server_only'})
+        if path.startswith('/api/sdr/captures/') and path.endswith('.csv'):
+            capture_id = path[len('/api/sdr/captures/'):-4]
+            try:
+                raw = self.server.sdr_captures.csv(capture_id)
+            except CaptureError as exc:
+                return self._error(exc.status, str(exc), exc.code)
+            return self._send(200, raw, 'text/csv; charset=utf-8',
+                              {'Content-Disposition': f'attachment; filename="openrf-rtl-power-{capture_id}.csv"'})
         if path == '/api/hardware':
             return self._json(200, status_report())
         if path == '/api/hardware/manager':
@@ -314,7 +337,7 @@ class Handler(BaseHTTPRequestHandler):
                          'explanation': 'One-shot NetworkManager retrieval, possibly cached; never equivalent to passive packet capture'},
                 'ble': {'prerequisites': hardware.get('bluetooth_readiness'), 'last_retrieval': self.server.ble_receipts.summary(),
                         'explanation': 'Opt-in BlueZ LE-only scan; no pairing, device connection, background monitoring or implied stable IDs.'},
-                'receiver_status': 'No standalone SDR or cellular driver is active. BLE supports user-started LE-only retrieval when a Linux BlueZ controller is available. USB Serial v1 is limited and opt-in.',
+                'receiver_status': 'Bounded user-started rtl_power SDR sweep is available when installed with compatible Linux-visible receiver; continuous SDR/cellular capture is unavailable. BLE and USB Serial v1 remain opt-in.',
                 'serial_transport': {'protocol': 'openrf.serial.v1', 'ports': hardware['serial_ports'],
                    'port_details': hardware['serial_port_details'], 'last_probe': self.server.serial_last_probe, 'port_diagnostics': serial_port_diagnostics()},
                 'hardware_is_measurement': False,
@@ -400,6 +423,18 @@ class Handler(BaseHTTPRequestHandler):
             body = self._decode_body()
             if not isinstance(body, dict):
                 raise ValueError('Expected a JSON object')
+            if path == '/api/sdr/capture/start':
+                try:
+                    return self._json(202, {'capture': self.server.sdr_captures.start(body)})
+                except CaptureError as exc:
+                    return self._error(exc.status, str(exc), exc.code)
+            if path == '/api/sdr/capture/stop':
+                if body:
+                    raise ValueError('Stop request takes no measurement data')
+                try:
+                    return self._json(200, {'capture': self.server.sdr_captures.stop()})
+                except CaptureError as exc:
+                    return self._error(exc.status, str(exc), exc.code)
             if path == '/api/maps/areas':
                 if set(body) - {'name', 'bounds', 'minzoom', 'maxzoom'}:
                     raise ValueError('Unexpected map area fields')
@@ -563,6 +598,12 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host() or not self._allowed_origin():
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
+        if path.startswith('/api/sdr/captures/') and path.count('/') == 4:
+            try:
+                self.server.sdr_captures.delete(path.rsplit('/', 1)[1])
+                return self._json(200, {'deleted': True})
+            except CaptureError as exc:
+                return self._error(exc.status, str(exc), exc.code)
         if path.startswith('/api/maps/areas/') and path.count('/') == 4:
             try:
                 area_id = path.rsplit('/', 1)[1]
@@ -602,7 +643,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServer:
-    server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
+    server = OpenRFHTTPServer(('127.0.0.1', port), Handler)
     server.repository = repository
     server.map_directory = repository.path.parent / 'maps'
     server.map_lock = threading.Lock()
@@ -615,6 +656,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.wifi_scan_last = float("-inf")
     server.serial_lock = threading.Lock()
     server.serial_last_probe = None
+    server.sdr_captures = SdrCaptureManager(repository.path.parent / 'sdr-captures')
     return server
 
 
@@ -629,7 +671,7 @@ def main():
     server = create_server(repo, port=args.port)
     print(f'OpenRF v{__version__} — http://localhost:{args.port}')
     print(f'Private database: {repo.path}')
-    print('Loopback only; press Ctrl+C to stop. On-demand Linux Wi-Fi scans require a visible compatible adapter; continuous RF capture is inactive.', flush=True)
+    print('Loopback only; press Ctrl+C to stop. On-demand Linux Wi-Fi scans require a visible compatible adapter; RTL-SDR scans are user-triggered, bounded and require compatible Linux-visible hardware.', flush=True)
     try:
         server.serve_forever(poll_interval=0.25)
     except KeyboardInterrupt:

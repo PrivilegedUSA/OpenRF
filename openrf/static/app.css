@@ -822,3 +822,15 @@
 .hardware-manager-row p{margin:9px 0 6px;font-size:12px;line-height:1.5}
 .hardware-manager-row .tiny{font-size:11px;line-height:1.5;color:#a7becc}
 @media(max-width:750px){.hardware-manager-entries{grid-template-columns:minmax(0,1fr)}}
+
+/* v0.2.45 opt-in bounded RTL-SDR captures, responsive for 800x480 landscape. */
+#sdr-source-status[data-mode="recorded"]{color:#a3e3ff;border-color:#3b8394}
+.sdr-capture-fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0}
+.sdr-capture-fields label{display:grid;gap:5px;color:#b3d3de;font-size:12px}
+.sdr-capture-fields .field{min-width:0;width:100%}
+.sdr-saved-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.sdr-saved-row label{font-size:12px;color:#b3d3de}
+.sdr-saved-row select{min-width:155px;flex:1;max-width:470px}
+.sdr-saved-row .btn{min-height:38px}
+#sdr-capture-status{overflow-wrap:anywhere}
+@media(max-width:650px){.sdr-capture-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.sdr-saved-row label{width:100%}.sdr-saved-row select{flex:1 1 100%}}

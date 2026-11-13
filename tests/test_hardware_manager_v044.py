@@ -80,7 +80,7 @@ class HardwareManagerTests(unittest.TestCase):
     def test_tooling_does_not_prove_sdr_or_gnss_receiver(self):
         hw = sample_hardware(tools={'rtl_power':True,'gpsd':True})
         report = manager_report(hw, now=NOW)
-        self.assertEqual(states(report)['sdr'], 'offline_analysis_only')
+        self.assertEqual(states(report)['sdr'], 'tools_present_unverified')
         self.assertEqual(states(report)['gnss'], 'tools_only_unverified')
         self.assertEqual(states(report)['radar'], 'not_implemented')
         self.assertEqual(states(report)['cellular'], 'not_implemented')

@@ -6,19 +6,19 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.44">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.45">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
-  <script defer src="/static/spectrum.js?v=0.2.44"></script>
-  <script defer src="/static/survey_map.js?v=0.2.44"></script>
-  <script defer src="/static/navigation.js?v=0.2.44"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.44"></script>
-  <script defer src="/static/app.js?v=0.2.44"></script>
+  <script defer src="/static/spectrum.js?v=0.2.45"></script>
+  <script defer src="/static/survey_map.js?v=0.2.45"></script>
+  <script defer src="/static/navigation.js?v=0.2.45"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.45"></script>
+  <script defer src="/static/app.js?v=0.2.45"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.44</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.45</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -42,7 +42,7 @@
       <section class="page active" id="page-overview">
         <div class="hero"><div><div class="eyebrow accent">OPEN SOURCE RF FIELD PLATFORM</div><h2>Investigate the invisible.<br><em>Document what you can verify.</em></h2><p>Run locally on WSL now. Move the same backend to a Raspberry Pi later. No imaginary detections—every record retains its evidence source.</p><div class="actions"><button class="btn primary" data-jump="map">Open survey map</button><button class="btn ghost" data-jump="hardware">View sensor capabilities</button></div></div><div class="hero-graphic" aria-hidden="true"><div class="radar-ring r1"></div><div class="radar-ring r2"></div><div class="radar-ring r3"></div><div class="radar-cross h"></div><div class="radar-cross v"></div><div class="center-dot"></div></div></div>
         <div class="stat-grid"><div class="metric"><small>TOTAL OBSERVATIONS</small><strong id="metric-observations">—</strong><span>Records stored locally</span></div><div class="metric"><small>MAPPED SURVEY POINTS</small><strong id="metric-mapped">—</strong><span>Observer positions only</span></div><div class="metric"><small>INVESTIGATIONS</small><strong id="metric-sessions">—</strong><span>Manually started sessions</span></div><div class="metric"><small>SYNTHETIC RECORDS</small><strong id="metric-demo">—</strong><span>Clearly marked DEMO</span></div></div>
-        <div class="two-columns"><div class="panel"><div class="panel-title"><h3>Development console</h3><span class="pill amber">FOUNDATION RELEASE</span></div><p>Map surveys, persistent sessions, Wi-Fi/BLE one-shot discovery and offline spectrum-file analysis are implemented. Live SDR capture remains unavailable until receiver hardware and a tested driver exist. No invented live readings.</p><div class="button-line"><button class="btn outline" id="load-demo">Load synthetic test records</button><button class="btn danger-outline" id="clear-demo">Remove demo records</button></div><p class="muted small">The demonstration dataset is optional and prominently labeled. It is hidden from the map unless you enable its layer.</p></div><div class="panel"><div class="panel-title"><h3>Quick export</h3><span class="pill">LOCAL</span></div><p>Save a private copy of your observations, including GPS accuracy and source information.</p><div class="button-line"><a class="btn outline" href="/api/export.csv" download>Download CSV</a><a class="btn outline" href="/api/export.geojson" download>Download GeoJSON</a></div><p class="muted small">Online vector streets require an internet connection. Offline coordinate surveys work without internet; local MBTiles raster maps can be installed separately.</p></div></div>
+        <div class="two-columns"><div class="panel"><div class="panel-title"><h3>Development console</h3><span class="pill amber">FOUNDATION RELEASE</span></div><p>Map surveys, persistent sessions, Wi-Fi/BLE one-shot discovery and offline spectrum-file analysis are implemented. RTL-SDR receiver sweeps now have explicit bounded controls; usable scans require compatible Linux-visible hardware and rtl_power. No invented live readings.</p><div class="button-line"><button class="btn outline" id="load-demo">Load synthetic test records</button><button class="btn danger-outline" id="clear-demo">Remove demo records</button></div><p class="muted small">The demonstration dataset is optional and prominently labeled. It is hidden from the map unless you enable its layer.</p></div><div class="panel"><div class="panel-title"><h3>Quick export</h3><span class="pill">LOCAL</span></div><p>Save a private copy of your observations, including GPS accuracy and source information.</p><div class="button-line"><a class="btn outline" href="/api/export.csv" download>Download CSV</a><a class="btn outline" href="/api/export.geojson" download>Download GeoJSON</a></div><p class="muted small">Online vector streets require an internet connection. Offline coordinate surveys work without internet; local MBTiles raster maps can be installed separately.</p></div></div>
       </section>
       <section class="page" id="page-map">
         <div class="section-heading map-first-heading"><div><h2>Survey map</h2></div></div>
@@ -235,22 +235,36 @@
         </div>
         <div class="panel scanner-records"><div class="panel-title"><h3>Available measurement records</h3><span id="scan-count" class="pill">0 readings</span></div><div id="signal-table" class="table-scroll"></div></div>
       </section>
-      <section class="page" id="page-spectrum" aria-label="Offline spectrum analysis workspace">
-        <div class="section-heading"><div><h2>Spectrum &amp; waterfall</h2><p>Offline receiver-file analysis and clearly labeled DEMO. No live SDR capture is running.</p></div><span class="pill amber" id="sdr-source-status" data-mode="inactive" role="status" aria-live="polite">NO SPECTRUM LOADED · LIVE CAPTURE UNAVAILABLE</span></div>
+      <section class="page" id="page-spectrum" aria-label="RTL-SDR capture and offline spectrum analysis workspace">
+        <div class="section-heading"><div><h2>Spectrum &amp; waterfall</h2><p>Explicit, short RTL-SDR sweeps with optional Linux-visible hardware, plus historical CSV analysis and labeled DEMO. No automatic scanning.</p></div><span class="pill amber" id="sdr-source-status" data-mode="inactive" role="status" aria-live="polite">NO SPECTRUM LOADED · NOT LIVE</span></div>
+        <div class="panel sdr-panel">
+          <div class="panel-title"><h3>RTL-SDR receiver capture</h3><span class="pill amber">OPT-IN · LOCAL ONLY</span></div>
+          <p class="muted small">Requires a compatible RTL-SDR receiver exposed to Linux and the <code>rtl_power</code> executable. Tool presence alone does not verify a receiver. Each sweep is limited to 5–30 seconds, receiver index 0, and stores a private CSV under your OpenRF local data folder. No unrequested recording or upload.</p>
+          <div class="sdr-capture-fields">
+            <label>Start (MHz)<input id="sdr-capture-low" class="field" type="number" min="24" max="1765" step="1" value="88" inputmode="numeric"></label>
+            <label>Stop (MHz)<input id="sdr-capture-high" class="field" type="number" min="25" max="1766" step="1" value="108" inputmode="numeric"></label>
+            <label>Step (kHz)<select id="sdr-capture-step" class="field"><option value="50">50</option><option value="100" selected>100</option><option value="200">200</option><option value="500">500</option></select></label>
+            <label>Duration (seconds)<select id="sdr-capture-duration" class="field"><option value="5">5</option><option value="10" selected>10</option><option value="20">20</option><option value="30">30</option></select></label>
+          </div>
+          <div class="sdr-actions"><button id="sdr-capture-start" type="button" class="btn primary" disabled>Start short capture</button><button id="sdr-capture-stop" type="button" class="btn danger-outline" disabled>Stop capture</button><button id="sdr-capture-refresh" type="button" class="btn outline">Refresh status</button></div>
+          <p class="muted small" id="sdr-capture-status" role="status" aria-live="polite">No SDR capture requested. Receiver and driver have not been verified.</p>
+          <div class="sdr-saved-row"><label for="sdr-saved-captures">Saved local captures</label><select class="field" id="sdr-saved-captures" aria-label="Saved RTL-SDR captures"><option value="">None loaded</option></select><button class="btn outline" id="sdr-saved-open" type="button" disabled>Review capture</button><a class="btn outline" id="sdr-saved-download" href="#" download hidden>Download CSV</a><button class="btn danger-outline" id="sdr-saved-delete" type="button" disabled>Delete</button></div>
+          <p class="muted small">24–1766 MHz input guard is <strong>not</strong> a claim of supported receiver coverage. CSV power is relative, uncalibrated dB; timestamps inside the CSV have unknown timezone and provide no source location or identity. A finished capture is displayed as <strong>RECORDED · NOT LIVE</strong>.</p>
+        </div>
         <div class="panel sdr-panel">
           <div class="panel-title"><h3>Measurement source</h3><span class="pill">LOCAL FILE · PRIVATE</span></div>
-          <p class="muted small">Choose an existing <code>rtl_power</code> CSV file collected elsewhere or load a synthetic DEMO. The browser reads your chosen file locally; the source data is never uploaded or saved as an OpenRF observation. An installed SDR tool does not prove attached receiver hardware.</p>
+          <p class="muted small">Open an existing <code>rtl_power</code> CSV from your device or load a synthetic DEMO. The browser reads your chosen file locally; the source data is never uploaded or saved as an OpenRF observation. An installed SDR tool does not prove attached receiver hardware.</p>
           <div class="sdr-actions"><label class="sdr-file-label" for="sdr-local-file">Open rtl_power CSV<input type="file" id="sdr-local-file" accept=".csv,text/csv,text/plain" aria-label="Choose local rtl_power CSV"></label><button id="sdr-demo" class="btn outline" type="button">Load synthetic DEMO</button><button id="sdr-clear" class="btn danger-outline" type="button">Clear view</button></div>
           <p class="muted small sdr-filename" id="sdr-file-name">No file or demo loaded</p>
-          <p class="muted small" id="sdr-receiver-status" role="status">Receiver tooling not checked. Live hardware capture unavailable.</p>
+          <p class="muted small" id="sdr-receiver-status" role="status">Receiver tooling not checked. No capture requested.</p>
         </div>
         <div class="panel sdr-panel">
           <div class="panel-title"><h3>Display frequency range</h3><span class="pill">VIEW ONLY · NOT TUNING</span></div>
           <div class="sdr-frequency-row"><label>From (MHz)<input class="field" id="sdr-min-mhz" inputmode="decimal" type="number" step="any" min="0" max="30000" placeholder="Auto"></label><label>To (MHz)<input class="field" id="sdr-max-mhz" inputmode="decimal" type="number" step="any" min="0" max="30000" placeholder="Auto"></label></div>
-          <p class="muted small">This range only filters the screen, and does not tune a device. Coverage depends entirely on the selected file or DEMO.</p>
+          <p class="muted small">This view range only filters the screen; separate capture settings above request a receiver sweep. Coverage depends entirely on the selected file or DEMO.</p>
           <h3 class="sdr-chart-title">Spectrum <small>reported dB, not calibrated dBm</small></h3>
           <canvas id="sdr-spectrum" class="sdr-canvas" height="215" aria-label="Frequency spectrum chart of selected historical or DEMO data" role="img"></canvas>
-          <div class="sdr-frame-row"><label for="sdr-frame-slider">Historical frame</label><input id="sdr-frame-slider" type="range" min="0" max="0" value="0" step="1" disabled></div>
+          <div class="sdr-frame-row"><label for="sdr-frame-slider">Recorded or historical frame</label><input id="sdr-frame-slider" type="range" min="0" max="0" value="0" step="1" disabled></div>
           <p class="muted small" id="sdr-frame-info" aria-live="polite">No measurements loaded</p>
           <h3 class="sdr-chart-title">Waterfall <small>older at bottom · newer at top</small></h3>
           <canvas id="sdr-waterfall" class="sdr-canvas" height="200" aria-label="Historical waterfall of selected frequency data" role="img"></canvas>

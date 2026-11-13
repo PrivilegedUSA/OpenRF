@@ -42,9 +42,10 @@ def connections(hardware: dict) -> list[dict]:
             'Read-only LE-only one-shot discovery on user request. Controller count: ' + str(ble.get('controller_count', 0)) +
             '; BlueZ daemon: ' + str(ble.get('daemon', 'unknown')) +
             '. No pairing, connections, background collection or automatic BLE observations.').__dict__,
-        SensorDescriptor('usb-sdr', 'USB software-defined radio', 'offline_file_only',
-            'Browser-local rtl_power CSV spectrum and waterfall viewer implemented. ' +
-            'NO receiver capture, automatic scans, or verified attached SDR. The rtl_power executable, if present, is not invoked.').__dict__,
+        SensorDescriptor('usb-sdr', 'USB software-defined radio',
+            'user_started_bounded_capture_unverified' if (hardware.get('command_availability') or {}).get('rtl_power') else 'offline_file_only',
+            'Browser-local historical rtl_power CSV inspection and DEMO. ' +
+            'A compatible Linux-visible RTL-SDR plus rtl_power supports explicit 5–30 second receiver-index-0 capture; no automatic scanning, continuous monitoring, verified device identity or calibration.').__dict__,
         SensorDescriptor('external-gnss', 'External GPS / GNSS', 'not_implemented',
             'No validated GNSS fix parser or fix-age quality negotiation yet.').__dict__,
         SensorDescriptor('police-radar-receiver', 'Police radar X/K/Ka + LIDAR', 'not_implemented',

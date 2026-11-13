@@ -1,4 +1,5 @@
-/* OpenRF v0.2.42 spectrum workspace. Browser-local only; no SDR capture APIs.
+/* OpenRF v0.2.45 spectrum workspace. Explicit bounded server-local rtl_power captures;
+ * historical local files and DEMO remain browser-local.
  * Pure parsing/model functions are exported for Node regression tests.
  */
 (function (global) {
@@ -90,22 +91,101 @@
     if (!root) return;
     const $ = id => doc.getElementById(id);
     let dataset = null, sourceLabel = '', frameIndex = 0, statusLoaded = false;
+    let capturePoll = null, captureRunning = false, pendingCaptureId = null, loadedCaptureId = null;
     function updateLabel(label, mode) {
       $('sdr-source-status').textContent = label;
       $('sdr-source-status').dataset.mode = mode;
       $('sdr-file-name').textContent = sourceLabel || 'No file or demo loaded';
     }
-    async function checkStatus() {
-      if (statusLoaded) return;
+    async function requestJSON(url, options) {
+      const res = await fetch(url, {cache: 'no-store', ...options});
+      const data = await res.json();
+      if (!res.ok) throw Error(data.error || `HTTP ${res.status}`);
+      return data;
+    }
+    function captureMessage(text) { $('sdr-capture-status').textContent = text; }
+    function setPolling(enabled) {
+      if (enabled && !capturePoll) capturePoll = global.setInterval(() => {
+        refreshCapture().catch(e => captureMessage(`Receiver status unavailable: ${e.message}`));
+      }, 1500);
+      if (!enabled && capturePoll) { global.clearInterval(capturePoll); capturePoll = null; }
+    }
+    async function refreshSaved() {
+      const {captures} = await requestJSON('/api/sdr/captures');
+      const select = $('sdr-saved-captures'), selected = select.value;
+      select.replaceChildren();
+      const placeholder = doc.createElement('option'); placeholder.value = ''; placeholder.textContent = 'Select a saved capture';
+      select.appendChild(placeholder);
+      for (const item of captures) {
+        const option = doc.createElement('option'); option.value = item.id;
+        option.dataset.state = item.state;
+        option.textContent = `${item.state} · ${item.started_at_utc} · ${item.settings.start_mhz}–${item.settings.stop_mhz} MHz`;
+        select.appendChild(option);
+      }
+      select.value = selected && [...select.options].some(o => o.value === selected) ? selected : '';
+      updateSavedButtons();
+    }
+    function updateSavedButtons() {
+      const id = $('sdr-saved-captures').value;
+      const valid = /^[0-9a-f]{16}$/.test(id);
+      const completed = valid && $('sdr-saved-captures').selectedOptions?.[0]?.dataset.state === 'COMPLETE';
+      $('sdr-saved-open').disabled = !completed;
+      $('sdr-saved-delete').disabled = !valid || captureRunning;
+      const link = $('sdr-saved-download'); link.hidden = !completed;
+      if (completed) link.href = `/api/sdr/captures/${id}.csv`;
+      else link.removeAttribute('href');
+    }
+    async function reviewCapture(id) {
+      if (!/^[0-9a-f]{16}$/.test(id)) throw Error('Invalid capture identifier');
+      const res = await fetch(`/api/sdr/captures/${id}.csv`, {cache: 'no-store'});
+      if (!res.ok) throw Error(`Saved capture unavailable (HTTP ${res.status})`);
+      const raw = await res.text();
+      setData(parseRtlPowerCsv(raw), `Locally saved receiver sweep ${id}`, 'recorded');
+      loadedCaptureId = id;
+      $('sdr-saved-captures').value = id;
+      updateSavedButtons();
+    }
+    async function refreshCapture() {
+      const status = await requestJSON('/api/sdr/capture');
+      const wasRunning = captureRunning;
+      captureRunning = !!status.running;
+      $('sdr-capture-start').disabled = captureRunning || !statusLoaded;
+      $('sdr-capture-stop').disabled = !captureRunning;
+      const current = status.current;
+      if (captureRunning) {
+        captureMessage('CAPTURING (user started) · waiting for rtl_power CSV; no live samples verified yet.');
+      } else if (current?.state === 'COMPLETE') {
+        const summary = current.summary || {};
+        captureMessage(`RECORDED · NOT LIVE · ${summary.accepted_rows || 0} valid segments, ${summary.frames || 0} frames · device identity and calibration unverified`);
+      } else if (current?.state === 'FAILED' || current?.state === 'STOPPED') {
+        captureMessage(`${current.state} · ${current.error || 'No completed receiver measurements.'}`);
+      } else captureMessage('Idle · no SDR capture requested. Receiver not verified.');
+      setPolling(captureRunning);
+      if (wasRunning && !captureRunning) await refreshSaved();
+      if (!captureRunning && current?.state === 'COMPLETE' && pendingCaptureId === current.id && loadedCaptureId !== current.id) {
+        pendingCaptureId = null;
+        try { await reviewCapture(current.id); }
+        catch (e) { captureMessage(`Recorded but cannot display CSV: ${e.message}`); }
+      }
+      updateSavedButtons();
+    }
+    async function checkStatus(force = false) {
+      if (statusLoaded && !force) { await refreshCapture(); return; }
       try {
-        const res = await fetch('/api/sdr/status', {cache: 'no-store'});
-        if (!res.ok) throw Error('HTTP ' + res.status);
-        const info = await res.json();
-        $('sdr-receiver-status').textContent = info.tooling.rtl_power_installed ?
-          'rtl_power executable present · RECEIVER UNVERIFIED · live capture unavailable' :
-          'No rtl_power executable detected · live capture unavailable';
-        statusLoaded = true;
-      } catch (_) { $('sdr-receiver-status').textContent = 'Unable to verify local receiver tooling · live capture unavailable'; }
+        const info = await requestJSON('/api/sdr/status');
+        const available = !!info.tooling.rtl_power_installed;
+        $('sdr-receiver-status').textContent = available ?
+          'rtl_power installed · receiver unverified · explicit short capture is available' :
+          'rtl_power not installed in Linux · capture disabled; saved CSV and DEMO still work';
+        statusLoaded = available;
+        await refreshCapture();
+        $('sdr-capture-start').disabled = !available || captureRunning;
+        await refreshSaved();
+      } catch (e) {
+        statusLoaded = false;
+        $('sdr-capture-start').disabled = true;
+        $('sdr-receiver-status').textContent = `Cannot check local SDR capabilities: ${e.message}`;
+      }
     }
     function resizeCanvas(canvas) {
       const rect = canvas.getBoundingClientRect();
@@ -198,21 +278,22 @@
       $('sdr-frame-slider').value = frameIndex;
       $('sdr-frame-slider').disabled = dataset.frames.length < 2;
     }
-    function setData(data, label) {
+    function setData(data, label, provenance = 'historical') {
       dataset = data; sourceLabel = label; frameIndex = data.frames.length - 1;
       const range = bounds(data);
       $('sdr-min-mhz').value = range ? range.min.toFixed(3) : '';
       $('sdr-max-mhz').value = range ? range.max.toFixed(3) : '';
       const demo = data.kind === 'SYNTHETIC_DEMO_NOT_LIVE';
       updateLabel(demo ? 'SYNTHETIC DEMO · NOT LIVE · NOT MEASURED' :
-        `HISTORICAL FILE · ${data.acceptedRows} segments loaded; ${data.rejectedRows} rejected · NOT LIVE`, demo ? 'demo' : 'historical');
+        provenance === 'recorded' ? `RECORDED RTL-SDR CSV · ${data.acceptedRows} segments · NOT LIVE · HARDWARE ID UNVERIFIED` :
+        `HISTORICAL FILE · ${data.acceptedRows} segments loaded; ${data.rejectedRows} rejected · NOT LIVE`, demo ? 'demo' : provenance);
       draw();
     }
     $('sdr-demo').addEventListener('click', () => setData(makeDemo(), 'Built-in synthetic demonstration — no radio involved'));
     $('sdr-clear').addEventListener('click', () => {
       dataset = null; sourceLabel = ''; frameIndex = 0;
       $('sdr-local-file').value = ''; $('sdr-min-mhz').value = ''; $('sdr-max-mhz').value = '';
-      updateLabel('NO SPECTRUM LOADED · LIVE CAPTURE UNAVAILABLE', 'inactive'); draw();
+      updateLabel('NO SPECTRUM LOADED · NOT LIVE', 'inactive'); draw();
     });
     $('sdr-local-file').addEventListener('change', async event => {
       const file = event.target.files?.[0]; if (!file) return;
@@ -220,10 +301,49 @@
       try { setData(parseRtlPowerCsv(await file.text()), file.name); }
       catch (e) { dataset = null; sourceLabel = ''; draw(); updateLabel(`Unable to load CSV: ${e.message}`, 'error'); }
     });
+    $('sdr-capture-start').addEventListener('click', async () => {
+      const settings = {
+        start_mhz: Number($('sdr-capture-low').value), stop_mhz: Number($('sdr-capture-high').value),
+        step_khz: Number($('sdr-capture-step').value), duration_seconds: Number($('sdr-capture-duration').value),
+      };
+      $('sdr-capture-start').disabled = true;
+      try {
+        const result = await requestJSON('/api/sdr/capture/start', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(settings)});
+        pendingCaptureId = result.capture.id;
+        captureRunning = true;
+        captureMessage('Requested RTL-SDR capture · awaiting real tool output. No sample verified yet.');
+        await refreshCapture();
+      } catch (e) { captureMessage(`Capture not started: ${e.message}`); await checkStatus(true); }
+    });
+    $('sdr-capture-stop').addEventListener('click', async () => {
+      $('sdr-capture-stop').disabled = true;
+      try {
+        await requestJSON('/api/sdr/capture/stop', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+        captureMessage('Stop requested · partial capture will not be treated as complete.');
+        pendingCaptureId = null;
+        await refreshCapture();
+      } catch (e) { captureMessage(`Stop unsuccessful: ${e.message}`); await refreshCapture(); }
+    });
+    $('sdr-capture-refresh').addEventListener('click', () => checkStatus(true));
+    $('sdr-saved-captures').addEventListener('change', updateSavedButtons);
+    $('sdr-saved-open').addEventListener('click', async () => {
+      try { await reviewCapture($('sdr-saved-captures').value); }
+      catch (e) { captureMessage(`Cannot review: ${e.message}`); }
+    });
+    $('sdr-saved-delete').addEventListener('click', async () => {
+      const id = $('sdr-saved-captures').value;
+      if (!/^[0-9a-f]{16}$/.test(id) || !global.confirm('Permanently delete this locally saved SDR capture?')) return;
+      try {
+        await requestJSON(`/api/sdr/captures/${id}`, {method:'DELETE'});
+        if (loadedCaptureId === id) { loadedCaptureId = null; $('sdr-clear').click(); }
+        captureMessage('Saved capture deleted locally.');
+        await refreshSaved();
+      } catch (e) { captureMessage(`Cannot delete: ${e.message}`); }
+    });
     for (const id of ['sdr-min-mhz', 'sdr-max-mhz']) $(id).addEventListener('change', draw);
     $('sdr-frame-slider').addEventListener('input', e => { frameIndex = Number(e.target.value); draw(); });
     global.addEventListener('resize', () => { if (root.classList.contains('active')) draw(); });
-    doc.addEventListener('openrf:spectrum-shown', () => { checkStatus(); global.requestAnimationFrame(draw); });
+    doc.addEventListener('openrf:spectrum-shown', () => { checkStatus(true); global.requestAnimationFrame(draw); });
     draw();
   }
   if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', init); else init();
