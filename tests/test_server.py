@@ -42,7 +42,7 @@ class ApiTests(unittest.TestCase):
     def test_health_static_hardware_and_exports(self):
         s,data=self.call('GET','/api/health')
         self.assertEqual(s,200)
-        self.assertEqual(data['version'],'0.2.38')
+        self.assertEqual(data['version'],'0.2.39')
         for path in ('/','/static/app.css','/static/app.js','/static/history-analysis.js','/static/route_guidance.js','/api/export.csv','/api/export.geojson'):
             status,_=self.call('GET',path)
             self.assertEqual(status,200,path)
@@ -123,7 +123,7 @@ class ApiTests(unittest.TestCase):
         status, data = self.call('GET', '/api/sensors')
         self.assertEqual(status, 200)
         self.assertEqual(data['schema_version'], 2)
-        self.assertEqual(data['sensors'][2]['status'], 'not_implemented')
+        self.assertEqual(data['sensors'][2]['status'], 'unavailable')
         status, _ = self.call('POST', '/api/sensors/networkmanager-wifi/save',
                               {'scan_id':'fake', 'bssid':'AA:BB:CC:11:22:33'})
         self.assertEqual(status, 400)

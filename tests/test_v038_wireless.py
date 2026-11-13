@@ -72,15 +72,15 @@ class BleInventoryTests(unittest.TestCase):
                 seen.append(args)
                 return subprocess.CompletedProcess(args, 0, 'Controller 00:11:22:33:44:55', '')
             obj=readiness(root=root, which=lambda _: '/usr/bin/bluetoothctl',run=fake_run)
-            self.assertEqual(obj['status'], 'controller_detected_unverified')
+            self.assertEqual(obj['status'], 'ready_on_demand')
             self.assertEqual(obj['daemon'], 'responding')
             self.assertFalse(obj['scan_active'])
-            self.assertFalse(obj['scan_supported'])
+            self.assertTrue(obj['scan_supported'])
             self.assertEqual(seen[0][3], 'list')
             # No BLE addresses returned by readiness API despite BlueZ's listing.
             self.assertNotIn('00:11:22:33:44:55', str(obj))
             registry=connections({'bluetooth_readiness':obj})
-            self.assertEqual(registry[2]['status'], 'not_implemented')
+            self.assertEqual(registry[2]['status'], 'ready_on_demand')
             self.assertIn('2', registry[2]['description'])
 
 if __name__=='__main__': unittest.main()

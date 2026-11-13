@@ -150,9 +150,9 @@ def status_report() -> dict:
             'For one-shot surveys: a managed Linux Wi-Fi interface and NetworkManager nmcli; raw frame analysis needs a future driver'),
         SensorCapability('ble', 'Bluetooth LE',
             'detected_unverified' if bluetooth_adapters else ('unavailable' if wsl else 'not_connected'),
-            'A Bluetooth controller is visible; BLE scanning is not implemented yet.' if bluetooth_adapters else
+            'A Bluetooth controller is visible. User-started LE-only discovery requires a responsive BlueZ daemon; no background scanning.' if bluetooth_adapters else
             ('No Linux Bluetooth controller is visible in WSL.' if wsl else 'No Linux Bluetooth controller is visible.'),
-            'Bluetooth controller, BlueZ, and future OpenRF sensor plugin'),
+            'Bluetooth controller visible to Linux and BlueZ bluetoothctl; explicit one-shot LE scan'),
         SensorCapability('sdr', 'Software-defined radio', 'not_connected',
             'USB devices are listed below, but no SDR driver or live RF capture is integrated yet.',
             'RTL-SDR/HackRF or other supported receiver and Linux driver'),

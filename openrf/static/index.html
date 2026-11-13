@@ -6,17 +6,17 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.38">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.39">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
-  <script defer src="/static/navigation.js?v=0.2.38"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.38"></script>
-  <script defer src="/static/app.js?v=0.2.38"></script>
+  <script defer src="/static/navigation.js?v=0.2.39"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.39"></script>
+  <script defer src="/static/app.js?v=0.2.39"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.38</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.39</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -212,6 +212,12 @@
           <p class="small muted">Readings are saved observations, never a live feed. Changes in RSSI or signal-quality percentages cannot reliably establish distance or direction. Original timestamps, receiver identity and observer positions are retained in the CSV.</p>
         </details>
         <div class="panel wifi-survey"><div class="panel-title"><h3>Linux Wi-Fi survey (on demand)</h3><span class="pill">NO BACKGROUND SCANS</span></div><p class="muted small">Uses NetworkManager on a visible Linux Wi-Fi interface. A requested scan may send standard Wi-Fi probe frames; results may be cached. Nothing is recorded automatically. Quality % is not RSSI or distance.</p><button class="btn outline" id="scan-wifi-once">Scan Wi-Fi once</button><div class="capture-actions"><label class="capture-locate"><input id="scanner-capture-location" type="checkbox"> Attach observer position from scan time (optional)</label><button type="button" id="scanner-save-scan" class="btn primary" disabled>Save scan snapshot</button></div><div class="wifi-filter-row" aria-label="Filter retrieved Wi-Fi results"><label for="wifi-results-band">Band<select id="wifi-results-band" class="field"><option value="all">All bands</option><option value="2.4 GHz">2.4 GHz</option><option value="5 GHz">5 GHz</option><option value="6 GHz">6 GHz</option><option value="other">Other / unknown</option></select></label><label for="wifi-results-search">SSID or BSSID<input id="wifi-results-search" class="field" type="search" autocomplete="off" maxlength="80" placeholder="Filter scan results"></label></div><div id="live-wifi-results" class="wifi-results"><div class="empty">No one-shot Wi-Fi survey has been requested.</div></div></div>
+        <div class="panel ble-survey" aria-label="Linux Bluetooth LE discovery"><div class="panel-title"><h3>Bluetooth LE discovery (on demand)</h3><span class="pill">NO BACKGROUND TRACKING</span></div>
+          <p class="muted small">LE-only BlueZ scan requires a Linux-visible Bluetooth controller. WSL normally cannot use Windows built-in Bluetooth. Scan results may include cached BlueZ properties and randomized device addresses. No pairing, connecting or automatic recording.</p>
+          <button type="button" class="btn outline" id="scan-ble-once">Scan nearby LE devices once</button>
+          <p class="muted small" id="ble-scan-status" role="status" aria-live="polite">No BLE scan requested. Addresses and RSSI will only appear from an actual Linux BlueZ scan.</p>
+          <div id="live-ble-results" class="wifi-results"><div class="empty">No BLE devices retrieved. Results are not saved or mapped until you choose Save.</div></div>
+        </div>
         <div class="panel scanner-records"><div class="panel-title"><h3>Available measurement records</h3><span id="scan-count" class="pill">0 readings</span></div><div id="signal-table" class="table-scroll"></div></div>
       </section>
       <section class="page" id="page-discoveries"><div class="section-heading"><div><h2>Discoveries</h2><p>Manual and imported measurements are separated from hardware observations by their source label.</p></div><div class="button-line"><button id="add-discovery" class="btn primary">+ Add observation</button></div></div><div class="panel"><div class="filters"><input id="discovery-search" class="field" placeholder="Search label, identifier or notes…" aria-label="Search observations"><select id="discovery-kind" class="field" aria-label="Filter category"><option value="ALL">All categories</option><option>WIFI</option><option>BLE</option><option>RF</option><option>CELLULAR</option><option>INFRASTRUCTURE</option><option>MANUAL</option></select><label class="switchline"><input type="checkbox" id="show-demo-list"> Include demo</label></div>

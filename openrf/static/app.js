@@ -6,7 +6,7 @@ const format = (val, suffix = '') => val === null || val === undefined || val ==
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
 const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, navFollowCameraSuspended:false, navFollowLastPosition:null,
   navDemoActive:false,navDemoPaused:false,navDemoProgress:0,navDemoTimer:null,navDemoLastTime:0,
-  navDemoMarker:null,navDemoMarkerMap:null,navDemoFix:null,rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+  navDemoMarker:null,navDemoMarkerMap:null,navDemoFix:null,rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, bleScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -2910,6 +2910,53 @@ for (const checkbox of ['map-capture-location', 'scanner-capture-location']) {
 $('map-save-scan').addEventListener('click', saveScanSnapshot);
 $('scanner-save-scan').addEventListener('click', saveScanSnapshot);
 
+function renderBleScan() {
+  const out = $('live-ble-results');
+  const scan = state.bleScan;
+  if (!scan) return;
+  const rows = scan.records || [];
+  out.innerHTML = `<p class="muted tiny">${escapeHTML(scan.controller)} · Retrieved ${escapeHTML(stamp(scan.retrieved_at_utc))} · ${rows.length} LE device(s). ${escapeHTML(scan.freshness)}. Signal RSSI when supplied by BlueZ is not distance. Device addresses may rotate.</p>` +
+    (rows.length ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>DEVICE</th><th>ADDRESS*</th><th>RSSI</th><th>SAVE</th></tr></thead><tbody>${rows.map(row=>`<tr><td data-label="Device">${escapeHTML(row.name || '(unnamed)')}</td><td data-label="Address">${escapeHTML(row.address)}</td><td data-label="RSSI">${escapeHTML(format(row.rssi_dbm,' dBm'))}</td><td data-label="Save"><button type="button" class="btn mini outline" data-save-ble="${escapeHTML(row.address)}" ${scan.scan_id ? '' : 'disabled'}>Save</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">BlueZ returned no LE device events during this request. This does not establish that no devices are nearby.</div>');
+}
+async function scanBleOnce() {
+  const btn = $('scan-ble-once'); btn.disabled = true; btn.textContent = 'Scanning LE…';
+  $('ble-scan-status').textContent = 'Running a short Linux BlueZ LE-only scan; no results saved automatically…';
+  const atRequest = state.browserLocation;
+  const age = atRequest ? (Date.now() - atRequest.capturedAt) / 1000 : Infinity;
+  const position = atRequest && age >= 0 && age <= 60 ?
+    {latitude:atRequest.lat, longitude:atRequest.lon, accuracy_m:atRequest.accuracy, fix_age_seconds:Math.round(age*10)/10} : null;
+  try {
+    state.bleScan = await api('/api/ble/scan', 'POST', {});
+    state.bleScan.observerAtRequest = position;
+    $('ble-scan-status').textContent = `${state.bleScan.records.length} LE device event(s) from BlueZ. Retrieval time is not exact advertisement time; nothing saved or mapped.`;
+    renderBleScan();
+  } catch(error) {
+    state.bleScan = null;
+    $('ble-scan-status').textContent = `BLE unavailable: ${error.message}`;
+    $('live-ble-results').innerHTML = '<div class="empty">No confirmed LE scan results. Check Bluetooth readiness in Hardware; WSL may lack a Linux-visible controller.</div>';
+    flash(error.message, true);
+  } finally {btn.disabled = false;btn.textContent = 'Scan nearby LE devices once';}
+}
+async function saveBleReading(address, button) {
+  const scan = state.bleScan;
+  if (!scan?.scan_id || !scan.records.some(row=>row.address===address)) return flash('No verified BLE scan receipt to save.',true);
+  const attach = scan.observerAtRequest && confirm('Attach browser-reported observer position from the BLE scan time? This is NOT the BLE transmitter location. Cancel saves without a location.');
+  button.disabled = true;
+  try {
+    const active = state.sessions.find(row=>row.status==='ACTIVE');
+    const saved = await api('/api/sensors/linux-ble/save','POST',{
+      scan_id:scan.scan_id,address,session_id:active?.id||null,
+      survey_location: attach ? scan.observerAtRequest : null,
+    });
+    flash(`Saved real BlueZ LE retrieval: ${saved.label}. The identifier may rotate; RSSI is not distance.`);
+    await refresh();
+  } catch(error){ flash(error.message,true); button.disabled=false; }
+}
+$('scan-ble-once').addEventListener('click', scanBleOnce);
+$('live-ble-results').addEventListener('click',e=>{
+  const button=e.target.closest('[data-save-ble]');
+  if(button) saveBleReading(button.dataset.saveBle,button);
+});
 $('scan-wifi-once').addEventListener('click', scanWifiOnce);
 $('map-scan-wifi').addEventListener('click', scanWifiOnce);
 $('map-survey-toggle').addEventListener('click', () => setMapSurveyOpen($('map-survey-panel').hidden));

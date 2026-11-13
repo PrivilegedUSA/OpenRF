@@ -1,4 +1,4 @@
-# OpenRF v0.2.38 — Wireless Survey Metadata & Map Settings Cleanup
+# OpenRF v0.2.39 — User-Started Linux Bluetooth LE Discovery
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.38.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.39.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.38 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.39 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,15 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.39 — Read-only Linux Bluetooth LE discovery (user-started)
+
+- **NEW in Analysis:** Press **Scan nearby LE devices once** to request a bounded 8-second `bluetoothctl --timeout 8 scan le` on a Linux-visible Bluetooth controller and responsive BlueZ daemon. OpenRF never pairs, connects, advertises, or runs scans in the background. WSL without USB controller passthrough displays **unavailable**, not a made-up empty scan.
+- Shows BlueZ LE device-event names, Bluetooth addresses (which **may rotate/randomize**), and **RSSI dBm only when BlueZ supplies it**. The retrieval timestamp is not proof of exact advertisement time, and cached BlueZ properties are possible. No frequency, device position, stable person identity or distance is inferred.
+- Results are ephemeral until explicitly selected. **Save** accepts only a short-lived server scan receipt and an address that BlueZ actually reported, then stores a SENSOR/BLE observation with source controller, reported RSSI if any and optional *observer* location at the time of scan. No automatic map pins, history, or observations. A saved observation is visible in Saved and appears on the map **only** with an explicitly attached observer coordinate.
+- The Hardware sensor registry distinguishes **ready on demand** when a Linux controller/BlueZ is visible from **unavailable**, and continues to label actual scanning as user-triggered only. There is no claim that ordinary Windows Bluetooth is exposed through WSL or that scans were physically verified here.
+- Retains Wi-Fi one-shot scans, custom MapLibre Dark/Light maps, Valhalla, offline directions, navigation DEMO, manual survey, reports, and Android archive. No required Python libraries, private data migrations or credentials.
+- See [v0.2.39 test plan](docs/RELEASE_0.2.39_TESTS.md).
 
 ## v0.2.38 — Wireless discovery foundation and settings gear fix
 

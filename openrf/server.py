@@ -27,11 +27,13 @@ from .geocoding import (search as address_search, provider as geocoder_provider,
                        configuration_status as geocoder_status, save_maptiler_key,
                        GeocoderUnavailable, GeocoderError)
 from .drivers.wifi_nmcli import scan_once, WifiScanUnavailable
+from .drivers.ble_bluez import scan_once as ble_scan_once, BleScanUnavailable
 from .drivers.serial_openrf import query_port, SerialSensorError
 from .storage import Repository, to_csv, to_geojson
 from .reports import investigation_report, report_html
 from .survey_waypoints import waypoints_geojson
-from .sensor_connections import connections, ScanReceiptStore, verified_wifi_observation, browser_location_details
+from .sensor_connections import (connections, ScanReceiptStore, BleScanReceiptStore,
+    verified_wifi_observation, verified_ble_observation, browser_location_details)
 
 STATIC_DIR = Path(__file__).resolve().parent / 'static'
 DEFAULT_DB = Path.home() / '.local' / 'share' / 'openrf' / 'openrf.sqlite3'
@@ -291,6 +293,7 @@ class Handler(BaseHTTPRequestHandler):
             hardware = status_report()
             return self._json(200, {'schema_version': 2, 'sensors': connections(hardware),
                                    'wifi_last_scan': self.server.scan_receipts.summary(),
+                                   'ble_last_scan': self.server.ble_receipts.summary(),
                                    'serial_transport': {'protocol': 'openrf.serial.v1',
                                      'ports': hardware['serial_ports'], 'port_details': hardware['serial_port_details'],
                                      'last_probe': self.server.serial_last_probe,
@@ -302,7 +305,9 @@ class Handler(BaseHTTPRequestHandler):
                 'wifi': {'prerequisites': hardware['wifi_one_shot'],
                          'last_retrieval': self.server.scan_receipts.summary(),
                          'explanation': 'One-shot NetworkManager retrieval, possibly cached; never equivalent to passive packet capture'},
-                'receiver_status': 'No standalone SDR, BLE, GPS, or cellular Linux driver is active. USB Serial v1 is a limited, opt-in protocol; no compatible module verified.',
+                'ble': {'prerequisites': hardware.get('bluetooth_readiness'), 'last_retrieval': self.server.ble_receipts.summary(),
+                        'explanation': 'Opt-in BlueZ LE-only scan; no pairing, device connection, background monitoring or implied stable IDs.'},
+                'receiver_status': 'No standalone SDR or cellular driver is active. BLE supports user-started LE-only retrieval when a Linux BlueZ controller is available. USB Serial v1 is limited and opt-in.',
                 'serial_transport': {'protocol': 'openrf.serial.v1', 'ports': hardware['serial_ports'],
                    'port_details': hardware['serial_port_details'], 'last_probe': self.server.serial_last_probe, 'port_diagnostics': serial_port_diagnostics()},
                 'hardware_is_measurement': False,
@@ -467,6 +472,33 @@ class Handler(BaseHTTPRequestHandler):
                 finally:
                     self.server.serial_lock.release()
                 return self._json(reply_status, reply)
+            if path == '/api/ble/scan':
+                if body:
+                    raise ValueError('BLE scan request takes no client-provided RF data')
+                if not self.server.ble_scan_lock.acquire(blocking=False):
+                    return self._error(409, 'Another BLE scan is already in progress.', 'scan_busy')
+                try:
+                    now = time.monotonic()
+                    if now - self.server.ble_scan_last < 15:
+                        return self._error(429, 'Wait 15 seconds before another BLE scan.', 'scan_rate_limited')
+                    self.server.ble_scan_last = now
+                    try:
+                        reply = self.server.ble_receipts.remember(ble_scan_once())
+                        status_code = 200
+                    except BleScanUnavailable as exc:
+                        reply = {'error': str(exc), 'error_code': exc.code}
+                        status_code = 409
+                finally:
+                    self.server.ble_scan_lock.release()
+                return self._json(status_code, reply)
+            if path == '/api/sensors/linux-ble/save':
+                if set(body) - {'scan_id', 'address', 'survey_location', 'session_id'}:
+                    raise ValueError('Unexpected BLE fields. The browser cannot submit measured RF data.')
+                def save_ble(scan, device):
+                    data, timestamp = verified_ble_observation(scan, device,
+                        body.get('survey_location'), body.get('session_id'))
+                    return self.repo.add_observation(data, observed_at_utc=timestamp)
+                return self._json(201, self.server.ble_receipts.take(body.get('scan_id'), body.get('address'), save_ble))
             if path == '/api/wifi/scan':
                 # Explicit foreground scan only. No background process or sensor data storage.
                 if not self.server.wifi_scan_lock.acquire(blocking=False):
@@ -562,6 +594,9 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.map_asset_directory = repository.path.parent / 'assets'
     server.wifi_scan_lock = threading.Lock()
     server.scan_receipts = ScanReceiptStore()
+    server.ble_scan_lock = threading.Lock()
+    server.ble_receipts = BleScanReceiptStore()
+    server.ble_scan_last = float('-inf')
     server.wifi_scan_last = float("-inf")
     server.serial_lock = threading.Lock()
     server.serial_last_probe = None

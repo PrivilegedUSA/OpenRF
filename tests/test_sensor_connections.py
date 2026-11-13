@@ -23,7 +23,8 @@ class ConnectionsTests(unittest.TestCase):
         self.assertEqual(sensors[0]['status'], 'unavailable')
         self.assertEqual(sensors[1]['sensor_id'], 'openrf-serial-v1')
         self.assertEqual(sensors[1]['status'], 'not_connected')
-        self.assertTrue(all(x['status'] == 'not_implemented' for x in sensors[2:]))
+        self.assertEqual(sensors[2]['status'], 'unavailable')
+        self.assertTrue(all(x['status'] == 'not_implemented' for x in sensors[3:]))
         self.assertEqual(connections({'wifi_one_shot': {'possible': True, 'interface': 'wlan0'}})[0]['status'], 'ready')
 
     def test_verified_scan_save_retains_origin_timestamp_and_no_fabricated_rssi(self):

@@ -37,10 +37,11 @@ def connections(hardware: dict) -> list[dict]:
             'A serial port alone does not prove a compatible module or genuine measurements. '
             'Available ports: ' + (', '.join(hardware.get('serial_ports', [])[:8]) or 'none'),
             ('MHz', 'dBm')).__dict__,
-        SensorDescriptor('linux-ble', 'Linux Bluetooth LE', 'not_implemented',
-            'Controller count: ' + str(ble.get('controller_count', 0)) +
+        SensorDescriptor('linux-ble', 'Linux Bluetooth LE',
+            'ready_on_demand' if ble.get('controller_count', 0) and ble.get('daemon') == 'responding' else 'unavailable',
+            'Read-only LE-only one-shot discovery on user request. Controller count: ' + str(ble.get('controller_count', 0)) +
             '; BlueZ daemon: ' + str(ble.get('daemon', 'unknown')) +
-            '. Discovery driver not yet implemented; no BLE observations or nearby devices retrieved.').__dict__,
+            '. No pairing, connections, background collection or automatic BLE observations.').__dict__,
         SensorDescriptor('usb-sdr', 'USB software-defined radio', 'not_implemented',
             'Receiver drivers and spectrum sample pipeline are not yet connected.').__dict__,
         SensorDescriptor('external-gnss', 'External GPS / GNSS', 'not_implemented',
@@ -57,6 +58,77 @@ class ScanReceipt:
     result: dict
     saved_bssids: set[str] = field(default_factory=set)
     saved_all: bool = False
+
+
+class BleScanReceiptStore:
+    """One short-lived server-issued BLE retrieval; selected saves only."""
+    def __init__(self, ttl_seconds: int = 600):
+        self.ttl_seconds = ttl_seconds
+        self._lock = threading.RLock()
+        self._current = None
+        self._saved = set()
+
+    def remember(self, result: dict) -> dict:
+        if result.get('source') != 'BLUEZ_BLE' or not isinstance(result.get('records'), list):
+            raise ValueError('Not a verified BlueZ LE scan retrieval')
+        with self._lock:
+            self._current = (secrets.token_urlsafe(20), time.monotonic(), result)
+            self._saved = set()
+            return {**result, 'scan_id': self._current[0], 'expires_in_seconds': self.ttl_seconds}
+
+    def summary(self) -> dict:
+        with self._lock:
+            if not self._current:
+                return {'last_scan': 'never', 'result_count': None, 'receipt_valid': False}
+            ident, started, result = self._current
+            age = time.monotonic() - started
+            return {'last_scan': result['retrieved_at_utc'], 'result_count': len(result['records']),
+                    'receipt_valid': age < self.ttl_seconds, 'age_seconds': round(age),
+                    'freshness': result['freshness']}
+
+    def take(self, ident: str, address: str, save):
+        with self._lock:
+            if not self._current or not isinstance(ident, str) or not secrets.compare_digest(ident, self._current[0]):
+                raise ValueError('BLE scan receipt not recognized. Run a new scan.')
+            scan_id, started, result = self._current
+            if time.monotonic() - started > self.ttl_seconds:
+                self._current = None
+                raise ValueError('BLE scan receipt expired. Run a fresh scan.')
+            if not isinstance(address, str) or address in self._saved:
+                raise ValueError('BLE device already saved or invalid.')
+            record = next((r for r in result['records'] if r['address'] == address), None)
+            if not record:
+                raise ValueError('BLE address not observed in this scan.')
+            response = save(result, record)
+            self._saved.add(address)
+            return response
+
+
+def verified_ble_observation(scan: dict, device: dict, survey_location, session_id):
+    lat, lon, accuracy = browser_survey_location(survey_location)
+    if session_id is not None and (type(session_id) is not int or session_id < 1):
+        raise ValueError('Invalid investigation ID')
+    dt = datetime.fromisoformat(scan['retrieved_at_utc'].replace('Z', '+00:00'))
+    if dt.tzinfo is None:
+        raise ValueError('BlueZ scan lacks UTC retrieval time')
+    rssi = device.get('rssi_dbm')
+    if rssi is not None and (type(rssi) is not int or not -127 <= rssi <= 20):
+        raise ValueError('Invalid reported BLE RSSI')
+    label = str(device.get('name') or '(unnamed LE device)')[:100]
+    notes = ('On-demand Linux BlueZ LE discovery. Retrieved ' + scan['retrieved_at_utc'] +
+             '; per-device advertisement time unverified, BlueZ may return cached properties. '
+             'BLE address can be randomized and is not a stable identity. '
+             'Reported RSSI is uncalibrated signal dBm, not distance or direction. '
+             'No advertising frequency/channel established. BlueZ scanner/controller mapping is not independently verified. '
+             + ('Coordinates represent browser-reported OBSERVER position, NOT transmitter location.'
+                if lat is not None else 'No observer coordinates saved.'))
+    return {
+        'kind': 'BLE', 'source': 'SENSOR', 'label': 'BLE: ' + label,
+        'identifier': device['address'], 'source_device': 'Linux BlueZ / ' + str(scan['controller'])[:32],
+        'notes': notes, 'frequency_mhz': None, 'rssi_dbm': rssi,
+        'latitude': lat, 'longitude': lon, 'accuracy_m': accuracy,
+        'session_id': session_id,
+    }, dt.astimezone(timezone.utc).isoformat(timespec='seconds')
 
 
 class ScanReceiptStore:

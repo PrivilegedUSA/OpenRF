@@ -1,3 +1,11 @@
+## v0.2.39 — Opt-in Linux Bluetooth LE discovery (2026-11-12)
+
+- Add bounded, explicit BlueZ LE-only discovery for Linux-visible controllers; no pairing, connecting or background monitoring. Real LE events and optional reported RSSI dBm are displayed in Analysis. BlueZ discovery and per-device timestamps/caching limitations are disclosed.
+- Add short-lived (10 minute) single-device save receipts and server-only BLE SENSOR provenance. The browser cannot submit arbitrary measured RSSI, device addresses not observed by the server, or false readings. Optional browser location is the observer position from scan time, never transmitter coordinates; nothing persists until Save.
+- Hardware registry now reports BLE scanning readiness separately from whether a Linux controller and BlueZ are connected. WSL built-in Windows Bluetooth is normally unavailable.
+- Add regression tests for parsing, controller absence, bounded invocation, failure/timeout, receipt rejection, no automatic records, location semantics, and foreground UI.
+- Preserve prior source, RF/network/nav/map features, offline resource licensing and privacy. No SQLite migration or new runtime dependencies.
+
 ## v0.2.38 — Real Wi-Fi survey details, BLE readiness and persistent map settings gear (2026-11-12)
 
 - **User-requested map settings cleanup:** keep the compact gear anchored at bottom-right next to Add and Layers while the settings popup is open. The popup has its own accessible **X** close button and also closes on Escape. Original lower-left map credits/info stay untouched. The MapTiler key remains private and unchanged; no geocoding credentials in the ZIP.
