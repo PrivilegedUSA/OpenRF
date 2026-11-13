@@ -1,3 +1,11 @@
+## v0.2.41 — Read-only multi-location wireless survey positions (2026-11-13)
+
+- Add strict identity-preserving comparisons of saved Wi-Fi/BLE/RF/cellular measurements across multiple recorded observer coordinates; no automatic RF scanning, GPS tracking, source localization, heatmaps or invented travel paths.
+- Highlight the matching saved sample markers on both MapLibre and raster maps; show an on-demand chronological signal graph with timestamps, reported coordinate/accuracy, metric unit, and explicit measurement limitations.
+- Show time/source warnings, including uncertainty-circle comparisons only where both reported accuracies exist. Never equate Wi-Fi quality percent with RSSI dBm; maintain DEMO/HISTORICAL labeling.
+- Add read-only map-sheet collecting guidance and private opt-in export of precise observer positions. Preserve v0.2.40 Wi-Fi/BLE workflows, SQLite data, offline maps, Valhalla navigation, Android archive, and reserved updater paths.
+- Tests: new pure JS unit/regression, unchanged Python API behavior, complete versioned ZIP checked. Physical scanners, Android, GNSS travel, live Firefox rendering, and GitHub CI remain unverified.
+
 ## v0.2.40 — Wireless survey map & saved-reading inspection (2026-11-12)
 
 - Added independent category, measured RSSI (dBm), and NetworkManager quality (%) marker-color modes to the existing MapLibre / offline raster survey maps. No cross-unit conversion, distance inference, or invented locations.

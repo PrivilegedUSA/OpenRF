@@ -6,7 +6,7 @@ const format = (val, suffix = '') => val === null || val === undefined || val ==
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
 const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, navFollowCameraSuspended:false, navFollowLastPosition:null,
   navDemoActive:false,navDemoPaused:false,navDemoProgress:0,navDemoTimer:null,navDemoLastTime:0,
-  navDemoMarker:null,navDemoMarkerMap:null,navDemoFix:null,rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, bleScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapObservationId:null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+  navDemoMarker:null,navDemoMarkerMap:null,navDemoFix:null,rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, bleScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapObservationId:null, mapSurveySeriesKey:null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -491,6 +491,53 @@ function mapMetricLegend() {
   if(mode==='quality') return 'NetworkManager quality (%) at the RECEIVER: teal ≥70%, yellow 40–69%, pink <40%, gray = no Wi-Fi quality. Quality is NOT RSSI dBm or distance.';
   return 'Marker color identifies the saved observation category. DEMO is orange. All points mark observer positions, never transmitter positions.';
 }
+// Only previously saved, location-bearing rows visible under the chosen layer/date
+// filter are eligible for spatial comparison. History engine enforces identical
+// signal identifier, receiver identity, frequency, provenance and measurement unit.
+function activeMapSpatialSurvey() {
+  if(!state.mapSurveySeriesKey) return null;
+  const engine=window.OpenRFHistoryAnalysis,tools=window.OpenRFSurveyMap;
+  if(!engine || !tools) return null;
+  const series=engine.makeSeries(mapVisibleObservations(),state.showDemo).find(s=>s.key===state.mapSurveySeriesKey);
+  if(!series) return null;
+  const spatial=tools.spatialSeries(series);
+  return spatial.total>=2 && spatial.reportedSites>=2 ? {series,spatial} : null;
+}
+function surveySampleColor(series, sample) {
+  return markerAppearance({kind:series.kind,source:series.source,rssi_dbm:series.metric==='rssi_dbm'?sample.value:null,
+    signal_quality_percent:series.metric==='signal_quality_percent'?sample.value:null}).color;
+}
+function renderMapSpatialSurvey() {
+  const el=$('map-series-detail');
+  const active=activeMapSpatialSurvey();
+  if(!active){el.hidden=true;el.replaceChildren();return;}
+  const {series,spatial}=active,graph=window.OpenRFSurveyMap.timeline(spatial.samples);
+  const span=spatial.rows.length, locations=spatial.reportedSites;
+  const warnings=[
+    `Saved observer coordinates are NOT transmitter locations. Points are not a travel track or a distance/direction estimate.`,
+    `Receiver: ${series.source_device || 'unspecified'} · ${series.frequency_mhz ?? 'unknown'} MHz · ${series.source}.`,
+    `Reported GPS accuracy circles do not overlap for ${spatial.definiteSeparation} of ${spatial.comparablePairs} consecutive comparable sample pairs. This is not proof of distinct physical sites or transmitter localization.`,
+    ...(series.metric==='signal_quality_percent'?['NetworkManager quality percentages are not RSSI; cached Wi-Fi scan results are possible.']:[]),
+    ...(['MANUAL','IMPORTED'].includes(series.source)?['Manual/imported measurements are not independently verified.']:[]),
+    ...(series.source==='SENSOR' && !series.hardware_id?['No verified hardware ID is attached to this saved series.']:[]),
+    ...(spatial.rows.some(r=>['HOST_RETRIEVAL','HOST_RECEIPT','RETRIEVAL_ONLY','HOST_RETRIEVAL_ONLY'].includes(r.timestamp_basis))?['Some timestamps reflect host retrieval rather than actual radio emission time.']:[]),
+    ...(series.source==='DEMO'?['SYNTHETIC DEMO / HISTORICAL — NOT LIVE.']:[]),
+    ...(spatial.truncated?[`Only the latest ${spatial.displayed} of ${spatial.total} located samples are drawn; older saved measurements remain on the map in category view.`]:[])
+  ];
+  const svg=graph ? `<svg viewBox="0 0 366 134" role="img" aria-label="Historical ${escapeHTML(series.metricName)} at saved observer sites, chronological time axis, ${span} located readings">
+    <path d="M18 20 H348 M18 110 H348" stroke="#355363" stroke-dasharray="3 4" fill="none"/>
+    <polyline points="${graph.polyline}" fill="none" stroke="#34c9b1" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/>
+    ${graph.points.length===1?`<circle cx="${graph.points[0].x}" cy="${graph.points[0].y}" r="4" fill="#34c9b1"/>`:''}
+    <text x="18" y="130" fill="#9bb8c1">Oldest</text><text x="295" y="130" fill="#9bb8c1">Newest</text>
+    </svg>` : '';
+  el.hidden=false;
+  el.innerHTML=`<div class="map-sheet-head"><div><strong>Saved multi-location signal survey</strong><small>${escapeHTML(series.kind)} · ${escapeHTML(series.identifier)} · ${escapeHTML(series.metricName)} (${escapeHTML(series.unit)})</small></div><button type="button" class="map-sheet-close" data-map-series-clear aria-label="Close multi-location signal survey">×</button></div>
+    <p><strong>${span} located historical readings</strong> at ${locations} differing reported coordinate(s). No continuous tracking.</p>
+    <div class="map-survey-plot">${svg}<small>Time-scaled historical ${escapeHTML(series.unit)} measurements, not an inferred transmitter location.${graph?.equalTimestamps?' All samples have the same timestamp.':''}</small></div>
+    <div class="map-series-buttons"><button type="button" class="btn mini outline" data-map-series-fit>Show sample area</button><button type="button" class="btn mini outline" data-map-series-export>Export sample CSV</button></div>
+    <details><summary>Recorded receiver positions (${Math.min(spatial.samples.length,30)} recent of ${span})</summary><div class="map-survey-samples">${spatial.samples.slice(-30).reverse().map(row=>`<div class="map-survey-sample"><strong>${escapeHTML(stamp(row.observed_at))} · ${escapeHTML(row.value)} ${escapeHTML(series.unit)}</strong><small>${row.lat.toFixed(6)}, ${row.lon.toFixed(6)} · ${row.accuracy_m===null?'accuracy unreported':`±${row.accuracy_m} m`} · ${escapeHTML(row.location_source)} · session ${escapeHTML(row.session_id??'—')}</small></div>`).join('')}</div></details>
+    ${warnings.map(w=>`<p class="small muted">${escapeHTML(w)}</p>`).join('')}`;
+}
 function renderMapObservationDetail() {
   const out=$('map-observation-detail');
   const record=mapVisibleObservations().find(o=>o.id===state.mapObservationId);
@@ -504,9 +551,15 @@ function renderMapObservationDetail() {
     const median=result?.history?.stats?.median;
     const delta=result?.comparison?.delta;
     const warning=result?.history?.warnings?.slice(0,2) || [];
+    const filteredSeries=engine.makeSeries(mapVisibleObservations(),state.showDemo).find(item=>item.key===series.key);
+    const sites=window.OpenRFSurveyMap.spatialSeries(filteredSeries);
+    const siteAction=sites.total>=2 && sites.reportedSites>=2
+      ? `<button type="button" class="btn mini outline" data-map-series="${escapeHTML(series.key)}">Compare ${sites.total} saved readings at ${sites.reportedSites} coordinates</button>`
+      : `<small>${sites.total} located reading(s), ${sites.reportedSites} reported coordinate(s) — multiple locations required for a spatial comparison.</small>`;
     return `<div class="map-history-metric"><strong>${escapeHTML(series.metricName)}: ${n} compatible saved reading(s)</strong>
       <span>${n ? `Historical median ${escapeHTML(median?.toFixed(1))} ${escapeHTML(series.unit)}` : 'No compatible history'}${Number.isFinite(delta) ? ` · Later−earlier median ${delta>=0?'+':''}${escapeHTML(delta.toFixed(1))} ${escapeHTML(series.unit)}` : ''}</span>
       <button type="button" class="btn mini outline" data-map-history="${escapeHTML(series.key)}">Open history / comparison</button>
+      ${siteAction}
       ${warning.map(item=>`<small>${escapeHTML(item)}</small>`).join('')}</div>`;
   }).join('');
   out.hidden=false;
@@ -551,6 +604,7 @@ function renderMapSurveyPanel() {
   }).join(''):'<p class="small muted">No saved Wi-Fi/BLE/RF/cellular reading with an observer coordinate matches the selected layers and date range.</p>';
   if(counts.wireless>recent.length) $('map-wireless-recent').insertAdjacentHTML('beforeend',`<p class="small muted">Showing latest ${recent.length} of ${counts.wireless} mapped wireless records. Use Discoveries for full history.</p>`);
   renderMapObservationDetail();
+  renderMapSpatialSurvey();
   const output=$('map-wifi-readings'),scan=state.wifiScan;
   if(!scan){output.innerHTML='<p class="small muted">No temporary Wi-Fi retrieval in memory. Scans must be started manually.</p>';}
   else{
@@ -820,10 +874,14 @@ function startMap() {
     state.map.on('click', (evt) => {
       if (consumeNavigationPick(evt.lngLat.lng, evt.lngLat.lat)) return;
       if (consumeAreaClick(evt.lngLat.lng, evt.lngLat.lat)) return;
-      const clickableLayers = ['survey-points','survey-waypoints'].filter(id=>state.mapReady && state.map.getLayer(id));
+      const clickableLayers = ['survey-series-points','survey-points','survey-waypoints'].filter(id=>state.mapReady && state.map.getLayer(id));
       if (clickableLayers.length && state.map.queryRenderedFeatures(evt.point,{layers:clickableLayers}).length) return;
       if (state.browserLocation && Math.abs(evt.lngLat.lat-state.browserLocation.lat) < 0.0001 && Math.abs(evt.lngLat.lng-state.browserLocation.lon) < 0.0001) return;
       openObservation(evt.lngLat.lat.toFixed(6), evt.lngLat.lng.toFixed(6));
+    });
+    state.map.on('click', 'survey-series-points', (evt) => {
+      if (state.navPicking || state.areaChoosing || !evt.features?.length) return;
+      selectMapObservation(Number(evt.features[0].properties.id));
     });
     state.map.on('click', 'survey-points', (evt) => {
       if (state.navPicking || state.areaChoosing || !evt.features?.length) return;
@@ -1027,6 +1085,13 @@ function installMarkerLayer() {
     'circle-color':['get','marker_color'],
     'circle-radius':8,'circle-stroke-color':['case',['==',['get','selected'],true],'#fff6d6','#09252c'],'circle-stroke-width':['case',['==',['get','selected'],true],4,2],'circle-opacity':0.9
   }});
+  // Separate, read-only samples of a strictly matching saved signal.
+  // Never connect them with a fake travel path or triangulate an emitter.
+  state.map.addSource('survey-series-data',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+  state.map.addLayer({id:'survey-series-points',type:'circle',source:'survey-series-data',paint:{
+    'circle-color':['get','sample_color'],'circle-radius':11,
+    'circle-stroke-color':'#f4f5e9','circle-stroke-width':3,'circle-opacity':0.96
+  }});
   state.map.addSource('survey-waypoint-data',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
   state.map.addLayer({id:'survey-waypoints',type:'circle',source:'survey-waypoint-data',paint:{
     'circle-color':'#f6d37a','circle-radius':6,'circle-stroke-color':'#09252c',
@@ -1039,6 +1104,14 @@ function updateMap() {
   const observations = mapVisibleObservations();
   const features = observations.map(o => ({type:'Feature',geometry:{type:'Point',coordinates:[o.longitude,o.latitude]},properties:{id:o.id,label:o.label,kind:o.kind,source:o.source,marker_color:markerAppearance(o).color,selected:o.id===state.mapObservationId}}));
   state.map.getSource('survey-data').setData({type:'FeatureCollection',features});
+  const siteLayer=state.map.getSource('survey-series-data');
+  if(siteLayer){
+    const active=activeMapSpatialSurvey();
+    siteLayer.setData({type:'FeatureCollection',features:active?active.spatial.samples.map(row=>({
+      type:'Feature',geometry:{type:'Point',coordinates:[row.lon,row.lat]},properties:{id:row.id,
+        sample_color:surveySampleColor(active.series,row),value:row.value}
+    })):[]});
+  }
   const wp = state.map.getSource('survey-waypoint-data');
   if (wp) wp.setData({type:'FeatureCollection',features:visibleWaypoints().map(w=>({
     type:'Feature',geometry:{type:'Point',coordinates:[w.longitude,w.latitude]},
@@ -1134,13 +1207,16 @@ function startRasterMap(reason, view = null) {
         if (!visible.has(key)) { image.remove(); raster.tileNodes.delete(key); }
       }
       const nextPins = document.createDocumentFragment();
+      const activeSpatial=activeMapSpatialSurvey();
+      const highlightedIds=new Set(activeSpatial?.spatial.samples.map(row=>row.id) || []);
       mapVisibleObservations().forEach(o=>{
         const position = worldPixel(o.longitude, o.latitude, raster.zoom);
         const dx = ((position[0] - center[0] + size * 1.5) % size) - size/2;
         const dy = position[1] - center[1];
         if (Math.abs(dx) > width/2 + 15 || Math.abs(dy) > height/2 + 15) return;
         const pin = document.createElement('button'); pin.type = 'button';
-        pin.className = `raster-pin kind-${o.kind.toLowerCase()}${o.source === 'DEMO' ? ' demo' : ''}${o.id===state.mapObservationId ? ' selected' : ''}`;
+        const inSeries=highlightedIds.has(o.id);
+        pin.className = `raster-pin kind-${o.kind.toLowerCase()}${o.source === 'DEMO' ? ' demo' : ''}${o.id===state.mapObservationId ? ' selected' : ''}${inSeries?' survey-sample-highlight':''}`;
         pin.style.backgroundColor = markerAppearance(o).color;
         pin.style.left = `${width/2+dx}px`; pin.style.top = `${height/2+dy}px`;
         pin.title = `${o.label} (${o.kind}, ${o.source}) — observer position`;
@@ -3060,12 +3136,45 @@ $('map-observation-detail').addEventListener('click',event=>{
     if(item&&state.map)state.map.flyTo({center:[item.longitude,item.latitude],zoom:15});
     else if(item&&state.rasterMap)state.rasterMap.flyTo({center:[item.longitude,item.latitude],zoom:15});
   }
+  const view=event.target.closest('[data-map-series]');
+  if(view){
+    state.mapSurveySeriesKey=view.dataset.mapSeries;
+    renderMapSpatialSurvey();updateMap();
+    $('map-series-detail').scrollIntoView?.({block:'nearest'});
+  }
   const history=event.target.closest('[data-map-history]');
   if(history){
     showPage('scanner');
     $('signal-select').value=history.dataset.mapHistory;
     drawHistory();
     $('signal-select').scrollIntoView?.({block:'start'});
+  }
+});
+$('map-series-detail').addEventListener('click',event=>{
+  if(event.target.closest('[data-map-series-clear]')){
+    state.mapSurveySeriesKey=null;renderMapSpatialSurvey();updateMap();return;
+  }
+  const active=activeMapSpatialSurvey();if(!active)return;
+  if(event.target.closest('[data-map-series-fit]')){
+    const samples=active.spatial.samples;
+    if(state.map && samples.length){
+      const lats=samples.map(p=>p.lat),lons=samples.map(p=>p.lon);
+      state.map.fitBounds([[Math.min(...lons)-.002,Math.min(...lats)-.002],[Math.max(...lons)+.002,Math.max(...lats)+.002]],
+        {padding:{top:Math.min(200,Math.floor($('map').clientHeight*.35)),bottom:45,left:35,right:40},maxZoom:16,duration:500});
+    }else if(state.rasterMap && samples.length){
+      const lats=samples.map(p=>p.lat),lons=samples.map(p=>p.lon);
+      state.rasterMap.flyTo({center:[(Math.min(...lons)+Math.max(...lons))/2,(Math.min(...lats)+Math.max(...lats))/2],zoom:13});
+    }
+  }
+  if(event.target.closest('[data-map-series-export]')){
+    if(!confirm('Export the precise saved OBSERVER coordinates for this signal? This local CSV can reveal private survey locations. It does not identify the transmitter.'))return;
+    const result=window.OpenRFHistoryAnalysis.history(active.series,'all');
+    const csv=window.OpenRFHistoryAnalysis.historyCsv(active.series,result,true);
+    if(!csv)return;
+    const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+    const link=document.createElement('a');link.href=url;link.download='openrf-observer-signal-survey.csv';
+    document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    flash(`Exported ${active.spatial.total} saved HISTORICAL signal measurements with observer coordinates. No upload.`);
   }
 });
 document.querySelectorAll('[data-map-kind]').forEach(input => input.addEventListener('change', () => {

@@ -1,4 +1,4 @@
-# OpenRF v0.2.40 — Saved Wireless Survey Map and Measurement Inspection
+# OpenRF v0.2.41 — GPS-linked Multi-location Signal Survey Inspection
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.40.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.41.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.40 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.41 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,15 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.41 — Multi-location saved wireless survey
+
+- Tap a saved Wi-Fi/BLE/RF/cellular observer marker, and select **Compare saved readings at multiple locations** under a compatible signal-history series. The Layers inspector shows a chronological graph and time-stamped sample list; the map highlights only the receiver's saved sample positions. It never estimates a transmitter location or draws a travel track.
+- Compatibility is strict: identifier, source device, hardware identity, source type, frequency, and measurement type/unit must match. A measurement is not "live" just because it is mapped.
+- Review the recorded accuracy for each sample and the count of consecutive sample pairs whose *reported* accuracy circles don't overlap. Those are not proof of direction or separation.
+- An explicit **Export sample CSV** action prompts before including exact survey coordinates. Nothing uploads automatically. Local rasters and MapLibre vectors both display the saved sample highlights.
+- To collect new multi-location evidence: deliberately run a real one-shot Wi-Fi or BLE scan on a supported Linux receiver, explicitly save with a recent browser observer fix, move to a new location and repeat. No continuous collection, fake readings, background GPS history, or new database migration.
+- See [v0.2.41 tests](docs/RELEASE_0.2.41_TESTS.md); no physical Wi-Fi/BLE scanner, real receiver travel or Firefox field test verified here.
 
 ## v0.2.40 — Wireless map inspection, separate signal units and historical context
 

@@ -759,3 +759,25 @@
 .map-demo-warning{color:#f6cd69;font-size:11px}
 .raster-pin.selected{border:3px solid #fff6d6;box-shadow:0 0 0 5px #2dd7b544}
 @media(max-width:390px){.map-metric-controls{grid-template-columns:1fr}}
+
+/* v0.2.41 — opt-in read-only multi-position signal sample inspection.
+   Highlights are measurement sites only, not a path or transmitter estimate. */
+.map-series-detail {margin:10px 0;border:1px solid #35616b;border-radius:9px;padding:10px;background:#102833;color:#cfe4e4;font-size:11px;line-height:1.5}
+.map-series-detail[hidden]{display:none!important}
+.map-series-detail p{margin:7px 0}
+.map-series-detail .map-sheet-close{width:31px;height:31px;flex-basis:31px;font-size:18px}
+.map-survey-plot {border:1px solid #274957;border-radius:7px;background:#071a24;padding:8px;margin:8px 0}
+.map-survey-plot svg{display:block;width:100%;height:auto;max-height:140px}
+.map-survey-plot small{display:block;color:#9bb8c1}
+.map-series-buttons {display:flex;flex-wrap:wrap;gap:6px;margin:9px 0}
+.map-series-buttons button {flex:1 1 45%;min-height:38px}
+.map-survey-samples{max-height:240px;overflow-y:auto;overscroll-behavior:contain}
+.map-survey-sample {padding:8px 1px;border-top:1px solid #2b4b59;overflow-wrap:anywhere}
+.map-survey-sample strong,.map-survey-sample small{display:block}
+.map-survey-sample small{color:#9ebac4;margin-top:3px}
+.raster-pin.survey-sample-highlight{width:22px;height:22px;border:3px solid #f1fff9;box-shadow:0 0 0 3px #34c9b1aa;z-index:3}
+.map-history-metric [data-map-series]{margin:4px 0}
+
+.map-survey-howto{border-top:1px solid #2b4857;margin:8px 0;padding:8px 0;color:#add5d3;font-size:11px}
+.map-survey-howto summary{cursor:pointer;font-weight:650}
+.map-survey-howto p{line-height:1.5;margin:6px 0}

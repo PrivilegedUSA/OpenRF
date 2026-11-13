@@ -70,5 +70,46 @@
       (Date.parse(b.observed_at)||0)-(Date.parse(a.observed_at)||0) || (Number(b.id)||0)-(Number(a.id)||0))
       .slice(0,limit);
   }
-  return Object.freeze({KINDS,WIRELESS,KIND_COLORS,METRIC_COLORS,WINDOWS,number,point,visible,display,counts,seriesForRecord,historySummary,recent});
+  // A "survey" is a set of SAVED measurements at receiver positions, never a
+  // transmitter location, travel track, signal heatmap or distance estimate.
+  function spatialSeries(series, limit=80) {
+    const rows = ((series && series.rows) || []).filter(point).filter(r=>number(r._value) && Number.isFinite(Date.parse(r.observed_at)));
+    const sites = new Set(rows.map(r=>`${Number(r.latitude).toFixed(5)},${Number(r.longitude).toFixed(5)}`));
+    const cap = Math.max(2,Math.min(200,Math.floor(limit)||80));
+    const samples = rows.slice(-cap).map(r=>({
+      id:r.id, lat:Number(r.latitude), lon:Number(r.longitude), value:Number(r._value),
+      observed_at:r.observed_at, accuracy_m:number(r.accuracy_m) && Number(r.accuracy_m)>=0?Number(r.accuracy_m):null,
+      location_source:r.location_source || 'UNSPECIFIED', session_id:r.session_id ?? null,
+      source:r.source, timestamp_basis:r.timestamp_basis || null
+    }));
+    // Count nonoverlapping uncertainty circles only where BOTH reported accuracies
+    // exist. This is descriptive evidence, not a localization algorithm.
+    let definiteSeparation=0, comparablePairs=0;
+    for(let i=1;i<samples.length;i++){
+      const a=samples[i-1], b=samples[i];
+      if(a.accuracy_m===null || b.accuracy_m===null)continue;
+      comparablePairs++;
+      const lat1=a.lat*Math.PI/180, lat2=b.lat*Math.PI/180;
+      const dlat=(b.lat-a.lat)*Math.PI/180, dlon=(b.lon-a.lon)*Math.PI/180;
+      const hav=Math.sin(dlat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dlon/2)**2;
+      const distance=6371000*2*Math.asin(Math.min(1,Math.sqrt(hav)));
+      if(distance>a.accuracy_m+b.accuracy_m)definiteSeparation++;
+    }
+    return {rows, samples, total:rows.length, displayed:samples.length, reportedSites:sites.size,
+      definiteSeparation, comparablePairs, truncated:rows.length>samples.length,
+      metric:series?.metric || null, unit:series?.unit || null};
+  }
+  function timeline(samples) {
+    if(!samples.length)return null;
+    const times=samples.map(r=>Date.parse(r.observed_at));
+    const values=samples.map(r=>r.value);
+    const first=times[0],last=times[times.length-1],low=Math.min(...values),high=Math.max(...values);
+    const pts=samples.map((r,i)=>({
+      x:18+((last===first?(samples.length===1?.5:i/(samples.length-1)):(times[i]-first)/(last-first))*330),
+      y:110-((r.value-low)/(high-low||1))*90
+    }));
+    return {points:pts,polyline:pts.map(p=>`${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' '),low,high,
+      first:samples[0].observed_at,last:samples[samples.length-1].observed_at,equalTimestamps:last===first};
+  }
+  return Object.freeze({KINDS,WIRELESS,KIND_COLORS,METRIC_COLORS,WINDOWS,number,point,visible,display,counts,seriesForRecord,historySummary,recent,spatialSeries,timeline});
 });

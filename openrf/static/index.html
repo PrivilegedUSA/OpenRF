@@ -6,18 +6,18 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.40">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.41">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
-  <script defer src="/static/survey_map.js?v=0.2.40"></script>
-  <script defer src="/static/navigation.js?v=0.2.40"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.40"></script>
-  <script defer src="/static/app.js?v=0.2.40"></script>
+  <script defer src="/static/survey_map.js?v=0.2.41"></script>
+  <script defer src="/static/navigation.js?v=0.2.41"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.41"></script>
+  <script defer src="/static/app.js?v=0.2.41"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.40</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.41</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -88,7 +88,9 @@
             <p id="map-metric-legend" class="map-metric-legend">Colors identify categories. All markers show observer locations, not transmitters.</p>
             <div class="map-sheet-meta" id="map-survey-summary" role="status" aria-live="polite">No mapped observations yet.</div>
             <details class="map-wireless-history" id="map-wireless-history"><summary>Saved wireless readings on this map <span id="map-wireless-count">0</span></summary><div id="map-wireless-recent" class="map-wireless-recent"><p class="small muted">No saved wireless survey positions.</p></div></details>
+            <details class="map-survey-howto" id="map-survey-howto"><summary>Record a multi-location wireless survey</summary><p class="small muted">At each actual receiver position, start an on-demand Wi-Fi or BLE scan using supported Linux hardware. Choose Save and attach the fresh observer location from scan time; move to another position and repeat. No background scan or GPS tracking. A saved pair of compatible readings can be inspected as separate measured sites; RSSI and Wi-Fi quality are not interchangeable. A blue location dot alone is not an RF measurement.</p></details>
             <section id="map-observation-detail" class="map-observation-detail" aria-label="Selected observation details" hidden></section>
+            <section id="map-series-detail" class="map-series-detail" aria-label="Multi-location saved signal survey" hidden></section>
             <div class="map-sheet-scan"><button class="btn primary" id="map-scan-wifi" type="button">Scan Linux Wi-Fi once</button><button class="btn outline" id="map-scan-ble" type="button">Scan BLE once</button><button class="btn outline" type="button" data-jump="scanner">Detailed analysis</button><button class="btn outline" type="button" data-jump="hardware">USB sensor setup</button></div>
             <div class="capture-actions"><label class="capture-locate"><input type="checkbox" id="map-capture-location"> Attach observer position from scan time (optional)</label><button class="btn primary" id="map-save-scan" type="button" disabled>Save scan snapshot</button></div>
             <div class="map-survey-save-help" id="map-save-help">Linux Wi-Fi scans are not automatically stored. Save a specific result to record its source and retrieval time; location is optional and represents the browser, not the access point.</div><div id="map-survey-status" class="map-sheet-status" role="status" aria-live="polite">Wi-Fi scans are on demand and require a Linux-visible compatible adapter. Nothing is mapped without recorded coordinates.</div>
