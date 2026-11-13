@@ -1,4 +1,4 @@
-/* OpenRF v0.2.45 spectrum workspace. Explicit bounded server-local rtl_power captures;
+/* OpenRF v0.2.46 spectrum workspace. Explicit bounded server-local rtl_power captures;
  * historical local files and DEMO remain browser-local.
  * Pure parsing/model functions are exported for Node regression tests.
  */
@@ -92,6 +92,7 @@
     const $ = id => doc.getElementById(id);
     let dataset = null, sourceLabel = '', frameIndex = 0, statusLoaded = false;
     let capturePoll = null, captureRunning = false, pendingCaptureId = null, loadedCaptureId = null;
+    let baselineFileData = null, comparison = null, baselineRevision = 0;
     function updateLabel(label, mode) {
       $('sdr-source-status').textContent = label;
       $('sdr-source-status').dataset.mode = mode;
@@ -123,6 +124,17 @@
         select.appendChild(option);
       }
       select.value = selected && [...select.options].some(o => o.value === selected) ? selected : '';
+      const baseline = $('sdr-baseline-saved'), oldBaseline = baseline.value;
+      baseline.replaceChildren();
+      const first = doc.createElement('option'); first.value = ''; first.textContent = 'Select saved capture';
+      baseline.appendChild(first);
+      for (const item of captures.filter(r => r.state === 'COMPLETE')) {
+        const option = doc.createElement('option'); option.value = item.id;
+        option.textContent = `${item.started_at_utc} · ${item.settings.start_mhz}–${item.settings.stop_mhz} MHz`;
+        baseline.appendChild(option);
+      }
+      baseline.value = oldBaseline && [...baseline.options].some(o => o.value === oldBaseline) ? oldBaseline : '';
+      if (oldBaseline && baseline.value !== oldBaseline) clearComparison('Baseline capture was removed; select another.');
       updateSavedButtons();
     }
     function updateSavedButtons() {
@@ -279,7 +291,9 @@
       $('sdr-frame-slider').disabled = dataset.frames.length < 2;
     }
     function setData(data, label, provenance = 'historical') {
+      loadedCaptureId = null;
       dataset = data; sourceLabel = label; frameIndex = data.frames.length - 1;
+      clearComparison();
       const range = bounds(data);
       $('sdr-min-mhz').value = range ? range.min.toFixed(3) : '';
       $('sdr-max-mhz').value = range ? range.max.toFixed(3) : '';
@@ -288,18 +302,19 @@
         provenance === 'recorded' ? `RECORDED RTL-SDR CSV · ${data.acceptedRows} segments · NOT LIVE · HARDWARE ID UNVERIFIED` :
         `HISTORICAL FILE · ${data.acceptedRows} segments loaded; ${data.rejectedRows} rejected · NOT LIVE`, demo ? 'demo' : provenance);
       draw();
+      renderAnalysis();
     }
     $('sdr-demo').addEventListener('click', () => setData(makeDemo(), 'Built-in synthetic demonstration — no radio involved'));
     $('sdr-clear').addEventListener('click', () => {
       dataset = null; sourceLabel = ''; frameIndex = 0;
       $('sdr-local-file').value = ''; $('sdr-min-mhz').value = ''; $('sdr-max-mhz').value = '';
-      updateLabel('NO SPECTRUM LOADED · NOT LIVE', 'inactive'); draw();
+      updateLabel('NO SPECTRUM LOADED · NOT LIVE', 'inactive'); clearComparison(); renderAnalysis(); draw();
     });
     $('sdr-local-file').addEventListener('change', async event => {
       const file = event.target.files?.[0]; if (!file) return;
       if (file.size > MAX_BYTES) { updateLabel('File exceeds the 2 MB browser-local limit.', 'error'); return; }
       try { setData(parseRtlPowerCsv(await file.text()), file.name); }
-      catch (e) { dataset = null; sourceLabel = ''; draw(); updateLabel(`Unable to load CSV: ${e.message}`, 'error'); }
+      catch (e) { dataset = null; sourceLabel = ''; loadedCaptureId = null; clearComparison(); renderAnalysis(); draw(); updateLabel(`Unable to load CSV: ${e.message}`, 'error'); }
     });
     $('sdr-capture-start').addEventListener('click', async () => {
       const settings = {
@@ -336,11 +351,102 @@
       try {
         await requestJSON(`/api/sdr/captures/${id}`, {method:'DELETE'});
         if (loadedCaptureId === id) { loadedCaptureId = null; $('sdr-clear').click(); }
+        if ($('sdr-baseline-saved').value === id) clearComparison('Baseline capture deleted; select a different one.');
         captureMessage('Saved capture deleted locally.');
         await refreshSaved();
       } catch (e) { captureMessage(`Cannot delete: ${e.message}`); }
     });
-    for (const id of ['sdr-min-mhz', 'sdr-max-mhz']) $(id).addEventListener('change', draw);
+    for (const id of ['sdr-min-mhz', 'sdr-max-mhz']) $(id).addEventListener('change', () => {
+      clearComparison('Frequency range changed; run comparison again.');
+      renderAnalysis(); draw();
+    });
+    function clearComparison(message = 'No comparison calculated.') {
+      comparison = null;
+      $('sdr-compare-export').disabled = true;
+      $('sdr-compare-status').textContent = message;
+      $('sdr-compare-bins').replaceChildren();
+    }
+    function addCells(tbody, values) {
+      const tr = doc.createElement('tr');
+      for (const value of values) { const td = doc.createElement('td'); td.textContent = String(value); tr.appendChild(td); }
+      tbody.appendChild(tr);
+    }
+    function renderAnalysis() {
+      const tbody = $('sdr-analysis-bins'); tbody.replaceChildren();
+      if (!dataset) { $('sdr-analysis-summary').textContent = 'No file or DEMO loaded for offline analysis.'; return; }
+      try {
+        const result = global.OpenRFSpectrumAnalysis.analyzeSpectrum(dataset, selectedRange());
+        $('sdr-analysis-summary').textContent = `${result.demo ? 'SYNTHETIC DEMO · NOT MEASURED · ' : 'RECORDED / HISTORICAL · NOT LIVE · '}` +
+          `${result.binCount} unique bins, ${result.sampleCount} bin readings across ${result.frames} frames · median reported ${result.medianDb.toFixed(1)} dB*`;
+        for (const x of result.strongest) addCells(tbody, [x.mhz.toFixed(6) + ' MHz', x.db.toFixed(1),
+          (x.relativeDb >= 0 ? '+' : '') + x.relativeDb.toFixed(1) + ' dB', x.samples]);
+      } catch (e) { $('sdr-analysis-summary').textContent = `No comparable frequency bins: ${e.message}`; }
+    }
+    $('sdr-baseline-saved').addEventListener('change', () => {
+      baselineRevision++;
+      baselineFileData = null; $('sdr-baseline-file').value = '';
+      const id = $('sdr-baseline-saved').value;
+      $('sdr-baseline-label').textContent = id ? 'Saved capture baseline selected (NOT LIVE)' : 'No baseline selected.';
+      clearComparison();
+    });
+    $('sdr-baseline-file').addEventListener('change', async e => {
+      const thisRevision = ++baselineRevision;
+      const file = e.target.files?.[0];
+      $('sdr-baseline-saved').value = '';
+      baselineFileData = null;
+      clearComparison();
+      if (!file) { $('sdr-baseline-label').textContent = 'No baseline selected.'; return; }
+      try {
+        if (file.size > MAX_BYTES) throw Error('Baseline CSV exceeds 2 MB limit.');
+        const parsed = parseRtlPowerCsv(await file.text());
+        if (thisRevision !== baselineRevision) return;
+        baselineFileData = parsed;
+        $('sdr-baseline-label').textContent = `HISTORICAL baseline · ${file.name} · ${parsed.frames.length} frames · browser-local only`;
+      } catch (error) { if (thisRevision === baselineRevision) $('sdr-baseline-label').textContent = `Baseline invalid: ${error.message}`; }
+    });
+    $('sdr-compare-run').addEventListener('click', async () => {
+      clearComparison('Calculating offline comparison…');
+      if (!dataset) { clearComparison('Load a current capture or CSV first.'); return; }
+      const chosenId = $('sdr-baseline-saved').value;
+      const expectedData = dataset, expectedRange = selectedRange(), expectedBaselineRevision = baselineRevision;
+      $('sdr-compare-run').disabled = true;
+      try {
+        let baseline = baselineFileData;
+        if (chosenId) {
+          if (!/^[0-9a-f]{16}$/.test(chosenId)) throw Error('Invalid saved baseline identifier.');
+          if (loadedCaptureId && chosenId === loadedCaptureId) throw Error('Choose a different capture for the baseline.');
+          const response = await fetch(`/api/sdr/captures/${chosenId}.csv`, {cache: 'no-store'});
+          if (!response.ok) throw Error(`Saved baseline unavailable (HTTP ${response.status}).`);
+          baseline = parseRtlPowerCsv(await response.text());
+        }
+        if (!baseline) throw Error('Choose a saved baseline capture or local CSV.');
+        // A different source, baseline or display range may be selected while fetching CSV.
+        const currentRange = selectedRange();
+        if (expectedData !== dataset || !expectedRange || !currentRange ||
+            expectedRange.min !== currentRange.min || expectedRange.max !== currentRange.max)
+          throw Error('Current spectrum or display range changed. Run comparison again.');
+        const result = global.OpenRFSpectrumAnalysis.compareSpectra(expectedData, baseline, expectedRange);
+        if (expectedBaselineRevision !== baselineRevision || chosenId !== $('sdr-baseline-saved').value) throw Error('Baseline selection changed. Run again.');
+        comparison = result;
+        $('sdr-compare-export').disabled = false;
+        $('sdr-compare-status').textContent = `${result.demo ? 'SYNTHETIC DEMO INVOLVED · NOT MEASURED · ' : 'OFFLINE HISTORICAL COMPARISON · NOT LIVE · '}` +
+          `${result.matchedBins} exact aligned bins (${Math.round(result.overlapRatio * 100)}% of smaller frequency grid). ` +
+          `Median current − baseline: ${result.medianDeltaDb.toFixed(1)} dB* · No power calibration or identity inference.`;
+        const tbody = $('sdr-compare-bins');
+        for (const x of result.notable) addCells(tbody, [x.mhz.toFixed(6) + ' MHz', x.currentDb.toFixed(1),
+          x.baselineDb.toFixed(1), (x.deltaDb >= 0 ? '+' : '') + x.deltaDb.toFixed(1) + ' dB']);
+      } catch (e) { clearComparison(`Cannot compare: ${e.message}`); }
+      finally { $('sdr-compare-run').disabled = false; }
+    });
+    $('sdr-compare-clear').addEventListener('click', () => clearComparison());
+    $('sdr-compare-export').addEventListener('click', () => {
+      if (!comparison) return;
+      const csv = global.OpenRFSpectrumAnalysis.comparisonCsv(comparison);
+      const url = global.URL.createObjectURL(new global.Blob([csv], {type: 'text/csv;charset=utf-8'}));
+      const a = doc.createElement('a'); a.href = url; a.download = 'openrf-offline-bin-comparison.csv';
+      doc.body.appendChild(a); a.click(); a.remove();
+      global.setTimeout(() => global.URL.revokeObjectURL(url), 1000);
+    });
     $('sdr-frame-slider').addEventListener('input', e => { frameIndex = Number(e.target.value); draw(); });
     global.addEventListener('resize', () => { if (root.classList.contains('active')) draw(); });
     doc.addEventListener('openrf:spectrum-shown', () => { checkStatus(true); global.requestAnimationFrame(draw); });

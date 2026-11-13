@@ -834,3 +834,25 @@
 .sdr-saved-row .btn{min-height:38px}
 #sdr-capture-status{overflow-wrap:anywhere}
 @media(max-width:650px){.sdr-capture-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.sdr-saved-row label{width:100%}.sdr-saved-row select{flex:1 1 100%}}
+
+/* v0.2.46 offline SDR frequency-bin review & exact-grid comparisons. */
+.sdr-analysis-panel .panel-title{flex-wrap:wrap}
+.sdr-analysis-table{min-width:420px}
+.sdr-analysis-table td,.sdr-analysis-table th{padding:9px 11px;font-variant-numeric:tabular-nums}
+.sdr-compare-details{border-top:1px solid #315361;margin-top:14px;padding:14px 0 1px}
+.sdr-compare-details summary{font-size:13px;font-weight:750;color:#b5f5e8;cursor:pointer;min-height:40px;display:list-item;align-content:center}
+.sdr-baseline-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:13px 0}
+.sdr-baseline-row label:not(.sdr-file-label){color:#b6ced8;font-size:12px}
+.sdr-baseline-row select{min-width:180px;flex:1 1 160px;max-width:480px}
+.sdr-analysis-panel #sdr-compare-status{line-height:1.6;overflow-wrap:anywhere}
+@media(max-width:650px){.sdr-baseline-row>label:not(.sdr-file-label){width:100%}.sdr-baseline-row select{flex-basis:100%}.sdr-analysis-table{min-width:420px}}
+/* Four compact numeric SDR columns stay side-by-side on the 800x480 touchscreen.
+   The existing generic responsive .data-table rule otherwise stacks unlabeled cells. */
+@media(max-width:900px){
+  .sdr-analysis-panel .sdr-analysis-table{display:table;width:100%;min-width:520px;border-collapse:collapse}
+  .sdr-analysis-panel .sdr-analysis-table thead{display:table-header-group}
+  .sdr-analysis-panel .sdr-analysis-table tbody{display:table-row-group;width:auto}
+  .sdr-analysis-panel .sdr-analysis-table tr{display:table-row;width:auto;background:transparent;border:0;padding:0;margin:0}
+  .sdr-analysis-panel .sdr-analysis-table th,.sdr-analysis-panel .sdr-analysis-table td{display:table-cell;padding:9px 11px;border-bottom:1px solid #243f4a;white-space:nowrap;word-break:normal}
+  .sdr-analysis-panel .sdr-analysis-table td::before{display:none}
+}

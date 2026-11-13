@@ -1,4 +1,4 @@
-# OpenRF v0.2.45 — Opt-in Bounded RTL-SDR Captures & Field Survey Dashboard
+# OpenRF v0.2.46 — Offline SDR Review and Capture Comparison
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.45.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.46.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.45 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.46 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,13 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.46 — Offline SDR frequency-bin analysis and exact-bin comparisons
+
+- **Spectrum → Review & compare frequency bins** now shows the strongest non-adjacent frequency bins by mean reported dB in the selected display range, and the median reported level across distinct bins. The values are *arithmetic averages of reported dB* across the loaded CSV's historical frames (not calibrated power or transmitter detection). The current frame slider still shows individual frames; analysis spans all loaded frames.
+- Expand **Compare with an earlier capture or CSV** to select a separately saved `rtl_power` capture or a locally chosen baseline CSV, then press **Compare loaded vs baseline**. Comparison uses matching frequency-bin centers to 1 Hz and refuses incompatible grids or insufficient overlap: no interpolation or fabricated values. It reports shared-bin counts, differences (current minus baseline), largest non-adjacent changes and a CSV export. Both inputs remain private; selected local files are parsed inside the browser and never uploaded.
+- The comparison is read-only, explicitly cleared if the displayed file or frequency range changes, and clearly marked **SYNTHETIC DEMO** if artificial data is involved. Reported bin differences can reflect gain, antenna, receiver differences, clock, noise or environment; they do not establish transmitter identity, location, strength in dBm, or a signal's legal classification.
+- No new receiver module, scanning automation, API endpoint, runtime dependency or database schema migration. Captures remain opt-in bounded `rtl_power` requests; Wi-Fi/BLE/USB, investigations, maps/navigation and archived Android sources are preserved. See [v0.2.46 test guide](docs/RELEASE_0.2.46_TESTS.md). Physical receiver, Pi, touch layout and GitHub CI remain unverified.
 
 ## v0.2.45 — Receiver-index-0 RTL-SDR short sweeps (NO AUTO SCAN)
 

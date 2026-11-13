@@ -316,7 +316,7 @@ const FIELD_RECEIVERS = Object.freeze({
   WIFI_NM: {label:'Linux Wi-Fi · NetworkManager',page:'scanner',status:'Requires a Linux-visible Wi-Fi interface and NetworkManager.'},
   BLE_BLUEZ: {label:'Linux BLE · BlueZ',page:'scanner',status:'Requires a Linux-visible Bluetooth controller and BlueZ.'},
   USB_SERIAL: {label:'OpenRF USB serial',page:'hardware',status:'A visible tty port does not confirm compatible firmware.'},
-  RTL_POWER_FILE: {label:'Offline SDR CSV',page:'spectrum',status:'Local file inspection only. Live SDR capture is not implemented.'},
+  RTL_POWER_FILE: {label:'Offline SDR CSV',page:'spectrum',status:'Offline historical CSV review and user-started short RTL-SDR captures, when compatible Linux-visible hardware and rtl_power are available.'},
   MANUAL: {label:'Manual field notes',page:'map',status:'Manual records are not verified RF measurements.'},
 });
 function activeFieldSurvey() { return state.sessions.find(s=>s.status==='ACTIVE') || null; }
@@ -492,7 +492,7 @@ function renderHardware() {
     `NetworkManager utility: ${hw.command_availability.nmcli ? 'present' : 'not found'}`,
     `BlueZ utility: ${hw.command_availability.bluetoothctl ? 'present' : 'not found'}`,
     `RF tools: ${['iw','rtl_test','rtl_power','hackrf_info','gpsd'].filter(x=>hw.command_availability[x]).join(', ') || 'none found'}`,
-    `SDR spectrum: browser-local rtl_power CSV/DEMO only; live SDR capture NOT implemented; hardware unverified`,
+    `SDR spectrum: opt-in bounded rtl_power captures when supported plus browser-local CSV/DEMO analysis; receiver hardware unverified`,
     `USB serial endpoints: ${(hw.serial_ports || []).join(', ') || 'none visible'}` ,
     `RF capture: INACTIVE — ${hw.scan_status}`
   ].join('\n');

@@ -1,3 +1,10 @@
+## v0.2.46 — Offline RTL-SDR bin analysis and capture comparison (2026-11-13)
+
+- Add pure browser-local SDR bin aggregation: frequency centers rounded to 1 Hz, arithmetic mean of reported dB across recorded frames, per-bin sample counts, median level and spaced strongest-bin table. No claim of calibrated dBm, signal classification, or transmitter position.
+- Add an opt-in offline comparison of current spectrum with a selected saved capture or independently chosen local CSV baseline. Reject incompatible grids instead of interpolation; report exact-bin coverage, positive/negative differences, prominent changes and explicit synthetic-DEMO and timestamp caveats.
+- Add local CSV download of aligned comparison data, clear stale result when current file, baseline, or frequency display range changes. Fix outdated SDR hardware / planned receiver descriptions; no new server endpoint, hardware scan, file upload or database migration.
+- Add browser-side pure-model tests and UI contracts. Preserve existing v0.2.45 capture process, source/ZIP paths, MapLibre/MBTiles assets, navigation, wireless drivers, saved investigations and Android archive. See `docs/RELEASE_0.2.46_TESTS.md`.
+
 ## v0.2.45 — User-started bounded RTL-SDR CSV capture (2026-11-13)
 
 - Add `openrf/sdr_capture.py`, an explicit user-started 5–30 second `rtl_power` receiver-index-0 process with conservative input limits, no shell, no arbitrary browser paths, one capture at a time, stop/timeout and safe server shutdown termination. No boot-time or automatic scans.

@@ -6,19 +6,20 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.45">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.46">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
-  <script defer src="/static/spectrum.js?v=0.2.45"></script>
-  <script defer src="/static/survey_map.js?v=0.2.45"></script>
-  <script defer src="/static/navigation.js?v=0.2.45"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.45"></script>
-  <script defer src="/static/app.js?v=0.2.45"></script>
+  <script defer src="/static/spectrum-analysis.js?v=0.2.46"></script>
+  <script defer src="/static/spectrum.js?v=0.2.46"></script>
+  <script defer src="/static/survey_map.js?v=0.2.46"></script>
+  <script defer src="/static/navigation.js?v=0.2.46"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.46"></script>
+  <script defer src="/static/app.js?v=0.2.46"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.45</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.46</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -269,6 +270,21 @@
           <h3 class="sdr-chart-title">Waterfall <small>older at bottom · newer at top</small></h3>
           <canvas id="sdr-waterfall" class="sdr-canvas" height="200" aria-label="Historical waterfall of selected frequency data" role="img"></canvas>
           <p class="muted small">Waterfall colors use a fixed display scale for uncalibrated reported dB values. File timestamps may use the source computer's local timezone; no UTC assumption is made. Frequency bins show receiver reports, not signal identity, device position, or detected people. DEMO content is artificial and is never live.</p>
+        </div>
+        <div class="panel sdr-panel sdr-analysis-panel" aria-label="Offline spectrum analysis and comparison">
+          <div class="panel-title"><h3>Review &amp; compare frequency bins</h3><span class="pill">OFFLINE · NOT LIVE</span></div>
+          <p class="muted small">Strongest <strong>averaged reported-dB bins</strong> in the displayed range are inspection aids, not identified transmissions or geolocated sources. Results span available frames; source timestamps have unverified timezones. No calibrated dBm.</p>
+          <p class="muted small" id="sdr-analysis-summary" role="status">Load a file or DEMO to inspect recorded frequency bins.</p>
+          <div class="table-scroll"><table class="data-table sdr-analysis-table" aria-label="Strongest averaged frequency bins"><thead><tr><th>Frequency</th><th>Mean dB*</th><th>vs median</th><th>Bin samples</th></tr></thead><tbody id="sdr-analysis-bins"></tbody></table></div>
+          <details class="sdr-compare-details" id="sdr-compare-details"><summary>Compare with an earlier capture or CSV</summary>
+            <p class="muted small">Compare the loaded spectrum with a second locally saved capture or a browser-local CSV. Both recordings must have compatible, matching frequency-bin centers; mismatched grids are rejected rather than interpolated.</p>
+            <div class="sdr-baseline-row"><label for="sdr-baseline-saved">Baseline saved capture</label><select class="field" id="sdr-baseline-saved"><option value="">Select saved capture</option></select><label class="sdr-file-label" for="sdr-baseline-file">Or choose baseline CSV<input type="file" id="sdr-baseline-file" accept=".csv,text/csv,text/plain" aria-label="Choose baseline rtl_power CSV"></label></div>
+            <p class="muted small" id="sdr-baseline-label">No baseline selected.</p>
+            <div class="sdr-actions"><button class="btn primary" id="sdr-compare-run" type="button">Compare loaded vs baseline</button><button class="btn outline" id="sdr-compare-export" type="button" disabled>Export comparison CSV</button><button class="btn outline" id="sdr-compare-clear" type="button">Clear comparison</button></div>
+            <p class="muted small" id="sdr-compare-status" role="status">No comparison calculated.</p>
+            <div class="table-scroll"><table class="data-table sdr-analysis-table" aria-label="Largest changes between aligned frequency bins"><thead><tr><th>Frequency</th><th>Current dB*</th><th>Baseline dB*</th><th>Δ current − baseline</th></tr></thead><tbody id="sdr-compare-bins"></tbody></table></div>
+            <p class="muted small">* Arithmetic mean of reported dB bins, not calibrated power. Differences are not proof of a new transmitter: antenna placement, receiver gain, conditions, capture timing, and measurement settings can change the readings. No GPS, identity, location inference, upload, or automatic scanning.</p>
+          </details>
         </div>
       </section>
       <section class="page" id="page-discoveries"><div class="section-heading"><div><h2>Discoveries</h2><p>Manual and imported measurements are separated from hardware observations by their source label.</p></div><div class="button-line"><button id="add-discovery" class="btn primary">+ Add observation</button></div></div><div class="panel"><div class="filters"><input id="discovery-search" class="field" placeholder="Search label, identifier or notes…" aria-label="Search observations"><select id="discovery-kind" class="field" aria-label="Filter category"><option value="ALL">All categories</option><option>WIFI</option><option>BLE</option><option>RF</option><option>CELLULAR</option><option>INFRASTRUCTURE</option><option>MANUAL</option></select><label class="switchline"><input type="checkbox" id="show-demo-list"> Include demo</label></div>
