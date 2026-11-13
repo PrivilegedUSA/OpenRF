@@ -801,3 +801,13 @@
 .sdr-frame-row{display:flex;align-items:center;gap:12px;font-size:12px;margin:12px 0;color:#a7c6d0}
 .sdr-frame-row input{accent-color:#33d1bf;flex:1;min-width:0;min-height:32px}
 @media(max-width:540px){.sdr-actions{display:grid;grid-template-columns:1fr 1fr}.sdr-file-label{grid-column:1/-1}.sdr-actions .btn{width:100%}.sdr-chart-title{margin-top:14px}}
+
+/* v0.2.43: explicit field-survey plan without claiming receiver availability. */
+.field-survey-active{border-left:3px solid var(--accent,#22bca9)}
+.field-plan-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0}
+.field-plan-fields label{display:flex;flex-direction:column;gap:5px;min-width:0;font-size:.86rem}
+.field-plan-fields textarea{resize:vertical;min-height:54px}
+.field-counts{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.field-counts span{font-size:.72rem;padding:4px 7px;border:1px solid var(--line,#53616b);border-radius:6px}
+.field-linked-session{padding:7px 9px;border:1px solid var(--line,#53616b);border-radius:7px;font-size:.75rem;line-height:1.4;opacity:.88}
+@media(max-width:650px){.field-plan-fields{grid-template-columns:minmax(0,1fr)}.field-counts span{font-size:.69rem}}

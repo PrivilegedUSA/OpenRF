@@ -69,6 +69,7 @@ def investigation_report(snapshot: dict) -> dict:
         'survey_captures': captures,
         'observations': observations,
         'limitations': [
+            'The session receiver selection and field notes describe a user plan, not validated connected hardware, a scan result, or receiver identification.',
             'HISTORICAL REPORT: observations and captures were previously saved; none is a live detection.',
             'Survey/browser coordinates identify the observer location, never the radio transmitter or a police vehicle.',
             'Measured RSSI in dBm and NetworkManager signal-quality percent are different metrics; neither establishes direction or distance.',
@@ -180,7 +181,10 @@ li{{margin-bottom:5px}}footer{{border-top:1px solid #ccd7da;margin-top:30px;padd
 </style></head><body><header><div class="eyebrow">OPENRF / Local investigation report · v{REPORT_VERSION}</div>
 <h1>{_h(session['name'])}</h1><p class="status">HISTORICAL SAVED RECORDS · NOT LIVE</p>
 <p class="meta">Session #{_h(session['id'])} · {_h(session['status'])} · Started {_h(session['started_at'])} · Ended {_h(session['ended_at'])}<br>
-Report generated {_h(report['generated_at_utc'])} · Source: local SQLite · No network uploads</p></header>
+Report generated {_h(report['generated_at_utc'])} · Source: local SQLite · No network uploads</p>
+<p class="meta">Planned receiver: {_h(session.get('receiver_plan') or 'UNASSIGNED')} (plan only, not hardware evidence) · Site label: {_h(session.get('site_label'))}<br>
+Survey objective: {_h(session.get('objective'))}<br>
+Field notes: {_h(session.get('field_notes'))}</p></header>
 <section><h2>Scope &amp; summary</h2><div class="grid">{stat_html}</div>
 <p class="meta">Evidence sources (included): {source_text}<br>Observation kinds (included): {kind_text}</p>
 <p class="note">This is a read-only historical export of a single investigation. The browser location, where recorded, is the observer's position—not a measured transmitter position.</p></section>

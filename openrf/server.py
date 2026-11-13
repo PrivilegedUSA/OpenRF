@@ -434,7 +434,15 @@ class Handler(BaseHTTPRequestHandler):
                 body['source_device'] = 'Manual browser entry'
                 return self._json(201, self.repo.add_observation(body))
             if path == '/api/sessions':
-                return self._json(201, self.repo.begin_session(body.get('name')))
+                if set(body) - {'name', 'receiver_plan', 'site_label', 'objective', 'field_notes'}:
+                    raise ValueError('Unknown investigation creation field')
+                plan = {k: v for k, v in body.items() if k != 'name'}
+                return self._json(201, self.repo.begin_session(body.get('name'), **plan))
+            if path.startswith('/api/sessions/') and path.endswith('/plan'):
+                ident = path[len('/api/sessions/'):-len('/plan')]
+                if not ident.isascii() or not ident.isdecimal() or not 1 <= len(ident) <= 10:
+                    raise ValueError('Invalid investigation ID')
+                return self._json(200, {'session': self.repo.update_session_plan(int(ident), body)})
             if path.startswith('/api/sessions/') and path.endswith('/stop'):
                 session_id = int(path.split('/')[3])
                 return self._json(200, {'stopped': self.repo.stop_session(session_id)})

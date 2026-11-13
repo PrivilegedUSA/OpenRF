@@ -13,6 +13,30 @@ from pathlib import Path
 
 KINDS = {"MANUAL", "WIFI", "BLE", "RF", "CELLULAR", "INFRASTRUCTURE"}
 SOURCES = {"MANUAL", "DEMO", "IMPORTED", "SENSOR"}
+# A planned source is a survey workflow preference, NOT a verified connected receiver.
+SESSION_RECEIVERS = {
+    'UNASSIGNED', 'WIFI_NM', 'BLE_BLUEZ', 'USB_SERIAL', 'RTL_POWER_FILE', 'MANUAL',
+}
+
+
+def normalize_session_plan(data: dict, *, partial: bool = False) -> dict:
+    """Validate user-owned survey *planning* fields. Never treat them as sensor evidence."""
+    if not isinstance(data, dict) or set(data) - {'receiver_plan', 'site_label', 'objective', 'field_notes'}:
+        raise ValueError('Unsupported field-survey planning options')
+    if partial and not data:
+        raise ValueError('No survey planning changes supplied')
+    defaults = {'receiver_plan': 'UNASSIGNED', 'site_label': '', 'objective': '', 'field_notes': ''}
+    selected = data if partial else {**defaults, **data}
+    out = {}
+    for key, value in selected.items():
+        if key == 'receiver_plan':
+            receiver = _string(value, 'receiver_plan', 32, True).upper()
+            if receiver not in SESSION_RECEIVERS:
+                raise ValueError('Unknown planned receiver')
+            out[key] = receiver
+        else:
+            out[key] = _string(value, key, {'site_label': 120, 'objective': 500, 'field_notes': 1000}[key])
+    return out
 
 
 def now_iso() -> str:
@@ -190,6 +214,17 @@ class Repository:
                 if name not in columns:
                     db.execute(f'ALTER TABLE observations ADD COLUMN {name} {ddl}')
             db.execute('CREATE INDEX IF NOT EXISTS idx_observations_capture ON observations(survey_capture_id)')
+            # v0.2.43: additive field-survey plan metadata. Historical sessions get
+            # UNASSIGNED, never a guessed receiver or fabricated collection notes.
+            existing_session_columns = {row['name'] for row in db.execute('PRAGMA table_info(sessions)')}
+            for name, ddl in (
+                ('receiver_plan', "TEXT NOT NULL DEFAULT 'UNASSIGNED'"),
+                ('site_label', "TEXT NOT NULL DEFAULT ''"),
+                ('objective', "TEXT NOT NULL DEFAULT ''"),
+                ('field_notes', "TEXT NOT NULL DEFAULT ''"),
+            ):
+                if name not in existing_session_columns:
+                    db.execute(f'ALTER TABLE sessions ADD COLUMN {name} {ddl}')
             # v0.2.7: retain device clock/protocol provenance without altering older rows.
             for table, additions in (
                 ('observations', [('timestamp_basis', 'TEXT'), ('device_reported_at_utc', 'TEXT'), ('hardware_id', 'TEXT')]),
@@ -461,12 +496,19 @@ class Repository:
         return next(c for c in self.captures() if c['id'] == capture_id)
 
     def sessions(self) -> list[dict]:
+        """Recorded evidence counts are exact DB aggregates, not live scanner state."""
         with self._lock, self._connect() as db:
             return [dict(r) for r in db.execute("""
-                SELECT sessions.*, COUNT(observations.id) AS observation_count,
-                (SELECT COUNT(*) FROM survey_captures c WHERE c.session_id=sessions.id) AS capture_count
-                FROM sessions LEFT JOIN observations ON observations.session_id=sessions.id
-                GROUP BY sessions.id ORDER BY sessions.id DESC
+                SELECT s.*, COUNT(o.id) AS observation_count,
+                COALESCE(SUM(CASE WHEN o.source!='DEMO' AND o.latitude IS NOT NULL AND o.longitude IS NOT NULL THEN 1 ELSE 0 END),0) AS positioned_observations,
+                COALESCE(SUM(CASE WHEN o.source='SENSOR' THEN 1 ELSE 0 END),0) AS sensor_observations,
+                COALESCE(SUM(CASE WHEN o.source='MANUAL' THEN 1 ELSE 0 END),0) AS manual_observations,
+                COALESCE(SUM(CASE WHEN o.source='DEMO' THEN 1 ELSE 0 END),0) AS demo_observations,
+                MAX(o.observed_at) AS last_observed_at,
+                (SELECT COUNT(*) FROM survey_captures c WHERE c.session_id=s.id) AS capture_count,
+                (SELECT COUNT(*) FROM survey_waypoints w WHERE w.session_id=s.id) AS waypoint_count
+                FROM sessions s LEFT JOIN observations o ON o.session_id=s.id
+                GROUP BY s.id ORDER BY s.id DESC
             """)]
 
     def session_report_snapshot(self, session_id: int, *, include_demo: bool = False,
@@ -511,14 +553,30 @@ class Repository:
                 'captures_truncated': capture_total > len(captures),
                 'include_demo': include_demo, 'include_coordinates': include_coordinates}
 
-    def begin_session(self, name: str) -> dict:
+    def begin_session(self, name: str, **plan) -> dict:
         name = _string(name, "name", 120, required=True)
+        fields = normalize_session_plan(plan)
         with self._lock, self._connect() as db:
             running = db.execute("SELECT id FROM sessions WHERE status='ACTIVE'").fetchone()
             if running:
                 raise ValueError("Stop the active session before starting another")
-            session_id = db.execute("INSERT INTO sessions(name, started_at) VALUES(?,?)", (name, now_iso())).lastrowid
+            session_id = db.execute("""INSERT INTO sessions(name, started_at, receiver_plan,
+                site_label, objective, field_notes) VALUES(?,?,?,?,?,?)""",
+                (name, now_iso(), fields['receiver_plan'], fields['site_label'],
+                 fields['objective'], fields['field_notes'])).lastrowid
         return next(s for s in self.sessions() if s["id"] == session_id)
+
+    def update_session_plan(self, session_id: int, data: dict) -> dict:
+        if type(session_id) is not int or not 1 <= session_id <= 2_147_483_647:
+            raise ValueError('Invalid investigation ID')
+        fields = normalize_session_plan(data, partial=True)
+        with self._lock, self._connect() as db:
+            row = db.execute("SELECT status FROM sessions WHERE id=?", (session_id,)).fetchone()
+            if not row or row['status'] != 'ACTIVE':
+                raise ValueError('Only an active field survey can change its plan')
+            sql = ', '.join(f'{key}=?' for key in fields)
+            db.execute(f'UPDATE sessions SET {sql} WHERE id=?', (*fields.values(), session_id))
+        return next(s for s in self.sessions() if s['id'] == session_id)
 
     def stop_session(self, session_id: int) -> bool:
         with self._lock, self._connect() as db:

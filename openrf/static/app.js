@@ -310,12 +310,42 @@ function openSessionReport(kind, download = false) {
     : 'Report opened in a new tab. Use Ctrl+P or your browser’s Print menu to print or Save as PDF.';
 }
 
+const FIELD_RECEIVERS = Object.freeze({
+  UNASSIGNED: {label:'Unassigned receiver',page:'hardware',status:'No receiver has been selected.'},
+  WIFI_NM: {label:'Linux Wi-Fi · NetworkManager',page:'scanner',status:'Requires a Linux-visible Wi-Fi interface and NetworkManager.'},
+  BLE_BLUEZ: {label:'Linux BLE · BlueZ',page:'scanner',status:'Requires a Linux-visible Bluetooth controller and BlueZ.'},
+  USB_SERIAL: {label:'OpenRF USB serial',page:'hardware',status:'A visible tty port does not confirm compatible firmware.'},
+  RTL_POWER_FILE: {label:'Offline SDR CSV',page:'spectrum',status:'Local file inspection only. Live SDR capture is not implemented.'},
+  MANUAL: {label:'Manual field notes',page:'map',status:'Manual records are not verified RF measurements.'},
+});
+function activeFieldSurvey() { return state.sessions.find(s=>s.status==='ACTIVE') || null; }
+function renderActiveFieldSurvey() {
+  const active=activeFieldSurvey();
+  $('field-action-row').hidden=!active;
+  $('field-active-state').textContent=active?'ACTIVE · MANUAL SAVE':'NONE ACTIVE';
+  const receiver=FIELD_RECEIVERS[active?.receiver_plan] || FIELD_RECEIVERS.UNASSIGNED;
+  $('field-active-summary').innerHTML=active
+    ? `<h4>${escapeHTML(active.name)} · #${active.id}</h4><p class="small">Planned: <strong>${escapeHTML(receiver.label)}</strong> · ${escapeHTML(active.site_label || 'No site label')}</p>
+       <p class="small">${escapeHTML(active.objective || 'No objective recorded.')}</p>
+       <div class="field-counts"><span>${active.observation_count} saved observations</span><span>${active.positioned_observations} non-DEMO records with observer coordinates</span><span>${active.sensor_observations} SENSOR readings</span><span>${active.capture_count} scan snapshots</span><span>${active.waypoint_count} manually recorded waypoints</span></div>
+       <p class="small muted">${escapeHTML(receiver.status)} No scanning or location tracking is running because this investigation exists.</p>`
+    : '<p class="small muted">No field survey is active. Start one to group manually saved observations with a survey objective and planned receiver.</p>';
+  const linked=active
+    ? `Active investigation #${active.id} · ${active.name} · ${receiver.label} (planned only). A saved reading will be linked to this investigation; unsaved scans are temporary.`
+    : 'No active investigation. A saved reading remains unlinked unless you start one; a scan never saves automatically.';
+  $('field-scanner-link').textContent=linked;
+  $('field-map-link').textContent=linked;
+  $('field-open-receiver').textContent=active ? `Open ${receiver.label}` : 'Open receiver workspace';
+}
 function renderSessions() {
+  renderActiveFieldSurvey();
   $('session-count').textContent = `${state.sessions.length} sessions`;
   $('session-list').innerHTML = state.sessions.length ? state.sessions.map(s => `
     <article class="item"><div><div class="item-top"><h4>${escapeHTML(s.name)}</h4><span class="badge ${s.status === 'ACTIVE' ? '' : 'manual'}">${escapeHTML(s.status)}</span></div>
-    <p>${escapeHTML(s.observation_count)} saved observations · ${escapeHTML(s.capture_count || 0)} survey snapshots · Started ${escapeHTML(stamp(s.started_at))}</p>
-    <div class="tiny">${s.ended_at ? `Ended ${escapeHTML(stamp(s.ended_at))}` : 'No finish timestamp recorded'} · Records stay local</div>
+    <p>${escapeHTML(FIELD_RECEIVERS[s.receiver_plan]?.label || 'Unassigned receiver')} <span class="tiny">(planned, not verified)</span> · ${escapeHTML(s.site_label || 'No site label')}</p>
+    <p class="small">${escapeHTML(s.objective || 'No survey objective recorded')}</p>
+    <div class="field-counts"><span>${Number(s.observation_count)||0} saved</span><span>${Number(s.positioned_observations)||0} observer-coordinate records (non-DEMO)</span><span>${Number(s.sensor_observations)||0} SENSOR records</span><span>${Number(s.demo_observations)||0} DEMO</span><span>${Number(s.capture_count)||0} snapshots</span><span>${Number(s.waypoint_count)||0} waypoints</span></div>
+    <div class="tiny">Started ${escapeHTML(stamp(s.started_at))} · ${s.ended_at ? `Ended ${escapeHTML(stamp(s.ended_at))}` : 'Not stopped'} · Saved data is local and historical${s.last_observed_at?` · Last record ${escapeHTML(stamp(s.last_observed_at))}`:''}</div>
     </div><div class="item-actions"><button class="btn mini outline" data-session-filter="${s.id}">Records</button><button class="btn mini outline" data-session-report="${s.id}">Report</button>
     ${s.status === 'ACTIVE' ? `<button class="btn mini danger-outline" data-stop="${s.id}">Stop</button>` : ''}</div></article>`).join('') :
     '<div class="empty">No sessions started. You can record notes against a session, but no background collection occurs.</div>';
@@ -2940,7 +2970,34 @@ $('waypoint-list').addEventListener('click',e=>{
   });
 });
 $('add-discovery').addEventListener('click',()=>openObservation());
-$('new-session').addEventListener('click',()=>$('session-dialog').showModal());
+$('new-session').addEventListener('click',()=>{
+  if(activeFieldSurvey()) return flash('Stop the active investigation before starting another.',true);
+  $('session-dialog').showModal();
+});
+$('field-open-receiver').addEventListener('click',()=>{
+  const current=activeFieldSurvey();if(!current)return;
+  const page=FIELD_RECEIVERS[current.receiver_plan]?.page || 'hardware';
+  showPage(page);
+  if(page==='scanner' && current.receiver_plan==='BLE_BLUEZ') $('scan-ble-once').focus();
+  else if(page==='scanner') $('scan-wifi-once').focus();
+  else if(page==='hardware') $('refresh-hardware').focus();
+});
+$('field-open-map').addEventListener('click',()=>showPage('map'));
+$('field-add-observation').addEventListener('click',()=>{$('observation-dialog').showModal();});
+$('field-edit-plan').addEventListener('click',()=>{
+  const active=activeFieldSurvey();if(!active)return;
+  const form=$('field-plan-form');
+  for(const key of ['receiver_plan','site_label','objective','field_notes']) form.elements[key].value=active[key] || (key==='receiver_plan'?'UNASSIGNED':'');
+  $('field-plan-dialog').showModal();
+});
+$('field-plan-form').addEventListener('submit',e=>{
+  e.preventDefault();runAction(async()=>{
+    const active=activeFieldSurvey();if(!active)throw Error('This survey is no longer active. Refresh before editing.');
+    const data=Object.fromEntries(new FormData(e.target).entries());
+    await api(`/api/sessions/${active.id}/plan`,'POST',data);
+    $('field-plan-dialog').close();flash('Survey plan updated. Previously saved evidence was not changed.');await refresh();
+  });
+});
 $('show-demo-map').addEventListener('change',e => {state.showDemo = e.target.checked;$('show-demo-map-sheet').checked=e.target.checked;updateMap();renderMapSurveyPanel();});
 $('map-style').addEventListener('click',()=>{
   state.style = state.style==='dark'?'light':'dark';
@@ -3255,7 +3312,12 @@ $('observation-form').addEventListener('submit',e=>{
   });
 });
 $('session-form').addEventListener('submit',e=>{
-  e.preventDefault();runAction(async()=>{const name = new FormData(e.target).get('name');await api('/api/sessions','POST',{name});$('session-dialog').close();e.target.reset();flash('Investigation started; no automatic RF scanning occurs.');await refresh();});
+  e.preventDefault();runAction(async()=>{
+    const values=Object.fromEntries(new FormData(e.target).entries());
+    await api('/api/sessions','POST',values);
+    $('session-dialog').close();e.target.reset();
+    flash('Field survey started. Planned receiver selected; no hardware was activated or location recorded.');await refresh();
+  });
 });
 $('load-demo').addEventListener('click',()=>runAction(async()=>{
   const answer=await api('/api/demo/load','POST',{});

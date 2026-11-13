@@ -1,4 +1,4 @@
-# OpenRF v0.2.42 — GPS-linked Multi-location Signal Survey Inspection
+# OpenRF v0.2.43 — Field Survey Planning & Evidence Dashboard
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.42.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.43.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.42 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.43 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.43 — Field-survey planning and evidence dashboard (NO AUTO SCANS)
+
+- Under **Sessions → Start field survey**, name a private investigation and choose a *planned* receiver: Linux Wi-Fi, Bluetooth LE, USB serial, offline SDR CSV, manual, or none. Record a site label, objective and notes. These values **do not prove any device is connected, transmitting or capturing**. Editing the plan cannot overwrite recorded hardware identity, signal quality, frequency or timestamps.
+- An active survey panel shows only real database totals: saved observations, non-DEMO observer-coordinate records, SENSOR entries, one-shot scan snapshots and user-created waypoints. Older session records are migrated additively, with their receiver marked **Unassigned** rather than guessed. Starting a session does not start scanning, automatic GPS logging, background jobs or uploads.
+- **Open receiver workspace** links to Analysis, Hardware, Spectrum or the map as appropriate. Wi-Fi, BLE and USB scans still require user action and each Save operation is explicit; saved records link to an active investigation as in previous versions. **Offline SDR CSV files remain local, read-only analysis and do not become observations.** A browser location is an observer position, never a transmitter estimate.
+- Printable/JSON investigation reports now include the survey plan and clearly say it is a user statement, not verified hardware evidence. Notes can contain sensitive information; review before sharing. Stored raw records and private local configuration are outside Git and release ZIPs.
+- Tests: 167 Python tests, 22 JS suites in the software environment, fresh ZIP extraction/regression, additive SQLite migration, HTTP endpoint validation and browser UI structure. Actual RF hardware, field GNSS, Firefox layout and GitHub CI are **not verified**. See [release test guide](docs/RELEASE_0.2.43_TESTS.md).
 
 ## v0.2.42 — Offline SDR spectrum/waterfall foundation (NO LIVE RF CAPTURE)
 

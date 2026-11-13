@@ -1,3 +1,10 @@
+## v0.2.43 — Explicit field-survey planning and saved-evidence dashboard (2026-11-13)
+
+- Add optional per-investigation planned receiver, site label, survey objective and private field notes. Add forward-only SQLite session-column migration; existing records are preserved and default to `UNASSIGNED`. Only active survey plans can be edited; strict field/length/enum validation prevents forged hardware declarations.
+- Add active field survey status, quick receiver-workspace navigation, editable plan form, separate saving status in Analysis and Layers, plus exact saved observation/SENSOR/position/capture/waypoint counts. These are DB summaries, **not** real-time scanning status. No automatic scan, GPS logging or evidence insertion.
+- Include escaped plan details in portable historical HTML/JSON investigation reports with caution that the plan is not hardware evidence; preserve source-device provenance of saved measurements.
+- Add Python migration, HTTP/API, privacy and evidence tests and JS user-interface contract test. Preserve SDR CSV inspector, offline maps, routing, BLE/Wi-Fi, hardware interfaces and Android archive. No extra dependencies, no live RF hardware tested, no GitHub CI success assumed.
+
 ## v0.2.42 — Browser-local offline SDR spectrum foundation (2026-11-13)
 
 - Add a dedicated responsive Spectrum workspace: local `rtl_power` CSV import, frequency-bin spectrum, historical waterfall, frame selection, view-only frequency range and distinct synthetic DEMO. No backend file upload, scans or saved observations.
