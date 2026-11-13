@@ -1,4 +1,4 @@
-# OpenRF v0.2.48 — Recorded Frequency History
+# OpenRF v0.2.49 — Compact Field Map Controls
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,7 +6,7 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.48.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.49.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
@@ -30,6 +30,11 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.49 — Five-inch landscape usability
+
+- **Map → Hide / Find destination** collapses the large destination overlay to a one-tap button while preserving entered destination text and active route planning state; the map stays navigable. **Map → Focus map** reduces the header and temporarily hides lower-page panels without deleting or changing any data; exit to access map downloads and all other tools. Designed for **800×480** landscape as well as narrow mobile and desktop displays. No scan or location permission is started by either control. See [test guide](docs/RELEASE_0.2.49_TESTS.md).
+- **Future ham-radio proposal**: [amateur radio roadmap](docs/AMATEUR_RADIO_ROADMAP.md) describes an optional receive-only RTL-SDR tuning/audio stage and possible read-only CAT integration with an owned ham transceiver. **No radio audio reception or transmission is implemented yet**. Do not confuse `rtl_power` spectrum capture with a ham transceiver.
 
 ## v0.2.48 — On-demand recorded frequency history across saved SDR sweeps
 

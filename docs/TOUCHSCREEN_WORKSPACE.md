@@ -16,3 +16,7 @@ Reference: https://www.raspberrypi.com/documentation/accessories/touch-display-2
 ### v0.2.5 controls
 
 The five-inch map has a top-right hamburger that opens a right-side vertical navigation drawer. The on-map Layers & Scan launcher is a single icon at bottom-right, with the full panel available when tapped. Compact map attribution is behind the bottom-left `ⓘ` disclosure, not deleted. The vector map applies a browser fix when style initialization finishes; `My location` remains available to retry. At 390×844 and 720×1280, the map launcher should be visible without sideways scrolling. No physical touchscreen verification yet.
+
+### v0.2.49 landscape controls
+
+The primary field optimization target is approximately **800×480 landscape**. The on-map destination search can now collapse to a one-touch **Find destination** button and reopen without resetting its text or initiating any location action. **Focus map** in the header temporarily hides the below-map managers and compresses the header, leaving the map, layers, route HUD, settings button and attribution accessible. **Exit focus** restores the full map workspace. Switching away from Map exits focus automatically. Touch hardware verification is still pending. See `RELEASE_0.2.49_TESTS.md`.

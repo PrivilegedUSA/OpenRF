@@ -1,4 +1,4 @@
-/* v0.2.48 source contracts: location is opt-in before sweep; no fake sensor coordinates. */
+/* v0.2.49 source contracts: location is opt-in before sweep; no fake sensor coordinates. */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -23,5 +23,5 @@ assert(app.includes('raster-sdr-site-pin') && app.includes('not verified receive
 assert(app.includes('confirm(\'Export precise browser operator coordinates'));
 assert(spectrum.includes('Sharing the GeoJSON can reveal your survey sites'));
 assert(!spectrum.includes('innerHTML'), 'untrusted metadata must not be injected as HTML');
-assert(html.includes('FIELD CONSOLE · 0.2.48'));
-console.log('v0.2.48 SDR survey site opt-in, provenance, map and export frontend contracts passed');
+assert(html.includes('FIELD CONSOLE · 0.2.49'));
+console.log('v0.2.49 SDR survey site opt-in, provenance, map and export frontend contracts passed');

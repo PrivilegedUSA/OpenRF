@@ -54,8 +54,44 @@ if (compactNavigation.addEventListener) compactNavigation.addEventListener('chan
 else compactNavigation.addListener(syncNavigation);
 syncNavigation();
 
+// v0.2.49: visual-only controls; no scan, navigation, geolocation or network side effects.
+// Collapsing the search frees up map area on a five-inch landscape display.
+const mapSearchPanel = $('map-destination-panel');
+const mapSearchToggle = $('map-search-toggle');
+const mapSearchForm = $('map-destination-form');
+function setMapSearchCollapsed(collapsed) {
+  const isCollapsed = Boolean(collapsed);
+  mapSearchForm.hidden = isCollapsed;
+  mapSearchPanel.classList.toggle('is-collapsed', isCollapsed);
+  mapSearchToggle.setAttribute('aria-expanded', String(!isCollapsed));
+  mapSearchToggle.setAttribute('aria-label', isCollapsed ? 'Expand destination search' : 'Collapse destination search');
+  mapSearchToggle.innerHTML = isCollapsed ? 'Find destination <span aria-hidden="true">▾</span>' : 'Hide <span aria-hidden="true">▴</span>';
+  if (typeof updateNavOverlayLayout === 'function') updateNavOverlayLayout();
+  if (!isCollapsed) $('map-destination-query').focus({preventScroll: true});
+}
+mapSearchToggle.addEventListener('click', () => setMapSearchCollapsed(!mapSearchForm.hidden));
+
+const fieldMapButton = $('field-map-toggle');
+let fieldMapActive = false;
+function syncFieldMapButton(page) {
+  const mapShown = page === 'map';
+  fieldMapButton.hidden = !mapShown;
+  fieldMapButton.setAttribute('aria-pressed', String(fieldMapActive && mapShown));
+  fieldMapButton.setAttribute('aria-label', fieldMapActive && mapShown ? 'Exit map focus mode' : 'Enable map focus mode');
+  fieldMapButton.textContent = fieldMapActive && mapShown ? 'Exit focus' : 'Focus map';
+  document.body.classList.toggle('field-map-mode', fieldMapActive && mapShown);
+}
+fieldMapButton.addEventListener('click', () => {
+  fieldMapActive = !fieldMapActive;
+  syncFieldMapButton('map');
+  // MapLibre/raster canvases must recompute dimensions after CSS changes.
+  requestAnimationFrame(() => {state.map?.resize(); state.rasterMap?.resize(); updateNavOverlayLayout();});
+});
+
 function showPage(page, options = {}) {
   if(page!=='map' && state.navFollowId!==null) stopNavigationFollow();
+  if (page !== 'map') fieldMapActive = false;
+  syncFieldMapButton(page);
   if (navigationOpen) {
     setNavigationOpen(false, false);
     $('page-title').setAttribute('tabindex', '-1');

@@ -1,3 +1,11 @@
+## v0.2.49 — Five-inch field map controls and ham radio design (2026-11-13)
+
+- Add keyboard-operable destination-search collapse to clear the map surface on a small touchscreen, without losing the current input or triggering new navigation/location requests.
+- Add one-tap Map focus mode with an explicit Exit focus action, safe page-switch reset, resize of vector/raster maps and temporary concealment of the below-map workspace; all legacy map tools remain available outside focus mode.
+- Preserve attribution and existing offline map/source resources; no backend API/database changes or new dependencies.
+- Document potential ham-style **receive-only** SDR audio and optional CAT radio control under `docs/AMATEUR_RADIO_ROADMAP.md`. This is a plan, **not working radio reception or transmission**.
+- Add v0.2.49 JS/UI regression checks and a small-screen browser smoke test plan in `docs/RELEASE_0.2.49_TESTS.md`.
+
 ## v0.2.48 — Recorded SDR bin history (2026-11-13)
 
 - Added on-demand read-only frequency history across up to 16 completed private RTL-SDR sweeps with exact 1 Hz bin matching, optional investigation filter and same-tuning guard (on by default).

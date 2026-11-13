@@ -6,21 +6,21 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.48">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.49">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
-  <script defer src="/static/spectrum-analysis.js?v=0.2.48"></script>
-  <script defer src="/static/spectrum.js?v=0.2.48"></script>
-  <script defer src="/static/sdr-history.js?v=0.2.48"></script>
-  <script defer src="/static/survey_map.js?v=0.2.48"></script>
-  <script defer src="/static/navigation.js?v=0.2.48"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.48"></script>
-  <script defer src="/static/app.js?v=0.2.48"></script>
+  <script defer src="/static/spectrum-analysis.js?v=0.2.49"></script>
+  <script defer src="/static/spectrum.js?v=0.2.49"></script>
+  <script defer src="/static/sdr-history.js?v=0.2.49"></script>
+  <script defer src="/static/survey_map.js?v=0.2.49"></script>
+  <script defer src="/static/navigation.js?v=0.2.49"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.49"></script>
+  <script defer src="/static/app.js?v=0.2.49"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.48</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.49</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -39,7 +39,7 @@
     </aside>
     <button id="menu-backdrop" class="menu-backdrop" type="button" aria-label="Close navigation menu" hidden></button>
     <main class="main">
-      <header class="topbar"><div class="topbar-heading"><div><div class="eyebrow">OPENRF / <span id="page-crumb">OVERVIEW</span></div><h1 id="page-title">Field overview</h1></div></div><div class="top-right"><span id="runtime-pill" class="pill">LINUX</span><span class="pill green">OFFLINE DATA</span></div><button type="button" id="menu-toggle" class="menu-toggle" aria-label="Open navigation menu" aria-controls="main-sidebar" aria-expanded="false"><span aria-hidden="true">☰</span></button></header>
+      <header class="topbar"><div class="topbar-heading"><div><div class="eyebrow">OPENRF / <span id="page-crumb">OVERVIEW</span></div><h1 id="page-title">Field overview</h1></div></div><div class="top-right"><span id="runtime-pill" class="pill">LINUX</span><span class="pill green">OFFLINE DATA</span></div><button type="button" id="field-map-toggle" class="field-map-toggle" aria-pressed="false" aria-label="Enable map focus mode" hidden>Focus map</button><button type="button" id="menu-toggle" class="menu-toggle" aria-label="Open navigation menu" aria-controls="main-sidebar" aria-expanded="false"><span aria-hidden="true">☰</span></button></header>
       <div id="flash" class="flash" role="status" aria-live="polite" hidden></div>
       <section class="page active" id="page-overview">
         <div class="hero"><div><div class="eyebrow accent">OPEN SOURCE RF FIELD PLATFORM</div><h2>Investigate the invisible.<br><em>Document what you can verify.</em></h2><p>Run locally on WSL now. Move the same backend to a Raspberry Pi later. No imaginary detections—every record retains its evidence source.</p><div class="actions"><button class="btn primary" data-jump="map">Open survey map</button><button class="btn ghost" data-jump="hardware">View sensor capabilities</button></div></div><div class="hero-graphic" aria-hidden="true"><div class="radar-ring r1"></div><div class="radar-ring r2"></div><div class="radar-ring r3"></div><div class="radar-cross h"></div><div class="radar-cross v"></div><div class="center-dot"></div></div></div>
@@ -49,7 +49,8 @@
       <section class="page" id="page-map">
         <div class="section-heading map-first-heading"><div><h2>Survey map</h2></div></div>
         <div class="map-wrap"><div id="map"></div><svg id="navigation-preview-overlay" class="navigation-preview-overlay" aria-hidden="true" preserveAspectRatio="none"></svg><div id="navigation-preview-label" class="navigation-preview-label" hidden>DIRECT LINE · NOT A ROAD ROUTE</div>
-        <div class="map-destination-panel">
+        <div class="map-destination-panel" id="map-destination-panel">
+        <div class="map-search-header"><strong>Destination search</strong><button type="button" id="map-search-toggle" class="map-search-toggle" aria-controls="map-destination-form" aria-expanded="true" aria-label="Collapse destination search">Hide <span aria-hidden="true">▴</span></button></div>
         <form id="map-destination-form" class="map-destination-form" autocomplete="off" aria-label="Find a destination and get directions">
           <label for="map-destination-query">Destination <span class="small muted">(street address, saved place or coordinates)</span></label>
           <div class="map-destination-row"><div class="map-address-input-wrap"><input class="field" id="map-destination-query" type="search" name="openrf_destination_lookup" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="search" enterkeyhint="search" role="combobox" aria-autocomplete="list" aria-controls="map-address-options" aria-expanded="false" placeholder="Search an address or saved place" maxlength="140" required><div id="map-address-options" class="address-suggestions" role="listbox" aria-label="Address suggestions" hidden></div></div><datalist id="map-destination-suggestions"></datalist></div><button type="button" class="map-pick-destination" id="map-pick-destination">⌖ Choose destination on map</button>
