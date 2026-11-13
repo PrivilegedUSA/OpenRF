@@ -1,0 +1,27 @@
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const css = fs.readFileSync('openrf/static/app.css', 'utf8');
+const html = fs.readFileSync('openrf/static/index.html', 'utf8');
+const js = fs.readFileSync('openrf/static/app.js', 'utf8');
+const patch = css.split('/* v0.2.52: one consistent quiet map-control style.')[1];
+assert(patch,'new controls stylesheet section retained');
+assert(/\.topbar \.menu-toggle\{[^}]*height:40px/.test(patch));
+assert(/\.map-destination-panel\.is-collapsed\{[^}]*height:40px/.test(patch));
+assert(patch.includes('.maplibregl-ctrl-top-right .maplibregl-ctrl-group button'));
+assert(patch.includes('.openrf-recenter-button svg'));
+assert(patch.includes('.raster-control .raster-recenter svg'));
+assert(patch.includes('.map-tool-button:not(.active)'));
+assert(css.includes('/* v0.2.52 follow-up: move the former left-side tools'));
+assert(css.includes('.map-tool-rail::-webkit-scrollbar'));
+assert(/#page-map \.map-tool-overlay\{[^}]*right:56px/.test(css));
+assert(js.includes('function alignMapToolRail()'));
+assert(js.includes("map?.querySelector('.openrf-recenter-button')"));
+assert(js.includes('queueMapToolRailAlignment();'));
+assert(js.includes('bounds.height - top - 57'));
+for (const label of ['Where to?', 'data-map-tool="trip"','data-map-tool="settings"','data-map-tool="gps"','data-map-tool="offline"', 'id="map-picked-route"'])
+  assert(html.includes(label),`preserved ${label}`);
+assert(html.includes('/static/app.css?v=0.2.52'));
+assert(js.includes('new maplibregl.NavigationControl()'));
+assert(js.includes('makeMapRecenterButton()'));
+console.log('PASS v0.2.52 right-aligned control stack, preserved actions, versioning');

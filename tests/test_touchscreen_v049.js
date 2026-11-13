@@ -1,4 +1,4 @@
-/* v0.2.51 retains map-first, with floating tool panels instead of scroll jump. */
+/* v0.2.52 retains map-first, with floating tool panels instead of scroll jump. */
 'use strict';
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -25,4 +25,4 @@ assert(css.includes('body.map-workspace #page-map .map-wrap{height:100dvh!import
 assert(css.includes('body.map-workspace .topbar .menu-toggle'), 'hamburger floats above map');
 assert(html.includes('www.openstreetmap.org/copyright'), 'map attribution kept');
 assert(js.includes('stopNavigationFollow()'), 'navigation lifecycle preserved');
-console.log('PASS v0.2.51 map-first overlay tools and compact destination search');
+console.log('PASS v0.2.52 map-first overlay tools and compact destination search');

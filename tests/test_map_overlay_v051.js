@@ -27,4 +27,4 @@ assert(css.includes('#page-map .map-tool-overlay') && css.includes('max-height:c
 assert(css.includes('#page-map .map-tool-button svg'), 'tool icons aligned');
 assert(css.includes('body.map-workspace #page-map .map-wrap{height:100dvh!important'), 'full viewport retained');
 assert(html.includes('www.openstreetmap.org/copyright'), 'attribution retained');
-console.log('PASS v0.2.51 floating overlay tools, selected-point actions, no below-map scroll jump, and source preservation');
+console.log('PASS v0.2.52 floating overlay tools, selected-point actions, no below-map scroll jump, and source preservation');

@@ -1025,6 +1025,27 @@ function updateOpenRFVectorButtons(){
   $('map-vector-source').textContent=state.mapVectorOffline ? 'Use online vectors' : 'Use offline regional vectors';
   $('map-style').textContent=state.style==='dark' ? 'OpenRF Light' : 'OpenRF Dark';
 }
+function alignMapToolRail() {
+  const rail = document.getElementById('map-tool-rail');
+  const map = document.getElementById('map');
+  const wrap = map?.closest('.map-wrap');
+  const recenter = map?.querySelector('.openrf-recenter-button');
+  if (!rail || !wrap || !recenter) return;
+  const bounds = wrap.getBoundingClientRect();
+  const button = recenter.getBoundingClientRect();
+  if (!bounds.width || !bounds.height || !button.width || !button.height) return;
+  const top = Math.round(button.bottom - bounds.top + 8);
+  rail.style.top = `${top}px`;
+  rail.style.right = `${Math.max(8, Math.round(bounds.right - button.right))}px`;
+  // The bottom-right add/layers buttons remain accessible, even on 5-inch
+  // landscape displays. Very short screens can scroll just this tool column.
+  rail.style.maxHeight = `${Math.max(38, Math.round(bounds.height - top - 57))}px`;
+}
+function queueMapToolRailAlignment() {
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(alignMapToolRail);
+}
+window.addEventListener('resize', queueMapToolRailAlignment);
+
 function startMap() {
   if (state.map || state.rasterMap) return;
   if (!window.maplibregl) { const view = state.preferredView; state.preferredView = null; return startRasterMap('MapLibre is unavailable. Using the built-in raster/coordinate map.', view); }
@@ -1047,6 +1068,7 @@ function startMap() {
       },
       onRemove() { this._element?.remove(); this._element = null; }
     }, 'top-right');
+    queueMapToolRailAlignment();
     state.map.on('style.load', () => { updateOfflineAttribution(); state.mapReady = true; $('map-error').hidden = true; installMarkerLayer(); updateMap(); updateBrowserLocationMarker(); applyPendingLocation(); renderAreaOverlay(); renderNavigationOverlay(); applyNavigationFit(); });
     state.map.on('movestart', event => { if (event.originalEvent) state.mapNavigationEpoch++; });
     // Rural Route-style behavior: a deliberate pan suspends camera following
@@ -1395,6 +1417,7 @@ function startRasterMap(reason, view = null) {
   recenter.classList.add('raster-recenter');
   controls.append(plus, minus, recenter); surface.append(tiles, pins);
   root.replaceChildren(surface, notice, controls);
+  queueMapToolRailAlignment();
   let flightFrame = null;
   const raster = {center:view?.center || [-98.5,39.8], zoom:Math.max(2,Math.min(18,Math.round(view?.zoom || 2))), tileNodes:new Map(), failedTiles:new Set(),
     render() {

@@ -985,3 +985,113 @@ body.map-workspace #page-map > :not(.map-wrap):not(.map-first-heading){margin-le
 }
 
 #page-map .map-tool-pane[hidden]{display:none!important}
+
+
+/* v0.2.52: one consistent quiet map-control style. Match the existing
+   lower-right add/layers controls; leave attribution and map behavior intact. */
+body.map-workspace .topbar .menu-toggle{
+  flex:0 0 40px;width:40px;height:40px;min-width:40px;min-height:40px;
+  padding:0;border:0;border-radius:8px;background:#0c2833ec;color:#a8f8ed;
+  box-shadow:0 2px 9px #0007;font-size:20px;line-height:1;
+}
+body.map-workspace .topbar .menu-toggle:hover,
+body.map-workspace .topbar .menu-toggle:focus-visible{background:#20505a}
+/* The entire collapsed search surface, not just its inner button, is 40px
+   high and top-aligned with the hamburger. Expanded search is unaffected. */
+#page-map .map-destination-panel.is-collapsed{
+  height:40px;min-height:40px;max-height:40px;padding:2px;border:0;
+  border-radius:8px;background:#0c2833ec;box-shadow:0 2px 9px #0007;
+}
+#page-map .map-destination-panel.is-collapsed .map-search-toggle{
+  height:36px;min-height:36px!important;padding:0 11px;
+  border:0;border-radius:7px;color:#d8f5ee;
+}
+#page-map .map-destination-panel.is-collapsed .map-search-icon{font-size:21px;color:#a8f8ed}
+#page-map .map-destination-panel.is-collapsed .map-search-chevron{font-size:16px;color:#a8f8ed}
+#page-map .map-destination-panel.is-collapsed:hover{background:#20505a}
+/* Left-hand tool icons use the SAME borderless surface as the + and layers. */
+#page-map .map-tool-button,
+#page-map .map-tool-button:not(.active){
+  width:34px;height:34px;min-width:34px;min-height:34px;
+  border:0;border-radius:8px;background:#0c2833ec;color:#a8f8ed;
+  box-shadow:0 2px 9px #0007;
+}
+#page-map .map-tool-button svg{width:19px;height:19px}
+#page-map .map-tool-button.active,
+#page-map .map-tool-button:hover{background:#20505a;color:#b8fff1;border:0}
+#page-map .map-tool-button:focus-visible,
+body.map-workspace .topbar .menu-toggle:focus-visible,
+#page-map .map-destination-panel.is-collapsed .map-search-toggle:focus-visible{
+  outline:2px solid #98f5df;outline-offset:2px;
+}
+/* MapLibre's default bright-white zoom/compass group becomes separate quiet
+   dark buttons. Only the icons are filtered, not the whole control. */
+#page-map #map .maplibregl-ctrl-top-right{top:62px!important}
+#page-map #map .maplibregl-ctrl-top-right .maplibregl-ctrl-group{
+  display:grid;gap:5px;background:transparent!important;
+  border:0!important;border-radius:0!important;box-shadow:none!important;
+}
+#page-map #map .maplibregl-ctrl-top-right .maplibregl-ctrl-group button{
+  width:34px;height:34px;min-width:34px;min-height:34px;
+  border:0!important;border-radius:8px!important;
+  background:#0c2833ec!important;color:#a8f8ed!important;
+  box-shadow:0 2px 9px #0007!important;
+}
+#page-map #map .maplibregl-ctrl-top-right .maplibregl-ctrl-group button:hover{background:#20505a!important}
+#page-map #map .maplibregl-ctrl-top-right .maplibregl-ctrl-group button .maplibregl-ctrl-icon{
+  filter:invert(91%) sepia(17%) saturate(833%) hue-rotate(101deg) brightness(101%) contrast(95%);
+}
+#page-map #map .maplibregl-ctrl-top-right .openrf-recenter-control{
+  margin-top:0!important;
+}
+#page-map #map .maplibregl-ctrl-top-right .openrf-recenter-button svg{
+  width:18px;height:18px;color:#a8f8ed!important;stroke:#a8f8ed!important;
+}
+#page-map #map .maplibregl-ctrl-top-right .maplibregl-ctrl-group button:focus-visible{
+  outline:2px solid #98f5df!important;outline-offset:2px;
+}
+/* The no-MapLibre raster fallback receives the same treatment. */
+#page-map .raster-control{top:62px!important;right:10px;gap:5px}
+#page-map .raster-control button,
+#page-map .raster-control .raster-recenter{
+  display:grid;place-items:center;width:34px;height:34px;min-height:34px;
+  padding:0;border:0!important;border-radius:8px!important;
+  background:#0c2833ec!important;color:#a8f8ed!important;
+  box-shadow:0 2px 9px #0007;font-size:21px;
+}
+#page-map .raster-control button:hover{background:#20505a!important}
+#page-map .raster-control .raster-recenter svg{color:#a8f8ed!important;stroke:#a8f8ed!important}
+#page-map .raster-control button:focus-visible{outline:2px solid #98f5df;outline-offset:2px}
+#page-map.navigation-driving #map .maplibregl-ctrl-top-right,
+#page-map.navigation-driving .raster-control{top:130px!important}
+@media(max-width:550px){
+  #page-map .map-tool-button,#page-map .map-tool-button:not(.active){
+    width:34px;height:34px;min-height:34px;min-width:34px;
+  }
+}
+
+
+/* v0.2.52 follow-up: move the former left-side tools into a single right-hand
+   column directly below the existing zoom, compass, and location controls.
+   JS measures the real recenter button so vector and raster modes both align. */
+#page-map .map-tool-rail{
+  left:auto!important;bottom:auto!important;right:10px;top:225px;
+  gap:5px;max-height:calc(100dvh - 280px);overflow-y:auto;overflow-x:visible;
+  scrollbar-width:none;overscroll-behavior:contain;
+}
+#page-map .map-tool-rail::-webkit-scrollbar{display:none}
+#page-map .map-tool-button,#page-map .map-tool-button:not(.active){
+  flex:none;width:34px;height:34px;min-width:34px;min-height:34px;
+}
+/* Show workspaces to the LEFT of the tool stack instead of covering it. */
+#page-map .map-tool-overlay{
+  left:auto!important;right:56px;bottom:52px;
+  width:min(465px,calc(100% - 115px));
+}
+@media(max-width:550px){
+  #page-map .map-tool-rail{left:auto!important;bottom:auto!important;right:10px;top:225px;gap:5px}
+  #page-map .map-tool-overlay{
+    left:auto!important;right:52px;bottom:52px;
+    width:calc(100% - 63px);max-height:calc(100dvh - 105px);
+  }
+}

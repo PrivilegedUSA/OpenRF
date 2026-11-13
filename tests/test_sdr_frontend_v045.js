@@ -1,4 +1,4 @@
-/* v0.2.51 source-contract checks: opt-in capture, provenance and safe rendering. */
+/* v0.2.52 source-contract checks: opt-in capture, provenance and safe rendering. */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -19,5 +19,5 @@ assert(js.includes("link.hidden = !completed"));
 assert(js.includes("item.state") && js.includes('Capture stopped by user') === false);
 assert(!js.includes('innerHTML'), 'no server string insertion via innerHTML');
 assert(js.includes("const valid = /^[0-9a-f]{16}$/.test(id)"));
-assert(html.includes('0.2.51'));
-console.log('v0.2.51 capture control, saved CSV and DEMO provenance source tests passed');
+assert(html.includes('0.2.52'));
+console.log('v0.2.52 capture control, saved CSV and DEMO provenance source tests passed');

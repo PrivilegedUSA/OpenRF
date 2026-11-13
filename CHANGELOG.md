@@ -1,3 +1,10 @@
+## v0.2.52 — Consistent Map Control Appearance (2026-11-13)
+
+- Unified the collapsed 40px destination bar and compact 40px hamburger alignment.
+- Moved the four floating tool buttons to the right, directly under the zoom/compass/recenter controls, matching their quiet teal-on-dark appearance. Tool overlays now open to the left of that stack. Added measured alignment in vector and raster map modes, with short-screen rail scrolling.
+- Preserved existing navigation, map panel interactions, hardware tools, offline map assets, attribution and all local-only data behavior.
+- Refreshed app asset version query strings and added dedicated regression checks. No backend data or schema migration.
+
 ## v0.2.51 — Destination action and floating map workspace overlays (2026-11-13)
 
 - Replace the misaligned Tools down-arrow/scroll jump with four left-side fixed SVG icon controls; new **Plan a trip**, **Map settings**, **GPS-linked surveys**, and **Offline maps** overlays keep the existing live HTML controls and original DOM nodes, without cloning or changing saved data. Close by icon/X/Escape; overlays stay inside the map viewport and scroll internally at 800×480.
