@@ -1,4 +1,4 @@
-# OpenRF v0.2.49 — Compact Field Map Controls
+# OpenRF v0.2.50 — Map-first Touchscreen Workspace
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.49.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.50.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.48 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.50 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,13 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.50 — Map-first layout replaces Focus Map
+
+- **Map is now full-height by default**, including the planned 800×480 landscape screen. The extra Focus Map / Exit focus toggle is removed. On compact screens, the hamburger floats at top-right over the map; desktop retains the persistent sidebar. Secondary map managers remain available below the map, rather than being hidden by a special mode.
+- Destination search starts as one **Where to?** bar at top-left. Tap it to show the original address/saved-place lookup, map-pin selection and Get directions / Start navigation actions. Close search or press Escape to return to the unobstructed map without clearing your typed destination or route. This is just a view state—no scans or extra geolocation requests are made by opening/closing it.
+- A small **Tools ↓** button at the bottom of the map scrolls to trip planning, offline maps, map settings and survey utilities beneath the full-height map. It is hidden during driving guidance to reduce distractions. Floating layers, manual observation controls, map attribution, zoom/location controls, and navigation HUD remain in place.
+- No added dependencies, server API endpoints, database migrations, camera routing changes, automatic RF scans, or cloud uploads. Tested CSS/browser controls on 800×480, 390×844 and 1450×900; **live MapLibre tiles and Raspberry Pi touch hardware were not verified**. See [v0.2.50 tests](docs/RELEASE_0.2.50_TESTS.md).
 
 ## v0.2.49 — Five-inch landscape usability
 

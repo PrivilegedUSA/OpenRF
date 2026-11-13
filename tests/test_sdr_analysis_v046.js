@@ -1,4 +1,4 @@
-/* OpenRF v0.2.49 offline bin aggregation, exact-match diff and provenance. */
+/* OpenRF v0.2.50 offline bin aggregation, exact-match diff and provenance. */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -63,7 +63,7 @@ assert.equal(analyzeSpectrum(realCsv,{min:100,max:102}).binCount,5);
 for(const id of ['sdr-analysis-summary','sdr-analysis-bins','sdr-compare-details','sdr-baseline-saved','sdr-baseline-file','sdr-baseline-label','sdr-compare-run','sdr-compare-export','sdr-compare-clear','sdr-compare-status','sdr-compare-bins']) {
   assert(html.includes(`id="${id}"`),`missing ${id}`);
 }
-assert(html.includes('/static/spectrum-analysis.js?v=0.2.49'));
+assert(html.includes('/static/spectrum-analysis.js?v=0.2.50'));
 assert(html.indexOf('/static/spectrum-analysis.js')<html.indexOf('/static/spectrum.js'));
 assert(ui.includes("global.OpenRFSpectrumAnalysis.compareSpectra"));
 assert(ui.includes("global.OpenRFSpectrumAnalysis.comparisonCsv"));
@@ -72,4 +72,4 @@ assert(ui.includes('clearComparison();') && ui.includes('renderAnalysis();'));
 assert(ui.includes("const response = await fetch(`/api/sdr/captures/${chosenId}.csv`"));
 assert(ui.includes("if (!/^[0-9a-f]{16}$/.test(chosenId))"));
 assert(!ui.includes('innerHTML') && !core.includes('innerHTML'));
-console.log('v0.2.49 spectrum aggregation, exact-bin comparison, CSV export and UI contracts passed');
+console.log('v0.2.50 spectrum aggregation, exact-bin comparison, CSV export and UI contracts passed');

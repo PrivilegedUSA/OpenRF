@@ -20,3 +20,9 @@ The five-inch map has a top-right hamburger that opens a right-side vertical nav
 ### v0.2.49 landscape controls
 
 The primary field optimization target is approximately **800×480 landscape**. The on-map destination search can now collapse to a one-touch **Find destination** button and reopen without resetting its text or initiating any location action. **Focus map** in the header temporarily hides the below-map managers and compresses the header, leaving the map, layers, route HUD, settings button and attribution accessible. **Exit focus** restores the full map workspace. Switching away from Map exits focus automatically. Touch hardware verification is still pending. See `RELEASE_0.2.49_TESTS.md`.
+
+### v0.2.50 current map-first behavior
+
+The `Map` page itself is the near-fullscreen display at **800×480**: there is no Focus Map toggle. On compact screens the menu is a fixed, floating **top-right** button over the map, while search begins as a small **Where to?** bar at the **top-left**. Tap to expand the original destination form, and tap Close search or press Escape to collapse. You can reach the unchanged offline maps, investigation/waypoint controls and optional detailed trip planner with the **Tools ↓** button at the bottom of the map. The button hides during active navigation guidance to reduce clutter. Leaving/re-entering Map collapses search without erasing the destination or route.
+
+`v0.2.49` focus instructions above are historical only. No automatic RF scans, new location requests or network calls result from simply opening search, closing it or scrolling to Tools. Full-map touch/pinch handling, GNSS and actual offline tiles require testing on physical Raspberry Pi hardware. See `RELEASE_0.2.50_TESTS.md`.

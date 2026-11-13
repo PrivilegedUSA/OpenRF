@@ -1,3 +1,11 @@
+## v0.2.50 — Map-first touchscreen layout, no extra Focus Map mode (2026-11-13)
+
+- Remove the redundant header Focus Map / Exit focus mode after user testing showed it exposed too little additional map space. The standard Map workspace now uses the full available viewport by default, including 800×480 five-inch landscape and 390×844 phone-sized screens. Other pages retain their existing layout and menu.
+- Make the existing single destination-search form **collapsed by default**, with a compact floating **Where to?** control; expands into an on-demand overlay. Preserve address suggestions, route planning, map-pin destination selection, typed text, offline routing, planned directions and navigation follow controls. Escape collapses the form (unless a separate map-pin selection is in progress). No new GPS requests or network calls are triggered by the toggle.
+- Float the hamburger at top-right on compact Map view; leave persistent desktop navigation intact. Reposition top-right vector/raster controls to avoid being pushed below large destination popovers. Preserve map layer/add buttons, source credits, and survey markers.
+- Provide discoverable, non-driving **Tools ↓** scroll to below-map trip planning, offline map management, survey and settings sections. Existing tools are not removed or migrated.
+- Preserve v0.2.49 backend, SDR/Wi-Fi/BLE drivers, observations, navigation, user data boundaries, offline map MBTiles and Android archive. No new dependencies or radio reception/transmission implemented; see docs/RELEASE_0.2.50_TESTS.md for limitations.
+
 ## v0.2.49 — Five-inch field map controls and ham radio design (2026-11-13)
 
 - Add keyboard-operable destination-search collapse to clear the map surface on a small touchscreen, without losing the current input or triggering new navigation/location requests.

@@ -6,7 +6,7 @@ const routeGuide=require('../openrf/static/route_guidance.js');
 const source=fs.readFileSync(path.join(base,'app.js'),'utf8');
 const html=fs.readFileSync(path.join(base,'index.html'),'utf8');
 const css=fs.readFileSync(path.join(base,'app.css'),'utf8');
-assert(html.indexOf('class="map-wrap"')<html.indexOf('class="map-destination-panel"'));
+assert(html.indexOf('class="map-wrap"')<html.indexOf('class="map-destination-panel is-collapsed"'));
 assert.equal((html.match(/id="map-destination-form"/g)||[]).length,1);
 assert.equal((html.match(/id="map-pick-destination"/g)||[]).length,1);
 assert(html.includes('id="map-begin-guidance" disabled'));

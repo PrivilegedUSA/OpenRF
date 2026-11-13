@@ -875,34 +875,70 @@
 .sdr-history-details .table-scroll{overflow-x:auto!important;max-width:100%}
 
 
-/* v0.2.49 — unobstructed five-inch map and reversible focus mode.
-   Controls stay local and do not initiate scanning, navigation or geolocation. */
-.field-map-toggle{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-height:44px;padding:8px 12px;border:1px solid #3d7779;border-radius:9px;background:#15353e;color:#d0fff3;font-size:12px;font-weight:750}
-.field-map-toggle[hidden]{display:none!important}
-.field-map-toggle[aria-pressed="true"]{background:#27665f;border-color:#4de1c7;color:#fff}
-#page-map .map-search-header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 4px;color:#b9dadb;font-size:11px}
-#page-map .map-search-header strong{font-weight:750}
-#page-map .map-search-toggle{flex:none;min-height:30px;min-width:62px;border:1px solid #426675;border-radius:6px;background:#14303c;color:#d8fff4;font-size:12px;font-weight:750;padding:5px 8px}
+/* v0.2.50 — ONE map-first view. Focus Map removed: the standard Map page
+   uses the full viewport and the optional route form opens on demand. */
+body.map-workspace .main{padding:0;max-width:none}
+body.map-workspace .topbar{position:fixed;top:10px;right:10px;left:auto;z-index:45;
+  width:auto;min-height:0;margin:0;padding:0;border:0;background:transparent;
+  display:flex;pointer-events:none;box-shadow:none}
+body.map-workspace .topbar-heading,body.map-workspace .top-right{display:none!important}
+body.map-workspace .topbar .menu-toggle{pointer-events:auto;display:grid;place-items:center;
+  width:48px;height:48px;min-height:48px;min-width:48px;padding:0;
+  border-radius:12px;border:1px solid #35616b;background:#0c2833ed;color:#dcfff9;
+  box-shadow:0 3px 12px #0008;font-size:24px}
+/* Wide-layout sidebar remains available, so no redundant hamburger on desktop. */
+@media(min-width:1401px){body.map-workspace .topbar .menu-toggle{display:none}}
+@media(min-width:901px) and (pointer:fine) and (min-height:851px){body.map-workspace .topbar .menu-toggle{display:none}}
+body.map-workspace #page-map .map-first-heading{display:none!important}
+body.map-workspace #page-map .map-wrap{height:100dvh!important;min-height:320px;
+  border:0;border-radius:0;margin:0;max-width:none;width:100%}
+/* Below-map managers remain reachable by scrolling, never silently deleted. */
+body.map-workspace #page-map > :not(.map-wrap):not(.map-first-heading){margin-left:clamp(12px,3vw,36px);margin-right:clamp(12px,3vw,36px)}
+/* Search is a narrow, floating affordance until the destination form is needed. */
+#page-map .map-destination-panel{top:10px;left:10px;right:auto;z-index:34;
+  width:min(455px,calc(100% - 83px));max-height:calc(100dvh - 75px);
+  padding:9px 11px;border-radius:12px;overflow-x:hidden;overflow-y:auto;
+  overscroll-behavior:contain;background:#101d27f5}
+#page-map .map-search-header{display:flex;align-items:center;justify-content:space-between;
+  gap:8px;margin:0 0 8px;color:#b9dadb;font-size:12px}
+#page-map .map-search-header strong{font-size:12px;font-weight:750}
+#page-map .map-search-toggle{display:flex;align-items:center;justify-content:center;
+  gap:8px;min-height:40px;min-width:94px;padding:6px 10px;border:1px solid #426675;
+  border-radius:9px;background:#14303c;color:#e6fff8;font-size:13px;font-weight:700}
+#page-map .map-search-icon{font-size:25px;line-height:1;flex:none}
+#page-map .map-search-caption{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-map .map-search-chevron{margin-left:auto;font-size:18px;line-height:1;flex:none}
 #page-map #map-destination-form[hidden]{display:none!important}
-#page-map .map-destination-panel.is-collapsed{width:auto;max-width:calc(100% - 75px);padding:5px 7px;border-color:#365861}
-#page-map .map-destination-panel.is-collapsed .map-search-header{margin:0}
+#page-map .map-destination-panel.is-collapsed{width:min(355px,calc(100% - 84px));
+  height:auto;max-height:none;overflow:visible;padding:4px;border-color:#355965;background:#102936f5}
+#page-map .map-destination-panel.is-collapsed .map-search-header{margin:0;display:block}
 #page-map .map-destination-panel.is-collapsed .map-search-header strong{display:none}
-#page-map .map-destination-panel.is-collapsed .map-search-toggle{min-height:44px;min-width:148px}
-#page-map .map-destination-panel.is-collapsed .map-search-toggle span{margin-left:5px}
-body.field-map-mode #page-map> :not(.map-wrap){display:none!important}
-body.field-map-mode #page-map .map-wrap{height:calc(100dvh - 105px)!important;min-height:300px}
+#page-map .map-destination-panel.is-collapsed .map-search-toggle{display:flex;width:100%;
+  min-width:0;min-height:44px;justify-content:flex-start;padding:5px 12px;
+  border:0;border-radius:9px;background:transparent;text-align:left;font-size:14px}
+#page-map .map-destination-panel.is-collapsed .map-search-caption{font-size:14px;font-weight:600}
+/* The separate map tools occupy the right edge, never push below search results. */
+#page-map .map-wrap .maplibregl-ctrl-top-right,
+#page-map .map-wrap .raster-controls{top:70px!important}
+#page-map.navigation-driving .map-wrap .maplibregl-ctrl-top-right,
+#page-map.navigation-driving .map-wrap .raster-controls{top:130px!important}
+#page-map .navigation-preview-label{top:var(--openrf-nav-overlay-bottom,67px);max-width:calc(100% - 80px)}
 @media(max-width:900px), (max-width:1400px) and (max-height:850px) and (pointer:coarse){
-  .field-map-toggle{min-height:46px;padding:8px 12px;white-space:nowrap}
-  body.field-map-mode .topbar-heading{display:none!important}
-  body.field-map-mode .topbar{min-height:55px;padding:6px 0;margin-bottom:7px;justify-content:flex-end}
-  body.field-map-mode .main{padding-bottom:0}
-  body.field-map-mode #page-map .map-wrap{height:calc(100dvh - 75px)!important;min-height:255px}
-  #page-map .map-search-toggle{min-height:35px}
-  #page-map .map-destination-panel.is-collapsed{max-height:none}
+  body.map-workspace .main{padding:0}
+  body.map-workspace .topbar{top:9px;right:9px}
+  #page-map .map-destination-panel{max-height:calc(100dvh - 65px)}
 }
-@media(max-width:900px) and (max-height:600px){
-  body.field-map-mode #page-map .map-wrap{height:calc(100dvh - 72px)!important;min-height:235px}
+@media(max-width:550px){
+  body.map-workspace #page-map .map-wrap{height:100dvh!important;min-height:320px}
+  #page-map .map-destination-panel{width:calc(100% - 83px);max-height:calc(100dvh - 75px);padding:9px}
+  #page-map .map-destination-panel.is-collapsed{width:calc(100% - 83px);padding:4px;max-height:none}
+  #page-map .map-destination-panel.is-collapsed .map-search-toggle{min-height:44px}
 }
-@media(max-width:440px){
-  .field-map-toggle{padding:7px 9px;font-size:11px}
-}
+
+/* Discoverable entry to below-map offline maps, trip tools and survey managers. */
+#page-map .map-more-tools{position:absolute;z-index:18;bottom:9px;left:50%;transform:translateX(-50%);
+  min-height:34px;padding:5px 14px;border:1px solid #537f85;border-radius:999px;
+  background:#102936e8;color:#d6f6ed;font-size:12px;font-weight:700;box-shadow:0 2px 9px #0008}
+#page-map .map-more-tools span{font-size:17px;margin-left:5px}
+#page-map.navigation-driving .map-more-tools{display:none}
+@media(max-width:550px){#page-map .map-legend{bottom:51px}}
