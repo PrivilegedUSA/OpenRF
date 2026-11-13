@@ -1,3 +1,11 @@
+## v0.2.40 — Wireless survey map & saved-reading inspection (2026-11-12)
+
+- Added independent category, measured RSSI (dBm), and NetworkManager quality (%) marker-color modes to the existing MapLibre / offline raster survey maps. No cross-unit conversion, distance inference, or invented locations.
+- Added map time filters, a compact recent-mapped-wireless list and an inspector for saved observation identity, source device, timestamp, actual recorded measurements, observer coordinates/accuracy, plus compatible historical series and descriptive earlier/later medians.
+- Added ephemeral BLE scan results and explicit one-shot BLE scan action in the existing map Layers & Scan sheet, sharing the validated BlueZ save workflow. No background scans or automatic saved locations.
+- Added dependency-free survey-map presentation module, JS and HTTP regression tests, new documentation and static asset allowlisting. Preserved all v0.2.39 source files including maps/navigation/RF functions and Android archive. No database migration.
+- Limits: no verified physical Wi-Fi or BLE scanner, no field-verified map layout, and no implied transmitter localization or calibrated signal gradient.
+
 ## v0.2.39 — Opt-in Linux Bluetooth LE discovery (2026-11-12)
 
 - Add bounded, explicit BlueZ LE-only discovery for Linux-visible controllers; no pairing, connecting or background monitoring. Real LE events and optional reported RSSI dBm are displayed in Analysis. BlueZ discovery and per-device timestamps/caching limitations are disclosed.

@@ -32,11 +32,14 @@ console.log('Frontend regressions passed: projection, shared header alignment, s
 assert(html.includes('id="map-survey-toggle"') && html.includes('id="map-survey-panel"'), 'map-first wireless drawer');
 assert(html.includes('id="map-scan-wifi"') && html.includes('id="scan-wifi-once"'), 'same one-shot driver available in Map and Analysis');
 assert(html.includes('data-map-kind="WIFI"') && html.includes('data-map-kind="BLE"'), 'map wireless layer checkboxes');
-assert(src.includes('function mapVisibleObservations()') && src.includes('Number.isFinite(o.latitude)'), 'only geolocated observations may be pinned');
-assert(src.includes('state.mapKinds.has(o.kind)') && src.includes("o.source !== 'DEMO'"), 'per-kind filters and DEMO default exclusion');
+assert(src.includes('function mapVisibleObservations()') && src.includes('mapModule.visible(state.observations'), 'saved coordinates filtered by dedicated survey module');
+const survey=require('../openrf/static/survey_map.js');
+assert.equal(survey.visible([{kind:'WIFI',latitude:38.45,longitude:-120.5,source:'SENSOR'}],{kinds:['WIFI']}).length,1);
+assert.equal(survey.visible([{kind:'WIFI',latitude:null,longitude:-120.5,source:'SENSOR'}],{kinds:['WIFI']}).length,0); 
+assert(src.includes('kinds:[...state.mapKinds]') && src.includes('includeDemo:state.showDemo'), 'per-kind filters and DEMO default exclusion');
 assert(src.includes('mapVisibleObservations().forEach') && src.includes('const observations = mapVisibleObservations();'), 'vector and raster filters agree');
 assert(src.includes('async function scanWifiOnce()') && src.includes("$('map-scan-wifi').addEventListener('click', scanWifiOnce)"), 'shared scan action');
-assert(src.includes('Not geolocated or mapped'), 'Wi-Fi scan list must never imply transmitter pins');
+assert(src.includes('NOT MAPPED') && src.includes('Not GPS-located'), 'Wi-Fi scan list must never imply transmitter pins');
 assert(css.includes('.map-survey-panel {position:fixed') && css.includes('env(safe-area-inset-bottom)'), 'handheld drawer and nav safe areas');
 assert(html.includes('id="menu-toggle"') && html.includes('id="menu-backdrop"') && html.includes('id="menu-close"'), 'hamburger drawer controls');
 assert(html.includes('id="map-geolocate-sheet"') && src.includes("$('map-geolocate-sheet').addEventListener('click',()=>locateMap(true))"), 'handheld geolocation preserved');

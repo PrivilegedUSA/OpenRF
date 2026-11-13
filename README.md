@@ -1,4 +1,4 @@
-# OpenRF v0.2.39 — User-Started Linux Bluetooth LE Discovery
+# OpenRF v0.2.40 — Saved Wireless Survey Map and Measurement Inspection
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.39.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.40.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.39 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.40 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,15 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.40 — Wireless map inspection, separate signal units and historical context
+
+- **Map → Layers:** select **Marker colors**: category, recorded RSSI (dBm), or Wi-Fi signal **quality (%)**. Metric displays are independent; a missing or inapplicable measurement is gray, never guessed. Category colors remain available. DEMO records are excluded unless the operator explicitly enables them (orange, distinctly historical). These markers show only **saved observer coordinates**; they are NOT estimated RF transmitter locations, coverage or a heatmap.
+- Optional **Saved records** filters: all dates, last 24 h, last 7 days, last 30 days. Invalid/future timestamps cannot appear as recent data. Filtered records are hidden **only from the map**, not deleted from SQLite or source investigations.
+- **Inspect a saved mapped point** by tapping its vector/raster marker or from **Saved wireless readings on this map**. The panel displays its actual time, source, device, recorded metrics, optional reported location accuracy, and historical readings from the **same identifier, hardware, frequency, source and unit**. History and earlier/later medians are explicitly descriptive, not transmitter distance or direction.
+- The existing map sheet now shows both **temporary Wi-Fi and BLE** one-shot results. Explicit Scan BLE once requires Linux BlueZ and a visible compatible controller. Results are NOT automatically mapped, geolocated or saved; existing server-issued BLE receipts still guard a user-selected Save.
+- Pure `openrf/static/survey_map.js` provides read-only filters and graphics contracts, served only on the local loopback API. No new Python dependencies, external network requests, database migrations or tracking. Existing Valhalla, offline Dark/Light maps, printable directions, GNSS beta, BLE/Wi-Fi drivers and Android archive remain intact.
+- See [v0.2.40 tests](docs/RELEASE_0.2.40_TESTS.md). Real Linux Wi-Fi/BLE hardware scans and actual Firefox/Raspberry Pi map interactions are **not verified** in the build environment.
 
 ## v0.2.39 — Read-only Linux Bluetooth LE discovery (user-started)
 

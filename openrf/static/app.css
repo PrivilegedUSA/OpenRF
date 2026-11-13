@@ -729,3 +729,33 @@
 .wifi-filter-row{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;align-items:end}
 .wifi-filter-row label{flex:1 1 165px;min-width:0;font-size:.78rem;color:var(--muted,#a9c1ce)}
 .wifi-filter-row .field{margin-top:4px;width:100%;min-width:0}
+
+/* v0.2.40: saved survey readings inspectable at receiver/observer positions.
+   Metric colors NEVER encode access-point or BLE transmitter locations. */
+.map-metric-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.map-metric-controls label{display:block;color:#bad6dc;font-size:11px;min-width:0}
+.map-metric-controls .field{width:100%;max-width:100%;margin:5px 0 0;min-height:39px;font-size:12px;padding:6px;}
+.map-metric-legend{font-size:11px;line-height:1.45;color:#b3c9d0;padding:10px 0 2px;margin:0;}
+.map-wireless-history{margin:8px 0;border:1px solid #31515d;border-radius:9px;background:#102730;overflow:hidden}
+.map-wireless-history summary{min-height:41px;cursor:pointer;padding:11px;color:#c4eee7;font-size:12px;font-weight:650}
+.map-wireless-history summary span{color:#89b4ba;font-weight:500}
+.map-wireless-recent{padding:2px 10px 10px;max-height:230px;overflow:auto;overscroll-behavior:contain}
+.map-survey-recent-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #29434d;min-width:0}
+.map-survey-recent-row>div{display:flex;flex:1;flex-direction:column;gap:3px;min-width:0;overflow-wrap:anywhere}
+.map-survey-recent-row strong{font-size:12px;font-weight:650}
+.map-survey-recent-row small{color:#a7c1c9;font-size:10px;line-height:1.35}
+.map-legend-dot{--mark-color:#728b95;display:inline-block;background:var(--mark-color);width:11px;height:11px;min-width:11px;border:1px solid #f0fbff;border-radius:50%;vertical-align:middle}
+.map-observation-detail{background:#0a1c27;border:1px solid #3b6874;border-radius:10px;padding:11px;margin:12px 0;overflow-wrap:anywhere;font-size:12px}
+.map-observation-detail[hidden]{display:none!important}
+.map-detail-head{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.map-detail-head strong{color:#b4f2e7}
+.map-detail-close{border:1px solid #41636e;background:#15333d;color:#fff;flex-shrink:0;border-radius:7px;width:33px;height:33px;font-size:20px;line-height:1}
+.map-observation-detail p{margin:8px 0;line-height:1.5}
+.map-detail-measure{color:#d9e9e7;line-height:1.5;padding:7px;background:#102e38;border-radius:7px}
+.map-history-metric{display:flex;flex-wrap:wrap;align-items:center;gap:7px;border-top:1px solid #294956;padding:9px 0;margin:4px 0}
+.map-history-metric strong{width:100%;color:#b4f2e7}
+.map-history-metric span,.map-history-metric small{width:100%;color:#aac5cf;font-size:11px}
+.map-history-metric button{min-height:35px}
+.map-demo-warning{color:#f6cd69;font-size:11px}
+.raster-pin.selected{border:3px solid #fff6d6;box-shadow:0 0 0 5px #2dd7b544}
+@media(max-width:390px){.map-metric-controls{grid-template-columns:1fr}}

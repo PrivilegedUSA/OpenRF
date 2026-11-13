@@ -28,5 +28,6 @@ jobs:
           node --check openrf/static/history-analysis.js
           node --check openrf/static/navigation.js
           node --check openrf/static/route_guidance.js
+          node --check openrf/static/survey_map.js
           # Run all in-repository JavaScript suites, including new navigation DEMO tests.
           for test_file in tests/*.js; do node "$test_file"; done

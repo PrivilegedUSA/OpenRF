@@ -6,7 +6,7 @@ const format = (val, suffix = '') => val === null || val === undefined || val ==
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
 const state = { observations: [], sessions: [], waypoints: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, navFollowCameraSuspended:false, navFollowLastPosition:null,
   navDemoActive:false,navDemoPaused:false,navDemoProgress:0,navDemoTimer:null,navDemoLastTime:0,
-  navDemoMarker:null,navDemoMarkerMap:null,navDemoFix:null,rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, bleScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+  navDemoMarker:null,navDemoMarkerMap:null,navDemoFix:null,rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, bleScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapObservationId:null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
@@ -474,25 +474,102 @@ function renderSignals() {
 // A one-shot NetworkManager result has no coordinates; keep its temporary list
 // in the sheet, never plot it at a presumed transmitter position.
 function mapVisibleObservations() {
-  return state.observations.filter(o =>
-    Number.isFinite(o.latitude) && Number.isFinite(o.longitude) &&
-    state.mapKinds.has(o.kind) && (state.showDemo || o.source !== 'DEMO'));
+  const mapModule=window.OpenRFSurveyMap;
+  if (!mapModule) return state.observations.filter(o=>o.latitude != null && o.longitude != null &&
+    state.mapKinds.has(o.kind) && (state.showDemo || o.source!=='DEMO'));
+  return mapModule.visible(state.observations,{
+    kinds:[...state.mapKinds], includeDemo:state.showDemo, window:$('map-survey-age').value
+  });
+}
+function mapMetricMode() { return $('map-metric-mode').value; }
+function markerAppearance(o) {
+  return window.OpenRFSurveyMap?.display(o,mapMetricMode()) || {color:'#30dec0',label:'Observer point'};
+}
+function mapMetricLegend() {
+  const mode=mapMetricMode();
+  if(mode==='rssi') return 'RSSI (dBm) at the RECEIVER: teal ≥ −60, yellow −80 to −61, pink < −80, gray = no RSSI. Different receivers/locations are not directly comparable; colors do NOT indicate transmitter proximity.';
+  if(mode==='quality') return 'NetworkManager quality (%) at the RECEIVER: teal ≥70%, yellow 40–69%, pink <40%, gray = no Wi-Fi quality. Quality is NOT RSSI dBm or distance.';
+  return 'Marker color identifies the saved observation category. DEMO is orange. All points mark observer positions, never transmitter positions.';
+}
+function renderMapObservationDetail() {
+  const out=$('map-observation-detail');
+  const record=mapVisibleObservations().find(o=>o.id===state.mapObservationId);
+  if(!record){ out.hidden=true;out.replaceChildren();return; }
+  const metric=markerAppearance(record);
+  const engine=window.OpenRFHistoryAnalysis;
+  const matches=window.OpenRFSurveyMap?.seriesForRecord(state.observations,record,engine,state.showDemo) || [];
+  const seriesBlocks=matches.map(series=>{
+    const result=window.OpenRFSurveyMap.historySummary(series,engine);
+    const n=result?.history?.stats?.count || 0;
+    const median=result?.history?.stats?.median;
+    const delta=result?.comparison?.delta;
+    const warning=result?.history?.warnings?.slice(0,2) || [];
+    return `<div class="map-history-metric"><strong>${escapeHTML(series.metricName)}: ${n} compatible saved reading(s)</strong>
+      <span>${n ? `Historical median ${escapeHTML(median?.toFixed(1))} ${escapeHTML(series.unit)}` : 'No compatible history'}${Number.isFinite(delta) ? ` · Later−earlier median ${delta>=0?'+':''}${escapeHTML(delta.toFixed(1))} ${escapeHTML(series.unit)}` : ''}</span>
+      <button type="button" class="btn mini outline" data-map-history="${escapeHTML(series.key)}">Open history / comparison</button>
+      ${warning.map(item=>`<small>${escapeHTML(item)}</small>`).join('')}</div>`;
+  }).join('');
+  out.hidden=false;
+  out.innerHTML=`<div class="map-detail-head"><strong>Saved survey observation #${escapeHTML(record.id)}</strong><button type="button" id="map-detail-close" class="map-detail-close" aria-label="Close observation details">×</button></div>
+    <p><strong>${escapeHTML(record.label)}</strong> · ${escapeHTML(record.kind)} · ${escapeHTML(record.source)}</p>
+    ${record.identifier ? `<p class="small muted">Identifier ${escapeHTML(record.identifier)}</p>` : ''}
+    <p class="small muted">${escapeHTML(stamp(record.observed_at))} · ${escapeHTML(record.source_device || 'Source device unspecified')}</p>
+    <div class="map-detail-measure"><span class="map-legend-dot" style="--mark-color:${metric.color}"></span>${escapeHTML(metric.label)}
+    ${record.rssi_dbm != null ? ` · RSSI ${escapeHTML(record.rssi_dbm)} dBm` : ''}
+    ${record.signal_quality_percent != null ? ` · Quality ${escapeHTML(record.signal_quality_percent)}% (not dBm)` : ''}
+    ${record.frequency_mhz != null ? ` · ${escapeHTML(record.frequency_mhz)} MHz` : ''}</div>
+    <p class="small muted">Observer position ${Number(record.latitude).toFixed(5)}, ${Number(record.longitude).toFixed(5)}${record.accuracy_m != null ? ` · reported ±${escapeHTML(record.accuracy_m)} m` : ' · accuracy not reported'} · ${escapeHTML(record.location_source || 'Location source unspecified')}. This is NOT a transmitter position.</p>
+    ${record.notes ? `<p class="small muted">${escapeHTML(record.notes)}</p>` : ''}
+    ${record.source==='DEMO' ? '<strong class="map-demo-warning">SYNTHETIC DEMO / HISTORICAL — NOT LIVE</strong>' : ''}
+    ${seriesBlocks || '<p class="small muted">No compatible recorded signal-history series. An identifier and real numeric measurement are needed for comparison.</p>'}
+    <div class="button-line"><button type="button" class="btn mini outline" data-map-detail-zoom="${escapeHTML(record.id)}">Center on saved point</button></div>`;
+}
+function selectMapObservation(id) {
+  if(!mapVisibleObservations().some(o=>o.id===id)) return;
+  state.mapObservationId=id;
+  setMapSurveyOpen(true);
+  renderMapObservationDetail();
+  // Scroll only the Layers sheet; never shift the map viewport on a five-inch display.
+  const sheet=$('map-survey-panel'),detail=$('map-observation-detail');
+  sheet.scrollTop=Math.max(0,detail.offsetTop-sheet.offsetTop-18);
+  updateMap();
 }
 function renderMapSurveyPanel() {
-  const all = mapVisibleObservations();
-  const wireless = all.filter(o => ['WIFI','BLE','RF','CELLULAR'].includes(o.kind));
-  $('map-layer-count').textContent = String(all.length);
-  $('map-layer-count').hidden = all.length === 0;
-  $('map-survey-toggle').setAttribute('aria-label', `Layers and scan (${all.length} mapped points)`);
-  $('map-survey-summary').textContent = `${all.length} mapped survey point(s) visible · ${wireless.length} wireless-category record(s). Positions are where readings/notes were entered, not transmitter locations.`;
-  const output = $('map-wifi-readings');
-  const scan = state.wifiScan;
-  if (!scan) { output.innerHTML = ''; updateCaptureButtons(); return; }
-  const entries = (scan.records || []).slice(0, 8);
-  output.innerHTML = `<div class="map-live-heading"><strong>Last one-shot Wi-Fi scan</strong><span>${escapeHTML(stamp(scan.retrieved_at_utc))}</span></div>
-    <p>${escapeHTML(scan.interface)} · ${escapeHTML(scan.freshness)} · ${scan.records?.length || 0} result(s) · <b>Not geolocated or mapped</b></p>
-    ${entries.map(n=>`<div class="map-live-row"><div><strong>${escapeHTML(n.ssid || 'Hidden SSID')}</strong><span>${escapeHTML(format(n.frequency_mhz,' MHz'))} · Quality ${escapeHTML(format(n.signal_quality_percent,'%'))}</span></div><button type="button" class="btn mini outline" data-save-wifi="${escapeHTML(n.bssid)}" ${scan.scan_id ? '' : 'disabled'}>Save</button></div>`).join('')}
-    ${scan.records?.length > entries.length ? `<p>Showing first ${entries.length} networks; see Detailed analysis for all.</p>` : ''}`;
+  const all=mapVisibleObservations();
+  const tools=window.OpenRFSurveyMap;
+  const counts=tools?.counts(all) || {wireless:all.filter(o=>['WIFI','BLE','RF','CELLULAR'].includes(o.kind)).length,wifi:0,ble:0,rssi:0,quality:0};
+  $('map-layer-count').textContent=String(all.length);
+  $('map-layer-count').hidden=all.length===0;
+  $('map-survey-toggle').setAttribute('aria-label',`Layers and scan (${all.length} mapped points)`);
+  $('map-survey-summary').textContent=`${all.length} saved mapped observer point(s): ${counts.wireless} wireless · ${counts.wifi} Wi-Fi · ${counts.ble} BLE · ${counts.rssi} recorded RSSI value(s) · ${counts.quality} Wi-Fi quality value(s). No scan initiated. Observer positions only, not transmitter locations.`;
+  $('map-metric-legend').textContent=mapMetricLegend();
+  const recent=tools?.recent(all,12) || [];
+  $('map-wireless-count').textContent=String(counts.wireless);
+  $('map-wireless-recent').innerHTML=recent.length?recent.map(o=>{
+    const metric=markerAppearance(o);
+    return `<div class="map-survey-recent-row"><span class="map-legend-dot" style="--mark-color:${metric.color}"></span><div><strong>${escapeHTML(o.label || o.identifier || '(unnamed)')}</strong><small>${escapeHTML(o.kind)} · ${escapeHTML(stamp(o.observed_at))} · ${escapeHTML(metric.label)}</small></div><button type="button" class="btn mini outline" data-map-inspect="${escapeHTML(o.id)}">Inspect</button></div>`;
+  }).join(''):'<p class="small muted">No saved Wi-Fi/BLE/RF/cellular reading with an observer coordinate matches the selected layers and date range.</p>';
+  if(counts.wireless>recent.length) $('map-wireless-recent').insertAdjacentHTML('beforeend',`<p class="small muted">Showing latest ${recent.length} of ${counts.wireless} mapped wireless records. Use Discoveries for full history.</p>`);
+  renderMapObservationDetail();
+  const output=$('map-wifi-readings'),scan=state.wifiScan;
+  if(!scan){output.innerHTML='<p class="small muted">No temporary Wi-Fi retrieval in memory. Scans must be started manually.</p>';}
+  else{
+    const entries=(scan.records||[]).slice(0,6);
+    output.innerHTML=`<div class="map-live-heading"><strong>Temporary Wi-Fi retrieval · NOT MAPPED</strong><span>${escapeHTML(stamp(scan.retrieved_at_utc))}</span></div>
+      <p>${escapeHTML(scan.interface)} · ${escapeHTML(scan.freshness)} · ${scan.records?.length||0} entry/entries. Not GPS-located. Quality % is NOT RSSI.</p>
+      ${entries.map(n=>`<div class="map-live-row"><div><strong>${escapeHTML(n.ssid||'Hidden SSID')}</strong><span>${escapeHTML(format(n.frequency_mhz,' MHz'))} · quality ${escapeHTML(format(n.signal_quality_percent,'%'))}</span></div><button type="button" class="btn mini outline" data-save-wifi="${escapeHTML(n.bssid)}" ${scan.scan_id?'':'disabled'}>Save</button></div>`).join('')}
+      ${scan.records?.length>entries.length?`<p>Showing ${entries.length} of ${scan.records.length} results; use Detailed analysis for the rest.</p>`:''}`;
+  }
+  const bleOut=$('map-ble-readings'),ble=state.bleScan;
+  if(!ble){bleOut.innerHTML='<p class="small muted">No temporary Bluetooth LE retrieval in memory. Linux-visible hardware is required.</p>';}
+  else{
+    const entries=(ble.records||[]).slice(0,6);
+    bleOut.innerHTML=`<div class="map-live-heading"><strong>Temporary BLE retrieval · NOT MAPPED</strong><span>${escapeHTML(stamp(ble.retrieved_at_utc))}</span></div>
+      <p>${escapeHTML(ble.controller||'Linux BlueZ')} · ${ble.records?.length||0} entry/entries · retrieval time, not verified advertisement time. BLE identifiers may rotate.</p>
+      ${entries.map(n=>`<div class="map-live-row"><div><strong>${escapeHTML(n.name||'(unnamed LE device)')}</strong><span>${escapeHTML(format(n.rssi_dbm,' dBm'))} · ${escapeHTML(n.address||'Address unavailable')}</span></div><button type="button" class="btn mini outline" data-save-ble="${escapeHTML(n.address)}" ${ble.scan_id?'':'disabled'}>Save</button></div>`).join('')}
+      ${ble.records?.length>entries.length?`<p>Showing ${entries.length} of ${ble.records.length}; see Detailed analysis for the rest.</p>`:''}`;
+  }
+  updateCaptureButtons();
 }
 function setMapSurveyOpen(open) {
   $('map-survey-panel').hidden = !open;
@@ -750,8 +827,8 @@ function startMap() {
     });
     state.map.on('click', 'survey-points', (evt) => {
       if (state.navPicking || state.areaChoosing || !evt.features?.length) return;
-      const p = evt.features[0].properties;
-      new maplibregl.Popup().setLngLat(evt.lngLat).setHTML(`<strong>${escapeHTML(p.label)}</strong><br>${escapeHTML(p.kind)} · ${escapeHTML(p.source)}<br><small>Observation position only</small>`).addTo(state.map);
+      const p=evt.features[0].properties;
+      selectMapObservation(Number(p.id));
     });
     state.map.on('click', 'survey-waypoints', evt => {
       if (state.navPicking || !evt.features?.length) return;
@@ -947,8 +1024,8 @@ function installMarkerLayer() {
   if (!state.map || state.map.getSource('survey-data')) return;
   state.map.addSource('survey-data', {type:'geojson',data:{type:'FeatureCollection',features:[]}});
   state.map.addLayer({id:'survey-points',type:'circle',source:'survey-data',paint:{
-    'circle-color':['case',['==',['get','source'],'DEMO'],'#efa947',['match',['get','kind'],'WIFI','#53a9ff','BLE','#ae8cff','RF','#efaa53','CELLULAR','#f07b8d','INFRASTRUCTURE','#e9f0f1','#30dec0']],
-    'circle-radius':8,'circle-stroke-color':'#09252c','circle-stroke-width':2,'circle-opacity':0.9
+    'circle-color':['get','marker_color'],
+    'circle-radius':8,'circle-stroke-color':['case',['==',['get','selected'],true],'#fff6d6','#09252c'],'circle-stroke-width':['case',['==',['get','selected'],true],4,2],'circle-opacity':0.9
   }});
   state.map.addSource('survey-waypoint-data',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
   state.map.addLayer({id:'survey-waypoints',type:'circle',source:'survey-waypoint-data',paint:{
@@ -960,7 +1037,7 @@ function updateMap() {
   if (state.rasterMap) return state.rasterMap.render();
   if (!state.mapReady || !state.map?.getSource('survey-data')) return;
   const observations = mapVisibleObservations();
-  const features = observations.map(o => ({type:'Feature',geometry:{type:'Point',coordinates:[o.longitude,o.latitude]},properties:{id:o.id,label:o.label,kind:o.kind,source:o.source}}));
+  const features = observations.map(o => ({type:'Feature',geometry:{type:'Point',coordinates:[o.longitude,o.latitude]},properties:{id:o.id,label:o.label,kind:o.kind,source:o.source,marker_color:markerAppearance(o).color,selected:o.id===state.mapObservationId}}));
   state.map.getSource('survey-data').setData({type:'FeatureCollection',features});
   const wp = state.map.getSource('survey-waypoint-data');
   if (wp) wp.setData({type:'FeatureCollection',features:visibleWaypoints().map(w=>({
@@ -1063,10 +1140,11 @@ function startRasterMap(reason, view = null) {
         const dy = position[1] - center[1];
         if (Math.abs(dx) > width/2 + 15 || Math.abs(dy) > height/2 + 15) return;
         const pin = document.createElement('button'); pin.type = 'button';
-        pin.className = `raster-pin kind-${o.kind.toLowerCase()}${o.source === 'DEMO' ? ' demo' : ''}`;
+        pin.className = `raster-pin kind-${o.kind.toLowerCase()}${o.source === 'DEMO' ? ' demo' : ''}${o.id===state.mapObservationId ? ' selected' : ''}`;
+        pin.style.backgroundColor = markerAppearance(o).color;
         pin.style.left = `${width/2+dx}px`; pin.style.top = `${height/2+dy}px`;
         pin.title = `${o.label} (${o.kind}, ${o.source}) — observer position`;
-        pin.addEventListener('click',e=>{e.stopPropagation(); flash(`${o.label} — ${o.kind} · ${o.source} · OBSERVATION LOCATION, not transmitter location.`);});
+        pin.addEventListener('click',e=>{e.stopPropagation(); selectMapObservation(o.id);});
         nextPins.append(pin);
       });
       visibleWaypoints().forEach(w=>{
@@ -2866,6 +2944,10 @@ async function saveWifiReading(bssid, button) {
   } catch (error) { flash(error.message, true); }
   finally { button.disabled = false; }
 }
+$('map-ble-readings').addEventListener('click',e=>{
+  const button=e.target.closest('[data-save-ble]');
+  if(button)saveBleReading(button.dataset.saveBle,button);
+});
 for (const id of ['map-wifi-readings', 'live-wifi-results']) {
   $(id).addEventListener('click', e => {
     const button = e.target.closest('[data-save-wifi]');
@@ -2929,12 +3011,12 @@ async function scanBleOnce() {
     state.bleScan = await api('/api/ble/scan', 'POST', {});
     state.bleScan.observerAtRequest = position;
     $('ble-scan-status').textContent = `${state.bleScan.records.length} LE device event(s) from BlueZ. Retrieval time is not exact advertisement time; nothing saved or mapped.`;
-    renderBleScan();
+    renderBleScan(); renderMapSurveyPanel();
   } catch(error) {
     state.bleScan = null;
     $('ble-scan-status').textContent = `BLE unavailable: ${error.message}`;
     $('live-ble-results').innerHTML = '<div class="empty">No confirmed LE scan results. Check Bluetooth readiness in Hardware; WSL may lack a Linux-visible controller.</div>';
-    flash(error.message, true);
+    flash(error.message, true); renderMapSurveyPanel();
   } finally {btn.disabled = false;btn.textContent = 'Scan nearby LE devices once';}
 }
 async function saveBleReading(address, button) {
@@ -2959,8 +3041,33 @@ $('live-ble-results').addEventListener('click',e=>{
 });
 $('scan-wifi-once').addEventListener('click', scanWifiOnce);
 $('map-scan-wifi').addEventListener('click', scanWifiOnce);
+$('map-scan-ble').addEventListener('click', scanBleOnce);
 $('map-survey-toggle').addEventListener('click', () => setMapSurveyOpen($('map-survey-panel').hidden));
 $('map-survey-close').addEventListener('click', () => setMapSurveyOpen(false));
+for(const id of ['map-metric-mode','map-survey-age']) $(id).addEventListener('change',()=>{
+  state.mapObservationId=null;
+  updateMap();renderMapSurveyPanel();
+});
+$('map-wireless-recent').addEventListener('click',event=>{
+  const button=event.target.closest('[data-map-inspect]');
+  if(button)selectMapObservation(Number(button.dataset.mapInspect));
+});
+$('map-observation-detail').addEventListener('click',event=>{
+  if(event.target.closest('#map-detail-close')) {state.mapObservationId=null;renderMapObservationDetail();updateMap();return;}
+  const zoom=event.target.closest('[data-map-detail-zoom]');
+  if(zoom){
+    const item=state.observations.find(o=>String(o.id)===zoom.dataset.mapDetailZoom);
+    if(item&&state.map)state.map.flyTo({center:[item.longitude,item.latitude],zoom:15});
+    else if(item&&state.rasterMap)state.rasterMap.flyTo({center:[item.longitude,item.latitude],zoom:15});
+  }
+  const history=event.target.closest('[data-map-history]');
+  if(history){
+    showPage('scanner');
+    $('signal-select').value=history.dataset.mapHistory;
+    drawHistory();
+    $('signal-select').scrollIntoView?.({block:'start'});
+  }
+});
 document.querySelectorAll('[data-map-kind]').forEach(input => input.addEventListener('change', () => {
   if (input.checked) state.mapKinds.add(input.dataset.mapKind);
   else state.mapKinds.delete(input.dataset.mapKind);
