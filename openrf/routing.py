@@ -74,6 +74,34 @@ def decode_polyline6(value: str):
     return result
 
 
+def _optional_verbal(value):
+    """Valhalla-provided spoken guidance only; never synthesize missing directions."""
+    if not isinstance(value, str):
+        return None
+    cleaned = ' '.join(value.split())
+    return cleaned[:300] if cleaned else None
+
+
+def _optional_lanes(value):
+    """Ignore malformed or absent OSM turn-lane metadata, rather than guessing."""
+    if not isinstance(value, list) or not 1 <= len(value) <= 12:
+        return []
+    result = []
+    for lane in value:
+        if not isinstance(lane, dict):
+            return []
+        directions = lane.get('directions')
+        if type(directions) is not int or not 0 <= directions <= 2047:
+            return []
+        entry = {'directions': directions}
+        for key in ('valid', 'active'):
+            val = lane.get(key)
+            if type(val) is int and 0 <= val <= 2047 and (val & ~directions) == 0:
+                entry[key] = val
+        result.append(entry)
+    return result
+
+
 def normalize_result(data: dict, requested: list):
     try:
         trip = data['trip']
@@ -100,9 +128,19 @@ def normalize_result(data: dict, requested: list):
                     shape_index = maneuver.get('begin_shape_index', 0)
                     if isinstance(shape_index, bool) or not isinstance(shape_index, int) or shape_index < 0 or shape_index >= len(part):
                         raise ValueError('Invalid maneuver index')
-                    directions.append({'leg': index + 1, 'instruction': instruction[:400],
-                                       'length_miles': round(float(maneuver.get('length', 0)), 2),
-                                       'shape_index': offset + shape_index})
+                    entry = {'leg': index + 1, 'instruction': instruction[:400],
+                             'length_miles': round(float(maneuver.get('length', 0)), 2),
+                             'shape_index': offset + shape_index}
+                    for name in ('verbal_transition_alert_instruction',
+                                 'verbal_pre_transition_instruction',
+                                 'verbal_post_transition_instruction'):
+                        spoken = _optional_verbal(maneuver.get(name))
+                        if spoken:
+                            entry[name] = spoken
+                    lanes = _optional_lanes(maneuver.get('lanes'))
+                    if lanes:
+                        entry['lanes'] = lanes
+                    directions.append(entry)
             if len(route) > 100_000:
                 raise ValueError('Route too long')
     except (KeyError, ValueError, TypeError, OverflowError) as exc:
@@ -110,6 +148,7 @@ def normalize_result(data: dict, requested: list):
             raise
         raise RouteError('Local Valhalla responded with an unsupported route format.') from exc
     return {'type': 'ROAD_ROUTE', 'provider': 'local-valhalla', 'is_driving_route': True,
+            'live_traffic': False, 'traffic_status': 'NOT_CONFIGURED',
             'coordinates': route, 'origin': [requested[0]['lon'], requested[0]['lat']],
             'destination': [requested[-1]['lon'], requested[-1]['lat']],
             'stops': [[pt['lon'], pt['lat']] for pt in requested[1:-1]],
@@ -133,7 +172,8 @@ def local_route(locations: list, *, open_connection=None, port=None, exclude_loc
             raise ValueError()
     except ValueError:
         raise RouteUnavailable('Invalid local Valhalla port. Use OPENRF_VALHALLA_PORT=8002.') from None
-    payload = {'locations': points, 'costing': 'auto', 'units': 'miles', 'language': 'en-US'}
+    payload = {'locations': points, 'costing': 'auto', 'units': 'miles',
+               'language': 'en-US', 'turn_lanes': True}
     if exclusions: payload['exclude_locations'] = exclusions
     # Hardcoded loopback: do not turn this endpoint into a general URL fetcher.
     req = Request(f'http://127.0.0.1:{port}/route', json.dumps(payload).encode(),

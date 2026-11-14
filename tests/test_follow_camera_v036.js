@@ -29,7 +29,7 @@ const frames=[];const st={navFollowId:3,navPreview:road,navFollowLast:0,navFollo
  navFollowCameraSuspended:false,mapReady:true,map:{easeTo(opts){frames.push(opts)}},rasterMap:null};
 const update=()=>{};
 const {followPosition}=Function('state','$','routeGuide','updateBrowserLocationMarker','stopNavigationFollow',
- src.slice(beg,end)+'; return {followPosition};')(st,id=>els[id],guide,update,()=>{});
+ 'function renderNavigationLanes(){};function navigationSilence(){};function navigationSpeak(){return false;}\n'+src.slice(beg,end)+'; return {followPosition};')(st,id=>els[id],guide,update,()=>{});
 const reading=()=>({timestamp:Date.now(),coords:{latitude:38.4,longitude:-120.60,accuracy:107}});
 followPosition(reading());
 assert.equal(frames.length,1);

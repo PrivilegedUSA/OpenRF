@@ -27,4 +27,4 @@ assert(source.includes('routeGuide.rerouteDecision('));
 assert(source.includes('epoch!==state.navFollowEpoch'));
 assert(source.includes("if(route.stops?.length)"));
 assert(server.includes("'/api/navigation/camera-comparison'"));
-console.log('v0.2.58 camera route controls and conservative off-route gate passed');
+console.log('v0.2.59 camera route controls and conservative off-route gate passed');

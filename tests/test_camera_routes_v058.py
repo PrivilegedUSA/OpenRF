@@ -1,4 +1,4 @@
-"""v0.2.58 camera-aware road comparisons: all data local, opt-in, never pretend verified."""
+"""v0.2.59 camera-aware road comparisons: all data local, opt-in, never pretend verified."""
 import tempfile
 import unittest
 from pathlib import Path

@@ -1,4 +1,4 @@
-"""v0.2.58 HTTP route camera context and opt-in comparison, no live network."""
+"""v0.2.59 HTTP route camera context and opt-in comparison, no live network."""
 import json
 import tempfile
 import threading

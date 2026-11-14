@@ -30,7 +30,7 @@ const state={navFollowId:7,navPreview:route,navFollowLast:0,navFollowProgress:0,
  mapReady:true,map:{easeTo(x){cam.push(x)}},rasterMap:null};
 const $=id=>elements[id];
 const {followPosition}=Function('state','$','routeGuide','updateBrowserLocationMarker','stopNavigationFollow',
- src.slice(begin,end)+'; return {followPosition}')(state,$,routeGuide,()=>updates++,()=>{});
+ 'function renderNavigationLanes(){};function navigationSilence(){};function navigationSpeak(){return false;}\n'+src.slice(begin,end)+'; return {followPosition}')(state,$,routeGuide,()=>updates++,()=>{});
 const now=Date.now();
 followPosition({timestamp:now,coords:{latitude:38.4,longitude:-120.6,accuracy:107}});
 assert.match(elements['map-follow-instruction'].textContent,/^Planned: Depart Main Street/);

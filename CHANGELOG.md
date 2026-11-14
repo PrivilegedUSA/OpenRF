@@ -1,3 +1,11 @@
+## v0.2.59 — Opt-in spoken turns, mapped lane hints, traffic-free ETA (2026-11-14)
+
+- Navigation: request `turn_lanes:true` from local Valhalla and preserve bounded verbal maneuver fields and optional mapped lane bitmasks, with strict validation; do not infer lane directions when tags are missing or invalid. No new server calls except existing loopback road routes.
+- GPS follow: add an explicit **Voice off/on** button to the live navigation HUD. Use browser/OS speech synthesis only after opt-in, and only for upcoming maneuvers during fresh, accurate moving GPS/GNSS fixes; speak once near a turn and once closer, not on every update. Mute during uncertainty/off-route, and stop/cancel on Stop, page change or DEMO. No recorded audio or external speech API is added.
+- Display Valhalla lane directions/active-lane hints beside live turns only if supplied by OSM-derived road data. Lane arrows are advisory and must be checked against real signs/markings. Show approximate remaining ETA with an explicit **no live traffic** label; do not invent traffic speeds, incidents or closures.
+- Preserve the v0.2.52 map style and right tool rail, v0.2.58 camera comparison and conservative rerouting, existing saved radio/ALPR/investigation data, and offline map bytes. Resize only the *driving-mode* guidance HUD so voice/lane panels do not cover the map controls on 800×480.
+- Add 2 Python + 1 JavaScript navigation tests, update historical fixture versions and release checklist. Physical moving GPS, browser TTS audio, OSM turn-lane coverage, Valhalla live Docker and Raspberry Pi have not been verified. No new required dependencies or traffic provider accounts.
+
 ## v0.2.58 — Camera-aware route comparison, conservative GPS recalculation, reliable Valhalla reuse (2026-11-14)
 
 - Valhalla: starting OpenRF checks Docker and restarts the existing `openrf-valhalla` container (bounded, best effort). Never automatically downloads, builds, creates, or changes existing graph storage; opt out with `OPENRF_VALHALLA_AUTOSTART=0`.

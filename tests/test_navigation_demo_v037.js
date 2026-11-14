@@ -58,7 +58,7 @@ const originalBrowserLocation=state.browserLocation;
 const $=id=>elements[id];
 const factory=Function('state','$','routeGuide','document','window','maplibregl','navigator','setInterval',
  'clearInterval','performance','setMapDestinationStatus','stopNavigationFollow',
-  src.slice(src.indexOf('// v0.2.37: Explicit, in-memory-only DEMO travel'),
+  'function resetNavigationVoice(){};function renderNavigationLanes(){};\n'+src.slice(src.indexOf('// v0.2.37: Explicit, in-memory-only DEMO travel'),
     src.indexOf("$('map-destination-form').addEventListener('submit'"))+
   ';return {playNavigationDemo,advanceNavigationDemo};');
 const {playNavigationDemo,advanceNavigationDemo}=factory(state,$,guide,{createElement(){return {className:'',title:'',textContent:''}}},
@@ -99,7 +99,7 @@ assert.equal(state.browserLocation,originalBrowserLocation);
 // The real Stop handler must clear the playback interval and remove the demo marker.
 const stopSource=src.slice(src.indexOf('function stopNavigationFollow(){'),
  src.indexOf('function navigationNearestShape('));
-const stop=Function('state','$','navigator','clearInterval',stopSource+';return stopNavigationFollow;')(
+const stop=Function('state','$','navigator','clearInterval','function resetNavigationVoice(){};function renderNavigationLanes(){};'+stopSource+';return stopNavigationFollow;')(
   state,$,{geolocation:{clearWatch(id){clearedWatches.push(id)}}},id=>clearedTimers.push(id));
 const marker=state.navDemoMarker;
 stop();

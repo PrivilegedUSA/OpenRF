@@ -37,7 +37,7 @@ const state={navFollowId:11,navPreview:{type:'ROAD_ROUTE',is_driving_route:true,
  maneuvers:[{instruction:'Turn right soon.',shape_index:3}]},
  navFollowProgress:0,navFollowLast:0,mapReady:true,map:{easeTo(o){cam.push(o)}},rasterMap:null};
 const methods=Function('state','$','updateBrowserLocationMarker','stopNavigationFollow','routeGuide',
- `${source.slice(begin,end)};return {navigationNearestShape,followPosition};`)(state,id=>els[id],()=>markerUpdates++,()=>stops++,routeGuide);
+ `function renderNavigationLanes(){};function navigationSilence(){};function navigationSpeak(){return false;};${source.slice(begin,end)};return {navigationNearestShape,followPosition};`)(state,id=>els[id],()=>markerUpdates++,()=>stops++,routeGuide);
 let now=Date.now();
 methods.followPosition({timestamp:now,coords:{latitude:38.4,longitude:-120.6,accuracy:8,heading:125,speed:7}});
 assert.equal(els['map-follow-instruction'].textContent,'Turn right soon.');

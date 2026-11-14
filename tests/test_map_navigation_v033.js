@@ -41,7 +41,7 @@ const state={navFollowId:42,navFollowLast:0,navFollowProgress:0,mapReady:true,
     coordinates:[[-120.6,38.4],[-120.599,38.4],[-120.598,38.4]],
     maneuvers:[{instruction:'Turn right onto Ponderosa Way',shape_index:2}]}};
 const {followPosition}=Function('state','$','updateBrowserLocationMarker','stopNavigationFollow','routeGuide',
- `${js.slice(start,end)};return {followPosition}`)(state,id=>els[id],()=>updates++,()=>{},routeGuide);
+ `function renderNavigationLanes(){};function navigationSilence(){};function navigationSpeak(){return false;};${js.slice(start,end)};return {followPosition}`)(state,id=>els[id],()=>updates++,()=>{},routeGuide);
 const now=Date.now();
 followPosition({timestamp:now,coords:{latitude:38.4,longitude:-120.6,accuracy:107,heading:null,speed:null}});
 assert.match(els['map-follow-instruction'].textContent,/^Planned: Turn right onto Ponderosa Way/);

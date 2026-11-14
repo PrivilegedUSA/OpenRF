@@ -15,4 +15,4 @@ assert(script.includes('/api/cameras/snapshot/upload'));
 assert(script.includes('snapshotStatus()'));
 assert(script.includes('Camera data unavailable'));
 assert(css.includes('camera-snapshot-status'));
-console.log('PASS v0.2.58 national download, local file fallback, offline map layers preserved');
+console.log('PASS v0.2.59 national download, local file fallback, offline map layers preserved');

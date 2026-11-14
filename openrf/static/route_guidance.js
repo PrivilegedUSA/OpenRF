@@ -139,6 +139,34 @@
     const trigger=nextCount>=3 && now-first>=5000 && (!lastAttempt||now-lastAttempt>=45000);
     return {count:nextCount,since:first,trigger};
   }
+  const LANE_DIRECTIONS=[[4,'↰'],[8,'←'],[16,'↖'],[2,'↑'],[32,'↗'],[64,'→'],[128,'↱'],[256,'↶'],[512,'↖'],[1024,'↗']];
+  function laneGuidance(turn){
+    if(!turn || !Array.isArray(turn.lanes) || turn.lanes.length<1 || turn.lanes.length>12)return [];
+    const result=[];
+    for(const lane of turn.lanes){
+      if(!lane || !Number.isInteger(lane.directions) || lane.directions<0 || lane.directions>2047)return [];
+      const arrows=LANE_DIRECTIONS.filter(([mask])=>(lane.directions&mask)!==0).map(([,symbol])=>symbol);
+      if(!arrows.length)return [];
+      const active=Number.isInteger(lane.active) && lane.active>0 && (lane.active&lane.directions)!==0;
+      const valid=active || (Number.isInteger(lane.valid) && lane.valid>0 && (lane.valid&lane.directions)!==0);
+      result.push({arrows:arrows.join(' '),active,valid});
+    }
+    return result;
+  }
+  function voiceCue(memory,turn){
+    // The caller must gate on explicit opt-in, fresh accurate GPS and movement.
+    const old=memory||{key:null,stage:0};
+    if(!turn || !Number.isFinite(turn.distance_m) || turn.distance_m<0)return {memory:old,text:null};
+    const key=`${turn.leg}:${turn.shape_index}:${turn.instruction}`;
+    const stage=key===old.key ? (Number(old.stage)||0) : 0;
+    // Two spoken checkpoints, once each per maneuver; never speak a DEMO position.
+    const nextStage=turn.distance_m<=90?2:turn.distance_m<=400?1:0;
+    if(nextStage<=stage)return {memory:{key,stage},text:null};
+    const verbal=nextStage===2?turn.verbal_pre_transition_instruction:turn.verbal_transition_alert_instruction;
+    const text=typeof verbal==='string' && verbal.trim() ? verbal.trim().slice(0,300) :
+      (typeof turn.instruction==='string'?turn.instruction.slice(0,300):null);
+    return {memory:{key,stage:nextStage},text};
+  }
   function htmlEscape(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   function routeSteps(route){
     routeMetric(route);
@@ -154,6 +182,6 @@
     const rows=steps.map(s=>`<li><strong>${htmlEscape(s.instruction)}</strong><span>${s.length_miles.toFixed(2)} mi · Leg ${s.leg}</span></li>`).join('');
     return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OpenRF Directions</title><style>body{font:16px/1.5 system-ui,Arial,sans-serif;max-width:780px;margin:32px auto;padding:0 20px;color:#182129}h1{margin-bottom:4px}header{border-bottom:2px solid #35616b;margin-bottom:20px;padding-bottom:15px}ol{padding-left:28px}li{break-inside:avoid;margin:0 0 14px;padding-left:6px}li span{display:block;color:#555;font-size:13px}footer{border-top:1px solid #aaa;padding-top:12px;color:#666;font-size:12px}@media print{body{margin:0;max-width:none;padding:0}button{display:none}}</style></head><body><header><small>OPENRF · OFFLINE-CAPABLE ROUTE SHEET</small><h1>Driving directions</h1><p><b>From:</b> ${origin}<br><b>To:</b> ${destination}</p><p><b>Distance:</b> ${miles.toFixed(2)} mi · <b>Estimated time:</b> ${minutes} min (no live traffic)</p></header><main><h2>Planned turns (${steps.length})</h2><ol>${rows}</ol></main><footer>Calculated using local Valhalla / © OpenStreetMap contributors. Planning only. Review route restrictions, signage and conditions. Not live guidance. No GPS history is included.</footer></body></html>`;
   }
-  root.OpenRFRouteGuidance=Object.freeze({distance,bearing,locate,routeVisualHeading,sampleRoute,nextTurn,distanceText,guidance,rerouteDecision,routeSteps,sheet});
+  root.OpenRFRouteGuidance=Object.freeze({distance,bearing,locate,routeVisualHeading,sampleRoute,nextTurn,distanceText,guidance,rerouteDecision,routeSteps,sheet,laneGuidance,voiceCue});
   if(typeof module!=='undefined'&&module.exports)module.exports=root.OpenRFRouteGuidance;
 })(typeof window!=='undefined'?window:globalThis);

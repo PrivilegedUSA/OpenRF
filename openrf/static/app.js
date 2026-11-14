@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], waypoints: [], sdrSites: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, hardwareManager: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, navFollowCameraSuspended:false, navFollowLastPosition:null,navCameraAvoidTypes:null,navFollowEpoch:0,navRerouteBusy:false,navOffrouteCount:0,navOffrouteSince:0,navRerouteLast:0,
+const state = { observations: [], sessions: [], waypoints: [], sdrSites: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, hardwareManager: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navVoiceEnabled:false, navVoiceMemory:null, navVoiceFailed:false, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, navFollowCameraSuspended:false, navFollowLastPosition:null,navCameraAvoidTypes:null,navFollowEpoch:0,navRerouteBusy:false,navOffrouteCount:0,navOffrouteSince:0,navRerouteLast:0,
   navDemoActive:false,navDemoPaused:false,navDemoProgress:0,navDemoTimer:null,navDemoLastTime:0,
   navDemoMarker:null,navDemoMarkerMap:null,navDemoFix:null,rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, bleScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapObservationId:null, mapSurveySeriesKey:null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
@@ -2928,10 +2928,68 @@ $('nav-destination-list').addEventListener('click',event=>{
     await refreshNavigationDestinations();setNavigationStatus('Saved destination removed.');
   });
 });
+// v0.2.59: optional spoken maneuver cues and map-derived lane hints. Browser
+// speech synthesis is never used until the operator opts in during live GPS
+// navigation. No external TTS API, position logging, or simulated live speech.
+function navigationVoiceAvailable(){
+  return typeof window.speechSynthesis?.speak==='function' && typeof window.SpeechSynthesisUtterance==='function';
+}
+function navigationSilence(){
+  try{window.speechSynthesis?.cancel?.();}catch(_err){}
+}
+function navigationSpeak(text){
+  if(!state.navVoiceEnabled || state.navDemoActive || state.navFollowId===null || !navigationVoiceAvailable())return false;
+  if(typeof text!=='string' || !text.trim())return false;
+  try{
+    navigationSilence();
+    const phrase=new window.SpeechSynthesisUtterance(text.slice(0,300));
+    phrase.lang='en-US';phrase.rate=0.95;phrase.volume=1;
+    phrase.onerror=()=>{$('map-voice-status').textContent='Speech playback failed; use the on-screen directions.';};
+    window.speechSynthesis.speak(phrase);
+    return true;
+  }catch(_err){
+    $('map-voice-status').textContent='Speech playback unavailable; use on-screen directions.';
+    return false;
+  }
+}
+function resetNavigationVoice(){
+  state.navVoiceEnabled=false;state.navVoiceMemory=null;state.navVoiceFailed=false;
+  navigationSilence();
+  $('map-voice-toggle').textContent='Voice off';$('map-voice-toggle').setAttribute('aria-pressed','false');
+  $('map-voice-status').textContent='Tap Voice to enable spoken turns';
+}
+$('map-voice-toggle').addEventListener('click',()=>{
+  if(state.navDemoActive){$('map-voice-status').textContent='No spoken turns during DEMO playback.';return;}
+  if(state.navFollowId===null){$('map-voice-status').textContent='Start real GPS navigation before enabling voice.';return;}
+  if(!navigationVoiceAvailable()){
+    $('map-voice-status').textContent='Browser/OS speech synthesis unavailable. On-screen directions still work.';return;
+  }
+  state.navVoiceEnabled=!state.navVoiceEnabled;
+  state.navVoiceMemory=null;
+  $('map-voice-toggle').textContent=state.navVoiceEnabled?'Voice on':'Voice off';
+  $('map-voice-toggle').setAttribute('aria-pressed',String(state.navVoiceEnabled));
+  $('map-voice-status').textContent=state.navVoiceEnabled?'Speaking only on fresh, accurate moving GPS fixes.':'Voice muted.';
+  if(state.navVoiceEnabled)navigationSpeak('Voice guidance enabled.');
+  else navigationSilence();
+});
+function renderNavigationLanes(turn,eligible){
+  const panel=$('map-lane-guidance'),bar=$('map-lane-arrows');
+  const lanes=eligible && turn?.distance_m<=750?routeGuide.laneGuidance(turn):[];
+  panel.hidden=lanes.length===0;
+  if(!lanes.length){bar.replaceChildren();return;}
+  bar.replaceChildren();
+  for(const lane of lanes){
+    const chip=document.createElement('span');chip.className='lane-chip'+(lane.active?' active':lane.valid?' valid':'');
+    chip.textContent=lane.arrows;
+    chip.title=lane.active?'Valhalla suggested lane':lane.valid?'Valhalla valid lane':'Direction reported; route suitability unknown';
+    bar.appendChild(chip);
+  }
+}
 // v0.2.32: opt-in GPS follow view. A route plan is mandatory; this does not
-// provide active rerouting, spoken prompts, lane guidance, or a safety guarantee.
+// guarantee live traffic, lane availability, or reliable GPS turn timing.
 // Watch positions are held only in memory and never uploaded/saved by OpenRF.
 function stopNavigationFollow(){
+  resetNavigationVoice();renderNavigationLanes(null,false);
   // Stop every DEMO playback interval and remove its synthetic map marker.
   if(state.navDemoTimer!==null)clearInterval(state.navDemoTimer);
   state.navDemoTimer=null;state.navDemoActive=false;state.navDemoPaused=false;
@@ -2988,7 +3046,9 @@ async function tryNavigationReroute(route,lat,lon){
     const report=choices?.length ?
       (selected===answer.alternative ? answer.alternative_cameras : answer.standard_cameras) : answer.camera_report;
     if(!selected?.is_driving_route)throw Error('No drivable recalculated route returned.');
-    state.navPreview=selected;state.navFollowProgress=0;
+    state.navPreview=selected;state.navFollowProgress=0;state.navVoiceMemory=null;
+    renderNavigationLanes(null,false);
+    if(state.navVoiceEnabled)navigationSpeak('Route recalculated.');
     state.navOffrouteCount=0;state.navOffrouteSince=0;
     renderDirectionsReview(selected);showRouteCameras(report);
     const steps=routeGuide.routeSteps(selected);
@@ -3029,6 +3089,7 @@ function followPosition(pos){
     distanceLabel.textContent='';
     detail.textContent=`Reported accuracy: ${Number.isFinite(accuracy)?'±'+Math.round(accuracy)+' m':'unavailable'} · Fix age: ${Number.isFinite(age)?Math.round(age/1000)+' s':'unknown'}. Check location source and device permissions. No data saved.`;
     $('map-follow-hud').classList.remove('navigation-guiding');
+    renderNavigationLanes(null,false);navigationSilence();
     return;
   }
   state.navFollowLastPosition=pos; // In-memory only; discarded on Stop.
@@ -3051,6 +3112,7 @@ function followPosition(pos){
   const activeBearing=movingHeading!==null?movingHeading:0;
   let offRoute=false;
   if(!precise){
+    renderNavigationLanes(null,false);navigationSilence();
     message.textContent=first?`Planned: ${first.instruction}`:'Planned driving route ready';
     distanceLabel.textContent=`Approximate location ±${Math.round(accuracy)} m · LIVE turn timing paused`;
     detail.textContent=`${sourceName} reported ±${Math.round(accuracy)} m, ${Math.round(Math.max(0,age)/1000)} s old. This is not a verified road position or driving heading. The camera may align to the PLANNED road, but that does not indicate where the vehicle is pointing. Live turn timing stays disabled. No history saved.`;
@@ -3066,6 +3128,7 @@ function followPosition(pos){
         {timeMs:Date.now(),accuracy_m:accuracy,offset_m:progress.offset_m,moving:movingHeading!==null});
       state.navOffrouteCount=decision.count;state.navOffrouteSince=decision.since;
       if(decision.trigger && !state.navRerouteBusy)tryNavigationReroute(route,lat,lon);
+      renderNavigationLanes(null,false);navigationSilence();
       detail.textContent=`${sourceName} ±${Math.round(accuracy)} m · ${Math.round(progress.offset_m)} m from planned road. ${state.navRerouteBusy?'Recalculating locally…':reliable?'Reroute after repeated moving fixes; 45 s retry interval.':'Awaiting reliable movement and accuracy before rerouting.'} No GPS history saved.`;
     }else{
       state.navOffrouteCount=0;state.navOffrouteSince=0;
@@ -3074,9 +3137,21 @@ function followPosition(pos){
       const turn=progress.next;
       message.textContent=turn?turn.instruction:'Continue to your destination.';
       distanceLabel.textContent=turn?`In ${routeGuide.distanceText(turn.distance_m)} · ${routeGuide.distanceText(progress.remaining_m)} remaining`:`${routeGuide.distanceText(progress.remaining_m)} remaining`;
-      detail.textContent=`${sourceName} ±${Math.round(accuracy)} m · ${movingHeading===null?'Moving heading unavailable: north-up map':'Moving heading available: forward-facing map'} · Route offset ${Math.round(progress.offset_m)} m · Automatic rerouting requires confirmed off-route movement; no spoken prompts or location history.`;
+      const speechReady=accuracy<=40 && movingHeading!==null && !state.navRerouteBusy;
+      renderNavigationLanes(turn,accuracy<=75);
+      if(speechReady && state.navVoiceEnabled){
+        const cue=routeGuide.voiceCue(state.navVoiceMemory,turn);
+        if(cue.text && navigationSpeak(cue.text))state.navVoiceMemory=cue.memory;
+      }
+      const minutes=Number.isFinite(route.duration_seconds)&&progress.total_m>0 ?
+        Math.max(0,Math.ceil(route.duration_seconds*(progress.remaining_m/progress.total_m)/60)):null;
+      detail.textContent=`${sourceName} ±${Math.round(accuracy)} m · ${movingHeading===null?'Moving heading unavailable: north-up map':'Moving heading available: forward-facing map'} · Route offset ${Math.round(progress.offset_m)} m · ${minutes===null?'ETA unavailable':`~${minutes} min remaining, no live traffic`} · No GPS history saved.`;
       if(progress.remaining_m<55 && routeGuide.distance([lon,lat],route.destination)<Math.max(35,accuracy*2)){
         message.textContent='Destination reached · Stop navigation when safe';
+        renderNavigationLanes(null,false);
+        if(speechReady && state.navVoiceEnabled && !state.navVoiceArrived){
+          if(navigationSpeak('You are near your destination. Check signs and the correct entrance.'))state.navVoiceArrived=true;
+        }
         distanceLabel.textContent='Near planned destination · confirm actual entrance and signs';
       }
     }
@@ -3147,6 +3222,7 @@ $('map-begin-guidance').addEventListener('click',()=>{
   }
   stopNavigationFollow();
   state.navFollowLast=0;state.navFollowProgress=0;state.navFollowPriorFix=null;state.navRerouteLast=0;
+  state.navVoiceArrived=false;renderNavigationLanes(null,false);
   state.navFollowCameraSuspended=false;state.navFollowLastPosition=null;
   $('page-map').classList.add('navigation-driving');
   // Enter a route-perspective preview immediately, even before the first fix.
@@ -3182,6 +3258,7 @@ $('map-begin-guidance').addEventListener('click',()=>{
   }
   try{ state.navFollowId=navigator.geolocation.watchPosition(followPosition,err=>{
     if(state.navGnssLast && Date.now()-state.navGnssLast<5000)return;
+    navigationSilence();renderNavigationLanes(null,false);
     $('map-follow-instruction').textContent=`Browser position unavailable (${err.code===1?'permission denied':err.code===3?'timed out':'position unavailable'}). Planned turns remain available.`;
     $('map-follow-quality').textContent=`${err.message||'No position returned.'} Permission is separate from accuracy; check Firefox location access or a local gpsd receiver. No travel history saved.`;
   },{enableHighAccuracy:true,maximumAge:0,timeout:12000}); }
@@ -3264,6 +3341,7 @@ function playNavigationDemo(){
   state.navGnssEpoch++;
   if(state.navGnssTimer!==null)clearInterval(state.navGnssTimer);
   state.navGnssTimer=null;state.navGnssBusy=false;state.navGnssLast=0;
+  resetNavigationVoice();renderNavigationLanes(null,false);
   state.navFollowId=-2;state.navDemoActive=true;state.navDemoPaused=false;
   state.navDemoProgress=0;state.navDemoLastTime=performance.now();state.navFollowLast=0;
   state.navFollowCameraSuspended=false;
