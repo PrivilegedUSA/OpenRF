@@ -1,3 +1,12 @@
+## v0.2.63 — Route-choice spacing and complete avoidance directions (2026-11-14)
+
+- Place **Choose a route** below the collapsed Directions summary, not over it. Hide the choice cards while the turn list is expanded, restoring them when the list closes.
+- Display highway, toll, ALPR/Flock, red-light and speed-camera preferences together as one plain list. Keep advanced road/locked-gate point exclusions collapsed and removable.
+- Remove redundant `Leg 1` labels from planned directions, active guidance lists and printable route sheets; multi-stop numbering is handled by the order of steps.
+- Guard excluded-road responses: if the final reported maneuver stops more than 150 m short of the end of the returned road geometry, reject the incomplete route. When the user recalculates after avoiding a turn, preserve the prior road and entire previous directions list on failures and show an error.
+- Regression tests for completed vs truncated guidance, plus 800×480 layout checks and small-screen review.
+- Limitations: This safeguard detects missing final directions but cannot prove every intermediate instruction is correct. Real road-exclusion requests against the user's running Northern California Valhalla graph and moving GPS have not been tested here.
+
 ## v0.2.62 — One-stop avoidance settings and per-turn road exclusions (2026-11-14)
 
 - Put **ALPR/Flock**, **red-light**, and **speed** camera avoidance switches directly alongside highway and toll preferences, with no extra master opt-in. Camera categories are all initially off, and explicit choices persist locally in the current browser. The original route remains selected unless the user chooses a different one.

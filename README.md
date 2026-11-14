@@ -1,6 +1,10 @@
-# OpenRF v0.2.62 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.63 — Offline-First Navigation and RF Toolkit
 
-## v0.2.62 — direct route avoidance preferences and turn-by-turn road exclusions
+## v0.2.63 — safer road-avoidance recalculation and simpler route menus
+
+The five common route preferences (avoid highways, toll roads, ALPR/Flock, red-light cameras and speed cameras) now form one continuous list. The route-choice cards sit below the Directions heading and hide when you expand its turn list. `Leg 1` repetition has been removed. If a road exclusion produces a route with directions that fail to reach the end of its reported geometry, OpenRF keeps the existing complete route instead of replacing it with partial directions. This safeguard is not a substitute for verifying actual road access and signage. See `docs/RELEASE_0.2.63_TESTS.md`.
+
+## v0.2.63 — direct route avoidance preferences and turn-by-turn road exclusions
 
 Open **Map → Route preferences** (the map gear or **Where to? → Route preferences**). Avoid highways, toll roads, ALPR/Flock camera reports, red-light cameras and speed camera reports from one set of switches. Camera preferences are initially off and are saved locally in this browser; they ask Valhalla for a comparison, not a guaranteed camera-free route.
 
@@ -47,14 +51,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.62.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.63.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.62 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.63 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash

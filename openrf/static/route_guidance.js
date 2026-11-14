@@ -200,15 +200,31 @@
     return (route.maneuvers||[]).filter(m=>typeof m.instruction==='string').slice(0,250).map((m,i)=>({number:i+1,
       instruction:String(m.instruction).slice(0,400),shape_index:Number.isInteger(m.shape_index)?m.shape_index:null,length_miles:Number.isFinite(m.length_miles)?Math.max(0,m.length_miles):0,leg:Number(m.leg)||1}));
   }
+  function hasCompleteDirections(route){
+    if(!route || !Array.isArray(route.coordinates) || route.coordinates.length<2 || !Array.isArray(route.maneuvers) || !route.maneuvers.length)return false;
+    const coords=route.coordinates;
+    const last=route.maneuvers[route.maneuvers.length-1];
+    if(!Number.isInteger(last.shape_index) || last.shape_index<0 || last.shape_index>=coords.length)return false;
+    if(!Array.isArray(coords[coords.length-1]) || !Array.isArray(coords[last.shape_index]))return false;
+    let remaining=0;
+    for(let i=last.shape_index;i<coords.length-1;i++){
+      const a=coords[i],b=coords[i+1];
+      if(!Array.isArray(a)||!Array.isArray(b)||!a.every(Number.isFinite)||!b.every(Number.isFinite))return false;
+      remaining+=distance(a,b);
+    }
+    // Valhalla should have a last maneuver close to the final destination.
+    // A route with only the first few turns is not safe to present as complete.
+    return remaining<=150;
+  }
   function sheet(route,labels={}){
     const steps=routeSteps(route);
     const origin=htmlEscape(labels.origin||'Starting location');
     const destination=htmlEscape(labels.destination||'Destination');
     const miles=Number(route.distance_miles)||0;
     const minutes=Math.round((Number(route.duration_seconds)||0)/60);
-    const rows=steps.map(s=>`<li><strong>${htmlEscape(s.instruction)}</strong><span>${s.length_miles.toFixed(2)} mi · Leg ${s.leg}</span></li>`).join('');
+    const rows=steps.map(s=>`<li><strong>${htmlEscape(s.instruction)}</strong><span>${s.length_miles.toFixed(2)} mi</span></li>`).join('');
     return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OpenRF Directions</title><style>body{font:16px/1.5 system-ui,Arial,sans-serif;max-width:780px;margin:32px auto;padding:0 20px;color:#182129}h1{margin-bottom:4px}header{border-bottom:2px solid #35616b;margin-bottom:20px;padding-bottom:15px}ol{padding-left:28px}li{break-inside:avoid;margin:0 0 14px;padding-left:6px}li span{display:block;color:#555;font-size:13px}footer{border-top:1px solid #aaa;padding-top:12px;color:#666;font-size:12px}@media print{body{margin:0;max-width:none;padding:0}button{display:none}}</style></head><body><header><small>OPENRF · OFFLINE-CAPABLE ROUTE SHEET</small><h1>Driving directions</h1><p><b>From:</b> ${origin}<br><b>To:</b> ${destination}</p><p><b>Distance:</b> ${miles.toFixed(2)} mi · <b>Estimated time:</b> ${minutes} min (no live traffic)</p></header><main><h2>Planned turns (${steps.length})</h2><ol>${rows}</ol></main><footer>Calculated using local Valhalla / © OpenStreetMap contributors. Planning only. Review route restrictions, signage and conditions. Not live guidance. No GPS history is included.</footer></body></html>`;
   }
-  root.OpenRFRouteGuidance=Object.freeze({distance,bearing,locate,routeVisualHeading,sampleRoute,nextTurn,distanceText,guidance,rerouteDecision,routeSteps,turnAvoidPoint,sheet,laneGuidance,voiceCue});
+  root.OpenRFRouteGuidance=Object.freeze({distance,bearing,locate,routeVisualHeading,sampleRoute,nextTurn,distanceText,guidance,rerouteDecision,routeSteps,turnAvoidPoint,hasCompleteDirections,sheet,laneGuidance,voiceCue});
   if(typeof module!=='undefined'&&module.exports)module.exports=root.OpenRFRouteGuidance;
 })(typeof window!=='undefined'?window:globalThis);

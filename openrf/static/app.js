@@ -2198,7 +2198,7 @@ function renderDirectionsReview(route) {
   for(const t of turns){
     const li=document.createElement('li');li.className='route-step-item';
     const title=document.createElement('strong');title.textContent=t.instruction;
-    const distance=document.createElement('small');distance.textContent=`${t.length_miles.toFixed(2)} mi · Leg ${t.leg}`;
+    const distance=document.createElement('small');distance.textContent=`${t.length_miles.toFixed(2)} mi`;
     li.append(title,distance);
     const anchor=routeGuide.turnAvoidPoint(route,t);
     const isArrival=/\b(arrive|destination|you have arrived)\b/i.test(t.instruction);
@@ -2223,7 +2223,7 @@ function renderDirectionsReview(route) {
               const current=state.navPreview;
               if(!current?.is_driving_route || !Array.isArray(current.origin) || !Array.isArray(current.destination))
                 throw Error('This road route no longer exists. Choose a destination and Get directions again.');
-              const updated=await planRoadRoute([current.origin,...(current.stops||[]),current.destination]);
+              const updated=await planRoadRoute([current.origin,...(current.stops||[]),current.destination],{preserveCurrentOnFailure:true});
               setMapDestinationStatus(updated.text,updated.road?'success':'error');
             }));
             actions.insertBefore(recalc,warning);
@@ -2386,6 +2386,10 @@ window.addEventListener('keydown',event=>{if(event.key==='Escape' && state.navAv
 renderRoadAvoidList();
 // Keep the old route option section in the DOM for integrations, but mount it
 // within the existing navigation settings popup rather than over the map.
+// Frequent avoidance choices form one continuous list: roads and all three camera types.
+const cameraSwitches=$('map-camera-route-panel').querySelector('.camera-route-types');
+$('route-avoid-settings').insertBefore(cameraSwitches,$('route-avoid-settings').querySelector('p.small.muted'));
+// Keep report/compare controls available below the ordinary avoidance switches.
 $('route-avoid-settings').insertBefore($('map-camera-route-panel'),$('route-road-control'));
 
 function cameraReportSummary(report){
@@ -2461,7 +2465,7 @@ function showRouteCameras(report){
 function renderRouteChoices(){
   const response=state.navRouteChoices, panel=$('map-route-choices');
   const ready=Boolean(response?.standard?.is_driving_route);
-  panel.hidden=!ready || state.navChoicePanelClosed || state.navFollowId!==null || $('map-navigation-options').open;
+  panel.hidden=!ready || state.navChoicePanelClosed || state.navFollowId!==null || $('map-navigation-options').open || $('map-directions-review').open;
   if(!ready)return;
   for(const [key,id,label,route,report] of [
     ['standard','route-choice-standard','Main route',response.standard,response.standard_cameras],
@@ -2492,6 +2496,7 @@ $('route-choice-alternate').addEventListener('click',()=>chooseRouteChoice('alte
 $('route-choice-close').addEventListener('click',()=>{state.navChoicePanelClosed=true;$('map-route-choices').hidden=true;renderNavigationOverlay();});
 $('route-choice-settings').addEventListener('click',()=>cameraPanelVisibility(true));
 $('map-navigation-options').addEventListener('toggle',()=>{if(state.navRouteChoices)renderRouteChoices();});
+$('map-directions-review').addEventListener('toggle',()=>{if(state.navRouteChoices)renderRouteChoices();});
 $('navigation-preview-overlay').addEventListener('click',event=>{
   const hit=event.target.closest?.('path.route-hit');
   if(hit){event.preventDefault();event.stopPropagation();chooseRouteChoice(hit.dataset.choice);}
@@ -2559,13 +2564,14 @@ function setNavigationRoutePreview(result,cameraReport=null) {
   setTimeout(applyNavigationFit,120);
   renderNavigationOverlay();
 }
-async function planRoadRoute(points) {
+async function planRoadRoute(points,{preserveCurrentOnFailure=false}={}) {
   setMapDestinationStatus('Getting directions from local Valhalla…');
   try {
     const data=await api('/api/navigation/route','POST',{
       locations:points.map(p=>({latitude:p[1],longitude:p[0]})),options:routeRequestOptions()});
     const road=data.route;
     if (!road || road.type!=='ROAD_ROUTE' || road.is_driving_route!==true) throw Error('No verified road route returned.');
+    if(preserveCurrentOnFailure && !routeGuide.hasCompleteDirections(road)) throw Error('Valhalla did not return a complete destination/turn list for this road exclusion. The original route was preserved.');
     setNavigationRoutePreview(road,data.camera_report);
     state.navRoadPrefsDirty=false;
     $('map-compare-camera-routes').disabled=false;
@@ -2583,6 +2589,9 @@ async function planRoadRoute(points) {
     const minutes=Math.round(road.duration_seconds/60);
     return {road, text:`Road plan · ${road.distance_miles} mi · ~${minutes} min (no traffic). Camera routes and Directions are on the map; start GPS follow when ready.`};
   } catch (err) {
+    if(preserveCurrentOnFailure && state.navPreview?.is_driving_route){
+      return {road:null,preserved:true,text:`Road avoidance could not produce complete new directions: ${err.message}. Your original road route and all its steps are unchanged. Remove this exclusion in Route preferences or try another road.`};
+    }
     const first=points[0], last=points[points.length-1];
     $('nav-directions').replaceChildren();
     const direct=navGeometry.preview(first,last);
@@ -3360,7 +3369,7 @@ async function tryNavigationReroute(route,lat,lon){
     state.navOffrouteCount=0;state.navOffrouteSince=0;
     renderDirectionsReview(selected);showRouteCameras(report);
     const steps=routeGuide.routeSteps(selected);
-    $('map-follow-turn-list').innerHTML=steps.map(t=>`<li>${escapeHTML(t.instruction)}<small>${t.length_miles.toFixed(2)} mi · leg ${t.leg}</small></li>`).join('');
+    $('map-follow-turn-list').innerHTML=steps.map(t=>`<li>${escapeHTML(t.instruction)}<small>${t.length_miles.toFixed(2)} mi</small></li>`).join('');
     renderNavigationOverlay();
     $('map-follow-instruction').textContent=choices?.length ? (selected===answer.alternative?'Camera-aware route recalculated':'Route recalculated · camera preference not available') : 'Route recalculated · continue following road signs';
     $('map-follow-quality').textContent=`Local Valhalla recalculated from the last accurate GPS fix; no GPS trail was saved. ${choices?.length?'Selected camera categories were compared again; the result may still pass cameras. ':''}Road and camera data may be incomplete.`;
@@ -3546,7 +3555,7 @@ $('map-begin-guidance').addEventListener('click',()=>{
     state.rasterMap.stop();state.rasterMap.center=routeCoords[0];state.rasterMap.zoom=15;state.rasterMap.render();
   }
   const plannedTurns=routeGuide.routeSteps(state.navPreview);
-  $('map-follow-turn-list').innerHTML=plannedTurns.map(t=>`<li>${escapeHTML(t.instruction)}<small>${t.length_miles.toFixed(2)} mi · leg ${t.leg}</small></li>`).join('');
+  $('map-follow-turn-list').innerHTML=plannedTurns.map(t=>`<li>${escapeHTML(t.instruction)}<small>${t.length_miles.toFixed(2)} mi</small></li>`).join('');
   $('map-follow-turns').open=false;
   $('map-follow-source').textContent='Position source: browser; checking optional local gpsd only during this navigation session.';
   $('map-follow-hud').hidden=false;

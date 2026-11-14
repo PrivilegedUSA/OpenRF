@@ -74,6 +74,14 @@ def decode_polyline6(value: str):
     return result
 
 
+def _meters(a, b):
+    lat1, lat2 = math.radians(a[1]), math.radians(b[1])
+    delta_lat = lat2-lat1
+    delta_lon = math.radians(b[0]-a[0])
+    h = math.sin(delta_lat/2)**2+math.cos(lat1)*math.cos(lat2)*math.sin(delta_lon/2)**2
+    return 12742000*math.asin(min(1, math.sqrt(max(0,h))))
+
+
 def _optional_verbal(value):
     """Valhalla-provided spoken guidance only; never synthesize missing directions."""
     if not isinstance(value, str):
@@ -220,7 +228,22 @@ def local_route(locations: list, *, open_connection=None, port=None, exclude_loc
         raise RouteUnavailable('Local Valhalla is unavailable on 127.0.0.1. Start Valhalla with regional road tiles, or use a direct-line preview.') from exc
     except (UnicodeError, json.JSONDecodeError) as exc:
         raise RouteError('Local Valhalla returned an invalid JSON response.') from exc
-    return normalize_result(data, points)
+    result = normalize_result(data, points)
+    if exclusions:
+        # Excluded-road requests have historically produced reports of turn lists
+        # apparently ending halfway through an otherwise drawn route. Reject such
+        # a reply rather than replace a known-good route with incomplete guidance.
+        maneuvers = result['maneuvers']
+        path = result['coordinates']
+        if not maneuvers:
+            raise RouteError('Valhalla returned no directions for the road-avoidance route.')
+        last = maneuvers[-1]['shape_index']
+        if last >= len(path):
+            raise RouteError('Valhalla returned invalid final road-avoidance maneuver.')
+        tail = sum(_meters(path[i], path[i+1]) for i in range(last, len(path)-1))
+        if tail > 150:
+            raise RouteError('Valhalla returned an incomplete turn list after road avoidance; the prior directions should be kept.')
+    return result
 
 
 def local_status(*, open_connection=None, port=None):

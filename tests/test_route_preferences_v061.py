@@ -1,4 +1,4 @@
-"""v0.2.62 route preference validation, loopback costing, separate camera exclusions."""
+"""v0.2.63 route preference validation, loopback costing, separate camera exclusions."""
 import io
 import json
 import unittest
@@ -35,7 +35,7 @@ class RoutePreferences(unittest.TestCase):
               'exclude_locations':[{'latitude':38.42,'longitude':-120.65}]},
               exclude_locations=[{'latitude':38.44,'longitude':-120.63}])
         except RouteError as error:
-            self.assertIn('geometry',str(error))
+            self.assertIn('no directions',str(error))
         self.assertEqual(len(points),1)
         request=points[0]
         self.assertEqual(request['costing_options']['auto'],{'use_highways':0,'use_tolls':0})
