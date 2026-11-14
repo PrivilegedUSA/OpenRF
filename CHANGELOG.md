@@ -1,3 +1,10 @@
+## v0.2.64 — Route-choice panel spacing (2026-11-14)
+
+- Place the Choose a Route panel at least 12 pixels below the **actual** collapsed Directions heading, including wrapped multi-line text.
+- Reposition on layout changes, viewport changes, and Directions heading resizing. Keep the panel scrollable on shorter screens.
+- Preserve the currently working road-avoidance recalculation, route comparison, visual styles, and the complete direction list.
+- Regression coverage and release audit in `docs/RELEASE_0.2.64_TESTS.md`.
+
 ## v0.2.63 — Route-choice spacing and complete avoidance directions (2026-11-14)
 
 - Place **Choose a route** below the collapsed Directions summary, not over it. Hide the choice cards while the turn list is expanded, restoring them when the list closes.

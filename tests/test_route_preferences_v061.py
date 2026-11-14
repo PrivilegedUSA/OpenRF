@@ -1,4 +1,4 @@
-"""v0.2.63 route preference validation, loopback costing, separate camera exclusions."""
+"""v0.2.64 route preference validation, loopback costing, separate camera exclusions."""
 import io
 import json
 import unittest

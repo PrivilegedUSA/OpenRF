@@ -1322,3 +1322,7 @@ body.map-workspace .topbar .menu-toggle:focus-visible,
 #page-map .route-avoid-settings>.camera-route-types input{accent-color:#34c9b1}
 #page-map .route-avoid-settings #map-camera-route-panel{border-top:1px solid #35616b44;padding-top:5px}
 #page-map .route-avoid-settings .camera-route-heading{display:none}
+
+/* v0.2.64: JS measures actual Directions summary height, including wrapped lines.
+   CSS fallback is retained for initial layout before the first measurement. */
+#page-map .map-route-choices{top:calc(var(--openrf-nav-overlay-bottom, 67px) + 56px)}

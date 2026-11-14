@@ -63,7 +63,7 @@ assert.equal(analyzeSpectrum(realCsv,{min:100,max:102}).binCount,5);
 for(const id of ['sdr-analysis-summary','sdr-analysis-bins','sdr-compare-details','sdr-baseline-saved','sdr-baseline-file','sdr-baseline-label','sdr-compare-run','sdr-compare-export','sdr-compare-clear','sdr-compare-status','sdr-compare-bins']) {
   assert(html.includes(`id="${id}"`),`missing ${id}`);
 }
-assert(html.includes('/static/spectrum-analysis.js?v=0.2.63'));
+assert(html.includes('/static/spectrum-analysis.js?v=0.2.64'));
 assert(html.indexOf('/static/spectrum-analysis.js')<html.indexOf('/static/spectrum.js'));
 assert(ui.includes("global.OpenRFSpectrumAnalysis.compareSpectra"));
 assert(ui.includes("global.OpenRFSpectrumAnalysis.comparisonCsv"));

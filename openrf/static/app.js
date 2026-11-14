@@ -2050,6 +2050,7 @@ function updateNavOverlayLayout(){
   if(!el||!map)return;
   const bottom=el.offsetTop+el.offsetHeight+8;
   map.parentElement.style.setProperty('--openrf-nav-overlay-bottom',`${Math.round(bottom)}px`);
+  if(state.navRouteChoices)requestAnimationFrame(positionRouteChoicePanel);
 }
 const mapNavPanel=document.querySelector('.map-destination-panel');
 if(typeof ResizeObserver!=='undefined') new ResizeObserver(updateNavOverlayLayout).observe(mapNavPanel);
@@ -2462,6 +2463,20 @@ function showRouteCameras(report){
   updateCameraRoutePreferenceDisplay();
 }
 
+// Keep route choices below the *rendered* Directions summary, which may wrap
+// onto multiple lines at 800x480 or in a narrow browser window.
+function positionRouteChoicePanel(){
+  const panel=$('map-route-choices'), directions=$('map-directions-review');
+  if(panel.hidden || directions.hidden || directions.open)return;
+  const container=panel.offsetParent;
+  if(!container)return;
+  const heading=directions.getBoundingClientRect(), area=container.getBoundingClientRect();
+  if(!heading.height)return;
+  const top=Math.ceil(heading.bottom-area.top+12);
+  panel.style.top=`${top}px`;
+  // Keep the route cards scrollable rather than pushing their actions offscreen.
+  panel.style.maxHeight=`${Math.max(80,Math.min(200,Math.floor(area.bottom-heading.bottom-24)))}px`;
+}
 function renderRouteChoices(){
   const response=state.navRouteChoices, panel=$('map-route-choices');
   const ready=Boolean(response?.standard?.is_driving_route);
@@ -2477,6 +2492,7 @@ function renderRouteChoices(){
   $('route-choice-status').textContent=response.alternative ?
     'Tap a card or colored road line to choose. Teal is selected; dashed amber is the other route. Camera and access reports may be incomplete.' :
     (response.detail || 'Only the main route is available with current preferences and road data.');
+  positionRouteChoicePanel();
 }
 function chooseRouteChoice(key){
   const response=state.navRouteChoices,chosen=key==='alternate'?response?.alternative:response?.standard;
@@ -2497,6 +2513,8 @@ $('route-choice-close').addEventListener('click',()=>{state.navChoicePanelClosed
 $('route-choice-settings').addEventListener('click',()=>cameraPanelVisibility(true));
 $('map-navigation-options').addEventListener('toggle',()=>{if(state.navRouteChoices)renderRouteChoices();});
 $('map-directions-review').addEventListener('toggle',()=>{if(state.navRouteChoices)renderRouteChoices();});
+if(typeof ResizeObserver!=='undefined')new ResizeObserver(positionRouteChoicePanel).observe($('map-directions-review'));
+window.addEventListener('resize',positionRouteChoicePanel);
 $('navigation-preview-overlay').addEventListener('click',event=>{
   const hit=event.target.closest?.('path.route-hit');
   if(hit){event.preventDefault();event.stopPropagation();chooseRouteChoice(hit.dataset.choice);}
