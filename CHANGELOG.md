@@ -1,3 +1,12 @@
+## v0.2.58 — Camera-aware route comparison, conservative GPS recalculation, reliable Valhalla reuse (2026-11-14)
+
+- Valhalla: starting OpenRF checks Docker and restarts the existing `openrf-valhalla` container (bounded, best effort). Never automatically downloads, builds, creates, or changes existing graph storage; opt out with `OPENRF_VALHALLA_AUTOSTART=0`.
+- Local camera route reports: source-labeled, roughly 120 m proximity of ALPR, red-light and speed camera records to the verified Valhalla polyline; bounding-box and response limits; no fabricated locations or claimed enforcement direction.
+- Optional comparison: request a route excluding selected community-reported camera road locations, compare distance/time/nearby reports and explicitly choose an alternative; original stays in place if unavailable. Uses Valhalla's `exclude_locations` on loopback only.
+- GPS follow: conservative off-route gating (repeated precise moving fixes; delay and cooldown), local reroute with no stored travel trace, clear errors and fallback, destination vicinity indicator. A selected camera-aware preference is compared again after rerouting. Never reroutes on DEMO, inaccurate, stale, or stationary fixes; intermediate-stop trips still require deliberate replanning.
+- Added tests for startup reuse, camera-route math, comparison failures, and off-route safety; updated HTML/CSS and release documentation. Unchanged Map layout, offline basemap resources, existing radio and investigation functions.
+- No physical GPS, Raspberry Pi, or live Docker/Valhalla route-confirmation test from this environment; use the real Northern California road graph and browser on the target system.
+
 ## v0.2.57 — Readable camera popups and read-only Valhalla diagnosis (2026-11-14)
 
 - Restyle only camera report MapLibre popups with OpenRF's dark navy/teal palette, readable text, styled source link and close control, matching marker tip and touchscreen-sized scrolling. Preserve source labels and no-tracking wording; camera points are community-mapped, not necessarily operational.

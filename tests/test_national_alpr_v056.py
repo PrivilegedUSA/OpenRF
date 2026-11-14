@@ -1,4 +1,4 @@
-"""v0.2.57 national ALPR snapshot: validated atomic offline updates, no live web."""
+"""v0.2.58 national ALPR snapshot: validated atomic offline updates, no live web."""
 import gzip
 import io
 import json

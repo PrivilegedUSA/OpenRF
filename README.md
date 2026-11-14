@@ -1,4 +1,17 @@
-# OpenRF v0.2.56 — Nationwide ALPR Snapshots & Optional Wider Offline Routing
+# OpenRF v0.2.58 — Camera-Aware Routes and Reliable GPS Follow
+
+
+## v0.2.58 — Valhalla autostart, camera-aware route comparison, cautious GPS rerouting
+
+- Starting OpenRF with `python3 -m openrf` tries to **restart the existing** `openrf-valhalla` Docker container when Docker is accessible. It never downloads road data, builds tiles, creates containers or starts Docker Desktop. Set `OPENRF_VALHALLA_AUTOSTART=0` to disable. `--doctor` remains available from `tools/setup-valhalla-wsl.sh`.
+- A local Valhalla road plan includes a proximity report of existing **source-labeled, reported** ALPR, red-light and speed camera points within roughly 120 m of the route. This is not proof cameras are currently operational, facing the travel direction, or fully mapped.
+- Open `Map > Get directions > Directions > Compare camera-aware route`. Select camera types; OpenRF compares a normal route with a **user-requested** Valhalla alternative that avoids up to eight nearby camera-mapped road locations. You must explicitly select an alternate route. An alternate route may be longer or unavailable; road restrictions and safe driving take precedence.
+- Only during actively started navigation, three or more **fresh, precise, moving** off-route fixes over at least five seconds can trigger local route recalculation, with a 45-second retry cooldown. The in-memory session does not save a GPS trail. Approximate/stale/stationary positions never trigger a reroute; multi-stop trips require deliberate replanning rather than silently skipping stops.
+- If you explicitly selected a camera-aware route, recalculation compares it again and reports when a camera-aware alternative is unavailable. It does not guarantee camera-free travel.
+- This is **not** full voice navigation, lane guidance, traffic-informed routing, lane/speed-limit enforcement, or an independently verified field-GPS implementation. Do not interact with OpenRF while driving.
+
+For Windows PowerShell after a restart: `wsl -d Ubuntu -- bash -lc "cd /mnt/c/projects/OpenRF && python3 -m openrf"`
+
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +19,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.56.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.58.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.56 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.58 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash

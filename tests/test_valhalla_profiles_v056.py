@@ -1,4 +1,4 @@
-"""v0.2.57 routing profile CLI tests; no real OSM downloads or Docker calls."""
+"""v0.2.58 routing profile CLI tests; no real OSM downloads or Docker calls."""
 from __future__ import annotations
 
 import os

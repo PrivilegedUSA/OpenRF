@@ -317,7 +317,7 @@ class UpdateManager:
                 dir=self.repo.path.parent,delete=False) as sink:
                 path=Path(sink.name)
                 req=urllib.request.Request(SNAPSHOT_URL,headers={
-                    'User-Agent':'OpenRF/0.2.57 (+offline-first; user-initiated nationwide snapshot)',
+                    'User-Agent':'OpenRF/0.2.58 (+offline-first; user-initiated nationwide snapshot)',
                     'Accept':'application/geo+json, application/json, application/gzip, */*',
                     'Accept-Encoding':'identity'})
                 with urllib.request.urlopen(req,timeout=40) as reply:

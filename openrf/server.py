@@ -26,7 +26,7 @@ from .hardware_manager import manager_report
 from .sdr import capability_report as sdr_capability_report
 from .sdr_capture import SdrCaptureManager, CaptureError
 from .radio import RadioReceiver, RadioError
-from . import camera_catalog, chirp_channels, national_alpr
+from . import camera_catalog, chirp_channels, national_alpr, camera_routes
 from .sdr_survey import capture_sites_geojson
 from .routing import local_route, local_status, RouteUnavailable, RouteError
 from .gnss import read_local_gpsd
@@ -597,7 +597,17 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError('Only an ordered locations array is allowed for driving routes.')
                 try:
                     result = local_route(body['locations'])
-                    return self._json(200, {'route': result})
+                    return self._json(200, {'route': result, 'camera_report': camera_routes.route_cameras(self.repo, result)})
+                except RouteUnavailable as exc:
+                    return self._error(503, str(exc), 'routing_unavailable')
+                except RouteError as exc:
+                    return self._error(422, str(exc), 'routing_error')
+            if path == '/api/navigation/camera-comparison':
+                if set(body) != {'locations', 'types'}:
+                    raise ValueError('Only route locations and selected camera categories are accepted.')
+                try:
+                    data = camera_routes.compare(self.repo, body['locations'], body['types'])
+                    return self._json(200, data)
                 except RouteUnavailable as exc:
                     return self._error(503, str(exc), 'routing_unavailable')
                 except RouteError as exc:
@@ -822,6 +832,8 @@ def main():
         parser.error('--port must be between 1 and 65535')
     repo = Repository(args.db)
     server = create_server(repo, port=args.port)
+    from .valhalla_startup import ensure_existing_valhalla
+    print('Valhalla: '+ensure_existing_valhalla(), flush=True)
     print(f'OpenRF v{__version__} — http://localhost:{args.port}')
     print(f'Private database: {repo.path}')
     print('Loopback only; press Ctrl+C to stop. On-demand Linux Wi-Fi scans require a visible compatible adapter; RTL-SDR scans are user-triggered, bounded and require compatible Linux-visible hardware.', flush=True)

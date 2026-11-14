@@ -1167,3 +1167,14 @@ body.map-workspace .topbar .menu-toggle:focus-visible,
 #page-map #map .openrf-camera-map-popup.maplibregl-popup-anchor-top-right .maplibregl-popup-tip{border-bottom-color:#102a34}
 #page-map #map .openrf-camera-map-popup.maplibregl-popup-anchor-left .maplibregl-popup-tip{border-right-color:#102a34}
 #page-map #map .openrf-camera-map-popup.maplibregl-popup-anchor-right .maplibregl-popup-tip{border-left-color:#102a34}
+
+/* v0.2.58: camera-aware route comparison inside the existing floating directions sheet. */
+#page-map .camera-route-review{padding:10px 12px;border-top:1px solid #35616b;color:#dcf4f0}
+#page-map .camera-route-review[hidden],#page-map .camera-route-actions button[hidden]{display:none!important}
+#page-map .camera-route-review strong{color:#a2eadc;font-size:12px}
+#page-map .camera-route-review p{margin:7px 0;font-size:11px;line-height:1.45}
+#page-map .camera-route-types{display:flex;gap:8px 12px;flex-wrap:wrap;margin:10px 0}
+#page-map .camera-route-types label{display:flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap}
+#page-map .camera-route-types input{accent-color:#34c9b1}
+#page-map .camera-route-actions{display:flex;gap:8px;flex-wrap:wrap}
+#page-map .camera-route-actions button{white-space:normal;min-height:35px;font-size:12px}

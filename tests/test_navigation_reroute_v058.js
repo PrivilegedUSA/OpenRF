@@ -1,0 +1,30 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const guide=require('../openrf/static/route_guidance.js');
+const html=fs.readFileSync('openrf/static/index.html','utf8');
+const source=fs.readFileSync('openrf/static/app.js','utf8');
+const server=fs.readFileSync('openrf/server.py','utf8');
+const memory=(count,since,lastAttempt)=>({count,since,lastAttempt});
+const fix=(timeMs,accuracy_m,offset_m,moving)=>({timeMs,accuracy_m,offset_m,moving});
+let result=guide.rerouteDecision(memory(0,0,0),fix(100000,12,150,true));
+assert.equal(result.trigger,false);
+result=guide.rerouteDecision(memory(result.count,result.since,0),fix(102000,12,160,true));
+assert.equal(result.trigger,false);
+result=guide.rerouteDecision(memory(result.count,result.since,0),fix(106000,12,150,true));
+assert.equal(result.trigger,true);
+assert.equal(guide.rerouteDecision(memory(5,90000,105000),fix(109000,12,200,true)).trigger,false,'45-second cooldown');
+assert.equal(guide.rerouteDecision(memory(5,90000,100000),fix(150000,12,200,true)).trigger,true);
+for(const item of [fix(120000,80,250,true),fix(120000,15,150,false),fix(120000,15,30,true)]){
+ const no=guide.rerouteDecision(memory(3,100000,0),item);
+ assert.equal(no.trigger,false);assert.equal(no.count,0);
+}
+assert(html.includes('id="map-camera-route-panel"'));
+assert(html.includes('id="map-compare-camera-routes"'));
+assert(html.includes('id="map-use-camera-alternate"'));
+assert(source.includes('tryNavigationReroute('));
+assert(source.includes('routeGuide.rerouteDecision('));
+assert(source.includes('epoch!==state.navFollowEpoch'));
+assert(source.includes("if(route.stops?.length)"));
+assert(server.includes("'/api/navigation/camera-comparison'"));
+console.log('v0.2.58 camera route controls and conservative off-route gate passed');

@@ -1,4 +1,4 @@
-"""v0.2.57 read-only Valhalla doctor, with stubs, never real Docker/network."""
+"""v0.2.58 read-only Valhalla doctor, with stubs, never real Docker/network."""
 import os
 from pathlib import Path
 import subprocess

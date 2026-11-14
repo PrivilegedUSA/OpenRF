@@ -1,6 +1,7 @@
 'use strict';
 // Pure, offline navigation mathematics and printable route-sheet formatting.
-// No GPS acquisition, storage, network traffic, timers, or automatic rerouting.
+// No GPS acquisition, storage, network traffic, or timers. Includes a pure
+// conservative decision gate for caller-initiated local rerouting.
 (function (root) {
   const RAD=Math.PI/180;
   const METERS_PER_MILE=1609.344;
@@ -125,6 +126,19 @@
     const next=nextTurn(route,{...match,along_m:updated});
     return {...match,along_m:updated,offroute,next,remaining_m:Math.max(0,match.total_m-updated)};
   }
+  function rerouteDecision(memory,fix){
+    const count=Number(memory?.count)||0;
+    const since=Number(memory?.since)||0;
+    const lastAttempt=Number(memory?.lastAttempt)||0;
+    const now=Number(fix?.timeMs);
+    const reliable=Number.isFinite(now)&&now>0&&Number.isFinite(fix?.accuracy_m)&&
+      fix.accuracy_m>=0&&fix.accuracy_m<=40&&fix.moving===true&&
+      Number.isFinite(fix?.offset_m)&&fix.offset_m>Math.max(100,3*fix.accuracy_m);
+    if(!reliable)return {count:0,since:0,trigger:false};
+    const nextCount=count+1,first=since||now;
+    const trigger=nextCount>=3 && now-first>=5000 && (!lastAttempt||now-lastAttempt>=45000);
+    return {count:nextCount,since:first,trigger};
+  }
   function htmlEscape(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   function routeSteps(route){
     routeMetric(route);
@@ -140,6 +154,6 @@
     const rows=steps.map(s=>`<li><strong>${htmlEscape(s.instruction)}</strong><span>${s.length_miles.toFixed(2)} mi · Leg ${s.leg}</span></li>`).join('');
     return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OpenRF Directions</title><style>body{font:16px/1.5 system-ui,Arial,sans-serif;max-width:780px;margin:32px auto;padding:0 20px;color:#182129}h1{margin-bottom:4px}header{border-bottom:2px solid #35616b;margin-bottom:20px;padding-bottom:15px}ol{padding-left:28px}li{break-inside:avoid;margin:0 0 14px;padding-left:6px}li span{display:block;color:#555;font-size:13px}footer{border-top:1px solid #aaa;padding-top:12px;color:#666;font-size:12px}@media print{body{margin:0;max-width:none;padding:0}button{display:none}}</style></head><body><header><small>OPENRF · OFFLINE-CAPABLE ROUTE SHEET</small><h1>Driving directions</h1><p><b>From:</b> ${origin}<br><b>To:</b> ${destination}</p><p><b>Distance:</b> ${miles.toFixed(2)} mi · <b>Estimated time:</b> ${minutes} min (no live traffic)</p></header><main><h2>Planned turns (${steps.length})</h2><ol>${rows}</ol></main><footer>Calculated using local Valhalla / © OpenStreetMap contributors. Planning only. Review route restrictions, signage and conditions. Not live guidance. No GPS history is included.</footer></body></html>`;
   }
-  root.OpenRFRouteGuidance=Object.freeze({distance,bearing,locate,routeVisualHeading,sampleRoute,nextTurn,distanceText,guidance,routeSteps,sheet});
+  root.OpenRFRouteGuidance=Object.freeze({distance,bearing,locate,routeVisualHeading,sampleRoute,nextTurn,distanceText,guidance,rerouteDecision,routeSteps,sheet});
   if(typeof module!=='undefined'&&module.exports)module.exports=root.OpenRFRouteGuidance;
 })(typeof window!=='undefined'?window:globalThis);

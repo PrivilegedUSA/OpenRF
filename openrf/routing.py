@@ -1,6 +1,6 @@
 """Explicit, receive-only local Valhalla route adapter; no external demo endpoints.
 
-No live navigation, rerouting, radar or police-position detection happens here.
+All route requests remain on loopback; GPS follow and rerouting decisions occur in the browser.
 """
 from __future__ import annotations
 
@@ -117,8 +117,14 @@ def normalize_result(data: dict, requested: list):
             'maneuvers': directions[:250], 'warning': 'PLANNING ONLY — not live road guidance, traffic data, or a safety guarantee.'}
 
 
-def local_route(locations: list, *, open_connection=None, port=None):
+def local_route(locations: list, *, open_connection=None, port=None, exclude_locations=None):
     points = coordinates(locations)
+    exclusions = None
+    if exclude_locations is not None:
+        if not isinstance(exclude_locations,list) or len(exclude_locations)>8:
+            raise RouteError('Up to eight camera-aware exclusion points are permitted.')
+        exclusions = [coordinates([point,point])[0] for point in exclude_locations]
+
     if port is None:
         port = os.environ.get('OPENRF_VALHALLA_PORT', '8002')
     try:
@@ -128,6 +134,7 @@ def local_route(locations: list, *, open_connection=None, port=None):
     except ValueError:
         raise RouteUnavailable('Invalid local Valhalla port. Use OPENRF_VALHALLA_PORT=8002.') from None
     payload = {'locations': points, 'costing': 'auto', 'units': 'miles', 'language': 'en-US'}
+    if exclusions: payload['exclude_locations'] = exclusions
     # Hardcoded loopback: do not turn this endpoint into a general URL fetcher.
     req = Request(f'http://127.0.0.1:{port}/route', json.dumps(payload).encode(),
                   {'Content-Type': 'application/json', 'Accept': 'application/json'}, method='POST')
