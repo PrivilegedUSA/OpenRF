@@ -18,4 +18,4 @@ assert(script.includes('routeAvoidEntries().length>=8'),'bounds road exclusions'
 assert(script.includes('window.localStorage'),'saved road points stay browser-local');
 assert(css.includes('#page-map #map-camera-route-chip{display:none!important}'),'no overlapping old route chip');
 assert(css.includes('navigation-driving .map-route-choices{display:none!important}'),'hide selection during live navigation');
-console.log('PASS v0.2.66 route choices, map lines, preferences and saved/temporary road exclusions');
+console.log('PASS v0.2.67 route choices, map lines, preferences and saved/temporary road exclusions');

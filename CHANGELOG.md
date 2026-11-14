@@ -1,3 +1,11 @@
+## v0.2.67 — Search and route review transition cleanup (2026-11-14)
+
+- Collapse Destination Search on a successful road route from Get directions, including quick routes and multi-stop previews, but keep it open for routing errors.
+- When re-opening destination search, temporarily hide Directions and Choose a Route without losing the current route.
+- On close, measure and restore Directions and Choose a Route against the compact search bar. Avoid the old stale position after toggling forms or asynchronous camera comparisons.
+- Keep active route selection, saved road exclusions, offline maps, and right-side map controls unchanged.
+- Add layout/transition regression coverage and repeat tests on a fresh release extraction.
+
 ## v0.2.66 — Consistent navigation sheet widths and sticky direction exports (2026-11-14)
 
 - Match expanded Destination Search, Choose a Route, and Directions sheet widths/alignment, leaving the floating map tool rail usable on narrow screens.

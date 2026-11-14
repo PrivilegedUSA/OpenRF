@@ -1444,3 +1444,12 @@ body.map-workspace .topbar .menu-toggle:focus-visible,
     max-width:none;
   }
 }
+
+
+/* v0.2.67 — destination editing is exclusive with route review. Routes are
+   preserved in JS state, but cannot overlap the open search panel. Closing
+   search restores both sheets at their normal measured positions. */
+#page-map.map-search-editing .map-directions-review,
+#page-map.map-search-editing .map-route-choices {
+  display:none!important;
+}

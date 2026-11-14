@@ -49,4 +49,4 @@ assert(!camera.includes('checkbox.checked=true'),'camera imports never re-enable
 assert(css.includes('#page-map .map-directions-body ol {\n  max-height:none;\n  overflow:visible;'),'remove nested directions scrollbar');
 assert(css.includes('right:62px;'),'leave room for right map tools');
 assert(css.includes('#page-map .map-sheet-close,\n#page-map .map-tool-close'),'consistent centered borderless X');
-console.log('PASS v0.2.66 map layers persist safely; directions have one scroll area and compact close controls');
+console.log('PASS v0.2.67 map layers persist safely; directions have one scroll area and compact close controls');

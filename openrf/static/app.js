@@ -98,12 +98,24 @@ function setMapSearchCollapsed(collapsed, restoreFocus = false) {
   const isCollapsed = Boolean(collapsed);
   mapSearchForm.hidden = isCollapsed;
   mapSearchPanel.classList.toggle('is-collapsed', isCollapsed);
+  // Editing a destination and reviewing a route are mutually exclusive map
+  // surfaces. Hide the old route sheets without discarding their route data.
+  $('page-map').classList.toggle('map-search-editing', !isCollapsed);
   mapSearchToggle.setAttribute('aria-expanded', String(!isCollapsed));
   mapSearchToggle.setAttribute('aria-label', isCollapsed ? 'Open destination search' : 'Close destination search');
   mapSearchToggle.innerHTML = isCollapsed
     ? '<span class="map-search-icon" aria-hidden="true">⌕</span><span class="map-search-caption">Where to?</span><span class="map-search-chevron" aria-hidden="true">▾</span>'
     : '<span class="map-search-caption">Close search</span><span class="map-search-chevron" aria-hidden="true">×</span>';
   if (typeof updateNavOverlayLayout === 'function') updateNavOverlayLayout();
+  // Clear any position computed while the tall search form was on screen.
+  // Closing it must bring Directions and its choice cards back to the top.
+  if (state.navRouteChoices) {
+    renderRouteChoices();
+    requestAnimationFrame(() => {
+      updateNavOverlayLayout();
+      renderRouteChoices();
+    });
+  }
   if (!isCollapsed) $('map-destination-query').focus({preventScroll: true});
   else if (restoreFocus) mapSearchToggle.focus({preventScroll: true});
 }
@@ -2513,7 +2525,7 @@ function showRouteCameras(report){
 // onto multiple lines at 800x480 or in a narrow browser window.
 function positionRouteChoicePanel(){
   const panel=$('map-route-choices'), directions=$('map-directions-review');
-  if(panel.hidden || directions.hidden || directions.open)return;
+  if(panel.hidden || directions.hidden || directions.open || !mapSearchForm.hidden)return;
   const container=panel.offsetParent;
   if(!container)return;
   const heading=directions.getBoundingClientRect(), area=container.getBoundingClientRect();
@@ -2526,7 +2538,7 @@ function positionRouteChoicePanel(){
 function renderRouteChoices(){
   const response=state.navRouteChoices, panel=$('map-route-choices');
   const ready=Boolean(response?.standard?.is_driving_route);
-  panel.hidden=!ready || state.navChoicePanelClosed || state.navFollowId!==null || $('map-navigation-options').open || $('map-directions-review').open;
+  panel.hidden=!ready || state.navChoicePanelClosed || state.navFollowId!==null || !mapSearchForm.hidden || $('map-navigation-options').open || $('map-directions-review').open;
   if(!ready)return;
   for(const [key,id,label,route,report] of [
     ['standard','route-choice-standard','Main route',response.standard,response.standard_cameras],
@@ -2710,7 +2722,12 @@ async function quickDestinationPreview(query) {
   renderNavigationOverlay();
   setMapDestinationStatus(`${chosen.name} · ${planned.text}`, planned.road ? 'success' : 'error');
   $('nav-preview-summary').textContent=planned.text;
-  if(planned.road) setNavigationStatus(planned.text);
+  if(planned.road) {
+    setNavigationStatus(planned.text);
+    // A complete Valhalla route replaces the destination-editing surface.
+    // Keep search open on errors so the user can fix the destination.
+    setMapSearchCollapsed(true);
+  }
   return planned;
 }
 // Address autocomplete never uses the public Nominatim service.
@@ -3202,6 +3219,7 @@ async function previewNavigation() {
   const planned=await planRoadRoute([origin,...stops,destination]);
   $('nav-preview-summary').textContent=planned.text;
   setNavigationStatus(planned.text);
+  if (planned.road) setMapSearchCollapsed(true);
   showPage('map',{autoLocate:false});
   if (activeMapTool) closeMapToolOverlay();
   setTimeout(applyNavigationFit,120);

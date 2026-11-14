@@ -1,0 +1,15 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const js=fs.readFileSync('openrf/static/app.js','utf8');
+const css=fs.readFileSync('openrf/static/app.css','utf8');
+const html=fs.readFileSync('openrf/static/index.html','utf8');
+assert.match(js,/\$\('page-map'\)\.classList\.toggle\('map-search-editing', !isCollapsed\)/,'editing and review are exclusive');
+assert.match(css,/#page-map\.map-search-editing \.map-directions-review,\s*#page-map\.map-search-editing \.map-route-choices\s*\{\s*display:none!important;/,'search edit hides both sheets');
+assert.match(js,/if\(planned\.road\)\s*\{[\s\S]*?setMapSearchCollapsed\(true\);\s*\}\s*return planned;/,'quick route closes editor only on successful road route');
+assert.match(js,/if \(planned\.road\) setMapSearchCollapsed\(true\);\s*showPage\('map'/,'multi-stop road route closes editor too');
+assert.match(js,/panel\.hidden=!ready[^;]+!mapSearchForm\.hidden/,'do not draw choices while destination is edited');
+assert.match(js,/if\(panel\.hidden \|\| directions\.hidden \|\| directions\.open \|\| !mapSearchForm\.hidden\)return;/,'do not record invalid position when editor open');
+assert.match(js,/renderRouteChoices\(\);\s*requestAnimationFrame\(\(\) => \{\s*updateNavOverlayLayout\(\);\s*renderRouteChoices\(\);/,'restore route panel position after closing editor');
+assert(html.includes('FIELD CONSOLE · 0.2.67'),'version bumped');
+console.log('PASS v0.2.67 search/review exclusive transitions and route position refresh');
