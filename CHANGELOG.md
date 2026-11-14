@@ -1,3 +1,10 @@
+## v0.2.55 — Area-limited OSM ALPR import and unified map layer toggles (2026-11-14)
+
+- Fix the oversized national ALPR feed failure by changing the opt-in import to **bounded OpenStreetMap Overpass ALPR queries for only the selected viewport** (with fixed providers, validation, response caps and fallbacks). This uses the same upstream OSM surveillance tags as DeFlock/FlockHopper; the national FlockHopper snapshot is no longer downloaded. The selected bounds are shared with Overpass only when explicitly requested, not on startup. Import availability depends on external services and has not been live-tested.
+- Preserve source-linked and `COMMUNITY_MAPPED` status for imported ALPR pins. Existing saved/manual camera entries and the separate red-light and speed types remain unchanged; no invented camera positions.
+- Move all nine map categories into one consistent 2-column checkbox grid; replace the extra camera accordion with visible camera-management controls. Add spacing and touchscreen-friendly wrap for Reload and Import, without touching the v0.2.52 right-side map tools.
+- Add focused bounded-query, failure, persistence, endpoint and frontend regression tests plus a field checklist (`docs/RELEASE_0.2.55_TESTS.md`). No avoidance routing/alarms or new RF hardware features are implemented.
+
 ## v0.2.54 — Optional traffic camera layers &amp; CHIRP channel imports (2026-11-14)
 
 - Add a private SQLite camera catalog and separate opt-in ALPR/Flock, red-light enforcement, and speed enforcement layers, accessed in the existing Map → Layers overlay. Markers distinguish camera *infrastructure reports* from RF observations, with color-coded categories and evidence states. Camera locations are not preloaded, verified, scanned, or automatically tracked.

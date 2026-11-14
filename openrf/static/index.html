@@ -6,24 +6,24 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.54">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.55">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
-  <script defer src="/static/spectrum-analysis.js?v=0.2.54"></script>
-  <script defer src="/static/spectrum.js?v=0.2.54"></script>
-  <script defer src="/static/sdr-history.js?v=0.2.54"></script>
-  <script defer src="/static/survey_map.js?v=0.2.54"></script>
-  <script defer src="/static/navigation.js?v=0.2.54"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.54"></script>
-  <script defer src="/static/app.js?v=0.2.54"></script>
-  <script defer src="/static/radio.js?v=0.2.54"></script>
-  <script defer src="/static/camera-layers.js?v=0.2.54"></script>
-  <script defer src="/static/chirp-import.js?v=0.2.54"></script>
+  <script defer src="/static/spectrum-analysis.js?v=0.2.55"></script>
+  <script defer src="/static/spectrum.js?v=0.2.55"></script>
+  <script defer src="/static/sdr-history.js?v=0.2.55"></script>
+  <script defer src="/static/survey_map.js?v=0.2.55"></script>
+  <script defer src="/static/navigation.js?v=0.2.55"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.55"></script>
+  <script defer src="/static/app.js?v=0.2.55"></script>
+  <script defer src="/static/radio.js?v=0.2.55"></script>
+  <script defer src="/static/camera-layers.js?v=0.2.55"></script>
+  <script defer src="/static/chirp-import.js?v=0.2.55"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.54</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.55</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -96,8 +96,8 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
           </button>
           <button type="button" id="map-survey-toggle" class="map-survey-toggle" aria-expanded="false" aria-controls="map-survey-panel" aria-label="Layers and scan" title="Layers and wireless survey"><span class="map-scan-symbol" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2-9 5 9 5 9-5-9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg></span><span id="map-layer-count" class="layer-count" hidden>0</span></button>
-          <section id="map-survey-panel" class="map-survey-panel" aria-label="Wireless survey map layers" hidden>
-            <div class="map-sheet-head"><div><strong>Wireless survey</strong><small>Mapped phone/receiver observation positions</small></div><button type="button" class="map-sheet-close" id="map-survey-close" aria-label="Close map layers">×</button></div>
+          <section id="map-survey-panel" class="map-survey-panel" aria-label="Observation and camera map layers" hidden>
+            <div class="map-sheet-head"><div><strong>Map layers</strong><small>Observations and camera locations</small></div><button type="button" class="map-sheet-close" id="map-survey-close" aria-label="Close map layers">×</button></div>
             <div class="map-layer-options" role="group" aria-label="Show saved survey categories">
               <label><input type="checkbox" data-map-kind="WIFI" checked> <i class="layer-dot wifi"></i> Wi-Fi</label>
               <label><input type="checkbox" data-map-kind="BLE" checked> <i class="layer-dot ble"></i> BLE</label>
@@ -105,19 +105,19 @@
               <label><input type="checkbox" data-map-kind="CELLULAR" checked> <i class="layer-dot cellular"></i> Cellular</label>
               <label><input type="checkbox" data-map-kind="INFRASTRUCTURE" checked> <i class="layer-dot infrastructure"></i> Infrastructure</label>
               <label><input type="checkbox" data-map-kind="MANUAL" checked> <i class="layer-dot manual"></i> Manual</label>
+              <label><input type="checkbox" data-camera-type="ALPR"> <i class="layer-dot camera-alpr"></i> ALPR / Flock</label>
+              <label><input type="checkbox" data-camera-type="RED_LIGHT"> <i class="layer-dot camera-red"></i> Red-light cameras</label>
+              <label><input type="checkbox" data-camera-type="SPEED"> <i class="layer-dot camera-speed"></i> Speed cameras</label>
             </div>
-            <details class="camera-map-manager" id="camera-map-manager">
-              <summary>Traffic &amp; surveillance camera layers</summary>
-              <p class="small muted">Saved camera locations are infrastructure reports, NOT RF detections. Imported DeFlock/FlockHopper/OSM pins are community-mapped, not automatically verified or proof of current operation.</p>
-              <div class="camera-layer-toggles" role="group" aria-label="Optional camera map layers">
-                <label><input type="checkbox" data-camera-type="ALPR"> <span class="camera-key alpr">●</span> Flock / other ALPR</label>
-                <label><input type="checkbox" data-camera-type="RED_LIGHT"> <span class="camera-key red-light">●</span> Red-light enforcement</label>
-                <label><input type="checkbox" data-camera-type="SPEED"> <span class="camera-key speed">●</span> Speed enforcement</label>
+            <section class="camera-map-manager" id="camera-map-manager" aria-label="Camera locations and imports">
+              <strong class="camera-section-heading">Camera locations</strong>
+              <p class="small muted">Camera pins are infrastructure reports, not RF detections or proof of current operation. Community-mapped locations are not independently verified.</p>
+              <p id="camera-map-status" class="small muted" role="status" aria-live="polite">All camera layers off. No network requests happen automatically.</p>
+              <div class="camera-action-buttons">
+                <button type="button" class="btn outline" id="camera-refresh">Reload saved area</button>
+                <button type="button" class="btn outline" id="camera-import-osm">Import OSM / DeFlock ALPRs in view (online)</button>
               </div>
-              <p id="camera-map-status" class="small muted" role="status" aria-live="polite">Layers off by default. No camera locations fetched automatically.</p>
-              <button type="button" class="btn outline" id="camera-refresh">Reload saved area</button>
-              <button type="button" class="btn outline" id="camera-import-osm">Import DeFlock/OSM ALPRs in visible area (online)</button>
-              <p class="small muted">Import downloads the public FlockHopper ALPR snapshot only when requested; it filters locally to the current map area (zoom in first). Locations are cached in your local SQLite database for offline use. Source: <a href="https://deflock.org/" target="_blank" rel="noopener noreferrer">DeFlock</a> / FlockHopper and © OpenStreetMap contributors (ODbL). No live GPS or travel history is uploaded.</p>
+              <p class="small muted">When you choose Import, OpenRF queries OpenStreetMap through Overpass for ALPR-tagged cameras <strong>only in the visible map area</strong>. The chosen map bounds are sent to the public OSM query service, but no GPS track or scan history is sent. Zoom in for a smaller area; matching reports are saved locally for offline use. Source: <a href="https://deflock.org/" target="_blank" rel="noopener noreferrer">DeFlock</a>-compatible OSM tags; © OpenStreetMap contributors (ODbL). Data may be incomplete or out of date.</p>
               <details id="camera-add-manual"><summary>Add a camera location manually</summary>
                 <form id="camera-manual-form" class="camera-manual-form">
                   <label>Category<select class="field" id="camera-kind"><option value="ALPR">ALPR / Flock</option><option value="RED_LIGHT">Red-light enforcement</option><option value="SPEED">Speed enforcement</option></select></label>
@@ -131,7 +131,7 @@
                 </form>
               </details>
               <div id="camera-selected" class="small muted" hidden></div>
-            </details>
+            </section>
             <div class="map-sheet-tools" aria-label="Map controls"><button type="button" class="btn outline" id="map-geolocate-sheet">⌖ My location</button><button type="button" class="btn outline" id="map-style-sheet">Change style</button><button type="button" class="btn outline" id="map-mode-sheet">Offline / online</button><label class="switchline"><input type="checkbox" id="show-demo-map-sheet"> Show DEMO</label></div>
             <div class="map-metric-controls" aria-label="Map observation filters">
               <label for="map-metric-mode">Marker colors<select class="field" id="map-metric-mode"><option value="kind">By observation category</option><option value="rssi">Recorded RSSI (dBm)</option><option value="quality">Wi-Fi quality (%)</option></select></label>

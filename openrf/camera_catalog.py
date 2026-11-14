@@ -12,15 +12,20 @@ import json
 import math
 import sqlite3
 import urllib.request
+import urllib.error
+import urllib.parse
 from datetime import datetime, timezone
 
 TYPES = {'ALPR', 'RED_LIGHT', 'SPEED'}
 STATES = {'REPORTED', 'COMMUNITY_MAPPED', 'VERIFIED', 'REMOVED'}
-# Public FlockHopper snapshot derived from OSM; not an official Flock feed.
-FEED_URL = 'https://data.dontgetflocked.com/cameras.geojson.gz'
-ATTRIBUTION = '© OpenStreetMap contributors (ODbL); ALPR snapshot distributed by FlockHopper / DeFlock community mapping'
-MAX_COMPRESSED = 32 * 1024 * 1024
-MAX_UNCOMPRESSED = 150 * 1024 * 1024
+# Query OSM's public Overpass API for only the operator-selected viewport.
+# DeFlock/FlockHopper also use OpenStreetMap surveillance tags; these are NOT
+# independent/verified Flock records. No nationwide snapshot is downloaded.
+FEED_URL = 'https://overpass-api.de/api/interpreter'
+OVERPASS_ENDPOINTS = (FEED_URL, 'https://overpass.private.coffee/api/interpreter')
+ATTRIBUTION = '© OpenStreetMap contributors (ODbL); opt-in area query via Overpass API (DeFlock-compatible OSM tagging)'
+MAX_RESPONSE = 12 * 1024 * 1024
+MAX_ELEMENTS = 20000
 
 
 def utc_now():
@@ -122,29 +127,87 @@ def remove(repo, ident):
         return bool(cur.rowcount)
 
 
-def _read_published_feed():
-    # The URL is fixed in source; no arbitrary URL fetch/SSRF. User must opt in.
-    request=urllib.request.Request(FEED_URL, headers={'User-Agent':'OpenRF/0.2.54 (+offline first; explicit import only)', 'Accept':'application/gzip,application/octet-stream'})
-    with urllib.request.urlopen(request, timeout=25) as reply:
-        compressed=reply.read(MAX_COMPRESSED+1)
-    if len(compressed)>MAX_COMPRESSED:
-        raise ValueError('ALPR feed is too large; import cancelled.')
-    try:
-        with gzip.GzipFile(fileobj=io.BytesIO(compressed)) as archive:
-            decoded=archive.read(MAX_UNCOMPRESSED+1)
-    except (OSError, EOFError) as exc:
-        raise ValueError('ALPR feed is not readable gzip data.') from exc
-    if len(decoded)>MAX_UNCOMPRESSED:
-        raise ValueError('ALPR feed expands beyond the safe local limit.')
-    try:
-        return json.loads(decoded)
-    except (UnicodeDecodeError,json.JSONDecodeError) as exc:
-        raise ValueError('ALPR feed is not valid GeoJSON.') from exc
+def _overpass_query(bounds):
+    # Validated and normalized; never inject user-controlled query fragments.
+    west, south, east, north = bbox_value(bounds, narrow=True)
+    box = f'{south:.6f},{west:.6f},{north:.6f},{east:.6f}'
+    # Same OSM tags read by the FlockHopper ingestion pipeline. Ways are
+    # represented by Overpass-calculated centers, NOT exact lens positions.
+    return (f'[out:json][timeout:25];('
+            f'node["man_made"="surveillance"]["surveillance:type"="ALPR"]({box});'
+            f'way["man_made"="surveillance"]["surveillance:type"="ALPR"]({box});'
+            f');out center tags;')
+
+
+def _parse_overpass(document):
+    if not isinstance(document, dict) or not isinstance(document.get('elements'), list):
+        raise ValueError('Overpass did not return a valid OSM elements list.')
+    if document.get('remark'):
+        raise ValueError('Overpass reported a timeout or incomplete data; zoom in and retry.')
+    elements = document['elements']
+    if len(elements) > MAX_ELEMENTS:
+        raise ValueError('Too many OSM camera records in view; zoom in and retry.')
+    features = []
+    for element in elements:
+        if not isinstance(element, dict) or element.get('type') not in ('node', 'way'):
+            continue
+        kind = element['type']
+        coordinates = element if kind == 'node' else element.get('center')
+        if not isinstance(coordinates, dict):
+            continue
+        tags = element.get('tags')
+        if not isinstance(tags, dict):
+            continue
+        if tags.get('man_made') != 'surveillance' or str(tags.get('surveillance:type', '')).upper() != 'ALPR':
+            continue
+        try:
+            lon = float(coordinates['lon'])
+            lat = float(coordinates['lat'])
+        except (KeyError, ValueError, TypeError):
+            continue
+        if not (math.isfinite(lon) and math.isfinite(lat) and -180 <= lon <= 180 and -90 <= lat <= 90):
+            continue
+        osm_id = element.get('id')
+        if type(osm_id) is not int or osm_id < 1:
+            continue
+        features.append({'type': 'Feature', 'id': f'{kind}/{osm_id}',
+                         'geometry': {'type': 'Point', 'coordinates': [lon, lat]},
+                         'properties': {
+                             'brand': tags.get('brand') or tags.get('manufacturer') or '',
+                             'direction': tags.get('camera:direction') or tags.get('direction') or ''}})
+    return {'type': 'FeatureCollection', 'features': features}
+
+
+def _read_osm_area(bounds):
+    query = _overpass_query(bounds)
+    payload = urllib.parse.urlencode({'data': query}).encode('utf-8')
+    errors = []
+    for endpoint in OVERPASS_ENDPOINTS:
+        request = urllib.request.Request(endpoint, data=payload, headers={
+            'User-Agent': 'OpenRF/0.2.55 (offline-first; user-initiated OSM area lookup)',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json'})
+        try:
+            with urllib.request.urlopen(request, timeout=20) as reply:
+                raw = reply.read(MAX_RESPONSE + 1)
+            if len(raw) > MAX_RESPONSE:
+                raise ValueError('OSM area response is too large; zoom in and retry.')
+            if raw[:2] == b'\x1f\x8b':
+                with gzip.GzipFile(fileobj=io.BytesIO(raw)) as archive:
+                    raw = archive.read(MAX_RESPONSE + 1)
+                if len(raw) > MAX_RESPONSE:
+                    raise ValueError('OSM area response expands past the safety limit; zoom in.')
+            return _parse_overpass(json.loads(raw))
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError,
+                json.JSONDecodeError, UnicodeError) as exc:
+            errors.append(f'{endpoint.split("/")[2]}: {type(exc).__name__}')
+    raise ValueError('Area query failed at both OSM servers (' + ', '.join(errors) +
+                     '). Try again when online or zoom into a smaller area; saved camera pins remain offline.')
 
 
 def import_feed(repo, bounds, fetch=None):
     west,south,east,north=bbox_value(bounds,narrow=True)
-    document=(fetch or _read_published_feed)()
+    document=fetch() if fetch is not None else _read_osm_area(bounds)
     if not isinstance(document,dict) or document.get('type')!='FeatureCollection' or not isinstance(document.get('features'),list):
         raise ValueError('Published feed did not contain GeoJSON features.')
     rows=[]
@@ -166,8 +229,8 @@ def import_feed(repo, bounds, fetch=None):
         label=(f'Community-mapped {brand} ALPR' if brand else 'Community-mapped ALPR')[:160]
         direction=str(prop.get('direction') or '').strip()[:80]
         rows.append(('ALPR','COMMUNITY_MAPPED',label,lat,lon,direction,'',
-                     'FlockHopper / DeFlock community map (OpenStreetMap)',
-                     'https://deflock.org/',source_id,utc_now()))
+                     'OpenStreetMap community surveillance mapping (Overpass/DeFlock compatible)',
+                     ('https://www.openstreetmap.org/'+str(ext) if isinstance(ext,str) and ext.startswith(('node/','way/')) and ext.split('/',1)[1].isdigit() else 'https://www.openstreetmap.org/'),source_id,utc_now()))
         if len(rows)>=20000:break  # single-area ingest safety cap
     with repo._lock, repo._connect() as db:
         db.executemany('''INSERT INTO camera_sites
@@ -178,5 +241,5 @@ def import_feed(repo, bounds, fetch=None):
           label=excluded.label,updated_utc=excluded.updated_utc
         WHERE camera_sites.state='COMMUNITY_MAPPED' ''',rows)
     return {'matched':len(rows),'source':FEED_URL,'state':'COMMUNITY_MAPPED',
-            'note':'Community-mapped coordinates, not independently verified; may be outdated.',
+            'note':'Community-mapped OSM coordinates, not independently verified; may be outdated.',
             'attribution':ATTRIBUTION}

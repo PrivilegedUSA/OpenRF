@@ -1,5 +1,5 @@
 'use strict';
-/* v0.2.54: optional source-labeled infrastructure positions, never RF detections.
+/* v0.2.55: optional source-labeled infrastructure positions, never RF detections.
    Public ALPR sync occurs only after explicit user action. */
 (() => {
   const get=id=>document.getElementById(id);
@@ -103,12 +103,12 @@
     const button=get('camera-import-osm'),b=bounds();
     if(!usable(b)){setStatus('Zoom into a local area first (not across the date line).',true);return;}
     if(b[2]-b[0]>8||b[3]-b[1]>8){setStatus('Zoom closer: import is limited to a visible area no bigger than 8° × 8°.',true);return;}
-    button.disabled=true;setStatus('Downloading public OSM-derived ALPR snapshot on demand; no GPS or history sent…');
+    button.disabled=true;setStatus('Querying OSM/Overpass for ALPR reports within the visible map bounds. No GPS track is sent…');
     try{
       const result=await api('/api/cameras/import-osm','POST',{bounds:b});
-      const checkbox=get('camera-map-manager').querySelector('[data-camera-type="ALPR"]');checkbox.checked=true;
+      const checkbox=document.querySelector('[data-camera-type="ALPR"]');checkbox.checked=true;
       lastKey='';await refresh(true);
-      setStatus(`Imported ${result.import.matched} ALPR community-mapped location(s) in this area. Offline copy saved locally. Not independently verified.`);
+      setStatus(`Found ${result.import.matched} OSM community-mapped ALPR location(s) in this area. Local offline copy saved. If zero, the map has no tagged entries in this area—not proof that no cameras exist.`);
     }catch(e){setStatus(`Could not import ALPRs: ${e.message}`,true);}
     finally{button.disabled=false;}
   });
@@ -119,7 +119,7 @@
       longitude:Number(get('camera-longitude').value),source:get('camera-source').value,
       source_url:get('camera-source-url').value,notes:get('camera-notes').value};
     try{await api('/api/cameras','POST',data);
-      const choice=get('camera-map-manager').querySelector(`[data-camera-type="${data.type}"]`);choice.checked=true;
+      const choice=document.querySelector(`[data-camera-type="${data.type}"]`);choice.checked=true;
       lastKey='';await refresh(true);setStatus(`${data.type} location saved locally as ${data.state}. Not automatically verified.`);
     }catch(e){setStatus(`Camera not saved: ${e.message}`,true);}
     finally{button.disabled=false;}

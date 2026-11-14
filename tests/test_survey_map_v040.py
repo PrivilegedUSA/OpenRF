@@ -26,7 +26,7 @@ class SurveyMapAssetTests(unittest.TestCase):
                     self.assertIn('javascript',response.headers.get('Content-Type',''))
                 with urllib.request.urlopen(origin+'/',timeout=4) as response:
                     html=response.read().decode('utf-8')
-                    self.assertIn('/static/survey_map.js?v=0.2.54',html)
+                    self.assertIn('/static/survey_map.js?v=0.2.55',html)
                     self.assertIn('id="map-observation-detail"',html)
                 self.assertEqual(before,repo.list_observations())
             finally:

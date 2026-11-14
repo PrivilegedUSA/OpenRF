@@ -1123,3 +1123,15 @@ body.map-workspace .topbar .menu-toggle:focus-visible,
 .chirp-profiles{margin-top:12px;max-height:420px;overflow:auto}.chirp-channels{max-height:260px;overflow:auto}
 .chirp-channel-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px;border-bottom:1px solid #355d624f;font-size:12px}
 @media(max-width:620px){.camera-manual-form,.chirp-import-form{grid-template-columns:1fr}}
+
+/* v0.2.55: one consistent checkbox grid and spaced camera actions. */
+#map-survey-panel .layer-dot.camera-alpr{background:#8bd9ef}
+#map-survey-panel .layer-dot.camera-red{background:#ff7974}
+#map-survey-panel .layer-dot.camera-speed{background:#f8cc7c}
+#map-survey-panel .camera-map-manager{margin:14px 0 12px;padding:13px 2px 12px;border:0;border-top:1px solid #355d62;border-bottom:1px solid #355d62;border-radius:0}
+#map-survey-panel .camera-section-heading{display:block;font-size:13px;color:#d4f7ef;margin:0 7px 6px}
+#map-survey-panel .camera-map-manager > p{margin:9px 7px;line-height:1.55;overflow-wrap:anywhere}
+#map-survey-panel .camera-action-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:13px 7px 14px}
+#map-survey-panel .camera-action-buttons .btn{width:100%;min-height:42px;white-space:normal;text-align:center;line-height:1.35;padding:9px 11px}
+#map-survey-panel #camera-add-manual{margin:15px 7px 0}
+@media(max-width:500px){#map-survey-panel .camera-action-buttons{grid-template-columns:1fr;gap:11px}}
