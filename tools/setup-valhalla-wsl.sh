@@ -13,6 +13,7 @@ usage() {
   cat <<'HELP'
 OpenRF offline road ROUTING (Valhalla), not visible basemap tiles.
   bash tools/setup-valhalla-wsl.sh --status                 Local profiles and active service
+  bash tools/setup-valhalla-wsl.sh --doctor                 Docker/graph/HTTP + Sacramento-to-Auburn reference route
   bash tools/setup-valhalla-wsl.sh --plan --region west     Sizes and disk/memory checks; no download
   bash tools/setup-valhalla-wsl.sh --install --region norcal       Small existing default
   bash tools/setup-valhalla-wsl.sh --install --region california   All California
@@ -34,7 +35,7 @@ HELP
 
 while (($#)); do
   case "$1" in
-    --install|--status|--start|--stop|--logs|--plan)
+    --install|--status|--start|--stop|--logs|--plan|--doctor)
       [[ "$ACTION" == --status ]] || { echo 'Choose one action.' >&2; exit 2; }
       ACTION="$1"; shift ;;
     --region)
@@ -95,6 +96,52 @@ case "$ACTION" in
       echo 'Valhalla HTTP responds at 127.0.0.1:8002; route tile coverage still requires a route test.'
     else
       echo 'Valhalla HTTP not responding at 127.0.0.1:8002.'
+    fi
+    exit 0 ;;
+  --doctor)
+    echo 'OpenRF Valhalla read-only diagnosis (no download, build, or GPS use)'
+    echo "Private routing files: $DATA_DIR"
+    show_profiles
+    if ! command -v docker >/dev/null 2>&1; then
+      echo 'Docker CLI: unavailable in Ubuntu. Install/enable Docker Desktop WSL integration.'
+    elif ! docker info >/dev/null 2>&1; then
+      echo 'Docker daemon: unavailable. Start Docker Desktop and enable integration for Ubuntu.'
+    elif ! exists; then
+      echo 'OpenRF Valhalla container: missing. Install a region (e.g. --install --region norcal).'
+    else
+      echo "Active graph directory: $(active_source)"
+      docker ps -a --filter "name=^/${NAME}$" --format 'Container: {{.Names}} — {{.Status}}'
+      echo 'Container logs (latest 12 lines; errors may indicate a graph build still underway):'
+      docker logs --tail 12 "$NAME" 2>&1 || true
+    fi
+    if ! command -v curl >/dev/null 2>&1 || ! curl --fail --silent --max-time 4 'http://127.0.0.1:8002/status' >/dev/null 2>&1; then
+      echo 'Local Valhalla HTTP: NOT READY at 127.0.0.1:8002.'
+      echo 'Check Docker/container status and the graph build logs; --plan alone does not install routing.'
+      exit 0
+    fi
+    echo 'Local Valhalla HTTP: responding. Testing an example Sacramento-to-Auburn route (not your location).'
+    body=$(curl --silent --show-error --max-time 12 \
+      -H 'Content-Type: application/json' -X POST \
+      --data '{"locations":[{"lat":38.5816,"lon":-121.4944},{"lat":38.8966,"lon":-121.0769}],"costing":"auto"}' \
+      'http://127.0.0.1:8002/route' 2>/dev/null) || body=''
+    if [[ -z "$body" ]]; then
+      echo 'Test route: no response; Valhalla may be building, stalled, or lacking matching graph tiles.'
+    elif command -v python3 >/dev/null 2>&1; then
+      printf '%s' "$body" | python3 -c '
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    trip = data.get("trip") or {}
+    summary = trip.get("summary") or {}
+    if trip.get("legs") and "length" in summary:
+        print("Test route: OK; Sacramento-to-Auburn drivable graph is available.")
+    else:
+        print("Test route: unavailable; Valhalla reports:", str(data.get("error") or data.get("status_message") or data.get("error_code") or "unknown route error")[:240])
+except (ValueError, TypeError, AttributeError):
+    print("Test route: unexpected HTTP response; inspect --logs.")
+'
+    else
+      echo 'Test route response was received but Python was unavailable for validation.'
     fi
     exit 0 ;;
   --plan)

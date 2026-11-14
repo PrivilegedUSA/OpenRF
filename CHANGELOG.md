@@ -1,3 +1,10 @@
+## v0.2.57 — Readable camera popups and read-only Valhalla diagnosis (2026-11-14)
+
+- Restyle only camera report MapLibre popups with OpenRF's dark navy/teal palette, readable text, styled source link and close control, matching marker tip and touchscreen-sized scrolling. Preserve source labels and no-tracking wording; camera points are community-mapped, not necessarily operational.
+- Add a read-only `tools/setup-valhalla-wsl.sh --doctor` command to distinguish missing Docker integration, missing/not-running Valhalla, graph still building, and example Sacramento-to-Auburn routing availability. It checks only local loopback and never downloads source files or modifies user graph data.
+- Leave existing map controls, offline basemap, saved nationwide ALPR database, and radio features unchanged. A **real Valhalla graph still must be built and running separately**; the ZIP does not contain large graph downloads. The user's own Docker/Valhalla runtime was not accessible for live verification.
+- Add source and stubbed CLI regression tests, release checklist and versioned browser asset refresh.
+
 ## v0.2.56 — Nationwide ALPR snapshots and optional offline Valhalla routing regions (2026-11-14)
 
 - Replace unreliable Overpass-only camera discovery as the primary import with an **explicit optional nationwide ALPR snapshot download** from a published community OSM-derived GeoJSON feed. Validate, stage and atomically replace only the national snapshot's private SQLite data; manual camera locations and the red-light/speed categories remain untouched. Browser loads only points in its map viewport. A local GeoJSON(.gz) file import remains available if the direct online download fails. Never treat community locations as independently verified.

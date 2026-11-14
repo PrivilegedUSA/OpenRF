@@ -1,5 +1,5 @@
 'use strict';
-/* v0.2.56: optional source-labeled infrastructure positions, never RF detections.
+/* v0.2.57: optional source-labeled infrastructure positions, never RF detections.
    Public ALPR sync occurs only after explicit user action. */
 (() => {
   const get=id=>document.getElementById(id);
@@ -74,7 +74,7 @@
           const p=document.createElement('p');p.textContent=line;div.append(p);
         }
         if(c.source_url){const a=document.createElement('a');a.href=c.source_url;a.target='_blank';a.rel='noopener noreferrer';a.textContent='Open recorded source';div.append(a);}
-        new maplibregl.Popup().setLngLat(event.lngLat).setDOMContent(div).addTo(map);
+        new maplibregl.Popup({className:'openrf-camera-map-popup',maxWidth:'290px'}).setLngLat(event.lngLat).setDOMContent(div).addTo(map);
       });
     }
     updateVector(map);onViewportChanged();
