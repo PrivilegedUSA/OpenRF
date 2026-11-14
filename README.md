@@ -1,4 +1,4 @@
-# OpenRF v0.2.55 — Camera Layers & CHIRP Profile Imports
+# OpenRF v0.2.56 — Nationwide ALPR Snapshots & Optional Wider Offline Routing
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.55.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.56.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.55 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.56 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -466,3 +466,12 @@ The online opt-in is **off on each fresh page load**, including when a private p
 Local Valhalla health (separate from address search): `bash tools/setup-valhalla-wsl.sh --status`. You can always choose the destination directly on the map to test routing without geocoding. This release does **not** implement continuous driving navigation, GPS-following or audible turn instructions.
 
 The Map destination picker also uses **tap once to select** with a crosshair cursor and a temporary yellow destination marker; it is not a draggable GPS pin. Press Escape or choose the picker again to cancel. No observation is recorded.
+
+
+## v0.2.56 — optional national ALPR download + larger offline road ROUTING regions
+
+The existing **Map → Layers** overlay has an optional **Download / update nationwide ALPRs** button. After a successful explicit download, community-mapped camera points are indexed and cached in a local private SQLite snapshot; the browser requests only the currently visible area. A local GeoJSON(.gz) import fallback is also available. Manual camera records are preserved across national refresh failures. No positions are verified solely because they appear in an OSM/community feed. No live data feed was downloaded or verified in this release.
+
+**Optional offline Valhalla road routing**, not additional visible map tiles, now supports four profiles: existing Northern California, all California, western US (including Nevada), and the whole United States. The expanded graph source files and output are separate from managed project code, stored under `~/.local/share/openrf/valhalla/`; downloads require explicit commands, adequate storage/RAM and a working Docker daemon. Full-US routing is **not** a lightweight bundle: the raw extract is roughly 11.4 GB and the processing/output needs considerably more space. The release ZIP includes none of it.
+
+Read [Offline Valhalla routing region setup](docs/VALHALLA_ROUTING_REGIONS.md) and start with `bash tools/setup-valhalla-wsl.sh --plan --region west` from Ubuntu. To install California instead, run `bash tools/setup-valhalla-wsl.sh --install --region california`. This **does not** configure online geocoding, prebuilt map visuals or camera avoidance. The existing v0.2.52 right-side map layout, offline Amador/Calaveras basemap and radio tools are unchanged.

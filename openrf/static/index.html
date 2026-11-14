@@ -6,24 +6,24 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.55">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.56">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
-  <script defer src="/static/spectrum-analysis.js?v=0.2.55"></script>
-  <script defer src="/static/spectrum.js?v=0.2.55"></script>
-  <script defer src="/static/sdr-history.js?v=0.2.55"></script>
-  <script defer src="/static/survey_map.js?v=0.2.55"></script>
-  <script defer src="/static/navigation.js?v=0.2.55"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.55"></script>
-  <script defer src="/static/app.js?v=0.2.55"></script>
-  <script defer src="/static/radio.js?v=0.2.55"></script>
-  <script defer src="/static/camera-layers.js?v=0.2.55"></script>
-  <script defer src="/static/chirp-import.js?v=0.2.55"></script>
+  <script defer src="/static/spectrum-analysis.js?v=0.2.56"></script>
+  <script defer src="/static/spectrum.js?v=0.2.56"></script>
+  <script defer src="/static/sdr-history.js?v=0.2.56"></script>
+  <script defer src="/static/survey_map.js?v=0.2.56"></script>
+  <script defer src="/static/navigation.js?v=0.2.56"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.56"></script>
+  <script defer src="/static/app.js?v=0.2.56"></script>
+  <script defer src="/static/radio.js?v=0.2.56"></script>
+  <script defer src="/static/camera-layers.js?v=0.2.56"></script>
+  <script defer src="/static/chirp-import.js?v=0.2.56"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.55</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.56</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -115,9 +115,18 @@
               <p id="camera-map-status" class="small muted" role="status" aria-live="polite">All camera layers off. No network requests happen automatically.</p>
               <div class="camera-action-buttons">
                 <button type="button" class="btn outline" id="camera-refresh">Reload saved area</button>
-                <button type="button" class="btn outline" id="camera-import-osm">Import OSM / DeFlock ALPRs in view (online)</button>
+                <button type="button" class="btn outline" id="camera-download-national">Download / update nationwide ALPRs (online)</button>
               </div>
-              <p class="small muted">When you choose Import, OpenRF queries OpenStreetMap through Overpass for ALPR-tagged cameras <strong>only in the visible map area</strong>. The chosen map bounds are sent to the public OSM query service, but no GPS track or scan history is sent. Zoom in for a smaller area; matching reports are saved locally for offline use. Source: <a href="https://deflock.org/" target="_blank" rel="noopener noreferrer">DeFlock</a>-compatible OSM tags; © OpenStreetMap contributors (ODbL). Data may be incomplete or out of date.</p>
+              <p id="camera-snapshot-status" class="small muted" role="status" aria-live="polite">National ALPR snapshot: checking local status…</p>
+              <p class="small muted">The nationwide download is <strong>optional</strong> and starts only when you press the button. OpenRF retrieves the published U.S. FlockHopper/OSM camera snapshot once, stores it in local private SQLite, and shows only cameras in the visible map area. Later map use is offline. No GPS fixes, RF observations, or travel history are uploaded. Sources: <a href="https://github.com/flockhopper3/deflock-data" target="_blank" rel="noopener noreferrer">FlockHopper</a> / DeFlock-compatible OSM tags; © OpenStreetMap contributors (ODbL 1.0). Community mapped means <strong>not verified or necessarily operational</strong>. Refreshes replace only the downloaded snapshot, not your private camera reports.</p>
+              <details class="camera-advanced-import"><summary>Advanced: alternative imports</summary>
+                <p class="small muted">If direct download is blocked, manually download a compatible national GeoJSON / GeoJSON.gz snapshot to your computer, then import it here. Your file is processed locally and is not uploaded to an outside service. The data's origin cannot be independently verified.</p>
+                <label class="small" for="camera-import-file">Select local snapshot file</label>
+                <input type="file" id="camera-import-file" class="field" accept=".geojson,.json,.gz,application/gzip,application/geo+json">
+                <button type="button" class="btn outline" id="camera-import-upload">Import selected snapshot file</button>
+                <p class="small muted">Optional fallback. Public Overpass servers may time out. Sends only the map's visible bounds on request; use a small area.</p>
+                <button type="button" class="btn outline" id="camera-import-osm">Import OSM ALPRs in view (online)</button>
+              </details>
               <details id="camera-add-manual"><summary>Add a camera location manually</summary>
                 <form id="camera-manual-form" class="camera-manual-form">
                   <label>Category<select class="field" id="camera-kind"><option value="ALPR">ALPR / Flock</option><option value="RED_LIGHT">Red-light enforcement</option><option value="SPEED">Speed enforcement</option></select></label>

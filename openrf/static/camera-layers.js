@@ -1,5 +1,5 @@
 'use strict';
-/* v0.2.55: optional source-labeled infrastructure positions, never RF detections.
+/* v0.2.56: optional source-labeled infrastructure positions, never RF detections.
    Public ALPR sync occurs only after explicit user action. */
 (() => {
   const get=id=>document.getElementById(id);
@@ -10,6 +10,37 @@
   const enabled=()=>new Set(controls.filter(c=>c.checked).map(c=>c.dataset.cameraType));
   const setStatus=(message,error=false)=>{const el=get('camera-map-status');el.textContent=message;el.classList.toggle('error',error);};
   const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  let snapshotPoll=null,snapshotWasRunning=false;
+  function setSnapshotStatus(message,error=false){
+    const target=get('camera-snapshot-status');
+    if(!target)return;
+    target.textContent=message;target.classList.toggle('error',error);
+  }
+  async function snapshotStatus(){
+    const button=get('camera-download-national');
+    try{
+      const response=await fetch('/api/cameras/snapshot',{cache:'no-store'});
+      const result=await response.json();if(!response.ok)throw Error(result.error||'Local status unavailable');
+      const info=result.snapshot||{},count=Number(info.count||0),wasRunning=snapshotWasRunning;
+      snapshotWasRunning=!!result.running;
+      if(button)button.disabled=!!result.running;
+      if(result.running){
+        const label=result.phase==='downloading'?'Downloading':result.phase==='validating'?'Importing and validating':'Updating';
+        setSnapshotStatus(`${label} national ALPR snapshot… ${Number(result.downloaded_bytes||0).toLocaleString()} bytes received; ${Number(result.processed||0).toLocaleString()} features processed. Keep OpenRF running.`);
+        if(snapshotPoll===null)snapshotPoll=setTimeout(()=>{snapshotPoll=null;snapshotStatus();},1200);
+      }else{
+        if(snapshotPoll!==null){clearTimeout(snapshotPoll);snapshotPoll=null;}
+        const baseline=count?`${count.toLocaleString()} community-mapped ALPR points saved offline (updated ${info.updated_utc||'unknown'}).`:'No nationwide ALPR snapshot downloaded yet.';
+        setSnapshotStatus(result.phase==='failed'?`${baseline} Last update failed: ${result.error||'Unknown download problem'}. Saved cameras remain available.`:baseline,result.phase==='failed');
+        if(wasRunning && result.phase==='ready'){
+          const checkbox=document.querySelector('[data-camera-type="ALPR"]');
+          if(checkbox)checkbox.checked=true;
+          lastKey='';refresh(true);
+        }
+      }
+    }catch(error){if(button)button.disabled=false;setSnapshotStatus(`Local national snapshot status unavailable: ${error.message}`,true);}
+  }
+
   const bounds=()=>{
     if(state.map && state.mapReady){
       const b=state.map.getBounds();return [b.getWest(),b.getSouth(),b.getEast(),b.getNorth()];
@@ -99,6 +130,31 @@
     lastKey='';if(enabled().size)refresh(true);else{entries=[];updateVector(state.map);state.rasterMap?.render();setStatus('All camera layers disabled. No camera network activity.');}
   }));
   get('camera-refresh').addEventListener('click',()=>refresh(true));
+  get('camera-download-national')?.addEventListener('click',async()=>{
+    const button=get('camera-download-national');button.disabled=true;
+    setSnapshotStatus('Starting optional nationwide ALPR download. The map location and GPS history will not be sent.');
+    try{
+      const result=await api('/api/cameras/snapshot/update','POST',{});
+      snapshotWasRunning=!!result.running;
+      await snapshotStatus();
+    }catch(error){button.disabled=false;setSnapshotStatus(`National ALPR download could not start: ${error.message}`,true);}
+  });
+  snapshotStatus();
+  get('camera-import-upload')?.addEventListener('click',async()=>{
+    const file=get('camera-import-file')?.files?.[0];
+    if(!file){setSnapshotStatus('Select a local .geojson, .json or .gz file first.',true);return;}
+    if(file.size<100||file.size>128*1024*1024){setSnapshotStatus('Selected file is outside the 100-byte to 128-MiB limit.',true);return;}
+    const button=get('camera-import-upload');button.disabled=true;
+    setSnapshotStatus('Uploading selected snapshot into private OpenRF storage for offline validation…');
+    try{
+      const response=await fetch('/api/cameras/snapshot/upload',{method:'POST',
+        headers:{'Content-Type':'application/octet-stream'},body:file});
+      const result=await response.json();if(!response.ok)throw Error(result.error||'Snapshot upload failed');
+      snapshotWasRunning=!!result.running;
+      await snapshotStatus();
+    }catch(error){setSnapshotStatus(`Snapshot file import unavailable: ${error.message}`,true);}
+    finally{button.disabled=false;}
+  });
   get('camera-import-osm').addEventListener('click',async()=>{
     const button=get('camera-import-osm'),b=bounds();
     if(!usable(b)){setStatus('Zoom into a local area first (not across the date line).',true);return;}

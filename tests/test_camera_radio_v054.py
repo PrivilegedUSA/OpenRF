@@ -1,4 +1,4 @@
-"""v0.2.55 private camera catalog and import-only CHIRP profiles, no live RF/network."""
+"""v0.2.56 private camera catalog and import-only CHIRP profiles, no live RF/network."""
 import json
 import tempfile
 import unittest

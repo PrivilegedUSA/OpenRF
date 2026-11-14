@@ -33,6 +33,8 @@ def utc_now():
 
 
 def init(connection):
+    from . import national_alpr
+    national_alpr.init(connection)
     connection.executescript('''
     CREATE TABLE IF NOT EXISTS camera_sites (
       id INTEGER PRIMARY KEY,
@@ -112,12 +114,26 @@ def list_sites(repo, bounds, limit=1000):
     west,south,east,north=bbox_value(bounds)
     if type(limit) is not int or limit<1 or limit>1500: raise ValueError('Invalid result limit')
     with repo._lock, repo._connect() as db:
-        rows=db.execute('''SELECT id,type,state,label,latitude,longitude,direction,notes,
+        rows=db.execute('''SELECT id,type,state,label,latitude,longitude,direction,notes,source_id,
             source,source_url,updated_utc FROM camera_sites
             WHERE longitude>=? AND longitude<=? AND latitude>=? AND latitude<=?
             AND state!='REMOVED' ORDER BY id DESC LIMIT ?''', (west,east,south,north,limit+1)).fetchall()
-    return {'sites':[dict(row) for row in rows[:limit]], 'truncated':len(rows)>limit,
-            'attribution':ATTRIBUTION, 'camera_positions':'reported infrastructure; not RF detections or proof of operation'}
+    # Manual/local reports stay independent of public nationwide snapshots.
+    # Use indexed local bounding-box lookups and never send the entire nationwide
+    # collection to the browser. Preserve local reports ahead of public records.
+    from . import national_alpr
+    saved=[dict(row) for row in rows[:limit]]
+    seen={str(row['source_id']) for row in rows if 'source_id' in row.keys() and row['source_id']}
+    remaining=max(0,limit-len(saved))
+    national=[]
+    if remaining:
+        with repo._lock, repo._connect() as db:
+            national=national_alpr.sites_in_bounds(db,(west,south,east,north),remaining+len(seen)+1)
+        national=[site for site in national if site['id'] not in seen]
+    combined=saved+national[:remaining]
+    return {'sites':combined, 'truncated':len(rows)>limit or len(national)>remaining,
+            'attribution':ATTRIBUTION + '; ' + national_alpr.ATTRIBUTION,
+            'camera_positions':'reported infrastructure; not RF detections or proof of operation'}
 
 
 def remove(repo, ident):

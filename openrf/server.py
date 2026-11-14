@@ -5,6 +5,7 @@ import argparse
 import json
 import logging
 import os
+import tempfile
 import sqlite3
 import threading
 import time
@@ -25,7 +26,7 @@ from .hardware_manager import manager_report
 from .sdr import capability_report as sdr_capability_report
 from .sdr_capture import SdrCaptureManager, CaptureError
 from .radio import RadioReceiver, RadioError
-from . import camera_catalog, chirp_channels
+from . import camera_catalog, chirp_channels, national_alpr
 from .sdr_survey import capture_sites_geojson
 from .routing import local_route, local_status, RouteUnavailable, RouteError
 from .gnss import read_local_gpsd
@@ -47,6 +48,8 @@ DEFAULT_DB = Path.home() / '.local' / 'share' / 'openrf' / 'openrf.sqlite3'
 
 class OpenRFHTTPServer(ThreadingHTTPServer):
     def server_close(self):
+        if hasattr(self, 'national_alpr_manager'):
+            self.national_alpr_manager.close()
         if hasattr(self, 'radio_receiver'):
             self.radio_receiver.close()
         if hasattr(self, 'sdr_captures'):
@@ -163,6 +166,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._error(404,'Local glyph range unavailable')
         if path == '/api/meta':
             return self._json(200, {'version': __version__, 'platform': 'Linux / Raspberry Pi', 'mode': 'local-only', 'scan_active': self.server.sdr_captures.status()['running']})
+        if path == '/api/cameras/snapshot':
+            return self._json(200, self.server.national_alpr_manager.status())
         if path == '/api/cameras':
             params = parse_qs(urlparse(self.path).query)
             if set(params)-{'bounds'} or len(params.get('bounds',[]))!=1:
@@ -440,6 +445,38 @@ class Handler(BaseHTTPRequestHandler):
             except (AreaError, TileArchiveError, ValueError, OSError) as exc:
                 self.close_connection = True
                 return self._error(400, str(exc))
+        if path == '/api/cameras/snapshot/upload':
+            # Explicit operator-selected local GeoJSON(.gz) backup; never accept
+            # filesystem paths or arbitrary URLs supplied by the browser.
+            if self.headers.get('Content-Type','').split(';')[0].lower()!='application/octet-stream':
+                return self._error(415,'Select a local GeoJSON or GeoJSON.gz file')
+            try:declared=int(self.headers.get('Content-Length','0'))
+            except ValueError:return self._error(400,'Invalid uploaded file length')
+            if not 100<=declared<=national_alpr.MAX_DOWNLOAD_BYTES:
+                self.close_connection=True
+                return self._error(413,'Snapshot file must be 100 bytes to 128 MiB')
+            if self.server.national_alpr_manager.status()['running']:
+                self.close_connection=True
+                return self._error(409,'An ALPR import is already running')
+            temp_path=None
+            try:
+                with tempfile.NamedTemporaryFile(prefix='.alpr-upload-',suffix='.geojson',
+                        dir=self.repo.path.parent,delete=False) as dest:
+                    temp_path=Path(dest.name)
+                    remaining=declared
+                    while remaining:
+                        chunk=self.rfile.read(min(65536,remaining))
+                        if not chunk:raise ValueError('Incomplete file upload')
+                        dest.write(chunk);remaining-=len(chunk)
+                result=self.server.national_alpr_manager.start_uploaded(temp_path)
+                temp_path=None
+                return self._json(202,result)
+            except (ValueError,OSError,national_alpr.SnapshotError) as exc:
+                self.close_connection=True
+                return self._error(400,str(exc))
+            finally:
+                if temp_path is not None:
+                    temp_path.unlink(missing_ok=True)
         if path == '/api/maps/import':
             # A browser-selected file only. Never fetch a remote URL, traverse
             # arbitrary local filesystem paths, or decode the whole file in RAM.
@@ -474,6 +511,13 @@ class Handler(BaseHTTPRequestHandler):
                 if set(body) != {'name','model','csv'}:
                     raise ValueError('Import only a named CHIRP CSV radio profile.')
                 return self._json(201,{'profile':chirp_channels.import_csv(self.repo,body['name'],body['model'],body['csv'])})
+            if path == '/api/cameras/snapshot/update':
+                if body:
+                    raise ValueError('Nationwide download accepts an empty JSON object only.')
+                try:
+                    return self._json(202,self.server.national_alpr_manager.start())
+                except national_alpr.SnapshotError as exc:
+                    return self._error(409,str(exc))
             if path == '/api/cameras':
                 return self._json(201,{'camera':camera_catalog.add_manual(self.repo,body)})
             if path == '/api/cameras/import-osm':
@@ -765,6 +809,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.sdr_captures = SdrCaptureManager(repository.path.parent / 'sdr-captures')
     server.radio_receiver = RadioReceiver()
     server.alpr_import_lock = threading.Lock()
+    server.national_alpr_manager = national_alpr.UpdateManager(repository)
     return server
 
 

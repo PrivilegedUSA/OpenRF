@@ -18,4 +18,4 @@ assert(css.includes('gap:10px'));
 assert(camera.includes('Querying OSM/Overpass'));
 assert(camera.includes("document.querySelector('[data-camera-type=\"ALPR\"]')"));
 assert(camera.includes('window.OpenRFCameras='));
-console.log('PASS v0.2.55 one grid for all layers, spaced action controls and bounded OSM import');
+console.log('PASS v0.2.56 one grid for all layers, spaced action controls and bounded OSM import');

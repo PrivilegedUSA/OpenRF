@@ -8,8 +8,8 @@ const radio=fs.readFileSync(path.join(root,'static/chirp-import.js'),'utf8');
 const server=fs.readFileSync(path.join(root,'server.py'),'utf8');
 for(const kind of ['ALPR','RED_LIGHT','SPEED'])assert(html.includes(`data-camera-type="${kind}"`));
 for(const id of ['camera-map-manager','camera-import-osm','camera-manual-form','chirp-import-form','chirp-file','chirp-profiles'])assert(html.includes(`id="${id}"`),id);
-assert(html.includes('/static/camera-layers.js?v=0.2.55'));
-assert(html.includes('/static/chirp-import.js?v=0.2.55'));
+assert(html.includes('/static/camera-layers.js?v=0.2.56'));
+assert(html.includes('/static/chirp-import.js?v=0.2.56'));
 assert(cams.includes('window.OpenRFCameras='));
 assert(cams.includes('COMMUNITY')===false || cams.includes('COMMUNITY'));
 assert(cams.includes("api('/api/cameras/import-osm','POST'"));
@@ -19,4 +19,4 @@ assert(!/getUserMedia|navigator\.geolocation|automaticTransmission|\.transmit\(/
 assert(radio.includes("'/api/radio/profiles/import'"));
 assert(server.includes("'/static/camera-layers.js'"));
 assert(server.includes("'/static/chirp-import.js'"));
-console.log('PASS v0.2.55 camera layers, import-only radio profiles and map lifecycle');
+console.log('PASS v0.2.56 camera layers, import-only radio profiles and map lifecycle');
