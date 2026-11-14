@@ -6,22 +6,24 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.53">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.54">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
-  <script defer src="/static/spectrum-analysis.js?v=0.2.53"></script>
-  <script defer src="/static/spectrum.js?v=0.2.53"></script>
-  <script defer src="/static/sdr-history.js?v=0.2.53"></script>
-  <script defer src="/static/survey_map.js?v=0.2.53"></script>
-  <script defer src="/static/navigation.js?v=0.2.53"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.53"></script>
-  <script defer src="/static/app.js?v=0.2.53"></script>
-  <script defer src="/static/radio.js?v=0.2.53"></script>
+  <script defer src="/static/spectrum-analysis.js?v=0.2.54"></script>
+  <script defer src="/static/spectrum.js?v=0.2.54"></script>
+  <script defer src="/static/sdr-history.js?v=0.2.54"></script>
+  <script defer src="/static/survey_map.js?v=0.2.54"></script>
+  <script defer src="/static/navigation.js?v=0.2.54"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.54"></script>
+  <script defer src="/static/app.js?v=0.2.54"></script>
+  <script defer src="/static/radio.js?v=0.2.54"></script>
+  <script defer src="/static/camera-layers.js?v=0.2.54"></script>
+  <script defer src="/static/chirp-import.js?v=0.2.54"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.53</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.54</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -104,6 +106,32 @@
               <label><input type="checkbox" data-map-kind="INFRASTRUCTURE" checked> <i class="layer-dot infrastructure"></i> Infrastructure</label>
               <label><input type="checkbox" data-map-kind="MANUAL" checked> <i class="layer-dot manual"></i> Manual</label>
             </div>
+            <details class="camera-map-manager" id="camera-map-manager">
+              <summary>Traffic &amp; surveillance camera layers</summary>
+              <p class="small muted">Saved camera locations are infrastructure reports, NOT RF detections. Imported DeFlock/FlockHopper/OSM pins are community-mapped, not automatically verified or proof of current operation.</p>
+              <div class="camera-layer-toggles" role="group" aria-label="Optional camera map layers">
+                <label><input type="checkbox" data-camera-type="ALPR"> <span class="camera-key alpr">●</span> Flock / other ALPR</label>
+                <label><input type="checkbox" data-camera-type="RED_LIGHT"> <span class="camera-key red-light">●</span> Red-light enforcement</label>
+                <label><input type="checkbox" data-camera-type="SPEED"> <span class="camera-key speed">●</span> Speed enforcement</label>
+              </div>
+              <p id="camera-map-status" class="small muted" role="status" aria-live="polite">Layers off by default. No camera locations fetched automatically.</p>
+              <button type="button" class="btn outline" id="camera-refresh">Reload saved area</button>
+              <button type="button" class="btn outline" id="camera-import-osm">Import DeFlock/OSM ALPRs in visible area (online)</button>
+              <p class="small muted">Import downloads the public FlockHopper ALPR snapshot only when requested; it filters locally to the current map area (zoom in first). Locations are cached in your local SQLite database for offline use. Source: <a href="https://deflock.org/" target="_blank" rel="noopener noreferrer">DeFlock</a> / FlockHopper and © OpenStreetMap contributors (ODbL). No live GPS or travel history is uploaded.</p>
+              <details id="camera-add-manual"><summary>Add a camera location manually</summary>
+                <form id="camera-manual-form" class="camera-manual-form">
+                  <label>Category<select class="field" id="camera-kind"><option value="ALPR">ALPR / Flock</option><option value="RED_LIGHT">Red-light enforcement</option><option value="SPEED">Speed enforcement</option></select></label>
+                  <label>Evidence status<select class="field" id="camera-verification"><option value="REPORTED">Reported / not verified</option><option value="VERIFIED">Verified with documentary source</option><option value="REMOVED">Removed / inactive report</option></select></label>
+                  <label>Location label<input class="field" id="camera-label" maxlength="160" required placeholder="Intersection / direction"></label>
+                  <div class="camera-coordinates"><label>Latitude<input class="field" id="camera-latitude" type="number" min="-90" max="90" step="any" required></label><label>Longitude<input class="field" id="camera-longitude" type="number" min="-180" max="180" step="any" required></label></div>
+                  <label>Source / reporter<input class="field" id="camera-source" maxlength="140" required placeholder="Site visit, public record, etc."></label>
+                  <label>Document source URL (required for verified)<input class="field" id="camera-source-url" type="url" maxlength="500" placeholder="https://..."></label>
+                  <label>Notes<input class="field" id="camera-notes" maxlength="1000" placeholder="What was observed / date, optional"></label>
+                  <button class="btn primary" type="submit">Save local camera report</button>
+                </form>
+              </details>
+              <div id="camera-selected" class="small muted" hidden></div>
+            </details>
             <div class="map-sheet-tools" aria-label="Map controls"><button type="button" class="btn outline" id="map-geolocate-sheet">⌖ My location</button><button type="button" class="btn outline" id="map-style-sheet">Change style</button><button type="button" class="btn outline" id="map-mode-sheet">Offline / online</button><label class="switchline"><input type="checkbox" id="show-demo-map-sheet"> Show DEMO</label></div>
             <div class="map-metric-controls" aria-label="Map observation filters">
               <label for="map-metric-mode">Marker colors<select class="field" id="map-metric-mode"><option value="kind">By observation category</option><option value="rssi">Recorded RSSI (dBm)</option><option value="quality">Wi-Fi quality (%)</option></select></label>
@@ -359,6 +387,18 @@
           <div class="button-line"><button type="button" id="radio-start" class="btn primary">Receive short sample</button><button type="button" id="radio-stop" class="btn outline" disabled>Stop reception</button><button type="button" id="radio-refresh" class="btn outline">Refresh status</button></div>
           <p id="radio-state" class="small muted" role="status" aria-live="polite">Not checked. No receiver started.</p>
           <div id="radio-playback" hidden><label for="radio-player" class="fieldlabel">Received audio · captured sample, not live</label><audio id="radio-player" controls preload="none" aria-label="Listen to the last bounded RTL-SDR reception sample"></audio><p class="small muted">Audio is temporarily held in the local server's memory and replaced by the next sample or server restart; no automatic audio archive or upload.</p></div>
+        </div>
+        <div class="panel radio-chirp-panel">
+          <div class="panel-title"><h3>My Baofeng channel lists</h3><span class="pill">CHIRP CSV · IMPORT ONLY</span></div>
+          <p class="small muted">Use your existing UV-5R or BF-F8HP programming cable with CHIRP (typically on Windows), download memories from the radio, and export to CSV. Import the file here; OpenRF saves a local offline copy and NEVER writes to the radio or transmits. A programming cable does not carry listening audio.</p>
+          <form id="chirp-import-form" class="chirp-import-form">
+            <label>Radio model<select class="field" id="chirp-model"><option value="UV-5R">Baofeng UV-5R</option><option value="BF-F8HP">BTECH BF-F8HP</option><option value="OTHER">Other CHIRP-supported radio</option></select></label>
+            <label>Profile name<input class="field" id="chirp-name" maxlength="100" required value="My Baofeng channels"></label>
+            <label>Exported CHIRP CSV<input class="field" id="chirp-file" type="file" accept=".csv,text/csv" required></label>
+            <button type="submit" class="btn primary">Import channel list (offline)</button>
+          </form>
+          <p id="chirp-status" class="small muted" role="status" aria-live="polite">No radio connection attempted. No channel list imported.</p>
+          <div id="chirp-profiles" class="chirp-profiles"></div>
         </div>
         <div class="panel"><h3>Linux receiver setup</h3><p class="small muted">Install the optional <code>rtl-sdr</code> utilities (for example <code>sudo apt install rtl-sdr</code> on Ubuntu), connect a compatible receive-only RTL-SDR and antenna, then test USB access in the same Ubuntu environment. WSL often requires explicit USB passthrough; the Windows built-in radio is not shared automatically.</p><p class="small muted">Short samples play only after recording completes. This version does not offer continuous live listening, scanning presets, transmitter controls, voice identification, audio logging or a promise of a received signal.</p><div class="button-line"><button class="btn outline" data-jump="hardware" type="button">Hardware readiness</button><button class="btn outline" data-jump="spectrum" type="button">Open Spectrum</button></div></div>
       </section>

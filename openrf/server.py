@@ -25,6 +25,7 @@ from .hardware_manager import manager_report
 from .sdr import capability_report as sdr_capability_report
 from .sdr_capture import SdrCaptureManager, CaptureError
 from .radio import RadioReceiver, RadioError
+from . import camera_catalog, chirp_channels
 from .sdr_survey import capture_sites_geojson
 from .routing import local_route, local_status, RouteUnavailable, RouteError
 from .gnss import read_local_gpsd
@@ -94,8 +95,9 @@ class Handler(BaseHTTPRequestHandler):
         if not self.headers.get('Content-Type', '').lower().startswith('application/json'):
             raise ValueError('Content-Type must be application/json')
         length = int(self.headers.get('Content-Length', '0'))
-        if length < 1 or length > 16384:
-            raise ValueError('JSON request must be 1–16384 bytes')
+        max_size = 300000 if urlparse(self.path).path == '/api/radio/profiles/import' else 16384
+        if length < 1 or length > max_size:
+            raise ValueError(f'JSON request must be 1–{max_size} bytes')
         raw = self.rfile.read(length)
         try:
             return json.loads(raw)
@@ -161,6 +163,18 @@ class Handler(BaseHTTPRequestHandler):
                 return self._error(404,'Local glyph range unavailable')
         if path == '/api/meta':
             return self._json(200, {'version': __version__, 'platform': 'Linux / Raspberry Pi', 'mode': 'local-only', 'scan_active': self.server.sdr_captures.status()['running']})
+        if path == '/api/cameras':
+            params = parse_qs(urlparse(self.path).query)
+            if set(params)-{'bounds'} or len(params.get('bounds',[]))!=1:
+                return self._error(400,'Provide map bounds [west,south,east,north].')
+            try:
+                bounds=json.loads(params['bounds'][0])
+                return self._json(200,camera_catalog.list_sites(self.repo,bounds))
+            except (ValueError,TypeError,json.JSONDecodeError) as exc:
+                return self._error(400,str(exc))
+        if path == '/api/radio/profiles':
+            return self._json(200,{'profiles':chirp_channels.profiles(self.repo),
+                'mode':'IMPORT_ONLY','radio_write_enabled':False})
         if path == '/api/health':
             return self._json(200, {'status': 'ok', 'version': __version__})
         if path == '/api/maps/areas':
@@ -383,7 +397,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, raw, 'text/csv; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.csv"'})
         if path in ('/', '/index.html'):
             file = STATIC_DIR / 'index.html'
-        elif path in ('/static/app.css', '/static/app.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/camera-layers.js', '/static/chirp-import.js'):
             file = STATIC_DIR / Path(path).name
         else:
             return self._error(404, 'Not found')
@@ -456,6 +470,23 @@ class Handler(BaseHTTPRequestHandler):
             body = self._decode_body()
             if not isinstance(body, dict):
                 raise ValueError('Expected a JSON object')
+            if path == '/api/radio/profiles/import':
+                if set(body) != {'name','model','csv'}:
+                    raise ValueError('Import only a named CHIRP CSV radio profile.')
+                return self._json(201,{'profile':chirp_channels.import_csv(self.repo,body['name'],body['model'],body['csv'])})
+            if path == '/api/cameras':
+                return self._json(201,{'camera':camera_catalog.add_manual(self.repo,body)})
+            if path == '/api/cameras/import-osm':
+                if set(body) != {'bounds'}:
+                    raise ValueError('Import requires only the selected map bounds.')
+                if not self.server.alpr_import_lock.acquire(blocking=False):
+                    return self._error(409,'ALPR import is already running.')
+                try:
+                    return self._json(200,{'import':camera_catalog.import_feed(self.repo,body['bounds'])})
+                except (ValueError,OSError,TimeoutError) as exc:
+                    return self._error(503,f'ALPR download/import unavailable: {exc}')
+                finally:
+                    self.server.alpr_import_lock.release()
             if path == '/api/radio/start':
                 if set(body) != {'frequency_mhz', 'mode', 'duration_seconds'}:
                     raise ValueError('Receive requests accept frequency_mhz, mode and duration_seconds only')
@@ -662,6 +693,16 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host() or not self._allowed_origin():
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
+        if path.startswith('/api/cameras/') and path.count('/')==3:
+            ident=path.rsplit('/',1)[1]
+            if not ident.isascii() or not ident.isdecimal() or len(ident)>10:
+                return self._error(400,'Invalid camera ID')
+            return self._json(200,{'deleted':camera_catalog.remove(self.repo,int(ident))})
+        if path.startswith('/api/radio/profiles/') and path.count('/')==4:
+            ident=path.rsplit('/',1)[1]
+            if not ident.isascii() or not ident.isdecimal() or len(ident)>10:
+                return self._error(400,'Invalid radio profile ID')
+            return self._json(200,{'deleted':chirp_channels.delete(self.repo,int(ident))})
         if path.startswith('/api/sdr/captures/') and path.count('/') == 4:
             try:
                 self.server.sdr_captures.delete(path.rsplit('/', 1)[1])
@@ -723,6 +764,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.receiver_start_lock = threading.Lock()
     server.sdr_captures = SdrCaptureManager(repository.path.parent / 'sdr-captures')
     server.radio_receiver = RadioReceiver()
+    server.alpr_import_lock = threading.Lock()
     return server
 
 

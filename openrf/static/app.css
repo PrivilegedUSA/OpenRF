@@ -1106,3 +1106,20 @@ body.map-workspace .topbar .menu-toggle:focus-visible,
 #radio-player{width:100%;max-width:600px;margin:12px 0;display:block}
 #radio-playback[hidden]{display:none}
 @media(max-width:680px){.radio-grid{grid-template-columns:1fr}.radio-presets .btn{font-size:12px;padding:9px}}
+/* v0.2.54: camera options live inside the existing map layer overlay.
+   The v0.2.52 map toolbar, placement, and controls remain unchanged. */
+.camera-map-manager{margin:12px 0;padding:10px;border:1px solid #355d62;border-radius:9px}
+.camera-map-manager summary{font-weight:700;cursor:pointer}
+.camera-layer-toggles{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0}
+.camera-layer-toggles label{font-size:12px;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.camera-key{font-size:20px;line-height:12px}
+.camera-key.alpr{color:#8bd9ef}.camera-key.red-light{color:#ff7974}.camera-key.speed{color:#f8cc7c}
+.camera-manual-form,.chirp-import-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+.camera-manual-form label,.chirp-import-form label{display:grid;gap:5px;font-size:12px}
+.camera-coordinates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.camera-manual-form .field,.chirp-import-form .field{width:100%;min-width:0}
+.camera-manual-form button,.chirp-import-form button{align-self:end}
+.raster-camera-pin{position:absolute;transform:translate(-50%,-50%);border-radius:50%;width:14px;height:14px;border:2px solid #071a22;z-index:4;box-shadow:0 0 0 1px #f2f7f7;cursor:pointer}
+.chirp-profiles{margin-top:12px;max-height:420px;overflow:auto}.chirp-channels{max-height:260px;overflow:auto}
+.chirp-channel-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px;border-bottom:1px solid #355d624f;font-size:12px}
+@media(max-width:620px){.camera-manual-form,.chirp-import-form{grid-template-columns:1fr}}

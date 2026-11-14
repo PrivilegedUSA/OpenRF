@@ -1,4 +1,4 @@
-# OpenRF v0.2.53 — Receive-Only Radio Foundation
+# OpenRF v0.2.54 — Camera Layers & CHIRP Profile Imports
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.53.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.54.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.53 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.54 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.54 — traffic camera awareness and your Baofeng memories
+
+**Camera layers:** Open the **Map → bottom-right Layers button → Traffic & surveillance camera layers**. The independent ALPR/Flock, red-light, and speed enforcement switches start **off**, with no built-in locations. You may add a sourced location manually (saved in private local SQLite) or, when online, zoom into a specific area and click **Import DeFlock/OSM ALPRs in visible area**. That explicitly downloads the public FlockHopper snapshot and retains only nearby matching positions. Imported reports remain `COMMUNITY_MAPPED` because OSM data is crowdsourced; no entry proves current operation, manufacturer or enforcement status. The feed may be unavailable, change format or exceed the safe limits; this connection is **not yet live-tested**. Attribution is displayed with the controls and recorded in [third-party notices](docs/THIRD_PARTY.md). Camera alerting and speed-enforcement database feeds are future work, not in this version.
+
+**Baofeng channel lists:** On the **Radio** page, open **My Baofeng channel lists**. Connect your UV-5R or BF-F8HP using your existing two-pin USB programming cable with CHIRP on Windows. Use CHIRP to **Download from Radio** and **File → Export to CSV**; then select that CSV in OpenRF. It saves a local, read-only channel-list profile. Selecting **Copy to RTL-SDR tuner** only fills a separate receiver tuning form; it will never program or control either Baofeng. The USB programming cable does *not* carry received audio, and this release adds no radio transmission or CAT controls. No hardware is needed to test importing a CSV.
+
+All imported camera and channel records stay in Ubuntu's existing private SQLite DB, not in ZIP/Git. Export/backup that database privately if important. The v0.2.52 map styling stays unchanged.
 
 ## v0.2.53 — Receive-only Radio workspace (short playback, not live)
 

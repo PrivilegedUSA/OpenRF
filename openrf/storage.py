@@ -203,6 +203,10 @@ class Repository:
                 );
                 CREATE INDEX IF NOT EXISTS idx_navigation_destinations_created ON navigation_destinations(id DESC);
             """)
+            # v0.2.54: camera infrastructure and read-only CHIRP channel profiles.
+            from . import camera_catalog, chirp_channels
+            camera_catalog.init(db)
+            chirp_channels.init(db)
             # Additive migration from v0.2.5; never drop or rebuild saved observations.
             columns = {row['name'] for row in db.execute('PRAGMA table_info(observations)')}
             for name, ddl in (

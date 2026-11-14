@@ -1,3 +1,12 @@
+## v0.2.54 — Optional traffic camera layers &amp; CHIRP channel imports (2026-11-14)
+
+- Add a private SQLite camera catalog and separate opt-in ALPR/Flock, red-light enforcement, and speed enforcement layers, accessed in the existing Map → Layers overlay. Markers distinguish camera *infrastructure reports* from RF observations, with color-coded categories and evidence states. Camera locations are not preloaded, verified, scanned, or automatically tracked.
+- Add manual source-labeled camera entry. A user-selected `VERIFIED` label requires a documentary URL; other reports are `REPORTED` or `REMOVED`. No agency association is inferred from an unknown ALPR entry.
+- Provide a user-triggered ALPR area import using the fixed published FlockHopper/DeFlock community OSM-derived GeoJSON feed (`https://data.dontgetflocked.com/cameras.geojson.gz`). Bound and validate compressed/decompressed payloads and geographic extent (max 8°×8°); locally filter before saving to SQLite. Imported entries remain `COMMUNITY_MAPPED`, with OpenStreetMap/DeFlock/FlockHopper credit. **No feed network calls occur automatically; sync has not been live-tested and is subject to remote service availability.** No location is transmitted in the data feed request.
+- Add import-only CHIRP CSV channel profiles for the UV-5R, BF-F8HP and other compatible exports, stored in private SQLite. Separate channel labels, frequencies, mode, offsets and tones. Copying a frequency to the RTL-SDR tuner form is a manual UI action only; no Baofeng connection, programming, audio or transmit control.
+- Add `/api/cameras`, `/api/cameras/import-osm`, `/api/radio/profiles` endpoints, bounded request parsing and migration-safe private SQLite tables; server stays on loopback. No credentials, signed keys, user GPS data or personal captures are added to the release.
+- Preserve v0.2.52 approved right-side map layout, existing SDR, radio, navigation, map resources, tests and archived Android code. Add tests and release checklist `docs/RELEASE_0.2.54_TESTS.md`. Physical radio hardware, live feed download, Chromium HTTP map routes, Raspberry Pi and GitHub CI not verified.
+
 ## v0.2.53 — Receive-only radio clips and tuner workspace (2026-11-13)
 
 - Added a dedicated **Radio** workspace with frequency entry, NFM/AM/WFM receive selection, tuning example buttons, 5–15-second opt-in capture and browser playback of completed mono WAV samples. Audio is short-duration and **not live streaming**; no transmission or automatic recording.

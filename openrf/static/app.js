@@ -1070,7 +1070,7 @@ function startMap() {
       onRemove() { this._element?.remove(); this._element = null; }
     }, 'top-right');
     queueMapToolRailAlignment();
-    state.map.on('style.load', () => { updateOfflineAttribution(); state.mapReady = true; $('map-error').hidden = true; installMarkerLayer(); updateMap(); updateBrowserLocationMarker(); applyPendingLocation(); renderAreaOverlay(); renderNavigationOverlay(); applyNavigationFit(); });
+    state.map.on('style.load', () => { updateOfflineAttribution(); state.mapReady = true; $('map-error').hidden = true; installMarkerLayer(); window.OpenRFCameras?.installVector(state.map); updateMap(); updateBrowserLocationMarker(); applyPendingLocation(); renderAreaOverlay(); renderNavigationOverlay(); applyNavigationFit(); });
     state.map.on('movestart', event => { if (event.originalEvent) state.mapNavigationEpoch++; });
     // Rural Route-style behavior: a deliberate pan suspends camera following
     // without ending position acquisition. The recenter control resumes it.
@@ -1082,10 +1082,11 @@ function startMap() {
       }
     });
     state.map.on('move', () => {renderAreaOverlay(); renderNavigationOverlay();});
+    state.map.on('moveend', () => window.OpenRFCameras?.onViewportChanged());
     state.map.on('click', (evt) => {
       if (consumeNavigationPick(evt.lngLat.lng, evt.lngLat.lat)) return;
       if (consumeAreaClick(evt.lngLat.lng, evt.lngLat.lat)) return;
-      const clickableLayers = ['survey-series-points','survey-points','survey-waypoints','survey-sdr-sites'].filter(id=>state.mapReady && state.map.getLayer(id));
+      const clickableLayers = ['survey-series-points','survey-points','survey-waypoints','survey-sdr-sites','camera-catalog-points'].filter(id=>state.mapReady && state.map.getLayer(id));
       if (clickableLayers.length && state.map.queryRenderedFeatures(evt.point,{layers:clickableLayers}).length) return;
       if (state.browserLocation && Math.abs(evt.lngLat.lat-state.browserLocation.lat) < 0.0001 && Math.abs(evt.lngLat.lng-state.browserLocation.lon) < 0.0001) return;
       openObservation(evt.lngLat.lat.toFixed(6), evt.lngLat.lng.toFixed(6));
@@ -1377,6 +1378,7 @@ function updateMap() {
     type:'Feature',geometry:{type:'Point',coordinates:[w.longitude,w.latitude]},
     properties:{id:w.id,note:w.note,accuracy_m:w.accuracy_m,source:'BROWSER_REPORTED'}
   }))});
+  window.OpenRFCameras?.updateVector(state.map);
 }
 function switchToRasterMap(reason) {
   ++state.mapAttempt;
@@ -1525,6 +1527,7 @@ function startRasterMap(reason, view = null) {
           pin.title='DEMO route simulation — not a GPS fix';pin.textContent='DEMO';nextPins.append(pin);
         }
       }
+      window.OpenRFCameras?.renderRaster(nextPins,raster,width,height);
       pins.replaceChildren(nextPins);
       renderAreaOverlay();
       renderNavigationOverlay();
@@ -1558,6 +1561,7 @@ function startRasterMap(reason, view = null) {
     resize() { raster.render(); }
   };
   state.rasterMap = raster;
+  window.OpenRFCameras?.onViewportChanged();
   syncDestinationPickMode();
   updateOfflineAttribution();
   applyPendingLocation();
