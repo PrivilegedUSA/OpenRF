@@ -24,6 +24,7 @@ from .readiness import readiness_report
 from .hardware_manager import manager_report
 from .sdr import capability_report as sdr_capability_report
 from .sdr_capture import SdrCaptureManager, CaptureError
+from .radio import RadioReceiver, RadioError
 from .sdr_survey import capture_sites_geojson
 from .routing import local_route, local_status, RouteUnavailable, RouteError
 from .gnss import read_local_gpsd
@@ -45,6 +46,8 @@ DEFAULT_DB = Path.home() / '.local' / 'share' / 'openrf' / 'openrf.sqlite3'
 
 class OpenRFHTTPServer(ThreadingHTTPServer):
     def server_close(self):
+        if hasattr(self, 'radio_receiver'):
+            self.radio_receiver.close()
         if hasattr(self, 'sdr_captures'):
             self.sdr_captures.close()
         super().server_close()
@@ -294,6 +297,15 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, {'captures': self.repo.captures()})
         if path == '/api/stats':
             return self._json(200, self.repo.stats())
+        if path == '/api/radio/status':
+            return self._json(200, self.server.radio_receiver.status())
+        if path.startswith('/api/radio/audio/') and path.endswith('.wav'):
+            ident = path[len('/api/radio/audio/'):-len('.wav')]
+            try:
+                audio = self.server.radio_receiver.audio(ident)
+                return self._send(200, audio, 'audio/wav', cache_control='no-store')
+            except RadioError as exc:
+                return self._error(exc.status, str(exc), exc.code)
         if path == '/api/sdr/status':
             report = sdr_capability_report()
             report['capture'] = self.server.sdr_captures.status()
@@ -371,7 +383,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, raw, 'text/csv; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.csv"'})
         if path in ('/', '/index.html'):
             file = STATIC_DIR / 'index.html'
-        elif path in ('/static/app.css', '/static/app.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js'):
             file = STATIC_DIR / Path(path).name
         else:
             return self._error(404, 'Not found')
@@ -444,6 +456,24 @@ class Handler(BaseHTTPRequestHandler):
             body = self._decode_body()
             if not isinstance(body, dict):
                 raise ValueError('Expected a JSON object')
+            if path == '/api/radio/start':
+                if set(body) != {'frequency_mhz', 'mode', 'duration_seconds'}:
+                    raise ValueError('Receive requests accept frequency_mhz, mode and duration_seconds only')
+                try:
+                    with self.server.receiver_start_lock:
+                        if self.server.sdr_captures.status()['running']:
+                            raise RadioError('Stop the SDR spectrum sweep before starting radio reception.', 'receiver_busy')
+                        record = self.server.radio_receiver.start(body)
+                    return self._json(202, {'radio': record})
+                except RadioError as exc:
+                    return self._error(exc.status, str(exc), exc.code)
+            if path == '/api/radio/stop':
+                if body:
+                    raise ValueError('Stop accepts an empty JSON object only')
+                try:
+                    return self._json(200, {'radio': self.server.radio_receiver.stop()})
+                except RadioError as exc:
+                    return self._error(exc.status, str(exc), exc.code)
             if path == '/api/sdr/capture/start':
                 if set(body) - {'start_mhz', 'stop_mhz', 'step_khz', 'duration_seconds', 'survey_location', 'session_id'}:
                     raise ValueError('Unexpected SDR capture fields; no browser-supplied RF readings accepted')
@@ -455,8 +485,11 @@ class Handler(BaseHTTPRequestHandler):
                     if not any(row['id'] == session_id and row['status'] == 'ACTIVE' for row in self.repo.sessions()):
                         raise ValueError('Investigation must exist and be active at sweep start')
                 try:
-                    return self._json(202, {'capture': self.server.sdr_captures.start(settings,
-                        survey_location=body.get('survey_location'), session_id=session_id)})
+                    with self.server.receiver_start_lock:
+                        if self.server.radio_receiver.status()['running']:
+                            raise CaptureError('Stop radio reception before starting an SDR spectrum sweep.', 'receiver_busy')
+                        record = self.server.sdr_captures.start(settings, survey_location=body.get('survey_location'), session_id=session_id)
+                    return self._json(202, {'capture': record})
                 except CaptureError as exc:
                     return self._error(exc.status, str(exc), exc.code)
             if path == '/api/sdr/capture/stop':
@@ -687,7 +720,9 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.wifi_scan_last = float("-inf")
     server.serial_lock = threading.Lock()
     server.serial_last_probe = None
+    server.receiver_start_lock = threading.Lock()
     server.sdr_captures = SdrCaptureManager(repository.path.parent / 'sdr-captures')
+    server.radio_receiver = RadioReceiver()
     return server
 
 

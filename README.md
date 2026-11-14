@@ -1,4 +1,4 @@
-# OpenRF v0.2.52 — Unified Map Control Styling
+# OpenRF v0.2.53 — Receive-Only Radio Foundation
 
 OpenRF is a local-first, open-source RF and geographic investigation platform intended for **WSL development now and a self-contained Raspberry Pi field instrument later**. The previous Android v0.1.6 source has been preserved under `legacy/android-v0.1.6/` but is no longer the primary application.
 
@@ -6,14 +6,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.52.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.53.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.52 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.53 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
@@ -30,6 +30,13 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 5. In a **Windows browser**, open **http://localhost:8765**. Keep the Ubuntu/PowerShell terminal open while using OpenRF; press Ctrl+C to stop.
 
 No Python packages or virtual environment are required. Python 3.11 or newer is recommended; the supplied WSL Python 3.14 works with this standard-library backend.
+
+## v0.2.53 — Receive-only Radio workspace (short playback, not live)
+
+- New **Radio** sidebar workspace provides a MHz frequency field, NFM / AM / mono WFM mode selection and illustrative preset buttons. **No receiver is started automatically**: press **Receive short sample** to request 5, 10 or 15 seconds of local RTL-SDR demodulated PCM audio; after completion the audio can be played from the browser's built-in player. **Stop** discards an incomplete sample. This is **not live streaming, a transmitted signal, a station identification or a verified audio reception**.
+- The backend optionally invokes a separately installed Linux `rtl_fm` utility with strictly validated arguments and a bounded receive process, makes a mono WAV **in server memory only**, and serves just that sample via an unguessable local URL while the server is running. It is replaced by the next attempt, lost on restart and never automatically written to disk, attached to GPS, added to investigations or uploaded. The user can choose to save audio manually using browser controls outside OpenRF; local laws and privacy obligations still apply.
+- Receiver availability is **not** established by the mere presence of `rtl_fm`. Real reception needs a compatible Linux-accessible RTL-SDR device, antenna and correctly chosen tuned frequency. USB passthrough is normally required in WSL. A valid audio file may contain silence or noise. No transmitter, PTT or radio CAT integration exists. Frequency input range is a conservative software guard, **not actual hardware coverage**.
+- Radio and rtl_power spectrum sweeps cannot start at the same time from OpenRF. New API endpoints: `GET /api/radio/status`, `POST /api/radio/start`, `POST /api/radio/stop`, `GET /api/radio/audio/<sample-id>.wav`, all loopback-only. No database migration, automatic scans, cloud services or Python dependencies. The v0.2.52 map appearance and navigation controls are unchanged. See [v0.2.53 tests](docs/RELEASE_0.2.53_TESTS.md).
 
 ## v0.2.52 — Unified borderless map controls
 
@@ -54,7 +61,7 @@ No Python packages or virtual environment are required. Python 3.11 or newer is 
 ## v0.2.49 — Five-inch landscape usability
 
 - **Map → Hide / Find destination** collapses the large destination overlay to a one-tap button while preserving entered destination text and active route planning state; the map stays navigable. **Map → Focus map** reduces the header and temporarily hides lower-page panels without deleting or changing any data; exit to access map downloads and all other tools. Designed for **800×480** landscape as well as narrow mobile and desktop displays. No scan or location permission is started by either control. See [test guide](docs/RELEASE_0.2.49_TESTS.md).
-- **Future ham-radio proposal**: [amateur radio roadmap](docs/AMATEUR_RADIO_ROADMAP.md) describes an optional receive-only RTL-SDR tuning/audio stage and possible read-only CAT integration with an owned ham transceiver. **No radio audio reception or transmission is implemented yet**. Do not confuse `rtl_power` spectrum capture with a ham transceiver.
+- **Future ham-radio proposal**: [amateur radio roadmap](docs/AMATEUR_RADIO_ROADMAP.md) describes an optional receive-only RTL-SDR tuning/audio stage and possible read-only CAT integration with an owned ham transceiver. **As of v0.2.53, short receive-only RTL-SDR audio samples are implemented when hardware/tools are present; continuous listening, ham transceiver CAT and all transmission remain future work.** Do not confuse `rtl_power` spectrum capture with a ham transceiver.
 
 ## v0.2.48 — On-demand recorded frequency history across saved SDR sweeps
 

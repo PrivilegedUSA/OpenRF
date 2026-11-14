@@ -6,27 +6,29 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.52">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.53">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
-  <script defer src="/static/spectrum-analysis.js?v=0.2.52"></script>
-  <script defer src="/static/spectrum.js?v=0.2.52"></script>
-  <script defer src="/static/sdr-history.js?v=0.2.52"></script>
-  <script defer src="/static/survey_map.js?v=0.2.52"></script>
-  <script defer src="/static/navigation.js?v=0.2.52"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.52"></script>
-  <script defer src="/static/app.js?v=0.2.52"></script>
+  <script defer src="/static/spectrum-analysis.js?v=0.2.53"></script>
+  <script defer src="/static/spectrum.js?v=0.2.53"></script>
+  <script defer src="/static/sdr-history.js?v=0.2.53"></script>
+  <script defer src="/static/survey_map.js?v=0.2.53"></script>
+  <script defer src="/static/navigation.js?v=0.2.53"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.53"></script>
+  <script defer src="/static/app.js?v=0.2.53"></script>
+  <script defer src="/static/radio.js?v=0.2.53"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.52</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.53</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
         <button class="nav-btn" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
         <button class="nav-btn" data-page="scanner"><span class="nav-icon" aria-hidden="true">≋</span><span class="nav-label">Analysis</span></button>
         <button class="nav-btn" data-page="spectrum"><span class="nav-icon" aria-hidden="true">▥</span><span class="nav-label">Spectrum</span></button>
+        <button class="nav-btn" data-page="radio"><span class="nav-icon" aria-hidden="true">◉</span><span class="nav-label">Radio</span></button>
         <button class="nav-btn" data-page="discoveries"><span class="nav-icon" aria-hidden="true">◈</span><span class="nav-label">Saved</span></button>
         <button class="nav-btn" data-page="sessions"><span class="nav-icon" aria-hidden="true">◷</span><span class="nav-label">Sessions</span></button>
         <button class="nav-btn" data-page="hardware"><span class="nav-icon" aria-hidden="true">▤</span><span class="nav-label">Hardware</span></button>
@@ -342,6 +344,24 @@
           </div><label class="switchline discovery-map-filter"><input type="checkbox" id="discovery-mapped"> Only observations with survey coordinates</label></details>
           <div class="discovery-results-bar"><p id="discovery-results-count" class="small muted" role="status" aria-live="polite">0 records shown</p><div class="button-line"><button type="button" id="discovery-reset" class="btn outline">Clear filters</button><button type="button" id="discovery-export" class="btn primary" disabled>Export shown CSV</button></div></div>
           <p class="small muted">Exports contain only matching saved records, stay on this device and keep original source labels and units. DEMO and historical data are never live scans.</p><div id="discoveries-list"></div></div></section>
+      <section class="page" id="page-radio" aria-label="Receive-only radio listening samples">
+        <div class="section-heading"><div><h2>Radio receiver</h2><p>Receive-only RTL-SDR tuning and short local audio playback. No transmitting or continuous streaming.</p></div><span class="pill">RECEIVE ONLY</span></div>
+        <div class="panel radio-panel">
+          <div class="panel-title"><h3>Tune a frequency</h3><span class="pill">USER-STARTED · 5–15 SEC</span></div>
+          <p class="small muted">An RTL-SDR dongle visible to Linux and the <code>rtl_fm</code> command are required. Radio-frequency coverage varies by device. Opening this page does not start a receiver.</p>
+          <div class="radio-grid">
+            <label for="radio-frequency">Frequency (MHz)<input id="radio-frequency" class="field" type="number" min="24" max="1766" step="0.000001" inputmode="decimal" value="146.520"></label>
+            <label for="radio-mode">Receive mode<select id="radio-mode" class="field"><option value="nfm">NFM · narrow FM voice</option><option value="am">AM · amplitude modulation</option><option value="wfm">WFM · broadcast FM mono</option></select></label>
+            <label for="radio-duration">Listen sample length<select id="radio-duration" class="field"><option value="5">5 seconds</option><option value="10" selected>10 seconds</option><option value="15">15 seconds</option></select></label>
+          </div>
+          <div class="radio-presets" aria-label="Example tuning presets"><button type="button" class="btn outline" data-radio-preset="146.520" data-radio-mode="nfm">146.520 · NFM</button><button type="button" class="btn outline" data-radio-preset="162.550" data-radio-mode="nfm">162.550 · Weather</button><button type="button" class="btn outline" data-radio-preset="99.500" data-radio-mode="wfm">99.5 · Broadcast</button></div>
+          <p class="small muted">Presets are tuning examples, not verified local channels or promised reception. Check applicable monitoring laws. Broadcast WFM is mono; AM/sideband quality depends on hardware, antenna and decoder.</p>
+          <div class="button-line"><button type="button" id="radio-start" class="btn primary">Receive short sample</button><button type="button" id="radio-stop" class="btn outline" disabled>Stop reception</button><button type="button" id="radio-refresh" class="btn outline">Refresh status</button></div>
+          <p id="radio-state" class="small muted" role="status" aria-live="polite">Not checked. No receiver started.</p>
+          <div id="radio-playback" hidden><label for="radio-player" class="fieldlabel">Received audio · captured sample, not live</label><audio id="radio-player" controls preload="none" aria-label="Listen to the last bounded RTL-SDR reception sample"></audio><p class="small muted">Audio is temporarily held in the local server's memory and replaced by the next sample or server restart; no automatic audio archive or upload.</p></div>
+        </div>
+        <div class="panel"><h3>Linux receiver setup</h3><p class="small muted">Install the optional <code>rtl-sdr</code> utilities (for example <code>sudo apt install rtl-sdr</code> on Ubuntu), connect a compatible receive-only RTL-SDR and antenna, then test USB access in the same Ubuntu environment. WSL often requires explicit USB passthrough; the Windows built-in radio is not shared automatically.</p><p class="small muted">Short samples play only after recording completes. This version does not offer continuous live listening, scanning presets, transmitter controls, voice identification, audio logging or a promise of a received signal.</p><div class="button-line"><button class="btn outline" data-jump="hardware" type="button">Hardware readiness</button><button class="btn outline" data-jump="spectrum" type="button">Open Spectrum</button></div></div>
+      </section>
       <section class="page" id="page-sessions"><div class="section-heading"><div><h2>Field surveys &amp; investigations</h2><p>Plan a receiver, save individual observations, and review the evidence collected. No automatic RF recording.</p></div><button id="new-session" class="btn primary">+ Start field survey</button></div>
         <section class="panel field-survey-active" aria-label="Active field survey"><div class="panel-title"><h3>Current field survey</h3><span id="field-active-state" class="pill">NONE ACTIVE</span></div><div id="field-active-summary" role="status" aria-live="polite"><p class="muted small">No field survey is currently active. Start one to associate explicitly saved observations with your chosen investigation.</p></div><div class="button-line" id="field-action-row" hidden><button class="btn primary" type="button" id="field-open-receiver">Open receiver workspace</button><button class="btn outline" type="button" id="field-open-map">Survey map</button><button class="btn outline" type="button" id="field-edit-plan">Edit survey plan</button><button class="btn outline" type="button" id="field-add-observation">Manual observation</button></div><p class="muted small">A planned receiver is a workflow preference only. Hardware capability is checked separately. Scanning, saving and attaching observer coordinates each require explicit action.</p></section>
         <div class="panel"><div class="panel-title"><h3>Saved investigation history</h3><span id="session-count" class="pill">0 sessions</span></div><div id="session-list"></div></div><div class="panel investigation-report-panel" aria-label="Investigation report export">

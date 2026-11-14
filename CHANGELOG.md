@@ -1,3 +1,10 @@
+## v0.2.53 — Receive-only radio clips and tuner workspace (2026-11-13)
+
+- Added a dedicated **Radio** workspace with frequency entry, NFM/AM/WFM receive selection, tuning example buttons, 5–15-second opt-in capture and browser playback of completed mono WAV samples. Audio is short-duration and **not live streaming**; no transmission or automatic recording.
+- New `openrf/radio.py` invokes a Linux `rtl_fm` executable (not bundled) with strict fixed subprocess options, tuning limits, timeout/stop and bounded output conversion. The latest successful sample exists in memory only until another attempt or restart; no disk persistence, GPS linkage or uploads. Clear missing-tool/hardware/error states; PCM output is not proof of meaningful reception or verified device identity.
+- Added loopback-only radio status/start/stop/audio API and a shared start lock preventing concurrent OpenRF RTL spectrum sweeps and radio reception. Unchanged map layout from v0.2.52, offline map resources, observations, SDR capture files, navigation and Android archive.
+- Extended regression coverage with synthetic PCM subprocess stubs, validation, HTTP security, stop, WAV playback and SDR/RF contention, plus frontend/800×480 visual checks. No physical RTL-SDR, WSL USB passthrough, Raspberry Pi radio hardware or GitHub CI verified.
+
 ## v0.2.52 — Consistent Map Control Appearance (2026-11-13)
 
 - Unified the collapsed 40px destination bar and compact 40px hamburger alignment.

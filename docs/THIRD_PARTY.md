@@ -22,3 +22,9 @@ OpenFreeMap's vector styles and OpenMapTiles/OpenStreetMap underlying geographic
 - **Photon**: optional separately hosted OSM search/geocoder; review its license and OSM attribution when deploying. https://github.com/komoot/photon
 - **MapTiler Geocoding**: optional account/API-key based external provider with independent service terms and quota limits; not bundled and never queried unless configured. https://docs.maptiler.com/cloud/api/geocoding/
 - Public OSM Nominatim is not used for autocomplete because its usage policy forbids that use. https://operations.osmfoundation.org/policies/nominatim/
+
+## Optional receive-only radio dependencies (v0.2.53)
+
+- `rtl_fm` is part of the **Osmocom rtl-sdr** suite; installed separately from the Linux distribution (for Ubuntu: `sudo apt install rtl-sdr`), not copied into the OpenRF ZIP. Upstream: https://github.com/osmocom/rtl-sdr ; see upstream GPL-2.0-or-later license information and distribution package terms. Compatible RTL2832U hardware and a suitable antenna are required for actual reception.
+- OpenRF uses only the externally installed executable and decodes its signed 16-bit PCM output into WAV via Python stdlib. No external audio libraries, remote services or pre-recorded third-party audio are bundled.
+- RTL-SDR receive-only capabilities do not authorize transmission. Monitoring and recording requirements vary by country, state and radio service; comply with applicable law.

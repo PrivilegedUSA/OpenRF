@@ -64,3 +64,7 @@ Area plans are independent of observation SQLite. API `/api/maps/areas` saves bo
 ## v0.2.12 local tile source boundary
 
 `POST /api/maps/areas/{id}/import-xyz` consumes only a browser-selected `application/zip` (or `application/octet-stream`) file body; it never accepts remote URLs or fetches map tiles. Fields are local request headers and the previously saved plan ID. Files are bounded and staged outside source control, validated without extracting paths, clipped, translated to MBTiles TMS row numbering, and atomically linked to a new name. A confirmation checkbox is an operator attestation, **not** automated map-provider license verification. `GET /api/maps/areas/{id}.plan.json` returns a provider-neutral planning descriptor without remote URLs or map tiles. Maps and plans are stored separately from investigations.
+
+## v0.2.53 local radio boundary
+
+`openrf.radio.RadioReceiver` is independent of persistent observations and spectrum CSV files. `POST /api/radio/start` accepts a fixed frequency/mode/duration schema and starts a short receive-only `rtl_fm` subprocess when installed. Stop and timeout are bounded. A single last WAV buffer lives **only in process memory**, retrievable via an unguessable loopback audio endpoint. Opening the UI does not start receiving. No geolocation association, speaker microphone access, transmitter controls, identity or hardware availability claims. The startup mutex blocks overlapping RTL-SDR spectrum sweeps and radio listening within OpenRF; another external program may still own the dongle.

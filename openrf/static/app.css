@@ -1095,3 +1095,14 @@ body.map-workspace .topbar .menu-toggle:focus-visible,
     width:calc(100% - 63px);max-height:calc(100dvh - 105px);
   }
 }
+
+/* v0.2.53: receive-only tuner. No changes to map layouts. */
+#page-radio{max-width:1080px}
+.radio-panel{max-width:100%}
+.radio-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end}
+.radio-grid label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted,#94a9ac)}
+.radio-grid .field{width:100%;min-height:42px}
+.radio-presets{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0}
+#radio-player{width:100%;max-width:600px;margin:12px 0;display:block}
+#radio-playback[hidden]{display:none}
+@media(max-width:680px){.radio-grid{grid-template-columns:1fr}.radio-presets .btn{font-size:12px;padding:9px}}
