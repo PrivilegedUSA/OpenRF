@@ -593,20 +593,20 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError('Only maptiler_key may be configured.')
                 return self._json(200, save_maptiler_key(body['maptiler_key']))
             if path == '/api/navigation/route':
-                if set(body) != {'locations'}:
-                    raise ValueError('Only an ordered locations array is allowed for driving routes.')
+                if set(body) not in ({'locations'}, {'locations', 'options'}):
+                    raise ValueError('Only route locations and optional routing preferences are allowed.')
                 try:
-                    result = local_route(body['locations'])
+                    result = local_route(body['locations'], **({'options':body['options']} if 'options' in body else {}))
                     return self._json(200, {'route': result, 'camera_report': camera_routes.route_cameras(self.repo, result)})
                 except RouteUnavailable as exc:
                     return self._error(503, str(exc), 'routing_unavailable')
                 except RouteError as exc:
                     return self._error(422, str(exc), 'routing_error')
             if path == '/api/navigation/camera-comparison':
-                if set(body) != {'locations', 'types'}:
-                    raise ValueError('Only route locations and selected camera categories are accepted.')
+                if set(body) not in ({'locations', 'types'}, {'locations', 'types', 'options'}):
+                    raise ValueError('Only route locations, camera categories and optional preferences are accepted.')
                 try:
-                    data = camera_routes.compare(self.repo, body['locations'], body['types'])
+                    data = camera_routes.compare(self.repo, body['locations'], body['types'], **({'options':body['options']} if 'options' in body else {}))
                     return self._json(200, data)
                 except RouteUnavailable as exc:
                     return self._error(503, str(exc), 'routing_unavailable')

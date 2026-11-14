@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import math
 from . import camera_catalog
-from .routing import local_route, RouteError, RouteUnavailable
+from .routing import local_route, RouteError, RouteUnavailable, route_preferences
 
 RADIUS_M = 120
 MAX_DISPLAY = 24
@@ -72,14 +72,15 @@ def route_cameras(repo, route, types=None, *, radius_m=RADIUS_M):
             'notice':'Reported camera positions within approximately 120 m of the drawn road. Not proof of operation, driving direction, or complete coverage.'}
 
 
-def compare(repo, locations, types, *, router=local_route):
+def compare(repo, locations, types, *, router=local_route, options=None):
     """Evaluate normal route and opt-in camera-exclusion alternative.
 
     The latter is never automatically activated. Excluding roads may fail or
     lead to a longer route; failures preserve the original route.
     """
     chosen = camera_types(types)
-    standard = router(locations)
+    prefs = route_preferences(options)
+    standard = router(locations, **({'options':options} if options is not None else {}))
     original = route_cameras(repo,standard,sorted(chosen))
     response = {'standard': standard, 'standard_cameras': original,
                 'alternative':None,'alternative_cameras':None,
@@ -89,6 +90,9 @@ def compare(repo, locations, types, *, router=local_route):
         return response
     if original['incomplete']:
         response['detail']='Camera catalog was truncated; a reliable comparison is not available. Zoom or choose a shorter route.'
+        return response
+    if len(prefs['exclude_locations'])>=MAX_EXCLUSIONS:
+        response['detail']='All available road exclusion slots are already used by your saved and trip-only roads.'
         return response
     if not original['count']:
         response['detail']='No selected camera reports were close to the calculated route. That does not mean the route is camera-free.'
@@ -104,12 +108,13 @@ def compare(repo, locations, types, *, router=local_route):
         if approx_m(here,start)<250 or approx_m(here,finish)<250: continue
         if any(approx_m(here,(q['latitude'],q['longitude'])) < 160 for q in exclusions): continue
         exclusions.append({'latitude':here[0],'longitude':here[1]})
-        if len(exclusions)==MAX_EXCLUSIONS:break
+        if len(exclusions)==MAX_EXCLUSIONS-len(prefs['exclude_locations']):break
     if not exclusions:
         response['detail']='All mapped nearby camera locations are near the origin or destination; no safe exclusion points were selected.'
         return response
     try:
-        alternate=router(locations,exclude_locations=exclusions)
+        extra={'options':options} if options is not None else {}
+        alternate=router(locations,exclude_locations=exclusions,**extra)
         report=route_cameras(repo,alternate,sorted(chosen))
     except (RouteError, RouteUnavailable, ValueError) as exc:
         response['detail']=f'Valhalla could not calculate a camera-aware alternative. Your original route is unchanged. {exc}'

@@ -1235,3 +1235,33 @@ body.map-workspace .topbar .menu-toggle:focus-visible,
 #page-map.navigation-driving #map-camera-route-panel .camera-route-actions #map-use-camera-alternate{display:none!important}
 @media(max-width:550px){#page-map #map-camera-route-panel{top:104px;max-height:min(57dvh,300px)}
   #page-map.navigation-driving #map-camera-route-panel{bottom:45px;max-height:40dvh}}
+
+/* v0.2.61: route settings are inside existing gear panel, not stacked over GPS HUD. */
+#page-map #map-camera-route-chip{display:none!important}
+#page-map #map-camera-route-panel,#page-map.navigation-driving #map-camera-route-panel{
+  position:static!important;display:block;width:100%;height:auto;max-height:none;overflow:visible;
+  border:0;border-top:1px solid #35616b;border-radius:0;box-shadow:none;padding:10px 0;background:transparent;}
+#page-map #map-camera-route-panel[hidden]{display:none!important}
+#page-map .map-navigation-settings[open] .map-settings-popup{max-height:min(79dvh,590px);width:min(390px,calc(100vw - 26px))}
+#page-map .route-avoid-settings{display:grid;gap:9px;margin:14px 0 6px;border-top:1px solid #35616b;padding-top:12px}
+#page-map .route-avoid-settings label{display:flex;gap:7px;align-items:center;color:#deeee9;font-size:12px}
+#page-map .route-avoid-settings input[type=checkbox]{accent-color:#34c9b1}
+#page-map .route-avoid-settings .route-road-control{display:grid;gap:8px;background:#122f39;border:1px solid #35616b;border-radius:8px;padding:10px}
+#page-map .route-road-control label{font-size:11px}
+#page-map .route-road-control .field{max-width:100%;min-width:0}
+#page-map .route-road-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px solid #34505b;font-size:11px}
+#page-map .route-road-item button{background:#244350;color:#f8d9d9;border:0;border-radius:5px;padding:5px;flex:none}
+#page-map .map-route-choices{position:absolute;top:62px;left:10px;z-index:29;width:min(312px,calc(100% - 90px));max-height:min(40dvh,210px);overflow:auto;
+ background:#0c2631f2;color:#e5f6ef;border:1px solid #366775;border-radius:10px;padding:10px;box-shadow:0 6px 19px #000a}
+#page-map .map-route-choices[hidden],#page-map .route-choice-btn[hidden]{display:none!important}
+#page-map .route-choice-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px}
+#page-map .route-choice-head button{border:0;border-radius:6px;background:#214957;color:#c2fcf0;min-width:28px;height:28px}
+#page-map .route-choice-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:8px 0}
+#page-map .route-choice-btn{background:#162f3a;border:1px solid #466571;border-radius:8px;color:#d8f2ed;text-align:left;font-size:11px;line-height:1.35;min-height:50px;padding:8px;white-space:normal}
+#page-map .route-choice-btn[aria-pressed="true"]{background:#104d4a;border:2px solid #34c9b1;color:#fff}
+#page-map .route-choice-settings{display:block;border:0;background:none;color:#7ce0d4;text-decoration:underline;font-size:11px;padding:2px 0;text-align:left}
+#page-map .route-choice-status{margin:4px 0 6px;font-size:11px;line-height:1.4}
+#page-map.navigation-driving .map-route-choices{display:none!important}
+#page-map .navigation-preview-overlay path.alternate-route{stroke:#eeb95f;stroke-width:4;stroke-dasharray:8 7;opacity:.9}
+#page-map .navigation-preview-overlay path.route-hit{stroke:transparent;stroke-width:23;pointer-events:stroke;cursor:pointer}
+@media(max-width:550px){#page-map .map-route-choices{max-height:185px;top:61px;width:calc(100% - 93px)}}

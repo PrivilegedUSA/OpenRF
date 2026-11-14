@@ -156,13 +156,38 @@ def normalize_result(data: dict, requested: list):
             'maneuvers': directions[:250], 'warning': 'PLANNING ONLY — not live road guidance, traffic data, or a safety guarantee.'}
 
 
-def local_route(locations: list, *, open_connection=None, port=None, exclude_locations=None):
+def route_preferences(value):
+    """Strictly bounded route modifiers; no remote services or arbitrary URLs."""
+    if value is None:
+        return {'avoid_highways': False, 'avoid_tolls': False, 'exclude_locations': []}
+    if not isinstance(value, dict) or set(value) - {'avoid_highways', 'avoid_tolls', 'exclude_locations'}:
+        raise RouteError('Unsupported routing preference setting.')
+    highways = value.get('avoid_highways', False)
+    tolls = value.get('avoid_tolls', False)
+    if type(highways) is not bool or type(tolls) is not bool:
+        raise RouteError('Routing avoidance switches must be true or false.')
+    locations = value.get('exclude_locations', [])
+    if not isinstance(locations, list) or len(locations) > 8:
+        raise RouteError('Choose up to eight mapped road avoidance points.')
+    result = []
+    for point in locations:
+        if not isinstance(point, dict) or set(point) != {'latitude','longitude'}:
+            raise RouteError('Road avoidance needs a valid mapped coordinate.')
+        result.append(coordinates([point,point])[0])
+    return {'avoid_highways':highways,'avoid_tolls':tolls,'exclude_locations':result}
+
+
+def local_route(locations: list, *, open_connection=None, port=None, exclude_locations=None, options=None):
     points = coordinates(locations)
-    exclusions = None
+    prefs = route_preferences(options)
+    exclusions = list(prefs['exclude_locations'])
     if exclude_locations is not None:
         if not isinstance(exclude_locations,list) or len(exclude_locations)>8:
             raise RouteError('Up to eight camera-aware exclusion points are permitted.')
-        exclusions = [coordinates([point,point])[0] for point in exclude_locations]
+        extra = [coordinates([point,point])[0] for point in exclude_locations]
+        if len(exclusions) + len(extra) > 8:
+            raise RouteError('Too many combined road/camera exclusions. Reduce selected points.')
+        exclusions.extend(extra)
 
     if port is None:
         port = os.environ.get('OPENRF_VALHALLA_PORT', '8002')
@@ -175,6 +200,10 @@ def local_route(locations: list, *, open_connection=None, port=None, exclude_loc
     payload = {'locations': points, 'costing': 'auto', 'units': 'miles',
                'language': 'en-US', 'turn_lanes': True}
     if exclusions: payload['exclude_locations'] = exclusions
+    if prefs['avoid_highways'] or prefs['avoid_tolls']:
+        payload['costing_options'] = {'auto': {}}
+        if prefs['avoid_highways']: payload['costing_options']['auto']['use_highways'] = 0
+        if prefs['avoid_tolls']: payload['costing_options']['auto']['use_tolls'] = 0
     # Hardcoded loopback: do not turn this endpoint into a general URL fetcher.
     req = Request(f'http://127.0.0.1:{port}/route', json.dumps(payload).encode(),
                   {'Content-Type': 'application/json', 'Accept': 'application/json'}, method='POST')

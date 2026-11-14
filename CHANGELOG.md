@@ -1,3 +1,11 @@
+## v0.2.61 — Selectable route lines and consolidated avoidance settings (2026-11-14)
+
+- Remove the overlapping camera-route chip; open camera, highway, toll and road/gate avoidance preferences together in existing Map route settings. Fix route-comparison feedback when no alternate can be calculated.
+- Display a calculated camera-aware alternate with an amber dashed road line and compact route choice cards; tap a card or available alternative road line to select. Preserve existing road until the user explicitly changes it, and prevent switching while active navigation is in progress.
+- Support Valhalla `use_highways:0` and `use_tolls:0` preferences and bounded named/gate **point exclusions** chosen from actual route maneuvers or a map tap. Support temporary and browser-persisted exclusion points separately. Do not represent a road name alone as an exact exclusion; private/locked gate restrictions remain data-dependent.
+- Thread selected avoidance preferences through normal local routing, optional camera comparison and GPS off-route recalculation, with 8-point combined limit and conservative fallback when no alternative exists. No new external services, RF drivers, location telemetry or modifications to local map data.
+- Add focused backend/UI tests and a standalone release checklist. Physical GPS drive, actual Valhalla alternative routing, Raspberry Pi and GitHub CI remain unverified.
+
 ## v0.2.60 — Camera options integrated directly into navigation (2026-11-14)
 
 - Move camera-route comparison out of the hidden Directions turn list into a dedicated, compact **Camera routes** overlay on the main Map. The overlay is reachable from destination search, the map-picked destination card, the route-preview chip, and active navigation; it uses the approved dark teal map style and can be closed without changing route or location.
