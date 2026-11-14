@@ -35,4 +35,4 @@ assert(js.includes('onRoutePreferencesChanged()'), 'exclusions invalidate old co
 assert(js.includes('function syncRouteCameraPrefs()') && js.includes('openrf.route-prefs.v1'),'simple choices persist in browser');
 assert(js.includes("$('route-avoid-settings').insertBefore($('map-camera-route-panel'),$('route-road-control'))"));
 assert(css.includes('.route-step-avoid-actions[hidden]') && css.includes('.route-road-control:not([open])'),'collapsed controls hidden');
-console.log('PASS v0.2.67 turn-based road exclusions, bounds, camera switches and persistence');
+console.log('PASS v0.2.68 turn-based road exclusions, bounds, camera switches and persistence');

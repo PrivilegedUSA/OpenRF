@@ -209,6 +209,32 @@ window.addEventListener('keydown',event => {
   }
 });
 
+// v0.2.68: a newly chosen destination is not an alternative to the old
+// destination. Invalidate the previous plan, its route-choice cards and any
+// in-flight camera comparison together. Saved route preferences are retained.
+function resetRouteForNewDestination() {
+  stopNavigationFollow();
+  state.navDestinationEpoch=(state.navDestinationEpoch||0)+1;
+  state.navCameraRouteEpoch=(state.navCameraRouteEpoch||0)+1;
+  state.navPreview=null;
+  state.navCameraComparison=null;
+  state.navCameraReport=null;
+  state.navRouteChoices=null;
+  state.navChoiceSelection='standard';
+  state.navChoicePanelClosed=false;
+  state.navFitPending=false;
+  $('map-route-choices').hidden=true;
+  $('map-begin-guidance').disabled=true;
+  $('map-compare-camera-routes').disabled=true;
+  $('map-use-camera-alternate').hidden=true;
+  $('nav-preview-summary').textContent='';
+  $('nav-directions').replaceChildren();
+  $('map-camera-comparison-status').textContent='Get directions to compare routes for the new destination.';
+  renderDirectionsReview(null);
+  // Trip-only road exclusions must not leak into a different destination.
+  if(state.navAvoidSession?.length){state.navAvoidSession=[];renderRoadAvoidList();}
+  renderNavigationOverlay();
+}
 function syncMapPickedAction() {
   const selected = Array.isArray(state.navPickedPoint) && !state.navPicking;
   const popup = $('map-picked-action');
@@ -2641,10 +2667,13 @@ function setNavigationRoutePreview(result,cameraReport=null) {
   renderNavigationOverlay();
 }
 async function planRoadRoute(points,{preserveCurrentOnFailure=false}={}) {
+  const destinationEpoch=state.navDestinationEpoch||0;
   setMapDestinationStatus('Getting directions from local Valhalla…');
   try {
     const data=await api('/api/navigation/route','POST',{
       locations:points.map(p=>({latitude:p[1],longitude:p[0]})),options:routeRequestOptions()});
+    if(destinationEpoch !== (state.navDestinationEpoch||0))
+      return {road:null,cancelled:true,text:'An earlier route request was discarded after the destination changed.'};
     const road=data.route;
     if (!road || road.type!=='ROAD_ROUTE' || road.is_driving_route!==true) throw Error('No verified road route returned.');
     if(preserveCurrentOnFailure && !routeGuide.hasCompleteDirections(road)) throw Error('Valhalla did not return a complete destination/turn list for this road exclusion. The original route was preserved.');
@@ -2665,6 +2694,8 @@ async function planRoadRoute(points,{preserveCurrentOnFailure=false}={}) {
     const minutes=Math.round(road.duration_seconds/60);
     return {road, text:`Road plan · ${road.distance_miles} mi · ~${minutes} min (no traffic). Camera routes and Directions are on the map; start GPS follow when ready.`};
   } catch (err) {
+    if(destinationEpoch !== (state.navDestinationEpoch||0))
+      return {road:null,cancelled:true,text:'An earlier route request was discarded after the destination changed.'};
     if(preserveCurrentOnFailure && state.navPreview?.is_driving_route){
       return {road:null,preserved:true,text:`Road avoidance could not produce complete new directions: ${err.message}. Your original road route and all its steps are unchanged. Remove this exclusion in Route preferences or try another road.`};
     }
@@ -2710,13 +2741,17 @@ async function freshNavigationOrigin() {
   return [longitude,latitude];
 }
 async function quickDestinationPreview(query) {
+  const destinationEpoch=state.navDestinationEpoch||0;
   const chosen=await resolveTypedPlace(query);
+  if(destinationEpoch !== (state.navDestinationEpoch||0)) return {cancelled:true};
   const origin=await freshNavigationOrigin();
+  if(destinationEpoch !== (state.navDestinationEpoch||0)) return {cancelled:true};
   $('nav-dest-name').value=chosen.name;
   $('nav-dest-query').value=chosen.name;
   $('nav-dest-lat').value=chosen.coordinates[1];
   $('nav-dest-lon').value=chosen.coordinates[0];
   const planned=await planRoadRoute([origin,chosen.coordinates]);
+  if(planned.cancelled || destinationEpoch !== (state.navDestinationEpoch||0)) return {cancelled:true};
   state.navPickedPoint=chosen.coordinates.slice(); // Also draggable for resolved street addresses and completed road routes.
   syncMapPickedAction();
   renderNavigationOverlay();
@@ -2758,6 +2793,11 @@ function showMapAddressMatches(matches) {
       // route to the first fuzzy candidate.
       state.navSearchToken++;
       if(navAddressTimer) clearTimeout(navAddressTimer);
+      if(state.navPreview || state.navRouteChoices || state.navPickedPoint || state.navCameraComparison)
+        resetRouteForNewDestination();
+      state.navPickedPoint=null;
+      syncMapPickedAction();
+      renderNavigationOverlay();
       if (match.streetCompletion) {
         // A local street-name hint is NOT a geocoded street address. Only
         // populate the text, never bind a navigation coordinate to it.
@@ -2802,13 +2842,12 @@ function navigationLookupIsComplete(query) {
 }
 let navAddressTimer=null;
 $('map-destination-query').addEventListener('input',()=>{
-  if(state.navPreview){
-    stopNavigationFollow();state.navPreview=null;if(typeof renderDirectionsReview==='function')renderDirectionsReview(null);state.navFitPending=false;state.navPickedPoint=null;
-    $('map-begin-guidance').disabled=true;renderNavigationOverlay();
-  }
-  if (state.navPickedPoint) {state.navPickedPoint=null;renderNavigationOverlay();}
+  if(state.navPreview || state.navRouteChoices || state.navPickedPoint || state.navCameraComparison)
+    resetRouteForNewDestination();
+  state.navPickedPoint=null;
   state.navSelectedAddress=null;
-  if((state.navAvoidSession||[]).length && state.navPreview===null){state.navAvoidSession=[];renderRoadAvoidList();}
+  syncMapPickedAction();
+  renderNavigationOverlay();
   state.navSearchCredit='';state.navStreetMatches=[];
   const q=$('map-destination-query').value.trim(), token=++state.navSearchToken;
   hideMapAddressMatches();
@@ -3020,6 +3059,7 @@ window.addEventListener('keydown',event=>{
 function consumeNavigationPick(lon,lat) {
   if (!state.navPicking) return false;
   if (!Number.isFinite(lon) || !Number.isFinite(lat) || Math.abs(lon)>180 || Math.abs(lat)>90) return false;
+  if(state.navRouteChoices || state.navPreview || state.navCameraComparison) resetRouteForNewDestination();
   state.navPicking = false;
   state.navPickedPoint = [lon,lat];
   syncDestinationPickMode();
@@ -3053,10 +3093,9 @@ function destinationWorldPoint(clientX,clientY) {
 function updateDraggedDestination(clientX,clientY){
   const point=destinationWorldPoint(clientX,clientY);
   if (!point || !Number.isFinite(point[0]) || !Number.isFinite(point[1]) || Math.abs(point[0])>180 || Math.abs(point[1])>90) return false;
-  stopNavigationFollow();
+  if(!state.navPinDragging || state.navPreview || state.navRouteChoices)
+    resetRouteForNewDestination();
   state.navPickedPoint=point;
-  state.navPreview=null;if(typeof renderDirectionsReview==='function')renderDirectionsReview(null);state.navFitPending=false;
-  $('map-begin-guidance').disabled=true;
   state.navSelectedAddress=null;
   $('map-destination-query').value=`${point[1].toFixed(7)}, ${point[0].toFixed(7)}`;
   $('nav-dest-query').value=$('map-destination-query').value;
@@ -3217,6 +3256,7 @@ async function previewNavigation() {
   }
   const destination=await resolveTripField($('nav-dest-query').value,'nav-dest');
   const planned=await planRoadRoute([origin,...stops,destination]);
+  if(planned.cancelled)return;
   $('nav-preview-summary').textContent=planned.text;
   setNavigationStatus(planned.text);
   if (planned.road) setMapSearchCollapsed(true);
@@ -3273,12 +3313,10 @@ function beginDestinationMapPick() {
     setMapDestinationStatus('Map destination selection cancelled.');return;
   }
   if (state.areaChoosing) cancelAreaChoosing();
-  stopNavigationFollow();
-  $('map-begin-guidance').disabled=true;
-  state.navCameraRouteEpoch=(state.navCameraRouteEpoch||0)+1;
+  resetRouteForNewDestination();
   if(typeof cameraPanelVisibility==='function')cameraPanelVisibility(false);
   if($('map-camera-route-chip'))$('map-camera-route-chip').hidden=true;
-  state.navPicking=true;state.navPickedPoint=null;state.navPreview=null;if(typeof renderDirectionsReview==='function')renderDirectionsReview(null);state.navFitPending=false;
+  state.navPicking=true;state.navPickedPoint=null;
   showPage('map',{autoLocate:false});
   if (typeof setMapSearchCollapsed === 'function') setMapSearchCollapsed(true);
   if (typeof activeMapTool !== 'undefined' && activeMapTool) closeMapToolOverlay();
@@ -3290,12 +3328,10 @@ function beginDestinationMapPick() {
 $('nav-pick-map').addEventListener('click',beginDestinationMapPick);
 $('map-pick-destination').addEventListener('click',beginDestinationMapPick);
 $('nav-clear-preview').addEventListener('click',()=>{
-  stopNavigationFollow();
-  $('map-begin-guidance').disabled=true;
-  state.navCameraRouteEpoch=(state.navCameraRouteEpoch||0)+1;
+  resetRouteForNewDestination();
   if(typeof cameraPanelVisibility==='function')cameraPanelVisibility(false);
   if($('map-camera-route-chip'))$('map-camera-route-chip').hidden=true;
-  state.navPicking=false;state.navPickedPoint=null;state.navPreview=null;if(typeof renderDirectionsReview==='function')renderDirectionsReview(null);state.navFitPending=false;
+  state.navPicking=false;state.navPickedPoint=null;
   syncDestinationPickMode();syncMapPickedAction();
   $('nav-preview-summary').textContent='';
   $('nav-directions').replaceChildren();

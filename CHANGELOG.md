@@ -1,3 +1,11 @@
+## v0.2.68 — Clear obsolete routes on destination changes (2026-11-14)
+
+- Make the Selected destination action card align in width and left edge with expanded Search, Directions and Choose a Route sheets; preserve clickable right-side map controls.
+- On choosing a new destination, clear the prior route geometry, turn list, nearby-camera counts, camera comparison and stale Choose a Route cards together; saved camera/road preferences remain intact.
+- Apply the reset to map picking, drag-adjusted pins, typed destinations and selected autocomplete results. Temporary per-trip road exclusions are cleared for a different destination; saved exclusions remain.
+- Ignore in-flight Valhalla responses started for a previous destination so an old route cannot suddenly reappear after a fresh map selection. Merely opening or closing search does not discard an unchanged plan.
+- No modifications to the Valhalla backend, hardware, camera source data, offline maps or the approved right-side toolbar. Actual road routing and Raspberry Pi hardware are not field-verified.
+
 ## v0.2.67 — Search and route review transition cleanup (2026-11-14)
 
 - Collapse Destination Search on a successful road route from Get directions, including quick routes and multi-stop previews, but keep it open for routing errors.

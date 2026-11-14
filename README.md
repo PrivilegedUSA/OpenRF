@@ -1,8 +1,8 @@
-# OpenRF v0.2.67 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.68 — Offline-First Navigation and RF Toolkit
 
-## v0.2.67 — Stable destination-to-route navigation panels
+## v0.2.68 — Stable destination-to-route navigation panels
 
-A successful **Get directions** request now closes the expanded destination editor automatically, leaving the compact **Where to?** bar above the Directions summary and route-choice panel. Expanding the editor temporarily hides the route review sheets without deleting the current route. Closing the editor brings them back at measured positions, even after an asynchronous route comparison. Failed geocoding or routing leaves search open so the destination can be corrected. Existing map layout, Valhalla routing behavior, camera avoidance, saved map layers, and private data storage remain unchanged. See `docs/RELEASE_0.2.67_TESTS.md`.
+A successful **Get directions** request now closes the expanded destination editor automatically, leaving the compact **Where to?** bar above the Directions summary and route-choice panel. Expanding the editor temporarily hides the route review sheets without deleting the current route. Closing the editor brings them back at measured positions, even after an asynchronous route comparison. Failed geocoding or routing leaves search open so the destination can be corrected. Existing map layout, Valhalla routing behavior, camera avoidance, saved map layers, and private data storage remain unchanged. See `docs/RELEASE_0.2.68_TESTS.md`.
 
 
 ## v0.2.66 — aligned navigation sheets and pinned export actions
@@ -69,14 +69,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.67.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.68.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.67 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.68 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
