@@ -2194,7 +2194,48 @@ function renderDirectionsReview(route) {
   const turns=routeGuide.routeSteps(route);
   pane.hidden=false;pane.open=false;
   $('map-directions-summary').textContent=`Directions · ${route.distance_miles} mi · ${Math.round(route.duration_seconds/60)} min · ${turns.length} turns`;
-  $('map-directions-list').innerHTML=turns.map(t=>`<li><strong>${escapeHTML(t.instruction)}</strong><small>${t.length_miles.toFixed(2)} mi · Leg ${t.leg}</small></li>`).join('');
+  const list=$('map-directions-list');list.replaceChildren();
+  for(const t of turns){
+    const li=document.createElement('li');li.className='route-step-item';
+    const title=document.createElement('strong');title.textContent=t.instruction;
+    const distance=document.createElement('small');distance.textContent=`${t.length_miles.toFixed(2)} mi · Leg ${t.leg}`;
+    li.append(title,distance);
+    const anchor=routeGuide.turnAvoidPoint(route,t);
+    const isArrival=/\b(arrive|destination|you have arrived)\b/i.test(t.instruction);
+    if(anchor && !isArrival){
+      const toggle=document.createElement('button');toggle.type='button';toggle.className='route-step-avoid-toggle';
+      toggle.textContent='Avoid this road';toggle.setAttribute('aria-expanded','false');
+      toggle.setAttribute('aria-label',`Avoid road near: ${t.instruction}`);
+      const actions=document.createElement('div');actions.className='route-step-avoid-actions';actions.hidden=true;
+      const warning=document.createElement('small');warning.textContent='Excludes a point on this road, not the entire named street. Verify the map and signs.';
+      const status=document.createElement('small');status.className='route-step-avoid-status';status.setAttribute('role','status');
+      for(const [scope,label] of [['trip','This trip'],['saved','Save for future trips']]){
+        const button=document.createElement('button');button.type='button';button.className='btn outline mini';button.textContent=label;
+        button.addEventListener('click',()=>{
+          const result=addTurnRoadAvoidance(t.instruction,anchor,scope);
+          status.textContent=result;
+          if(result.startsWith('Added')){
+            actions.querySelectorAll('button').forEach(b=>b.disabled=true);
+            const recalc=document.createElement('button');recalc.type='button';recalc.className='btn primary mini';
+            recalc.textContent='Recalculate directions';
+            recalc.addEventListener('click',()=>runAction(async()=>{
+              if(state.navFollowId!==null)throw Error('Stop navigation safely before recalculating.');
+              const current=state.navPreview;
+              if(!current?.is_driving_route || !Array.isArray(current.origin) || !Array.isArray(current.destination))
+                throw Error('This road route no longer exists. Choose a destination and Get directions again.');
+              const updated=await planRoadRoute([current.origin,...(current.stops||[]),current.destination]);
+              setMapDestinationStatus(updated.text,updated.road?'success':'error');
+            }));
+            actions.insertBefore(recalc,warning);
+          }
+        });actions.append(button);
+      }
+      actions.append(warning,status);
+      toggle.addEventListener('click',()=>{actions.hidden=!actions.hidden;toggle.setAttribute('aria-expanded',String(!actions.hidden));});
+      li.append(toggle,actions);
+    }
+    list.append(li);
+  }
 }
 function routeLabels(){return {origin:state.navOriginManual?$('nav-start-query').value.trim()||'Chosen start':'Browser-reported starting location',destination:$('map-destination-query').value.trim()||$('nav-dest-name').value.trim()||'Selected map point'};}
 function saveRouteSheet(filename,mime,body){
@@ -2246,9 +2287,27 @@ function saveRouteAvoidSaved(){
   try{window.localStorage?.setItem(ROUTE_AVOID_KEY,JSON.stringify(state.navAvoidSaved));return true;}
   catch(_err){return false;}
 }
+function addTurnRoadAvoidance(instruction,anchor,scope){
+  if(state.navFollowId!==null)return 'Stop navigation safely before changing this route.';
+  const label=String(instruction||'').slice(0,100).trim();
+  const entry=safeRouteAvoidEntry({label,latitude:anchor?.latitude,longitude:anchor?.longitude});
+  if(!entry)return 'This turn does not have a usable mapped road point.';
+  if(routeAvoidEntries().some(e=>Math.abs(e.latitude-entry.latitude)<0.00002 && Math.abs(e.longitude-entry.longitude)<0.00002))
+    return 'That road point is already excluded. Review the saved list in Route preferences.';
+  if(routeAvoidEntries().length>=8)return 'Eight avoidance points reached. Remove an existing point in Route preferences.';
+  if(scope==='saved'){
+    state.navAvoidSaved.push(entry);
+    if(!saveRouteAvoidSaved()){
+      state.navAvoidSaved.pop();return 'Browser storage unavailable; use This trip instead.';
+    }
+  }else state.navAvoidSession.push(entry);
+  renderRoadAvoidList();onRoutePreferencesChanged();
+  return `Added for ${scope==='saved'?'future trips in this browser':'this trip'}. Get directions again to apply the exclusion; current route unchanged.`;
+}
 function renderRoadAvoidList(){
   const box=$('route-road-list');box.replaceChildren();
   const all=[...state.navAvoidSaved.map((e,i)=>({...e,scope:'saved',index:i})),...state.navAvoidSession.map((e,i)=>({...e,scope:'trip',index:i}))];
+  $('route-road-count').textContent=all.length?`${all.length} excluded point${all.length===1?'':'s'}`:'No exclusions';
   if(!all.length){const note=document.createElement('small');note.textContent='No excluded road points.';box.append(note);return;}
   for(const e of all){
     const row=document.createElement('div');row.className='route-road-item';
@@ -2268,7 +2327,7 @@ function onRoutePreferencesChanged(){
   $('map-compare-camera-routes').disabled=true;
   $('route-road-status').textContent='Preferences changed. Get directions again to apply them; an active route will not switch silently.';
 }
-for(const name of ['route-avoid-highways','route-avoid-tolls'])$(name).addEventListener('change',onRoutePreferencesChanged);
+for(const name of ['route-avoid-highways','route-avoid-tolls'])$(name).addEventListener('change',()=>{syncRouteCameraPrefs();onRoutePreferencesChanged();});
 $('route-road-find').addEventListener('click',()=>{
   const query=$('route-avoid-road-name').value.trim().toLowerCase(),select=$('route-road-matches');
   select.replaceChildren();select.hidden=true;state.navAvoidAnchor=null;
@@ -2327,7 +2386,7 @@ window.addEventListener('keydown',event=>{if(event.key==='Escape' && state.navAv
 renderRoadAvoidList();
 // Keep the old route option section in the DOM for integrations, but mount it
 // within the existing navigation settings popup rather than over the map.
-$('map-navigation-options').querySelector('.map-settings-popup').appendChild($('map-camera-route-panel'));
+$('route-avoid-settings').insertBefore($('map-camera-route-panel'),$('route-road-control'));
 
 function cameraReportSummary(report){
   if(!report)return 'No camera catalog report available for this road route.';
@@ -2347,6 +2406,23 @@ function updateCameraRoutePreferenceDisplay(){
   return enabled;
 }
 const selectedRouteCameraTypes=()=>[...document.querySelectorAll('[data-route-camera-type]:checked')].map(x=>x.dataset.routeCameraType);
+const ROUTE_PREFS_KEY='openrf.route-prefs.v1';
+try{
+  const saved=JSON.parse(window.localStorage?.getItem(ROUTE_PREFS_KEY)||'{}');
+  if(saved && typeof saved==='object'){
+    $('route-avoid-highways').checked=saved.highways===true;
+    $('route-avoid-tolls').checked=saved.tolls===true;
+    const types=Array.isArray(saved.cameras)?saved.cameras.filter(x=>['ALPR','RED_LIGHT','SPEED'].includes(x)):[];
+    for(const box of document.querySelectorAll('[data-route-camera-type]'))box.checked=types.includes(box.dataset.routeCameraType);
+  }
+}catch(_err){/* Local preferences are optional. */}
+function syncRouteCameraPrefs(){
+  $('map-camera-route-enable').checked=selectedRouteCameraTypes().length>0;
+  try{window.localStorage?.setItem(ROUTE_PREFS_KEY,JSON.stringify({highways:$('route-avoid-highways').checked,
+    tolls:$('route-avoid-tolls').checked,cameras:selectedRouteCameraTypes()}));}catch(_err){}
+}
+syncRouteCameraPrefs();
+
 function cameraPanelVisibility(open){
   const panel=$('map-camera-route-panel');panel.hidden=false;
   state.navCameraPanelOpen=Boolean(open);
@@ -2465,7 +2541,7 @@ function invalidateCameraComparison(){
   $('map-camera-comparison-status').textContent='Preferences updated. Choose Compare routes, or Get directions for a new route. Current route unchanged.';
   updateCameraRoutePreferenceDisplay();
 }
-for(const box of document.querySelectorAll('[data-route-camera-type]'))box.addEventListener('change',invalidateCameraComparison);
+for(const box of document.querySelectorAll('[data-route-camera-type]'))box.addEventListener('change',()=>{syncRouteCameraPrefs();onRoutePreferencesChanged();});
 $('map-camera-route-enable').addEventListener('change',invalidateCameraComparison);
 $('map-use-camera-alternate').addEventListener('click',()=>chooseRouteChoice('alternate'));
 

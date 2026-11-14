@@ -1,4 +1,13 @@
-# OpenRF v0.2.61 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.62 — Offline-First Navigation and RF Toolkit
+
+## v0.2.62 — direct route avoidance preferences and turn-by-turn road exclusions
+
+Open **Map → Route preferences** (the map gear or **Where to? → Route preferences**). Avoid highways, toll roads, ALPR/Flock camera reports, red-light cameras and speed camera reports from one set of switches. Camera preferences are initially off and are saved locally in this browser; they ask Valhalla for a comparison, not a guaranteed camera-free route.
+
+The advanced **Avoid a particular road or gate** editor is collapsed by default. It shows how many exclusions are active. To exclude a road already in your directions, expand **Directions**, choose **Avoid this road** beside a mapped turn, then select **This trip** or **Save for future trips**. Press **Recalculate directions** to request a new route. The saved list under the advanced editor lets you remove exclusions later. A turn exclusion selects an *on-route point after a junction*, not every segment with the same road name. These exclusions are best-effort and may not account for unmapped private gates, access restrictions, or incomplete camera reports; check real road signs and conditions. Changes never silently switch an active driving route.
+
+Address search provider settings remain accessible under a collapsed **Address search and provider settings** section. No new external service, required account, or map download was added; v0.2.52 map controls and offline map bytes remain unchanged. Do not operate settings while driving.
+
 
 ## v0.2.61 — interactive route choices and avoidance preferences
 
@@ -38,14 +47,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.61.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.62.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.61 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.62 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash

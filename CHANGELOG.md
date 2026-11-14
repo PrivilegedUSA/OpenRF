@@ -1,3 +1,11 @@
+## v0.2.62 — One-stop avoidance settings and per-turn road exclusions (2026-11-14)
+
+- Put **ALPR/Flock**, **red-light**, and **speed** camera avoidance switches directly alongside highway and toll preferences, with no extra master opt-in. Camera categories are all initially off, and explicit choices persist locally in the current browser. The original route remains selected unless the user chooses a different one.
+- Collapse the rarely used road/gate exclusion editor by default; show its active count and retain remove controls for both trip-only and browser-saved exclusions. Move address search/provider options into a separate collapsed section so route settings are visible on a 5-inch screen.
+- Add an **Avoid this road** action to individual mapped turn-by-turn directions, choosing **This trip** or **Save for future trips**, followed by **Recalculate directions**. Use a bounded point on the outgoing road instead of the intersection itself and reject turns without suitable road geometry. Do not promise avoidance of an entire named street or of a locked gate.
+- Keep existing route selection, conservative off-route GPS behavior, saved local radio and camera data, map tool rail, and offline basemap intact. No new API, external services, radio scans, tracking, or map tiles.
+- Add regression tests for turn-point selection, UI/source contracts, and small-screen isolated layout checks. Physical moving navigation, actual Valhalla exclusions, browser persistence across updates, Raspberry Pi and GitHub CI remain unverified.
+
 ## v0.2.61 — Selectable route lines and consolidated avoidance settings (2026-11-14)
 
 - Remove the overlapping camera-route chip; open camera, highway, toll and road/gate avoidance preferences together in existing Map route settings. Fix route-comparison feedback when no alternate can be calculated.
