@@ -1,6 +1,6 @@
-# OpenRF v0.2.59 — Spoken GPS Turns and Data-Limited Lane Guidance
+# OpenRF v0.2.60 — Spoken GPS Turns and Data-Limited Lane Guidance
 
-## v0.2.59 — spoken maneuver prompts and optional lane hints
+## v0.2.60 — spoken maneuver prompts and optional lane hints
 
 - **Spoken directions (opt-in):** During a real, user-started GPS navigation session, press **Voice off** in the on-map guidance panel to turn speech on. A browser with Speech Synthesis support is required, and the operating system may need voice files; offline playback depends on which voice is installed. Directions use Valhalla's spoken text when present. OpenRF does not bundle or call a cloud text-to-speech API; some browser/OS speech implementations may still require an internet connection.
 - **Conservative spoken alerts:** Speak only with a recent, accurate, moving GPS/GNSS fix. Warn once when about 400 m from the next turn and once within 90 m (if fixes arrive in those windows). Guidance stops speaking when the reported position is stale, inaccurate or off-route; it remains silent in the clearly labeled DEMO mode. A missing turn or voice engine never creates made-up audio.
@@ -34,14 +34,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.59.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.60.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.59 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.60 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash

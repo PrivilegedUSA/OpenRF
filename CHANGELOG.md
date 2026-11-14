@@ -1,3 +1,11 @@
+## v0.2.60 — Camera options integrated directly into navigation (2026-11-14)
+
+- Move camera-route comparison out of the hidden Directions turn list into a dedicated, compact **Camera routes** overlay on the main Map. The overlay is reachable from destination search, the map-picked destination card, the route-preview chip, and active navigation; it uses the approved dark teal map style and can be closed without changing route or location.
+- Add explicit opt-in to consider selected ALPR/Flock, red-light and speed-camera reports during future directions and accurate GPS off-route recalculations. When enabled before **Get directions**, automatically request an evidence-limited local Valhalla comparison, but **never switch from the normal route without selecting Use alternative**. Display reported-camera counts, time and distance tradeoffs, and avoid offering a non-improving alternative.
+- Hide the map-picked destination card once a verified road route is shown, avoiding overlap with the route-options chip. During live navigation, the camera option button is available; selecting an entirely different planned route requires stopping safely first. Future off-route recalculations use the user's explicitly enabled categories and preserve ordinary routing if camera alternatives are unavailable.
+- Preserve the v0.2.52 map-first layout, right-side tools, local Valhalla and GPS behavior, offline basemap bytes, national ALPR local store, radio, survey, investigations and archived Android work. No new external feeds, accounts, mandatory packages or RF drivers.
+- Add UI contract and isolated 800×480/phone/short landscape checks. Actual driving, live Valhalla camera exclusions, browser GNSS, external camera downloads, and Raspberry Pi hardware remain unverified. Camera locations are reports; routing cannot promise camera-free travel or override traffic laws.
+
 ## v0.2.59 — Opt-in spoken turns, mapped lane hints, traffic-free ETA (2026-11-14)
 
 - Navigation: request `turn_lanes:true` from local Valhalla and preserve bounded verbal maneuver fields and optional mapped lane bitmasks, with strict validation; do not infer lane directions when tags are missing or invalid. No new server calls except existing loopback road routes.

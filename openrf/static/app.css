@@ -1212,3 +1212,26 @@ body.map-workspace .topbar .menu-toggle:focus-visible,
 @media(max-width:599px) and (max-height:440px){
   #page-map.navigation-driving .map-follow-hud{right:auto;width:calc(100% - 75px);max-width:none}
 }
+
+/* v0.2.60: camera routing is a first-class destination/navigation control. */
+#page-map #map-camera-route-chip{position:absolute;z-index:28;top:65px;left:9px;max-width:calc(100% - 92px);min-height:34px;
+  border:1px solid #397c7a;border-radius:8px;background:#0d3039f2;color:#c9fff2;font-weight:750;font-size:11px;padding:7px 11px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;box-shadow:0 4px 13px #0009}
+#page-map #map-camera-route-chip[hidden],#page-map #map-camera-route-panel[hidden]{display:none!important}
+#page-map #map-camera-route-panel{position:absolute;z-index:35;top:106px;left:9px;width:min(405px,calc(100% - 83px));
+  max-height:min(65dvh,345px);overflow-y:auto;border:1px solid #397b78;border-radius:10px;background:#102a34f9;
+  box-shadow:0 8px 20px #000b;color:#e5faf3;overscroll-behavior:contain}
+#page-map .camera-route-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+#page-map .camera-route-heading button{display:grid;place-items:center;flex:none;background:#1c4350;border:0;border-radius:6px;color:#ddfff6;width:30px;height:30px;font-size:21px}
+#page-map .camera-route-optin{display:flex;align-items:flex-start;gap:7px;margin:8px 0;padding:8px;background:#163b42;border-radius:7px;color:#e0fff7;font-size:12px;line-height:1.4}
+#page-map .camera-route-optin input{accent-color:#34c9b1;margin-top:2px}
+#page-map #map-search-camera-options{width:100%;min-height:36px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#14313a;
+ color:#c0f3e5;border:1px solid #35616b;border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;margin:8px 0}
+#page-map #map-search-camera-choice{color:#8de6d0;font-size:10px;font-weight:650;white-space:normal;text-align:right}
+#page-map #map-picked-camera-options{flex:1 1 auto}
+#page-map #map-follow-camera-options{padding:4px 8px;white-space:normal}
+#page-map.navigation-driving #map-camera-route-chip{display:none!important}
+#page-map.navigation-driving #map-camera-route-panel{top:auto;bottom:12px;max-height:min(53dvh,260px);z-index:40}
+#page-map.navigation-driving #map-camera-route-panel .camera-route-actions #map-use-camera-alternate{display:none!important}
+@media(max-width:550px){#page-map #map-camera-route-panel{top:104px;max-height:min(57dvh,300px)}
+  #page-map.navigation-driving #map-camera-route-panel{bottom:45px;max-height:40dvh}}
