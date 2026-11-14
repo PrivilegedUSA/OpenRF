@@ -22,25 +22,27 @@ function makeHarness(type) {
     addEventListener(name,fn,capture){this.listeners[name]={fn,capture};}
   }]));
   const states={};
+  const mapWrap={listeners:{},addEventListener(name,fn,capture){this.listeners[name]={fn,capture};}};
+  elements.map.parentElement=mapWrap;
   elements.map.classList={toggle(className,active){states[className]=active;}};
   elements.map.getBoundingClientRect=()=>({left:100,top:200,width:200,height:100});
   const keys={};
   const win={addEventListener(name,fn){keys[name]=fn;}};
-  const calls={fit:0,render:0,status:[],pages:[],cancelArea:0,disable:0,enable:0};
+  const calls={fit:0,render:0,status:[],pages:[],cancelArea:0,disable:0,enable:0,resets:0};
   let enabled=true;
   const map={
     dragPan:{isEnabled(){return enabled;},disable(){enabled=false;calls.disable++;},enable(){enabled=true;calls.enable++;}},
     unproject([x,y]){assert.equal(x,120);assert.equal(y,50);return{lng:-121.2345,lat:39.12345};}
   };
   const state={navPicking:false,navPickedPoint:null,navPreview:null,navFitPending:false,
-    navSelectedAddress:{name:'Stale'},navPickPanRestore:null,
+    navSelectedAddress:{name:'Stale'},navPickPanRestore:null,navAvoidPicking:false,navRouteChoices:null,navCameraComparison:null,
     areaChoosing:false, map:type==='vector'?map:null,mapReady:type==='vector',
     rasterMap:type==='raster'?{center:[-120,38],zoom:9}:null,
     browserLocation:{lat:38.48,lon:-120.62}};
   const deps=[state,id=>{assert(elements[id],`missing element: ${id}`);return elements[id];},win,
     (lon,lat,z)=>[lon*10,lat*10],(x,y,z)=>[x/10,y/10],
     ()=>{calls.render++;},msg=>calls.status.push(msg),msg=>calls.status.push(msg),
-    (...args)=>calls.pages.push(args),()=>calls.cancelArea++,()=>{},()=>{}];
+    (...args)=>calls.pages.push(args),()=>calls.cancelArea++,()=>{},()=>{calls.resets++;state.navPreview=null;state.navRouteChoices=null;state.navCameraComparison=null;}];
   const runner=Function('state','$','window','worldPixel','pixelWorld','renderNavigationOverlay',
     'setNavigationStatus','setMapDestinationStatus','showPage','cancelAreaChoosing','stopNavigationFollow','resetRouteForNewDestination',
     `${source.slice(start,end)}\n${source.slice(begin,beginEnd)}\nreturn {beginDestinationMapPick,consumeNavigationPick,handleDestinationMapClick};`);
@@ -48,15 +50,15 @@ function makeHarness(type) {
   const tap=(target={closest:()=>null})=>{
     const ev={clientX:220,clientY:250,button:0,target,prevented:0,stopped:0,
       preventDefault(){this.prevented++;},stopImmediatePropagation(){this.stopped++;}};
-    elements.map.listeners.click.fn(ev);
+    mapWrap.listeners.click.fn(ev);
     return ev;
   };
-  return{elements,state,map,calls,states,keys,actions,tap,isEnabled:()=>enabled};
+  return{elements,mapWrap,state,map,calls,states,keys,actions,tap,isEnabled:()=>enabled};
 }
 // MapLibre must visually switch from grab to crosshair; a tapped GPS pin is
 // resolved via unproject(pixel), never from state.browserLocation.
 const v=makeHarness('vector');
-assert.equal(v.elements.map.listeners.click.capture,true,'intercept click in DOM capture phase, above pin handlers');
+assert.equal(v.mapWrap.listeners.click.capture,true,'intercept map-wrap click in DOM capture phase, including sibling route overlays');
 v.actions.beginDestinationMapPick();
 assert.equal(v.states['destination-picking'],true);
 assert.equal(v.elements['map-pick-destination'].attrs['aria-pressed'],'true');
@@ -77,6 +79,21 @@ assert.equal(controls.prevented,0);assert.equal(v.state.navPicking,true);
 // Escape and a second press both cancel without changing the destination.
 v.keys.keydown({key:'Escape',preventDefault(){}});
 assert.equal(v.state.navPicking,false);assert.equal(v.isEnabled(),true);
+// Regression: after a completed route, a stale road-avoidance pick must not
+// steal a second destination tap. An SVG alternative-route target is a
+// sibling of #map and must still be accepted via the outer map container.
+v.state.navPreview={is_driving_route:true};
+v.state.navRouteChoices={standard:{},alternative:{}};
+v.state.navAvoidPicking=true;
+v.actions.beginDestinationMapPick();
+assert.equal(v.state.navAvoidPicking,false,'new destination cancels old road picking');
+assert.equal(v.isEnabled(),false,'second entry disables pan again');
+const second=v.tap({closest:()=>null,className:'route-hit'});
+assert.equal(second.prevented,1,'route overlay hit is consumed as destination selection');
+assert.equal(v.state.navPicking,false);
+assert.equal(v.isEnabled(),true);
+assert.deepEqual(v.state.navPickedPoint,[-121.2345,39.12345]);
+assert(v.calls.resets>=2,'old route plan was cleared');
 const previous=v.elements['map-destination-query'].value;
 v.actions.beginDestinationMapPick();v.actions.beginDestinationMapPick();
 assert.equal(v.state.navPicking,false);assert.equal(v.elements['map-destination-query'].value,previous);

@@ -96,6 +96,13 @@ const mapSearchToggle = $('map-search-toggle');
 const mapSearchForm = $('map-destination-form');
 function setMapSearchCollapsed(collapsed, restoreFocus = false) {
   const isCollapsed = Boolean(collapsed);
+  // Opening the text/address editor cancels an unfinished map tap so that
+  // the next explicit 'Choose destination on map' always starts fresh.
+  if (!isCollapsed && state.navPicking) {
+    state.navPicking=false;
+    syncDestinationPickMode();
+    renderNavigationOverlay();
+  }
   mapSearchForm.hidden = isCollapsed;
   mapSearchPanel.classList.toggle('is-collapsed', isCollapsed);
   // Editing a destination and reviewing a route are mutually exclusive map
@@ -213,6 +220,9 @@ window.addEventListener('keydown',event => {
 // destination. Invalidate the previous plan, its route-choice cards and any
 // in-flight camera comparison together. Saved route preferences are retained.
 function resetRouteForNewDestination() {
+  // A pending road/gate point pick is specific to the old route. Never let
+  // its capture listener steal a tap intended for a newly selected place.
+  state.navAvoidPicking=false;
   stopNavigationFollow();
   state.navDestinationEpoch=(state.navDestinationEpoch||0)+1;
   state.navCameraRouteEpoch=(state.navCameraRouteEpoch||0)+1;
@@ -2431,6 +2441,13 @@ $('route-road-find').addEventListener('click',()=>{
   select.onchange=apply;apply();
 });
 $('route-road-pick').addEventListener('click',()=>{
+  // Map tap modes are exclusive. Choosing an avoidance point cannot leave
+  // the destination-pick handler armed over the same map.
+  if (state.navPicking) {
+    state.navPicking=false;
+    syncDestinationPickMode();
+    renderNavigationOverlay();
+  }
   state.navAvoidPicking=true;
   $('map-navigation-options').open=false;
   setMapSearchCollapsed(true);
@@ -3019,8 +3036,11 @@ function syncDestinationPickMode() {
     $(id).setAttribute('aria-pressed', String(state.navPicking));
   }
   const map=state.map;
-  if (state.navPicking && map?.dragPan && state.navPickPanRestore?.map !== map) {
-    state.navPickPanRestore={map, pan:!!map.dragPan.isEnabled()};
+  if (state.navPicking && map?.dragPan) {
+    // Re-entry must always disable pan, even if a stale prior pick saved
+    // restoration state for the same MapLibre instance.
+    if (state.navPickPanRestore?.map !== map)
+      state.navPickPanRestore={map, pan:!!map.dragPan.isEnabled()};
     map.dragPan.disable();
   } else if (!state.navPicking && state.navPickPanRestore) {
     const restore=state.navPickPanRestore;
@@ -3031,7 +3051,7 @@ function syncDestinationPickMode() {
 function handleDestinationMapClick(event) {
   if (!state.navPicking || (event.button !== undefined && event.button !== 0)) return;
   // The controls, copyright disclosure and other map UI remain functional.
-  if (event.target.closest?.('.map-destination-panel,.map-picked-action,.map-camera-route-review,.camera-route-review,.map-tool-overlay,.map-tool-rail,.map-navigation-settings,.map-follow-hud,.maplibregl-ctrl,.raster-control,.map-credits,.map-error,.raster-notice')) return;
+  if (event.target.closest?.('button,a,input,select,textarea,summary,.map-destination-panel,.map-picked-action,.map-camera-route-review,.camera-route-review,.map-route-choices,.map-tool-overlay,.map-tool-rail,.map-navigation-settings,.map-follow-hud,.maplibregl-ctrl,.raster-control,.map-credits,.map-error,.raster-notice')) return;
   const root=$('map'), rect=root.getBoundingClientRect();
   const x=event.clientX-rect.left, y=event.clientY-rect.top;
   if (!Number.isFinite(x) || !Number.isFinite(y) || x<0 || y<0 || x>rect.width || y>rect.height) return;
@@ -3048,7 +3068,10 @@ function handleDestinationMapClick(event) {
   event.preventDefault();event.stopImmediatePropagation();
   consumeNavigationPick(lon,lat);
 }
-$('map').addEventListener('click',handleDestinationMapClick,true);
+// Listen on the outer map surface, not just the MapLibre canvas. Alternate
+// route hit-paths, existing pins and other SVG overlays are *siblings* of
+// #map, so canvas-only handling can miss a second destination selection.
+$('map').parentElement.addEventListener('click',handleDestinationMapClick,true);
 window.addEventListener('keydown',event=>{
   if (event.key==='Escape' && state.navPicking) {
     event.preventDefault();state.navPicking=false;syncDestinationPickMode();
@@ -3313,6 +3336,9 @@ function beginDestinationMapPick() {
     setMapDestinationStatus('Map destination selection cancelled.');return;
   }
   if (state.areaChoosing) cancelAreaChoosing();
+  // A previously started 'pick a road to avoid' action must never consume
+  // the tap intended for the new destination (it registered first on #map).
+  state.navAvoidPicking=false;
   resetRouteForNewDestination();
   if(typeof cameraPanelVisibility==='function')cameraPanelVisibility(false);
   if($('map-camera-route-chip'))$('map-camera-route-chip').hidden=true;

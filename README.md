@@ -1,4 +1,8 @@
-# OpenRF v0.2.68 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.69 — Offline-First Navigation and RF Toolkit
+
+## v0.2.69 — Reliable repeated destination selection
+
+After planning one route, you can reopen **Where to? → Choose destination on map** and tap a different point. Map picking now takes precedence over any incomplete road-avoidance selection and can see taps over map overlays; the earlier route and turn list are still cleared when the new destination is chosen. Route preferences and all local RF records remain unchanged. See `docs/RELEASE_0.2.69_TESTS.md`.
 
 ## v0.2.68 — Stable destination-to-route navigation panels
 
@@ -69,14 +73,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.68.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.69.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.68 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.69 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash

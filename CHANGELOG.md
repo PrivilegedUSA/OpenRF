@@ -1,3 +1,11 @@
+## v0.2.69 — Repeatable map destination picking (2026-11-14)
+
+- Fix the regression where **Choose destination on map** could stop accepting taps after calculating an earlier route: use a map-container capture handler so taps on MapLibre and sibling route/pin overlays are handled consistently.
+- Make destination picking and road/gate avoidance-point picking mutually exclusive; starting a new destination cancels any unfinished road-point selection and restores the map's tap behavior. Opening typed search also cancels an unfinished destination pick.
+- Always disable MapLibre panning when re-entering destination-pick mode and restore its previous setting after a successful pick/cancel. Native map controls and other interactive panels remain excluded from destination taps.
+- Preserve the previous v0.2.68 route-reset behavior, persisted camera/layer/road preferences, right-side map controls, local offline tiles and routing backend. No location logging or external requests are added by this fix.
+- Expand map-pick regression coverage to a **second** destination after a completed route, including taps on a route-overlay sibling and a pending road-exclusion tap state. UI browser-to-server testing is environment-limited; the user's real MapLibre/Valhalla interaction still needs confirmation.
+
 ## v0.2.68 — Clear obsolete routes on destination changes (2026-11-14)
 
 - Make the Selected destination action card align in width and left edge with expanded Search, Directions and Choose a Route sheets; preserve clickable right-side map controls.
