@@ -2224,12 +2224,23 @@ async function resolveTypedPlace(query) {
 // A route sheet is generated entirely in the browser from a real local Valhalla
 // response. No travel positions are saved, and export happens only on click.
 const routeGuide=window.OpenRFRouteGuidance;
+// The summary wraps at small widths. Pin the export actions to its measured
+// height rather than a fixed number that can overlap two-line summaries.
+function updateDirectionsStickyOffset(){
+  const pane=$('map-directions-review'), summary=$('map-directions-summary');
+  if(!pane || !summary)return;
+  const height=summary.getBoundingClientRect().height;
+  if(height>0)pane.style.setProperty('--openrf-directions-summary-height',`${Math.ceil(height)}px`);
+}
+if(typeof ResizeObserver!=='undefined')new ResizeObserver(updateDirectionsStickyOffset).observe($('map-directions-summary'));
+window.addEventListener('resize',updateDirectionsStickyOffset);
 function renderDirectionsReview(route) {
   const pane=$('map-directions-review');
   if(route?.type!=='ROAD_ROUTE'||route.is_driving_route!==true){pane.hidden=true;pane.open=false;return;}
   const turns=routeGuide.routeSteps(route);
   pane.hidden=false;pane.open=false;
   $('map-directions-summary').textContent=`Directions · ${route.distance_miles} mi · ${Math.round(route.duration_seconds/60)} min · ${turns.length} turns`;
+  updateDirectionsStickyOffset();
   const list=$('map-directions-list');list.replaceChildren();
   for(const t of turns){
     const li=document.createElement('li');li.className='route-step-item';

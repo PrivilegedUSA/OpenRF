@@ -1,3 +1,11 @@
+## v0.2.66 — Consistent navigation sheet widths and sticky direction exports (2026-11-14)
+
+- Match expanded Destination Search, Choose a Route, and Directions sheet widths/alignment, leaving the floating map tool rail usable on narrow screens.
+- Move Print, Save HTML, and Save JSON into the non-scrolling Directions header section under the route summary.
+- Keep exactly one scrollable Directions content region for turns, descriptions, avoid-road actions and privacy notices; no nested scrollbars.
+- Preserve compact collapsed search, live route/alternate selection, camera-aware routing, road avoidance, local map data and all hardware features.
+- Add browser layout and markup regression checks for the new behavior; no new server-side dependencies.
+
 ## v0.2.65 — Map layer persistence and navigation sheet cleanup (2026-11-14)
 - Retain Wi-Fi, BLE, RF, cellular, infrastructure, manual, ALPR, red-light and speed-camera layer choices locally in the current browser; no sync, login, or server upload.
 - Honor unchecked camera layers after manual additions and national camera-data refreshes instead of automatically re-enabling them.

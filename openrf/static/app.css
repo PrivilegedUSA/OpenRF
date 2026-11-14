@@ -1386,3 +1386,61 @@ body.map-workspace .topbar .menu-toggle:focus-visible,
 #page-map .map-tool-close:hover {background:#20505a;color:#f4fffd}
 #page-map .map-sheet-close:focus-visible,
 #page-map .map-tool-close:focus-visible {outline:2px solid #98f5df;outline-offset:2px}
+
+
+/* v0.2.66 — Align the three expanded navigation sheets; preserve the compact
+   collapsed Where-to control and a full-height, clickable right-hand toolbar. */
+#page-map .map-directions-review,
+#page-map .map-route-choices,
+#page-map .map-destination-panel:not(.is-collapsed) {
+  box-sizing:border-box;
+  left:9px;
+  right:auto;
+  width:min(430px,calc(100% - 71px));
+  max-width:none;
+  min-width:0;
+}
+/* The collapsed destination search keeps its established smaller width. */
+#page-map .map-destination-panel.is-collapsed{left:10px}
+
+/* The Directions sheet is the *only* scrolling container. Its summary and
+   export row remain pinned while the step list moves underneath them. */
+#page-map .map-directions-review[open] {
+  max-height:min(67dvh,520px);
+  overflow-y:auto;
+  overflow-x:hidden;
+}
+#page-map .map-directions-review > summary {
+  position:sticky;
+  top:0;
+  z-index:3;
+  background:#102b35;
+}
+#page-map .map-directions-review > .map-directions-actions {
+  display:grid;
+  position:sticky;
+  top:var(--openrf-directions-summary-height,48px);
+  z-index:3;
+  margin:0;
+  padding:8px 12px 9px;
+  border-bottom:1px solid #35616b88;
+  background:#102b35;
+}
+#page-map .map-directions-review > .map-directions-body {
+  overflow:visible;
+  padding:9px 12px 12px;
+}
+#page-map .map-directions-body ol {
+  max-height:none;
+  overflow:visible;
+}
+@media(max-width:550px){
+  #page-map .map-directions-review,
+  #page-map .map-route-choices,
+  #page-map .map-destination-panel:not(.is-collapsed) {
+    left:9px;
+    right:auto;
+    width:calc(100% - 71px);
+    max-width:none;
+  }
+}

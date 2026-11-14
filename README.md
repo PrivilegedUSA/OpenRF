@@ -1,4 +1,8 @@
-# OpenRF v0.2.65 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.66 — Offline-First Navigation and RF Toolkit
+
+## v0.2.66 — aligned navigation sheets and pinned export actions
+
+The expanded destination search and Choose a Route popup now share the width and left edge of the Directions sheet. The compact collapsed search field remains unchanged. When Directions is expanded, its route summary and Print/Save HTML/Save JSON buttons remain visible while **only the turn-list body scrolls**. This is a frontend-only adjustment; routing, road exclusions, map layers and private data storage are unchanged. See `docs/RELEASE_0.2.66_TESTS.md`.
 
 ## v0.2.65 — persistent map layers and one-scroll directions
 
@@ -60,14 +64,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.65.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.66.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.65 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.66 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash
