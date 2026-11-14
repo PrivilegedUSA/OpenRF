@@ -33,8 +33,7 @@
         const baseline=count?`${count.toLocaleString()} community-mapped ALPR points saved offline (updated ${info.updated_utc||'unknown'}).`:'No nationwide ALPR snapshot downloaded yet.';
         setSnapshotStatus(result.phase==='failed'?`${baseline} Last update failed: ${result.error||'Unknown download problem'}. Saved cameras remain available.`:baseline,result.phase==='failed');
         if(wasRunning && result.phase==='ready'){
-          const checkbox=document.querySelector('[data-camera-type="ALPR"]');
-          if(checkbox)checkbox.checked=true;
+          // A completed download must not re-enable a layer the user switched off.
           lastKey='';refresh(true);
         }
       }
@@ -127,6 +126,7 @@
     fetchTimer=setTimeout(()=>{fetchTimer=null;refresh();},450);
   }
   controls.forEach(el=>el.addEventListener('change',()=>{
+    window.OpenRFMapLayerPreferences?.save?.();
     lastKey='';if(enabled().size)refresh(true);else{entries=[];updateVector(state.map);state.rasterMap?.render();setStatus('All camera layers disabled. No camera network activity.');}
   }));
   get('camera-refresh').addEventListener('click',()=>refresh(true));
@@ -162,7 +162,7 @@
     button.disabled=true;setStatus('Querying OSM/Overpass for ALPR reports within the visible map bounds. No GPS track is sent…');
     try{
       const result=await api('/api/cameras/import-osm','POST',{bounds:b});
-      const checkbox=document.querySelector('[data-camera-type="ALPR"]');checkbox.checked=true;
+      // Import never changes saved layer visibility; user chooses what the map shows.
       lastKey='';await refresh(true);
       setStatus(`Found ${result.import.matched} OSM community-mapped ALPR location(s) in this area. Local offline copy saved. If zero, the map has no tagged entries in this area—not proof that no cameras exist.`);
     }catch(e){setStatus(`Could not import ALPRs: ${e.message}`,true);}
@@ -175,7 +175,7 @@
       longitude:Number(get('camera-longitude').value),source:get('camera-source').value,
       source_url:get('camera-source-url').value,notes:get('camera-notes').value};
     try{await api('/api/cameras','POST',data);
-      const choice=document.querySelector(`[data-camera-type="${data.type}"]`);choice.checked=true;
+      // Adding a report does not silently change visibility preferences.
       lastKey='';await refresh(true);setStatus(`${data.type} location saved locally as ${data.state}. Not automatically verified.`);
     }catch(e){setStatus(`Camera not saved: ${e.message}`,true);}
     finally{button.disabled=false;}

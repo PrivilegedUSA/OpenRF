@@ -1,3 +1,10 @@
+## v0.2.65 — Map layer persistence and navigation sheet cleanup (2026-11-14)
+- Retain Wi-Fi, BLE, RF, cellular, infrastructure, manual, ALPR, red-light and speed-camera layer choices locally in the current browser; no sync, login, or server upload.
+- Honor unchecked camera layers after manual additions and national camera-data refreshes instead of automatically re-enabling them.
+- Remove the nested scrollbar from the planned turn list; keep the Directions heading sticky inside the one outer scroll region.
+- Leave room for the map's right-side controls on handheld widths and restyle the Layers/Map Tools X buttons to be centered, compact and borderless.
+- Add regression checks for persisted toggles and layout. Existing routing, offline resources and data remain unchanged.
+
 ## v0.2.64 — Route-choice panel spacing (2026-11-14)
 
 - Place the Choose a Route panel at least 12 pixels below the **actual** collapsed Directions heading, including wrapped multi-line text.

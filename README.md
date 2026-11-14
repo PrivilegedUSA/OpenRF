@@ -1,4 +1,8 @@
-# OpenRF v0.2.64 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.65 — Offline-First Navigation and RF Toolkit
+
+## v0.2.65 — persistent map layers and one-scroll directions
+
+All six survey layers and three camera categories now retain their visibility choices in this browser's local storage. Layer choices are restored before the map and camera components load; camera imports never silently override a hidden layer. Storage disabled/private mode falls back to the current session. Directions now has one scrolling region instead of a scrollable turn list nested inside a second scroll area. The top Directions summary remains sticky, and the panel is kept clear of the right-side controls, even at narrow widths. Map-layer and workspace close glyphs are smaller, centered and borderless. All changes are UI-only; routing and radio capture are unchanged. See `docs/RELEASE_0.2.65_TESTS.md`.
 
 ## v0.2.64 — route choice spacing follows Directions height
 
@@ -56,14 +60,14 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.64.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.65.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\Update-OpenRF.ps1'
    ```
 
-3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.64 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
+3. The local updater installs to `C:\projects\OpenRF`, creates a Git commit of managed paths, and pushes by default. Its output still says **"Android APK workflow"**, because that wording is hardcoded in the reserved updater. For v0.2.65 the actual trigger is `.github/workflows/openrf-linux.yml` instead. The old Android workflow is intentionally retired; **no Android APK is produced by this release**.
 4. Run from the Ubuntu terminal:
 
    ```bash

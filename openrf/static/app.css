@@ -1326,3 +1326,63 @@ body.map-workspace .topbar .menu-toggle:focus-visible,
 /* v0.2.64: JS measures actual Directions summary height, including wrapped lines.
    CSS fallback is retained for initial layout before the first measurement. */
 #page-map .map-route-choices{top:calc(var(--openrf-nav-overlay-bottom, 67px) + 56px)}
+
+
+/* v0.2.65 — one Directions scrollbar, visible right-hand map controls. */
+#page-map .map-directions-review {
+  left:9px;
+  right:62px;
+  max-width:min(430px, calc(100% - 77px));
+  min-width:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+}
+#page-map .map-directions-review > summary {
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:#102b35;
+}
+#page-map .map-directions-body ol {
+  max-height:none;
+  overflow:visible;
+  padding-right:0;
+}
+@media(max-width:550px) {
+  #page-map .map-directions-review {
+    left:9px;
+    right:62px;
+    max-width:none;
+  }
+}
+/* Match small borderless floating toolbar buttons; center the glyph exactly. */
+#page-map .map-sheet-close,
+#page-map .map-tool-close {
+  display:grid;
+  place-items:center;
+  align-self:flex-start;
+  flex:0 0 30px;
+  width:30px;
+  height:30px;
+  min-width:30px;
+  min-height:30px;
+  padding:0;
+  margin:0;
+  border:0;
+  border-radius:8px;
+  background:#0c2833ec;
+  color:#b8fff1;
+  font-family:inherit;
+  font-size:19px;
+  font-weight:400;
+  line-height:1;
+  text-align:center;
+  box-shadow:0 2px 9px #0007;
+  cursor:pointer;
+}
+#page-map .map-sheet-close:hover,
+#page-map .map-tool-close:hover {background:#20505a;color:#f4fffd}
+#page-map .map-sheet-close:focus-visible,
+#page-map .map-tool-close:focus-visible {outline:2px solid #98f5df;outline-offset:2px}

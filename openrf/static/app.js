@@ -8,6 +8,41 @@ const state = { observations: [], sessions: [], waypoints: [], sdrSites: [], way
   navDemoActive:false,navDemoPaused:false,navDemoProgress:0,navDemoTimer:null,navDemoLastTime:0,
   navDemoMarker:null,navDemoMarkerMap:null,navDemoFix:null,rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, bleScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapObservationId:null, mapSurveySeriesKey:null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
+
+// v0.2.65 — remember map-layer visibility on this browser only. No server writes,
+// camera locations, observations or coordinates enter this preference record.
+const MAP_LAYER_STORAGE_KEY = 'openrf-map-layer-visibility-v1';
+function mapLayerInputs() {
+  return [...document.querySelectorAll('#map-survey-panel [data-map-kind], #map-survey-panel [data-camera-type]')];
+}
+function saveMapLayerVisibility() {
+  const prefs = {version:1, kinds:{}, cameras:{}};
+  for (const input of mapLayerInputs()) {
+    const kind = input.dataset.mapKind;
+    if (kind) prefs.kinds[kind] = Boolean(input.checked);
+    else if (input.dataset.cameraType) prefs.cameras[input.dataset.cameraType] = Boolean(input.checked);
+  }
+  try { window.localStorage?.setItem(MAP_LAYER_STORAGE_KEY, JSON.stringify(prefs)); return true; }
+  catch (_) { return false; } // Disabled storage/private browsing: use current session.
+}
+function restoreMapLayerVisibility() {
+  let saved = null;
+  try { saved = JSON.parse(window.localStorage?.getItem(MAP_LAYER_STORAGE_KEY) || 'null'); }
+  catch (_) { /* Malformed or inaccessible browser storage: use HTML defaults. */ }
+  if (saved && !Array.isArray(saved) && saved.version === 1) {
+    for (const input of mapLayerInputs()) {
+      const kind = input.dataset.mapKind;
+      const group = kind ? saved.kinds : saved.cameras;
+      const key = kind || input.dataset.cameraType;
+      if (group && Object.prototype.hasOwnProperty.call(group, key) && typeof group[key] === 'boolean')
+        input.checked = group[key];
+    }
+  }
+  state.mapKinds = new Set(mapLayerInputs().filter(input => input.dataset.mapKind && input.checked).map(input => input.dataset.mapKind));
+}
+restoreMapLayerVisibility(); // Before either camera/map module computes its first visible markers.
+window.OpenRFMapLayerPreferences = {save:saveMapLayerVisibility};
+
 async function api(url, method = 'GET', body = null) {
   const options = {method, headers: {}};
   if (url.startsWith('/api/navigation/geocode?') && url.includes('&online=1')) options.headers['X-OpenRF-Address-Consent']='yes';
@@ -4022,6 +4057,7 @@ $('map-series-detail').addEventListener('click',event=>{
 document.querySelectorAll('[data-map-kind]').forEach(input => input.addEventListener('change', () => {
   if (input.checked) state.mapKinds.add(input.dataset.mapKind);
   else state.mapKinds.delete(input.dataset.mapKind);
+  saveMapLayerVisibility();
   updateMap(); renderMapSurveyPanel();
 }));
 $('usb-sensor-probe').addEventListener('click',()=>runAction(()=>runSerialSensor(false)));
