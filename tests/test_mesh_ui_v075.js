@@ -22,12 +22,12 @@ assert(app.includes("state.map.on('click', 'survey-waypoints'"),'waypoint detail
 for(const id of ['mesh-panel','mesh-serial','mesh-mode','mesh-connect','mesh-disconnect',
   'mesh-set-mode','mesh-send','mesh-compose','mesh-text','mesh-destination','mesh-channel',
   'mesh-messages','mesh-status'])assert(html.includes(`id="${id}"`),id);
-assert(html.includes('/static/mesh.js?v=0.2.75'));
-assert(html.includes('/static/navigation_health.js?v=0.2.75'));
+assert(html.includes('/static/mesh.js?v=0.2.76'));
+assert(html.includes('/static/navigation_health.js?v=0.2.76'));
 assert(css.includes('.mesh-control-grid')&&css.includes('@media(max-width:650px)'));
 assert(mesh.includes("'/api/mesh/connect'")&&mesh.includes("'/api/mesh/send'"));
 assert(mesh.includes('TextEncoder().encode(text).length>180'));
 assert(mesh.includes('text.textContent=String(m.text||\'\')'),'received text must be DOM text, not HTML');
 assert(mesh.includes('submitted_to_radio')&&mesh.includes('NOT confirmed'));
 assert(!mesh.includes('innerHTML'));
-console.log('PASS v0.2.75 no accidental observation, explicit mesh serial/text UI, honest delivery status');
+console.log('PASS v0.2.76 no accidental observation, explicit mesh serial/text UI, honest delivery status');

@@ -56,4 +56,4 @@ query.dispatchEvent({type:'input'});
 assert.equal(stats.clears,0,'draft address text must not invalidate the old route');
 assert.equal(state.navPreview,oldRoute,'old route remains while typing');
 assert(stats.scheduled>=1,'a real typed address can still queue normal suggestions');
-console.log('PASS v0.2.75 map coordinates bypass MapTiler and drafting does not clear a route');
+console.log('PASS v0.2.76 map coordinates bypass MapTiler and drafting does not clear a route');

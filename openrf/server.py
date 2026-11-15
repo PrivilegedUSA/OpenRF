@@ -532,6 +532,15 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json(200, self.server.mesh_manager.set_mode(body))
                 except MeshError as exc:
                     return self._error(exc.status, str(exc), exc.code)
+            if path == '/api/mesh/history':
+                try:
+                    return self._json(200, self.server.mesh_manager.set_history(body))
+                except MeshError as exc:
+                    return self._error(exc.status, str(exc), exc.code)
+            if path == '/api/mesh/history/clear':
+                if body:
+                    raise ValueError('Clear history accepts an empty object only.')
+                return self._json(200, self.server.mesh_manager.clear_history())
             if path == '/api/mesh/send':
                 try:
                     return self._json(202, self.server.mesh_manager.send(body))
@@ -844,7 +853,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.receiver_start_lock = threading.Lock()
     server.sdr_captures = SdrCaptureManager(repository.path.parent / 'sdr-captures')
     server.radio_receiver = RadioReceiver()
-    server.mesh_manager = MeshManager()
+    server.mesh_manager = MeshManager(history_path=repository.path.parent / 'mesh-history.sqlite3')
     server.alpr_import_lock = threading.Lock()
     server.national_alpr_manager = national_alpr.UpdateManager(repository)
     return server

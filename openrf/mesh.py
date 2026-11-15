@@ -11,7 +11,9 @@ from collections import deque
 from datetime import datetime, timezone
 import importlib.util
 import re
+import sqlite3
 import threading
+from pathlib import Path
 
 from .hardware import enumerate_serial_ports
 
@@ -103,9 +105,9 @@ class MeshtasticSerialBridge:
 
 
 class MeshManager:
-    """Bounded, nonpersistent text inbox/outbox and explicit connection state."""
+    """Explicit mesh connection with private, opt-in local message history."""
 
-    def __init__(self, bridge_factory=None, port_provider=None, sdk_available=None):
+    def __init__(self, bridge_factory=None, port_provider=None, sdk_available=None, history_path=None):
         self._factory = bridge_factory or MeshtasticSerialBridge
         self._ports = port_provider or enumerate_serial_ports
         self._sdk_available = sdk_available or (lambda: importlib.util.find_spec('meshtastic') is not None)
@@ -118,6 +120,72 @@ class MeshManager:
         self._messages = deque(maxlen=100)
         self._last_error = None
         self._closed = False
+        self._history_path = Path(history_path) if history_path else None
+        self._history_enabled = False
+        if self._history_path is not None:
+            self._init_history()
+
+    def _db(self):
+        if self._history_path is None:
+            raise MeshError('Persistent message history is not configured.', 'history_unavailable', 503)
+        self._history_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        connection = sqlite3.connect(self._history_path, timeout=5)
+        # Linux local-data is private to the current user even with a broad umask.
+        self._history_path.chmod(0o600)
+        return connection
+
+    def _init_history(self):
+        # Private data is created only in local-data, never in a release or Git.
+        with self._db() as db:
+            db.execute('CREATE TABLE IF NOT EXISTS mesh_preferences (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
+            db.execute("""CREATE TABLE IF NOT EXISTS mesh_message_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, direction TEXT NOT NULL,
+                node TEXT NOT NULL, channel INTEGER, body TEXT NOT NULL,
+                utc TEXT NOT NULL, source TEXT NOT NULL, delivery TEXT NOT NULL,
+                packet_id INTEGER)""")
+            row = db.execute("SELECT value FROM mesh_preferences WHERE key = 'save_history'").fetchone()
+            self._history_enabled = row is not None and row[0] == '1'
+
+    def set_history(self, payload):
+        if not isinstance(payload, dict) or set(payload) != {'enabled'} or type(payload['enabled']) is not bool:
+            raise MeshError('History setting requires one boolean enabled field.', 'invalid_history_setting', 400)
+        with self._lock:
+            if self._history_path is None:
+                raise MeshError('Local history is unavailable.', 'history_unavailable', 503)
+            # Disabling local history deletes the old stored bodies, not merely the preference.
+            with self._db() as db:
+                db.execute("INSERT OR REPLACE INTO mesh_preferences(key,value) VALUES('save_history',?)",
+                           ('1' if payload['enabled'] else '0',))
+                if not payload['enabled']:
+                    db.execute('DELETE FROM mesh_message_history')
+            self._history_enabled = payload['enabled']
+        return {'history_enabled': self._history_enabled, 'storage': 'LOCAL_SQLITE_OPT_IN' if self._history_enabled else 'MEMORY_ONLY'}
+
+    def clear_history(self):
+        with self._lock:
+            self._messages.clear()
+            if self._history_path is not None:
+                with self._db() as db:
+                    db.execute('DELETE FROM mesh_message_history')
+        return {'cleared': True, 'retained_messages': 0}
+
+    def _append(self, message):
+        self._messages.append(message)
+        if self._history_enabled and self._history_path is not None:
+            try:
+                with self._db() as db:
+                    db.execute("""INSERT INTO mesh_message_history
+                        (direction,node,channel,body,utc,source,delivery,packet_id)
+                        VALUES(?,?,?,?,?,?,?,?)""",
+                        (message['direction'], message['node'], message['channel'], message['text'],
+                         message['received_at_utc'], message['source'], message['delivery'],
+                         message.get('packet_id')))
+                    db.execute("""DELETE FROM mesh_message_history WHERE id NOT IN
+                        (SELECT id FROM mesh_message_history ORDER BY id DESC LIMIT 1000)""")
+            except (sqlite3.Error, OSError):
+                # The radio may already have accepted the outgoing packet. Never
+                # surface a history-write failure as a send failure/retry prompt.
+                self._last_error = 'Local mesh history could not be saved. Message remains in session memory.'
 
     def _available_ports(self):
         # The read-only hardware inventory returns ttyUSB0/ttyACM0 basenames.
@@ -146,13 +214,21 @@ class MeshManager:
                 'port': port, 'available_serial_ports': ports, 'sdk_available': sdk,
                 'message_count': count, 'last_error': error,
                 'device_role_modified': False, 'rebroadcast_owner': 'MESHTASTIC_FIRMWARE',
-                'relay_verified': False, 'message_storage': 'MEMORY_ONLY',
+                'relay_verified': False, 'message_storage': 'LOCAL_SQLITE_OPT_IN' if self._history_enabled else 'MEMORY_ONLY',
+                'history_enabled': self._history_enabled, 'history_available': self._history_path is not None,
                 'transmit_requires_operator_action': True}
 
     def messages(self):
         with self._lock:
-            return {'messages': list(self._messages), 'storage': 'MEMORY_ONLY',
-                    'retained_limit': 100}
+            if self._history_enabled and self._history_path is not None:
+                with self._db() as db:
+                    rows = db.execute("""SELECT direction,node,channel,body,utc,source,delivery,packet_id
+                        FROM mesh_message_history ORDER BY id DESC LIMIT 1000""").fetchall()
+                messages = [dict(direction=r[0], node=r[1], channel=r[2], text=r[3],
+                                 received_at_utc=r[4], source=r[5], delivery=r[6], packet_id=r[7])
+                            for r in reversed(rows)]
+                return {'messages': messages, 'storage': 'LOCAL_SQLITE_OPT_IN', 'retained_limit': 1000}
+            return {'messages': list(self._messages), 'storage': 'MEMORY_ONLY', 'retained_limit': 100}
 
     def _receive(self, packet, generation):
         if not isinstance(packet, dict):
@@ -177,7 +253,7 @@ class MeshManager:
         with self._lock:
             if generation != self._generation or self._state != 'CONNECTED':
                 return
-            self._messages.append({'direction': 'IN', 'text': text, 'node': sender,
+            self._append({'direction': 'IN', 'text': text, 'node': sender,
                                    'channel': channel, 'received_at_utc': _utc_now(),
                                    'source': 'MESHTASTIC_RADIO',
                                    'delivery': 'RECEIVED_FROM_RADIO_UNVERIFIED'})
@@ -246,7 +322,7 @@ class MeshManager:
                 raise MeshError('The attached radio did not accept this message. '
                                 'Check the USB connection; do not assume delivery.',
                                 'mesh_send_failed', 503) from exc
-            self._messages.append({'direction': 'OUT', 'text': message['text'],
+            self._append({'direction': 'OUT', 'text': message['text'],
                                    'node': message['destination'], 'channel': message['channel'],
                                    'received_at_utc': _utc_now(), 'source': 'LOCAL_OPERATOR',
                                    'delivery': 'SUBMITTED_TO_RADIO_NOT_DELIVERED',
@@ -259,7 +335,7 @@ class MeshManager:
             bridge = self._bridge
             self._bridge = None; self._port = None; self._state = 'DISCONNECTED'
             self._generation += 1
-            self._messages.clear()  # Do not mix private conversations across nodes.
+            self._messages.clear()  # Volatile messages only; saved history is explicit and remains available.
             self._last_error = None
         if bridge is not None:
             try:

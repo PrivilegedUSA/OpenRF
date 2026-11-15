@@ -1,6 +1,6 @@
 'use strict';
 /* v0.2.75: no fake mesh nodes, no background connections or transmission.
-   A real USB Meshtastic radio is required; all text stays in server RAM. */
+   A real USB Meshtastic radio is required; storage is opt-in local SQLite. */
 (() => {
   const el=id=>document.getElementById(id);
   if(!el('mesh-panel'))return;
@@ -41,19 +41,36 @@
     }
     options.disabled=state.connected||state.busy;
     el('mesh-mode').value=state.mode;
+    el('mesh-save-history').checked=Boolean(info.history_enabled);
+    el('mesh-save-history').disabled=!info.history_available;
+    el('mesh-storage-label').textContent=info.history_enabled?'Private local history · last 1000':'Session only · last 100';
     renderButtons();
     if(info.last_error)note(info.last_error,true);
     else if(state.connected)note(`${info.port||'USB node'} connected. ${state.mode==='relay_only'?'Relay-focused: composing disabled.':'Normal mode: user-started text sending available.'} Radio reception and mesh rebroadcast are controlled by its firmware; link status does not prove RF coverage.`);
     else note(info.sdk_available? 'No mesh radio connected. Select a visible USB serial port and press Connect; no automatic connection or transmissions.' :
       'Optional Meshtastic Python package not found in this Linux environment. Install meshtastic and attach a USB node before connecting. Nothing is transmitting.');
   }
+  let latestRows=[];
+  function conversationKey(message){
+    return `${message.node||'unknown node'}|${Number.isInteger(message.channel)?message.channel:'?'}`;
+  }
   function renderMessages(rows){
-    const box=el('mesh-messages');box.replaceChildren();
-    if(!Array.isArray(rows)||!rows.length){
-      const p=document.createElement('p');p.className='small muted';
-      p.textContent='No real mesh messages this session. Nothing is recorded to disk.';box.append(p);return;
+    latestRows=Array.isArray(rows)?rows:[];
+    const selector=el('mesh-conversation'), selected=selector.value;
+    const keys=[...new Set(latestRows.map(conversationKey))].sort();
+    selector.replaceChildren(new Option('All messages','all'));
+    for(const key of keys){
+      const [node,channel]=key.split('|');selector.append(new Option(`${node} · channel ${channel}`,key));
     }
-    for(const m of rows.slice(-100)){
+    selector.value=keys.includes(selected)?selected:'all';
+    const filtered=selector.value==='all'?latestRows:latestRows.filter(m=>conversationKey(m)===selector.value);
+
+    const box=el('mesh-messages');box.replaceChildren();
+    if(!filtered.length){
+      const p=document.createElement('p');p.className='small muted';
+      p.textContent='No recorded messages in this conversation. A connected radio is required for actual messages.';box.append(p);return;
+    }
+    for(const m of filtered.slice(-1000)){
       const article=document.createElement('article');article.className='mesh-message';
       const title=document.createElement('div');title.className='mesh-message-head';
       const label=document.createElement('strong');label.textContent=`${m.direction==='IN'?'Received from':'Submitted to'} ${m.node||'unknown node'} · channel ${Number.isInteger(m.channel)?m.channel:'?'}`;
@@ -61,7 +78,18 @@
       title.append(label,time);
       const text=document.createElement('p');text.textContent=String(m.text||'');
       const delivery=document.createElement('small');delivery.textContent=m.direction==='IN'?'Reported by connected radio; sender authenticity unverified.':'Submitted to connected radio; delivery not confirmed.';
-      article.append(title,text,delivery);box.append(article);
+      article.append(title,text,delivery);
+      if(m.direction==='IN' && /^![0-9a-fA-F]{8}$/.test(m.node||'') && state.connected){
+        const reply=document.createElement('button');reply.type='button';reply.className='mesh-message-reply';
+        reply.textContent='Reply to this node';
+        reply.addEventListener('click',()=>{
+          el('mesh-destination').value=m.node;
+          if(Number.isInteger(m.channel)&&m.channel>=0&&m.channel<=7)el('mesh-channel').value=String(m.channel);
+          el('mesh-text').focus();
+        });
+        article.append(reply);
+      }
+      box.append(article);
     }
     box.scrollTop=box.scrollHeight;
   }
@@ -82,6 +110,18 @@
     catch(error){note(error.message,true);return null;}
     finally{state.busy=false;renderButtons();}
   }
+  el('mesh-conversation').addEventListener('change',()=>renderMessages(latestRows));
+  el('mesh-save-history').addEventListener('change',async event=>{
+    const enabled=event.target.checked;
+    const result=await run({enabled},'/api/mesh/history');
+    if(!result)event.target.checked=!enabled;
+    else note(enabled?'Local history enabled; future messages will be stored privately.':'Saved history deleted; future messages will stay in memory.');
+  });
+  el('mesh-clear-history').addEventListener('click',async ()=>{
+    if(!window.confirm('Clear all session and saved mesh messages on this device?'))return;
+    const result=await run({},'/api/mesh/history/clear');
+    if(result)note('Mesh message history cleared.');
+  });
   el('mesh-serial').addEventListener('change',renderButtons);
   el('mesh-connect').addEventListener('click',()=>run({port:el('mesh-serial').value},'/api/mesh/connect'));
   el('mesh-disconnect').addEventListener('click',()=>run({},'/api/mesh/disconnect'));

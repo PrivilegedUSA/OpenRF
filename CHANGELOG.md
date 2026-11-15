@@ -1,3 +1,11 @@
+## v0.2.76 — Opt-in local Meshtastic history and conversations (2026-11-15)
+
+- Add opt-in private SQLite message history stored beside OpenRF's local data, not under the release or Git repository. Saving is **off by default**; disabling it erases saved message bodies. Provide a separate Clear messages action. Retain at most 1,000 saved text messages, or 100 RAM-only session messages.
+- Group received and sent messages into selectable node/channel conversations; offer a Reply action on genuine received node IDs that pre-fills destination and channel but never sends without submitting the form.
+- Preserve explicit USB connection and normal/relay-focused firmware boundaries. No silent transmission, fake mesh signals, automatic node connection, Reticulum integration or RF delivery guarantees.
+- No external dependencies added. Optional Meshtastic Python SDK remains needed only when connecting hardware. Radio, routing, map and source resources retained.
+- Limitations: SQLite message history is **not encrypted at rest**, and the USB port is not a cryptographically verified radio identity. Real LoRa hardware and delivery remain untested.
+
 ## v0.2.75 — Quiet map taps and opt-in Meshtastic text foundation (2026-11-15)
 
 - Stop opening Add Survey Observation from ordinary blank vector/raster map clicks. Destination picking and area selection continue to consume explicit map taps; existing camera and survey marker click actions remain intact. The + Add Observation button and Saved-page add action are unchanged.

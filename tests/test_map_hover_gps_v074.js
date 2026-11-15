@@ -81,4 +81,4 @@ nav.enforceNavigationSignalFreshness(now+16000);
 assert.equal(navState.navFollowSignalState,'lost');
 navState.navDemoActive=true;nav.enforceNavigationSignalFreshness(now+32000);
 assert.equal(silenced,3,'DEMO watchdog must not treat simulation as lost live GPS');
-console.log('PASS v0.2.75 clickable map cursors and no-fix GPS pause/recovery');
+console.log('PASS v0.2.76 clickable map cursors and no-fix GPS pause/recovery');

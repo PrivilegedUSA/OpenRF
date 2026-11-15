@@ -31,3 +31,23 @@ Official references:
 - https://meshtastic.org/docs/configuration/radio/device/
 - https://meshtastic.org/docs/configuration/tips/
 - https://python.meshtastic.org/
+
+## v0.2.76 conversations and local history
+
+The Radio page now offers a **Conversation** filter, grouped by source/destination
+node ID and channel index. Tap **Reply to this node** on a real received
+message to fill the destination and channel fields. This does **not** send
+anything until the operator presses Send.
+
+Message storage starts as **memory only** and is lost on restart/disconnect.
+If the operator chooses **Save message history locally**, OpenRF stores up to
+1,000 recent text messages in `mesh-history.sqlite3` next to the private
+OpenRF application database. Messages are not encrypted at rest. Clear messages
+deletes both saved and session records; disabling history deletes all saved
+message bodies. No messages are generated unless an actual USB node is used.
+Direct-send receipt means **submitted to radio**, not guaranteed reception.
+
+On WSL, USB radios require appropriate serial-device passthrough; the ordinary
+Windows COM programming cable for a Baofeng is not a Meshtastic LoRa node.
+Meshtastic radio firmware controls any rebroadcasting. OpenRF's relay-focused
+setting only disables composing in this UI.

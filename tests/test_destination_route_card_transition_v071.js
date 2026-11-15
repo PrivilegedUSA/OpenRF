@@ -104,4 +104,4 @@ for(let cycle=0;cycle<4;cycle++){
   assert.equal(state.navRouteChoices,null,'accepted map point clears old choices');
   assert.equal(chooser.hidden,true,'old route chooser stays dismissed');
 }
-console.log('PASS v0.2.75 route chooser -> open search -> new map destination, 4 cycles without manual close');
+console.log('PASS v0.2.76 route chooser -> open search -> new map destination, 4 cycles without manual close');
