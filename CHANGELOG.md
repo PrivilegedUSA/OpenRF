@@ -559,3 +559,11 @@
 - Removed obsolete active Android APK workflow. Existing Windows updater can still display its old APK wording.
 
 See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
+## v0.2.71 — New destination without dismissing route cards (2026-11-15)
+
+- Make reopening the destination editor physically hide the previous Choose a route card while preserving the current plan if search is cancelled. Entering Choose destination on map now closes the previous route chooser immediately and clears stale route/directions state so taps can be accepted without pressing its X first.
+- Prevent stale route review from reappearing during destination picking, including pending camera comparisons and later layout callbacks; treat the map-pick workflow as exclusive until a destination is chosen or intentionally cancelled.
+- Fix a route-choice rendering crash when the camera comparison returns no alternative: the missing alternate button remains hidden instead of reading nonexistent route details. Preserve a valid main route and its complete directions.
+- Add a four-cycle regression that starts with a visible chooser, reopens search, starts map selection and taps a new destination without manually closing the chooser, plus a single-route regression. Preserve the previous three-plus-cycle tests and current map/avoidance design.
+- This is a focused UI reliability update. No new offline geocoder, camera approach warnings, external feed, hardware integration, or GPS changes; field navigation, live Valhalla and Raspberry Pi operation remain unverified.
+

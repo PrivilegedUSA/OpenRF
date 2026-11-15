@@ -1454,6 +1454,14 @@ body.map-workspace .topbar .menu-toggle:focus-visible,
   display:none!important;
 }
 
+/* Destination tapping wins over any leftover route review layer, even if a
+   late layout/update attempts to show a card during the interaction. */
+#page-map .destination-pick-active .map-route-choices,
+#page-map .destination-pick-active .map-directions-review {
+  display:none!important;
+  pointer-events:none!important;
+}
+
 /* v0.2.68 — Selected destination is the same width as the other expanded
    map navigation sheets; it remains clear of the right-hand map control rail. */
 #page-map .map-picked-action{box-sizing:border-box;left:9px;right:auto;width:min(430px,calc(100% - 71px));max-width:none}

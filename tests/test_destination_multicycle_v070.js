@@ -23,6 +23,7 @@ const keyHandlers={};
 const context={state,$,window:{addEventListener(k,fn){keyHandlers[k]=fn}},Math,Date,
  stopNavigationFollow(){},renderDirectionsReview(){},renderNavigationOverlay(){},renderRoadAvoidList(){},syncMapPickedAction(){},
  cameraPanelVisibility(){},showPage(){},setMapSearchCollapsed(){},setNavigationStatus(){},setMapDestinationStatus(){},cancelAreaChoosing(){},
+ hideMapAddressMatches(){},navAddressTimer:null,
  get activeMapTool(){return null},worldPixel(){return [0,0]},pixelWorld(){return [0,0]}};
 vm.createContext(context);
 vm.runInContext(scripts+'\nthis.beginPick=beginDestinationMapPick;',context);
@@ -68,4 +69,4 @@ assert.equal(state.navPicking,true);
 keyHandlers.keydown({key:'Escape',preventDefault(){}});
 assert.equal(state.navPicking,false,'Escape explicitly cancels');
 assert.equal(enabled,true);
-console.log('PASS v0.2.70 four consecutive destination/route cycles, pointer and click handling, idempotent pick, drag guard and Escape');
+console.log('PASS v0.2.71 four consecutive destination/route cycles, pointer and click handling, idempotent pick, drag guard and Escape');

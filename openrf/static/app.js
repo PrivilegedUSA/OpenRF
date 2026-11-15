@@ -105,6 +105,10 @@ function setMapSearchCollapsed(collapsed, restoreFocus = false) {
   }
   mapSearchForm.hidden = isCollapsed;
   mapSearchPanel.classList.toggle('is-collapsed', isCollapsed);
+  // When opening search, immediately take the old route chooser out of the
+  // pointer/keyboard path. It may return if search is simply dismissed;
+  // starting a new destination pick invalidates it for good.
+  if (!isCollapsed) $('map-route-choices').hidden = true;
   // Editing a destination and reviewing a route are mutually exclusive map
   // surfaces. Hide the old route sheets without discarding their route data.
   $('page-map').classList.toggle('map-search-editing', !isCollapsed);
@@ -2568,7 +2572,7 @@ function showRouteCameras(report){
 // onto multiple lines at 800x480 or in a narrow browser window.
 function positionRouteChoicePanel(){
   const panel=$('map-route-choices'), directions=$('map-directions-review');
-  if(panel.hidden || directions.hidden || directions.open || !mapSearchForm.hidden)return;
+  if(panel.hidden || state.navPicking || directions.hidden || directions.open || !mapSearchForm.hidden)return;
   const container=panel.offsetParent;
   if(!container)return;
   const heading=directions.getBoundingClientRect(), area=container.getBoundingClientRect();
@@ -2581,13 +2585,17 @@ function positionRouteChoicePanel(){
 function renderRouteChoices(){
   const response=state.navRouteChoices, panel=$('map-route-choices');
   const ready=Boolean(response?.standard?.is_driving_route);
-  panel.hidden=!ready || state.navChoicePanelClosed || state.navFollowId!==null || !mapSearchForm.hidden || $('map-navigation-options').open || $('map-directions-review').open;
+  panel.hidden=!ready || state.navPicking || state.navChoicePanelClosed || state.navFollowId!==null || !mapSearchForm.hidden || $('map-navigation-options').open || $('map-directions-review').open;
   if(!ready)return;
   for(const [key,id,label,route,report] of [
     ['standard','route-choice-standard','Main route',response.standard,response.standard_cameras],
     ['alternate','route-choice-alternate','Alternate',response.alternative,response.alternative_cameras]]){
     const button=$(id);button.hidden=!route;
     button.setAttribute('aria-pressed',String(state.navChoiceSelection===key));
+    // A camera comparison often returns only the main route. A hidden
+    // alternate button must never dereference a missing route and abort
+    // navigation rendering or leave stale overlays in place.
+    if(!route){button.textContent=label;continue;}
     button.textContent=`${label} · ${route.distance_miles} mi · ~${Math.round(route.duration_seconds/60)} min · ${report?.count??'?'} reports`;
   }
   $('route-choice-status').textContent=response.alternative ?
@@ -3369,6 +3377,15 @@ $('nav-use-location').addEventListener('click',()=>{
   },{enableHighAccuracy:true,maximumAge:0,timeout:15000});
 });
 function beginDestinationMapPick() {
+  // A new destination always takes priority over a still-open route choice
+  // sheet. No manual X/close action is required before the map will accept
+  // another pick. Handle this even on repeated/idempotent invocations.
+  $('map-route-choices').hidden=true;
+  if(!state.navPicking || state.navRouteChoices || state.navPreview || state.navCameraComparison)
+    resetRouteForNewDestination();
+  state.navSearchToken++;
+  if(navAddressTimer)clearTimeout(navAddressTimer);
+  hideMapAddressMatches();
   // Idempotent: reopening this workflow (or tapping the action twice) must
   // never silently cancel map picking. Escape remains the explicit cancel.
   if(state.navPicking){
@@ -3382,7 +3399,8 @@ function beginDestinationMapPick() {
   // A previously started 'pick a road to avoid' action must never consume
   // the tap intended for the new destination (it registered first on #map).
   state.navAvoidPicking=false;
-  resetRouteForNewDestination();
+  // The prior route and trip-only avoidances were invalidated above,
+  // regardless of which sheet covered the map.
   if(typeof cameraPanelVisibility==='function')cameraPanelVisibility(false);
   if($('map-camera-route-chip'))$('map-camera-route-chip').hidden=true;
   state.navPicking=true;state.navPickedPoint=null;

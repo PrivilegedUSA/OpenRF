@@ -29,7 +29,7 @@ assert(sheet.includes('<li>') && sheet.includes('OPENRF'));
 assert(sheet.includes('no live traffic') && !sheet.includes('<script'));
 for(const id of ['map-directions-review','map-directions-list','map-print-directions','map-save-directions-html','map-save-directions-json','map-follow-distance'])
  assert(html.includes(`id="${id}"`),id);
-assert(html.includes('/static/route_guidance.js?v=0.2.70'));
+assert(html.includes('/static/route_guidance.js?v=0.2.71'));
 assert(server.includes("'/static/route_guidance.js'"));
 assert(js.includes("$('page-map').classList.add('navigation-driving')"));
 assert(js.includes('routeGuide.guidance('));

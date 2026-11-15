@@ -1,4 +1,8 @@
-# OpenRF v0.2.70 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.71 — Offline-First Navigation and RF Toolkit
+
+## v0.2.71 — Choose another map destination without closing route cards
+
+Once a road route is displayed, open **Where to?** and choose **Choose destination on map** directly, even when the **Choose a route** card is still visible. Opening the search editor temporarily hides the prior route-review cards; selecting map-pick mode dismisses them and clears the old route, allowing repeated taps for new destinations without a separate X/close action. If you only open and close search without starting a new selection, the old route remains available. The route chooser also handles a single available route without trying to render a missing alternate. See `docs/RELEASE_0.2.71_TESTS.md`.
 
 ## v0.2.70 — Repeated destination selection after multiple routes
 
@@ -77,7 +81,7 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.70.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.71.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell

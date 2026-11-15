@@ -40,6 +40,7 @@ const state={map,mapReady:true,navPicking:false,navPickedPoint:null,navPickPanRe
 const context={state,$,window:{addEventListener(){}},
   stopNavigationFollow(){actions.stopped++},renderDirectionsReview(){},renderNavigationOverlay(){},
   renderRoadAvoidList(){},syncMapPickedAction(){},cameraPanelVisibility(){},
+  hideMapAddressMatches(){},navAddressTimer:null,
   showPage(){},setMapSearchCollapsed(){},setNavigationStatus(msg){actions.statuses.push(msg)},
   setMapDestinationStatus(msg){actions.statuses.push(msg)},
   cancelAreaChoosing(){},get activeMapTool(){return null},
@@ -86,4 +87,4 @@ context.pickActions.syncDestinationPickMode();assert.equal(panEnabled,false);
 state.navPicking=false;context.pickActions.syncDestinationPickMode();assert.equal(panEnabled,true);
 assert.match(source,/if \(!isCollapsed && state\.navPicking\)/,'text search cancels incomplete map picking');
 assert.match(source,/if \(state\.navPicking\)\s*\{\s*state\.navPicking=false;\s*syncDestinationPickMode\(\);\s*renderNavigationOverlay\(\);/,'road picking cancels destination picking');
-console.log('PASS v0.2.70 repeated map destinations, sibling-overlay clicks, exclusive modes, panning restoration, interactive controls');
+console.log('PASS v0.2.71 repeated map destinations, sibling-overlay clicks, exclusive modes, panning restoration, interactive controls');
