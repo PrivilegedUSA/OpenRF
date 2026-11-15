@@ -679,3 +679,8 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Make the Messages navigation badge teal for visual consistency. Retain all existing v0.2.85 receive-sequence tracking, Reticulum TCP settings, privacy boundaries, and map-header behavior.
 - Add a focused CSS/markup regression test. Layout still needs confirmation at the operator's actual viewport; live LXMF message delivery and unread count were confirmed by the operator on the previous release, but the changed appearance is not field-tested.
 
+## v0.2.87 — Remove header unread counter border (2026-11-15)
+
+- Remove the dark 1px outline from the compact teal count on the header envelope; leave the fill, numeral, upper-right overlap, unread behavior and sidebar badge untouched.
+- No backend, network, identity, privacy, radio, map, routing or database changes. Add a targeted CSS regression assertion and retain the full release format. Visual appearance should be confirmed in the operator's real browser.
+

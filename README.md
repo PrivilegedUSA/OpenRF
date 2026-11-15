@@ -1,4 +1,8 @@
-# OpenRF v0.2.86 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.87 — Offline-First Navigation and RF Toolkit
+
+## v0.2.87 — Borderless unread badge
+
+The compact teal header-envelope unread counter is now **borderless**. Its small size, position, teal fill and numeral remain unchanged from v0.2.86, as do the combined Reticulum/Meshtastic unread logic and all transport settings. See `docs/RELEASE_0.2.87_TESTS.md`.
 
 ## v0.2.86 — Smaller, quieter unread indicator
 

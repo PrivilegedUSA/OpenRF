@@ -1,4 +1,4 @@
-"""v0.2.86: optional LAN transport is dormant until explicitly enabled."""
+"""v0.2.87: optional LAN transport is dormant until explicitly enabled."""
 import tempfile
 from pathlib import Path
 from http.client import HTTPConnection

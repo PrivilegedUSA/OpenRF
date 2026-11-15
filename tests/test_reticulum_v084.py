@@ -1,4 +1,4 @@
-"""v0.2.86: explicit TCP opt-in and factual Reticulum interface diagnostics."""
+"""v0.2.87: explicit TCP opt-in and factual Reticulum interface diagnostics."""
 import json
 from http.client import HTTPConnection
 from pathlib import Path
