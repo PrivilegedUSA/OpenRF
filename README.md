@@ -1,4 +1,8 @@
-# OpenRF v0.2.78 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.79 — Offline-First Navigation and RF Toolkit
+
+## v0.2.79 — Smaller, centered header envelope
+
+The header's Messages shortcut now uses a clean envelope instead of the chat bubble. Its artwork is smaller than the hamburger, and both controls share a 42-pixel invisible alignment box, centered vertically with only 2 pixels of inter-button gap on regular pages. Both remain borderless, keyboard accessible, and large enough to tap. Messages is still hidden from the Map header and accessible through the sidebar. No functionality or message data changed. See `docs/RELEASE_0.2.79_TESTS.md`.
 
 ## v0.2.78 — Header and sidebar icon polish
 

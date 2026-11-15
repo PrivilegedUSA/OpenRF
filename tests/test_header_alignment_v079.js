@@ -1,0 +1,19 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const html=fs.readFileSync('openrf/static/index.html','utf8');
+const css=fs.readFileSync('openrf/static/app.css','utf8');
+const header=html.match(/<header class="topbar">([\s\S]*?)<\/header>/)?.[1]||'';
+const envelope=header.match(/id="mesh-header-button"[\s\S]*?<svg[^>]*>([\s\S]*?)<\/svg>/)?.[1]||'';
+assert(envelope.includes('<rect x="3" y="5" width="18" height="14" rx="2"/>'),
+  'Use envelope, not chat bubble');
+assert(envelope.includes('m3 7 9 6 9-6'),'Envelope flap visible');
+assert(!envelope.includes('M21 11.5'),'Old bubble artwork removed');
+assert(css.includes('body:not(.map-workspace) .topbar{column-gap:2px}'));
+const controls=css.slice(css.indexOf('/* v0.2.79 — smaller envelope'));
+assert(controls.includes('width:42px;')&&controls.includes('height:42px;')&&controls.includes('align-self:center;'));
+assert(controls.includes('width:18px;')&&controls.includes('height:18px;'));
+assert(controls.includes('font-size:25px'),'Hamburger remains larger than envelope');
+assert(css.includes('body.map-workspace .topbar #mesh-header-button{display:none!important}'));
+assert(header.includes('data-jump="messages"')&&header.includes('id="mesh-header-unread"'));
+console.log('PASS v0.2.79 centered small envelope, compact gap and map hiding');

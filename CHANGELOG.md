@@ -623,3 +623,9 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Replace the sidebar menu close X text glyph with a true centered SVG cross. Remove its border/background, preserve its accessibility label and interaction.
 - No navigation, Meshtastic, radio, backend, persistence or hardware behavior changes; no database migration. UI regression coverage added. Real 5-inch device appearance remains to be checked after installing.
 
+## v0.2.79 — Centered envelope shortcut in header (2026-11-15)
+
+- Replace the Messages header chat bubble with a compact, simple envelope graphic. Retain its inbox navigation, unread badge, accessible label and behavior.
+- Give the envelope and hamburger equal 42×42-pixel borderless, invisible touch targets aligned by their centers, while the envelope artwork is 18×18 pixels and the hamburger symbol stays larger. Reduce regular-header spacing to 2 pixels.
+- Keep the messaging shortcut hidden on Map, sidebar unread badge and navigation unchanged. No RF communication, backend or database change; real device appearance remains to be checked after installation.
+

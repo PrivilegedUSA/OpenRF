@@ -1565,3 +1565,27 @@ body.map-workspace .topbar .menu-toggle:hover{background:#20505a!important}
 }
 .sidebar .menu-close svg{display:block;width:22px;height:22px;flex:none}
 .sidebar .menu-close:hover{background:#173640!important}
+
+/* v0.2.79 — smaller envelope centered to the hamburger, not the top edge. */
+body:not(.map-workspace) .topbar{column-gap:2px}
+body:not(.map-workspace) .topbar .messages-header-button,
+body:not(.map-workspace) .topbar .menu-toggle{
+  align-self:center;
+  align-items:center;
+  justify-content:center;
+  width:42px;
+  height:42px;
+  min-width:42px;
+  min-height:42px;
+  flex:0 0 42px;
+  margin:0;
+  padding:0;
+  line-height:1;
+}
+body:not(.map-workspace) .topbar .messages-header-button svg{
+  display:block;
+  width:18px;
+  height:18px;
+  stroke-width:1.9;
+}
+body:not(.map-workspace) .topbar .menu-toggle{font-size:25px}
