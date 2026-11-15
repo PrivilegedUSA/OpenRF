@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.82">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.83">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -19,14 +19,15 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/app.js?v=0.2.77"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.82"></script>
+  <script defer src="/static/mesh.js?v=0.2.83"></script>
+  <script defer src="/static/reticulum.js?v=0.2.83"></script>
   <script defer src="/static/camera-layers.js?v=0.2.76"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.82</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.83</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -516,6 +517,37 @@
           </div>
           <p class="small muted">Saved text remains on this device outside Git, is not encrypted at rest, and can be erased here. Disabling saving removes the saved messages. No messages are generated without a connected radio.</p>
           </details>
+        </div>
+        <div class="panel reticulum-panel" id="reticulum-panel">
+          <div class="panel-title"><h3>Reticulum · Wi‑Fi/LAN messages</h3><span class="pill" id="reticulum-badge">OFF</span></div>
+          <p class="small muted">Experimental, separate from Meshtastic. Reticulum and LXMF are optional Linux packages. Enabling starts local-network multicast discovery, which can be visible to other devices on your LAN; stopping ends the child process. No internet account required.</p>
+          <p id="reticulum-status" class="small muted" role="status" aria-live="polite">Reticulum LAN is off. No network activity has been started by OpenRF.</p>
+          <div class="button-line">
+            <button type="button" class="btn primary" id="reticulum-enable">Enable LAN messaging</button>
+            <button type="button" class="btn outline" id="reticulum-disable" disabled>Stop Reticulum</button>
+            <button type="button" class="btn outline" id="reticulum-refresh">Refresh status</button>
+          </div>
+          <label class="mesh-conversation-select" for="reticulum-address">My LXMF address (share with another device)
+            <input id="reticulum-address" class="field" type="text" readonly value="Not enabled" spellcheck="false" aria-label="Your public LXMF address">
+          </label>
+          <p class="small muted">This public destination is not your private identity key. The private key and LXMF runtime stay in OpenRF's local data folder, outside Git. This release does not automatically sync messages to OpenRF's Meshtastic inbox.</p>
+          <div class="button-line"><button type="button" class="btn outline" id="reticulum-announce" disabled>Announce my address</button><span class="small muted">Only press when you want to advertise your destination on the LAN.</span></div>
+          <div class="mesh-chat-grid">
+            <div class="mesh-conversation-column">
+              <div class="mesh-inbox-header"><h4>Reticulum inbox</h4><span class="small muted">Current session</span></div>
+              <div id="reticulum-messages" class="mesh-messages" role="log" aria-label="Reticulum LXMF messages"><p class="small muted">No received or queued LXMF messages.</p></div>
+            </div>
+            <div class="mesh-compose-column">
+              <div class="mesh-inbox-header"><h4>Send LXMF</h4><span class="small muted">Direct destination</span></div>
+              <form id="reticulum-compose" class="mesh-compose">
+                <label for="reticulum-recipient">Recipient LXMF address<input id="reticulum-recipient" class="field" maxlength="32" autocomplete="off" spellcheck="false" placeholder="32-character hex address" required></label>
+                <label for="reticulum-text">Message<textarea id="reticulum-text" class="field" rows="3" placeholder="Short offline message…" required></textarea></label>
+                <p id="reticulum-byte-count" class="small muted">0 / 1024 UTF-8 bytes</p>
+                <div class="button-line"><button id="reticulum-send" class="btn primary" type="submit" disabled>Send over Reticulum</button></div>
+              </form>
+            </div>
+          </div>
+          <p class="small muted">If the recipient path isn't known, OpenRF will request it but won't claim that your message was sent. Try again after the path becomes available. LXMF queue acceptance is not delivery confirmation. No files or location data are sent.</p>
         </div>
       </section>
       <section class="page" id="page-hamradio" aria-label="Ham radio channel memories">

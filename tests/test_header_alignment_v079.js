@@ -16,4 +16,4 @@ assert(controls.includes('width:18px;')&&controls.includes('height:18px;'));
 assert(controls.includes('font-size:25px'),'Hamburger remains larger than envelope');
 assert(css.includes('body.map-workspace .topbar #mesh-header-button{display:none!important}'));
 assert(header.includes('data-jump="messages"')&&header.includes('id="mesh-header-unread"'));
-console.log('PASS v0.2.82 centered small envelope, compact gap and map hiding');
+console.log('PASS v0.2.83 centered small envelope, compact gap and map hiding');

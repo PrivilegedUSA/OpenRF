@@ -1,4 +1,8 @@
-# OpenRF v0.2.82 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.83 — Offline-First Navigation and RF Toolkit
+
+## v0.2.83 — Opt-in Reticulum/LXMF messaging over Wi-Fi/LAN
+
+Messages now contains a separate experimental Reticulum/LXMF workspace. Reticulum is completely off until the operator enables it, and runs in a separate stoppable Linux process. Local identities are stored privately outside Git; direct messages can be queued only when a destination route is known. Missing paths are requested explicitly and shown as **not sent**. Messages are not bridged to Meshtastic or shown as delivered without confirmation. The optional `rns` and `lxmf` Python packages are not required for any of OpenRF's other features. See `docs/RETICULUM_LAN_AND_REPOSITORIES.md` for installation, two-device testing, limitations and review of the three user-supplied project snapshots.
 
 ## v0.2.82 — Diagnostics and 5-inch Messages layout
 

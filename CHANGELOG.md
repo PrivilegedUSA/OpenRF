@@ -650,3 +650,11 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Add regression checks for disconnected diagnostics, missing device paths and responsive markup. No new software dependency, transmit-on-startup behavior, database migration or map/navigation change.
 - Limitation: Real WSL USB passthrough, Meshtastic SDK/device compatibility, Pi-specific 5-inch appearance and actual LoRa acknowledgments remain unverified without physical hardware.
 
+## v0.2.83 — Opt-in Reticulum/LXMF LAN messaging foundation (2026-11-15)
+
+- Add an independent experimental LXMF conversation interface with public address, operator-controlled LAN enable/stop/announce, validated direct text, and a bounded session inbox. Preserve Meshtastic USB, map, navigation, camera and SDR workflows.
+- Run Reticulum only in a child process after explicit user action; terminate it on Stop and HTTP server shutdown. Private identity, configuration and LXMF runtime remain in local data outside Git and the release. The LAN AutoInterface is scoped to link-local discovery with transport and shared instance disabled; this does not provide a secret/private network.
+- Report a requested route as **not sent**, and LXMF-router-accepted traffic as **queued, not delivered**. No fabricated peer discovery, live RF data, device connections, or delivery receipts. Do not auto-enable or send when the UI loads.
+- Review the user-provided Haven MANET, RNode firmware and HF bridge repositories, record applicability, licenses and safety limitations in `docs/RETICULUM_LAN_AND_REPOSITORIES.md`; no external source or firmware is bundled into OpenRF.
+- Add dependency-free Python/JavaScript tests for idle behavior, validation, private config and UI. Real RNS/LXMF transport needs optional packages and two-device LAN verification; this release does not claim successful over-the-air messaging, 5-inch hardware appearance or Wi-Fi HaLow integration.
+

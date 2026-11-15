@@ -1542,11 +1542,17 @@ body.map-workspace .topbar .messages-header-button svg{width:25px;height:25px}
 #page-messages .mesh-diagnostic strong{display:block;font-size:10px;color:#82c7be;margin-bottom:4px}
 #page-messages .mesh-diagnostic span{display:block;font-size:12px;color:#e3f5ef;overflow-wrap:anywhere}
 #page-messages .mesh-chat-grid{min-width:0}
+#page-messages .reticulum-panel{margin-top:14px;max-width:950px}
+#page-messages .reticulum-panel .mesh-compose>label{display:grid;gap:6px;font-size:11px;color:#b5d6d9;font-weight:650;margin-top:10px}
+#page-messages .reticulum-panel .mesh-message{overflow-wrap:anywhere}
+#page-messages .reticulum-panel #reticulum-address{font-family:ui-monospace,monospace;font-size:12px}
+#page-messages .reticulum-panel #reticulum-text{min-height:66px}
 #page-messages .mesh-conversation-column,#page-messages .mesh-compose-column{min-width:0}
 @media(min-width:700px) and (max-height:600px){
  #page-messages .section-heading{margin-bottom:6px}
  #page-messages .mesh-panel{margin:8px 0;padding:12px}
  #page-messages .mesh-chat-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
+ #page-messages .reticulum-panel{margin-top:8px;padding:12px}
  #page-messages .mesh-chat-grid .mesh-inbox-header{margin-top:0}
  #page-messages .mesh-chat-grid .mesh-compose{margin-top:0;border-top:0}
  #page-messages .mesh-messages{min-height:125px;max-height:38dvh}

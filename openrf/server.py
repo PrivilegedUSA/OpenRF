@@ -27,6 +27,7 @@ from .sdr import capability_report as sdr_capability_report
 from .sdr_capture import SdrCaptureManager, CaptureError
 from .radio import RadioReceiver, RadioError
 from .mesh import MeshManager, MeshError
+from .reticulum_lan import ReticulumManager, ReticulumError
 from . import camera_catalog, chirp_channels, national_alpr, camera_routes
 from .sdr_survey import capture_sites_geojson
 from .routing import local_route, local_status, RouteUnavailable, RouteError
@@ -55,6 +56,8 @@ class OpenRFHTTPServer(ThreadingHTTPServer):
             self.radio_receiver.close()
         if hasattr(self, 'mesh_manager'):
             self.mesh_manager.close()
+        if hasattr(self, 'reticulum_manager'):
+            self.reticulum_manager.close()
         if hasattr(self, 'sdr_captures'):
             self.sdr_captures.close()
         super().server_close()
@@ -325,6 +328,13 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, self.server.mesh_manager.status())
         if path == '/api/mesh/messages':
             return self._json(200, self.server.mesh_manager.messages())
+        if path == '/api/reticulum/status':
+            return self._json(200, self.server.reticulum_manager.status())
+        if path == '/api/reticulum/messages':
+            try:
+                return self._json(200, self.server.reticulum_manager.messages())
+            except ReticulumError as exc:
+                return self._error(exc.status, str(exc), exc.code)
         if path == '/api/mesh/nodes':
             return self._json(200, self.server.mesh_manager.nodes())
         if path.startswith('/api/radio/audio/') and path.endswith('.wav'):
@@ -411,7 +421,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, raw, 'text/csv; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.csv"'})
         if path in ('/', '/index.html'):
             file = STATIC_DIR / 'index.html'
-        elif path in ('/static/app.css', '/static/app.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/camera-layers.js', '/static/chirp-import.js'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
             file = STATIC_DIR / Path(path).name
         else:
             return self._error(404, 'Not found')
@@ -524,6 +534,19 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     return self._json(200, self.server.mesh_manager.connect(body))
                 except MeshError as exc:
+                    return self._error(exc.status, str(exc), exc.code)
+            if path.startswith('/api/reticulum/'):
+                try:
+                    manager = self.server.reticulum_manager
+                    if path == '/api/reticulum/start':
+                        return self._json(200, manager.start(body))
+                    if path == '/api/reticulum/stop':
+                        return self._json(200, manager.stop(body))
+                    if path == '/api/reticulum/announce':
+                        return self._json(200, manager.announce(body))
+                    if path == '/api/reticulum/send':
+                        return self._json(202, manager.send(body))
+                except ReticulumError as exc:
                     return self._error(exc.status, str(exc), exc.code)
             if path == '/api/mesh/disconnect':
                 if body:
@@ -861,6 +884,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.sdr_captures = SdrCaptureManager(repository.path.parent / 'sdr-captures')
     server.radio_receiver = RadioReceiver()
     server.mesh_manager = MeshManager(history_path=repository.path.parent / 'mesh-history.sqlite3')
+    server.reticulum_manager = ReticulumManager(repository.path.parent / 'reticulum')
     server.alpr_import_lock = threading.Lock()
     server.national_alpr_manager = national_alpr.UpdateManager(repository)
     return server
