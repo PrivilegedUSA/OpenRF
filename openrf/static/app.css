@@ -1461,6 +1461,12 @@ body.map-workspace .topbar .menu-toggle:focus-visible,
   display:none!important;
   pointer-events:none!important;
 }
+/* During destination replacement the old road stays visible for orientation,
+   but neither its route-selection hit areas nor its pin may steal the tap. */
+#page-map .destination-pick-active .navigation-preview-overlay,
+#page-map .destination-pick-active .navigation-preview-overlay * {
+  pointer-events:none!important;
+}
 
 /* v0.2.68 — Selected destination is the same width as the other expanded
    map navigation sheets; it remains clear of the right-hand map control rail. */

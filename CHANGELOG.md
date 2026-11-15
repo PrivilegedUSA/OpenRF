@@ -567,3 +567,11 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Add a four-cycle regression that starts with a visible chooser, reopens search, starts map selection and taps a new destination without manually closing the chooser, plus a single-route regression. Preserve the previous three-plus-cycle tests and current map/avoidance design.
 - This is a focused UI reliability update. No new offline geocoder, camera approach warnings, external feed, hardware integration, or GPS changes; field navigation, live Valhalla and Raspberry Pi operation remain unverified.
 
+## v0.2.72 — Preserve route on search, automatic single choice, local coordinates (2026-11-15)
+
+- Keep the old road route and directions when opening Where to?, focusing the address input, typing a new draft, or arming Choose destination on map. The old route line remains visible as a non-interactive guide while waiting for a new point. Only a committed map tap, selected search suggestion, or successfully resolved Get directions attempt replaces it; cancel keeps the previous plan.
+- Automatically use a sole drivable route without opening Choose a route; retain the selectable comparison panel if two drivable alternatives are returned.
+- Recognize latitude/longitude input before external autocomplete. Stop sending a previously selected coordinate string to MapTiler when the input regains focus, avoiding a spurious HTTP 400. Preserve intentional typed-address suggestions.
+- Add regression coverage for focused coordinates, draft edits, automatic single-route selection, delayed reset, four repeated map-pick cycles, and cancellation. Existing routing, hardware, privacy and map data behavior is unchanged.
+- Tests run in Node/Python; full touch UI in Firefox, live Valhalla routing, and Raspberry Pi field operation have not been verified in this build environment.
+

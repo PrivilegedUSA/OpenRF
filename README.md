@@ -1,4 +1,8 @@
-# OpenRF v0.2.71 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.72 — Offline-First Navigation and RF Toolkit
+
+## v0.2.72 — Keep the route until a replacement is selected
+
+Opening **Where to?**, focusing its destination field, and typing a draft no longer erase a completed route. **Choose destination on map** hides the old route-choice buttons and arms the map while keeping the old route line visible; the old directions, alternatives, and trip-only exclusions are cleared only when a new map point is accepted. Escape cancels the pick and restores the previous route. Choosing an actual address suggestion or committing **Get directions** likewise replaces the route. A comparison with no valid alternative now automatically uses the main route without displaying a redundant **Choose a route** card. Previously selected latitude/longitude strings are handled locally instead of being sent to MapTiler autocomplete, avoiding the HTTP 400 error seen when reopening search. See `docs/RELEASE_0.2.72_TESTS.md`.
 
 ## v0.2.71 — Choose another map destination without closing route cards
 
@@ -81,7 +85,7 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.71.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.72.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell

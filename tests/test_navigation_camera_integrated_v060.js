@@ -25,4 +25,4 @@ assert(app.includes('state.navCameraAvoidTypes=enabled?[...chosen]:null'),
  'conservative off-route recalculation uses selected explicit preferences');
 assert(app.includes('if(!better)status.textContent'), 'no invitation to choose a non-improving alternative');
 assert(css.includes('#page-map #map-camera-route-panel') && css.includes('#page-map.navigation-driving #map-camera-route-panel'));
-console.log('PASS v0.2.71 route option visibility, opt-in, alternative safety and GPS recalculation integration');
+console.log('PASS v0.2.72 route option visibility, opt-in, alternative safety and GPS recalculation integration');

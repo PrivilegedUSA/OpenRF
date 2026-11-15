@@ -2231,10 +2231,7 @@ function findLocalDestination(query, destinations) {
   const value=String(query||'').trim();
   if (!value) throw Error('Enter a saved destination name or latitude, longitude.');
   const pair=value.match(/^([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*,\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))$/);
-  if (pair) {
-    const coords=navGeometry.point(pair[1],pair[2]);
-    return {name:value,coordinates:coords};
-  }
+  if (pair) return {name:value,coordinates:navGeometry.point(pair[1],pair[2])};
   const exact=destinations.find(d=>d.name.trim().toLowerCase()===value.toLowerCase());
   const matching=exact ? [exact] : destinations.filter(d=>d.name.trim().toLowerCase().startsWith(value.toLowerCase()));
   if (matching.length===1) {
@@ -2243,6 +2240,13 @@ function findLocalDestination(query, destinations) {
   }
   if (matching.length>1) throw Error('Several saved destinations match. Select a full name from the suggestions.');
   throw Error('This is an address, not a saved place or coordinates. Configure address search or choose a map point.');
+}
+function navigationTypedCoordinates(value) {
+  // Numeric latitude/longitude from a map pick is a local coordinate pair,
+  // not a street address to be sent to the address autocomplete service.
+  const match=String(value||'').trim().match(/^([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*,\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))$/);
+  if(!match)return null;
+  try{return navGeometry.point(match[1],match[2]);}catch(_error){return null;}
 }
 function locationForQuickPreview() {
   const pos=state.browserLocation;
@@ -2584,9 +2588,11 @@ function positionRouteChoicePanel(){
 }
 function renderRouteChoices(){
   const response=state.navRouteChoices, panel=$('map-route-choices');
-  const ready=Boolean(response?.standard?.is_driving_route);
+  // When there is only one drivable route, it is already selected; no choice
+  // card should interrupt the full turn-by-turn directions.
+  const ready=Boolean(response?.standard?.is_driving_route && response?.alternative?.is_driving_route);
   panel.hidden=!ready || state.navPicking || state.navChoicePanelClosed || state.navFollowId!==null || !mapSearchForm.hidden || $('map-navigation-options').open || $('map-directions-review').open;
-  if(!ready)return;
+  if(!ready){$('route-choice-alternate').hidden=true;return;}
   for(const [key,id,label,route,report] of [
     ['standard','route-choice-standard','Main route',response.standard,response.standard_cameras],
     ['alternate','route-choice-alternate','Alternate',response.alternative,response.alternative_cameras]]){
@@ -2771,12 +2777,17 @@ async function quickDestinationPreview(query) {
   if(destinationEpoch !== (state.navDestinationEpoch||0)) return {cancelled:true};
   const origin=await freshNavigationOrigin();
   if(destinationEpoch !== (state.navDestinationEpoch||0)) return {cancelled:true};
+  // Get directions commits a replacement only after we have a real resolved
+  // point and usable origin. Opening or editing search cannot erase a route.
+  if(state.navPreview || state.navRouteChoices || state.navCameraComparison)
+    resetRouteForNewDestination();
+  const routeEpoch=state.navDestinationEpoch||0;
   $('nav-dest-name').value=chosen.name;
   $('nav-dest-query').value=chosen.name;
   $('nav-dest-lat').value=chosen.coordinates[1];
   $('nav-dest-lon').value=chosen.coordinates[0];
   const planned=await planRoadRoute([origin,chosen.coordinates]);
-  if(planned.cancelled || destinationEpoch !== (state.navDestinationEpoch||0)) return {cancelled:true};
+  if(planned.cancelled || routeEpoch !== (state.navDestinationEpoch||0)) return {cancelled:true};
   state.navPickedPoint=chosen.coordinates.slice(); // Also draggable for resolved street addresses and completed road routes.
   syncMapPickedAction();
   renderNavigationOverlay();
@@ -2867,16 +2878,17 @@ function navigationLookupIsComplete(query) {
 }
 let navAddressTimer=null;
 $('map-destination-query').addEventListener('input',()=>{
-  if(state.navPreview || state.navRouteChoices || state.navPickedPoint || state.navCameraComparison)
-    resetRouteForNewDestination();
-  state.navPickedPoint=null;
+  // Typing is only a draft; keep the old route until the user actually picks
+  // a new destination or commits a fresh route request.
   state.navSelectedAddress=null;
-  syncMapPickedAction();
-  renderNavigationOverlay();
   state.navSearchCredit='';state.navStreetMatches=[];
   const q=$('map-destination-query').value.trim(), token=++state.navSearchToken;
   hideMapAddressMatches();
   if(navAddressTimer) clearTimeout(navAddressTimer);
+  if(navigationTypedCoordinates(q)) {
+    setMapDestinationStatus('Coordinates ready. Press Get directions to route locally; no address lookup is needed.');
+    return;
+  }
   if(q.length<3) return;
   // Saved destinations are available immediately, even offline or when
   // an external geocoder is broken. Address lookup itself is debounced.
@@ -2959,7 +2971,10 @@ $('map-destination-query').addEventListener('keydown',event=>{
 $('map-destination-query').addEventListener('blur',()=>setTimeout(hideMapAddressMatches,175));
 $('map-destination-query').addEventListener('focus',()=>{
   const q=$('map-destination-query').value.trim();
-  if(q.length>=3 && !state.navSelectedAddress) $('map-destination-query').dispatchEvent(new Event('input'));
+  // A synthetic input event on focus previously cleared the existing route
+  // and sent map-picked coordinates to MapTiler, producing HTTP 400.
+  if(q.length>=3 && !state.navPreview && !state.navSelectedAddress && !navigationTypedCoordinates(q))
+    $('map-destination-query').dispatchEvent(new Event('input'));
 });
 $('map-online-address').addEventListener('change',()=>{
   // Explicit preference persists locally on this browser; no external request is made until typing.
@@ -3214,7 +3229,7 @@ function destinationPinSVG(x,y){
 function renderNavigationOverlay() {
   const overlay = $('navigation-preview-overlay');
   const label = $('navigation-preview-label');
-  if (state.navPicking) {
+  if (state.navPicking && !state.navPreview) {
     overlay.replaceChildren();
     label.textContent='TAP MAP TO CHOOSE DESTINATION'; label.hidden=false;
     return;
@@ -3272,7 +3287,8 @@ function renderNavigationOverlay() {
   overlay.innerHTML=alternateSvg+`<path class="${road?'road-route':'direct-route'}" d="${path}" />`+
     `<circle cx="${first[0].toFixed(2)}" cy="${first[1].toFixed(2)}" r="6" fill="#44dec4"/>`+
     destinationPinSVG(last[0],last[1]);
-  label.textContent=road?'VALHALLA ROAD DIRECTIONS · START GPS FOLLOW WHEN READY':'DIRECT LINE · NOT A ROAD ROUTE';
+  label.textContent=state.navPicking?'TAP MAP TO REPLACE DESTINATION':
+    (road?'VALHALLA ROAD DIRECTIONS · START GPS FOLLOW WHEN READY':'DIRECT LINE · NOT A ROAD ROUTE');
   label.hidden=false;
 }
 async function refreshNavigationDestinations() {
@@ -3381,8 +3397,8 @@ function beginDestinationMapPick() {
   // sheet. No manual X/close action is required before the map will accept
   // another pick. Handle this even on repeated/idempotent invocations.
   $('map-route-choices').hidden=true;
-  if(!state.navPicking || state.navRouteChoices || state.navPreview || state.navCameraComparison)
-    resetRouteForNewDestination();
+  // Arming a map pick is not committing a new destination. Leave the old
+  // directions and route in place until consumeNavigationPick accepts a tap.
   state.navSearchToken++;
   if(navAddressTimer)clearTimeout(navAddressTimer);
   hideMapAddressMatches();
@@ -3399,11 +3415,10 @@ function beginDestinationMapPick() {
   // A previously started 'pick a road to avoid' action must never consume
   // the tap intended for the new destination (it registered first on #map).
   state.navAvoidPicking=false;
-  // The prior route and trip-only avoidances were invalidated above,
-  // regardless of which sheet covered the map.
+  // Trip-only avoidances and the previous route remain until an actual pick.
   if(typeof cameraPanelVisibility==='function')cameraPanelVisibility(false);
   if($('map-camera-route-chip'))$('map-camera-route-chip').hidden=true;
-  state.navPicking=true;state.navPickedPoint=null;
+  state.navPicking=true;
   showPage('map',{autoLocate:false});
   if (typeof setMapSearchCollapsed === 'function') setMapSearchCollapsed(true);
   if (typeof activeMapTool !== 'undefined' && activeMapTool) closeMapToolOverlay();

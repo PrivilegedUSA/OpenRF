@@ -56,12 +56,12 @@ const api=async url=>{calls.push(url);return reply;};
 const addressProviderInfo={local_photon:false,maptiler_configured:false};
 const make=Function('$','state','navAddressCache','addressProviderInfo','api','addressLookupUrl',
   'setMapDestinationStatus','document','setTimeout','clearTimeout',
-  'syncMapPickedAction','renderNavigationOverlay','resetRouteForNewDestination',
+  'syncMapPickedAction','renderNavigationOverlay','resetRouteForNewDestination','navigationTypedCoordinates',
   `${source.slice(start,end)};return {showMapAddressMatches,navigationSuggestionDelay,navigationLookupIsComplete}`);
 const lookup=(q,final=false,auto=false)=>`/api/navigation/geocode?q=${encodeURIComponent(q)}&online=1${auto?'&mode=auto':(final?'&mode=final':'')}`;
 const {navigationLookupIsComplete,navigationSuggestionDelay}=make($,state,navAddressCache,
   addressProviderInfo,api,lookup,(msg,kind)=>status.push([msg,kind]),doc,setTimeoutMock,clearTimeoutMock,
-  ()=>{},()=>{},()=>{});
+  ()=>{},()=>{},()=>{},()=>null);
 const input=nodes['map-destination-query'];
 const box=nodes['map-address-options'];
 async function main(){
