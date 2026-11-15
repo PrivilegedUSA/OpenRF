@@ -1,3 +1,10 @@
+## v0.2.74 — Map marker hover and GPS loss/recovery (2026-11-15)
+
+- Make mapped ALPR/speed/red-light camera reports and clickable survey observation, SDR survey site and waypoint dots display a hand-pointer cursor on vector map hover. Ordinary map dragging retains the normal cursor; destination, area and road point selection do not inherit the pointer. Raster camera buttons already advertise clickability.
+- During user-started live navigation, show a small GPS quality state chip. If no new valid real fix has arrived in 15 seconds (based on the original fix timestamp, not repeated calls), pause live maneuver timing, suppress lane/camera/voice prompts and show a signal-lost warning while preserving the complete planned road route and its turns. A subsequent fresh accurate/approximate fix re-enters the existing conservative guidance path. Mark DEMO explicitly and exclude it from the watchdog.
+- Add deterministic JavaScript tests covering all five clickable vector layers, pointer restoration/selection modes, GNSS fix age, initial wait, lost-signal one-shot pause and approximate recovery. Full source packaging and Python tests unchanged; no SQLite migration or new network service.
+- Real GPS dropout/reacquisition, 5-inch Pi display and moving-road alerts still require on-device field validation; this release does not claim a live GPS test, traffic updates or CI success.
+
 ## v0.2.70 — Third-and-later destination picks (2026-11-14)
 
 - Fix the repeated destination-selection lifecycle after multiple route calculations: the map-pick action is idempotent and cannot silently toggle itself off when invoked again. Search/Escape still cancel intentionally.

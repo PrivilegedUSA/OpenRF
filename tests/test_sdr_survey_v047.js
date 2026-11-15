@@ -23,5 +23,5 @@ assert(app.includes('raster-sdr-site-pin') && app.includes('not verified receive
 assert(app.includes('confirm(\'Export precise browser operator coordinates'));
 assert(spectrum.includes('Sharing the GeoJSON can reveal your survey sites'));
 assert(!spectrum.includes('innerHTML'), 'untrusted metadata must not be injected as HTML');
-assert(html.includes('FIELD CONSOLE · 0.2.73'));
+assert(html.includes('FIELD CONSOLE · 0.2.74'));
 console.log('v0.2.52 SDR survey site opt-in, provenance, map and export frontend contracts passed');

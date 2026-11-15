@@ -53,7 +53,7 @@ const html=fs.readFileSync('openrf/static/index.html','utf8');
 const css=fs.readFileSync('openrf/static/app.css','utf8');
 assert(!moduleSrc.includes('getCurrentPosition(') && !moduleSrc.includes('fetch('));
 for(const name of ['map-series-detail','map-survey-howto'])assert(html.includes(`id="${name}"`));
-assert(html.includes('/static/survey_map.js?v=0.2.73'));
+assert(html.includes('/static/survey_map.js?v=0.2.74'));
 for(const marker of ['survey-series-data','survey-series-points','data-map-series','data-map-series-export','data-map-series-clear','data-map-series-fit','activeMapSpatialSurvey()'])assert(src.includes(marker),marker);
 assert(src.includes('mapVisibleObservations()') && src.includes('makeSeries(mapVisibleObservations(),state.showDemo)'));
 assert(!src.includes("id:'survey-series-line'"));

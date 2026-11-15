@@ -298,6 +298,7 @@
 .area-license-confirm{align-items:start;margin:15px 0;font-size:12px!important;line-height:1.5}
 #area-plan-selection-status,#area-plan-estimate,#area-saved-detail,#area-build-status{overflow-wrap:anywhere}
 #map.area-selecting{cursor:crosshair!important}
+#map.area-selecting .maplibregl-canvas{cursor:crosshair!important}
 .area-preview-outline{position:absolute;pointer-events:none;z-index:2;border:2px dashed #65f6d0;background:#35e8bc22;box-shadow:0 0 0 1px #12342e;min-width:2px;min-height:2px}
 .area-preview-corner{position:absolute;pointer-events:none;z-index:2;width:12px;height:12px;border:2px solid #69f9dc;border-radius:50%;background:#164b46;transform:translate(-50%,-50%)}
 @media(max-width:620px){.area-coordinate-grid,.area-build-controls{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.area-saved-manager{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.area-saved-manager>label,.area-saved-manager select{grid-column:1/-1;width:100%}.area-plan-create{display:grid;grid-template-columns:minmax(0,1fr)}.area-plan-tools{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.area-plan-tools .btn:last-child{grid-column:1/-1}}
@@ -704,6 +705,9 @@
 #page-map.navigation-driving .map-follow-hud{z-index:32}
 
 #page-map .map-follow-source{display:block;font-size:10px;color:#8db8b6;line-height:1.3;margin:2px 0}
+#page-map .map-follow-signal{display:inline-flex;align-items:center;border:1px solid #315f64;border-radius:5px;padding:3px 6px;background:#12333a;color:#a4e4d5;font-weight:750;font-size:10px}
+#page-map .map-follow-signal[data-gps="lost"],#page-map .map-follow-signal[data-gps="unavailable"]{border-color:#a26843;background:#503022;color:#ffcf9d}
+#page-map .map-follow-signal[data-gps="waiting"],#page-map .map-follow-signal[data-gps="approximate"],#page-map .map-follow-signal[data-gps="demo"]{border-color:#7f7039;background:#3c3524;color:#ffe1a2}
 
 /* v0.2.36: label route-oriented perspective separately from measured moving heading. */
 #page-map .map-follow-camera-note{display:block;margin:3px 0 5px;color:#8ee4db;font-size:10px;line-height:1.35}
@@ -1473,7 +1477,7 @@ body.map-workspace .topbar .menu-toggle:focus-visible,
 #page-map .map-picked-action{box-sizing:border-box;left:9px;right:auto;width:min(430px,calc(100% - 71px));max-width:none}
 @media(max-width:550px){#page-map .map-picked-action{left:9px;width:calc(100% - 71px)}}
 
-/* v0.2.73 — compact, opt-in spoken camera approach warnings. Never cover the
+/* v0.2.74 — compact, opt-in spoken camera approach warnings. Never cover the
    live turn headline; the evidence label is always visible with an alert. */
 #page-map .camera-approach-settings{margin:10px 0;border:1px solid #35616b;border-radius:8px;background:#102b35;padding:9px;color:#dcefeb}
 #page-map .camera-approach-settings>summary{cursor:pointer;font-size:12px;font-weight:700;color:#d9f6ed}

@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], waypoints: [], sdrSites: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, hardwareManager: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navVoiceEnabled:false, navVoiceMemory:null, navVoiceFailed:false, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, navFollowCameraSuspended:false, navFollowLastPosition:null,navCameraAvoidTypes:null,navCameraComparison:null,navCameraRouteEpoch:0,navCameraReport:null,navCameraPanelOpen:false,navRouteChoices:null,navChoiceSelection:"standard",navChoicePanelClosed:false,navAvoidSession:[],navAvoidSaved:[],navAvoidAnchor:null,navAvoidPicking:false,navRoadPrefsDirty:false,navFollowEpoch:0,navRerouteBusy:false,navOffrouteCount:0,navOffrouteSince:0,navRerouteLast:0,
+const state = { observations: [], sessions: [], waypoints: [], sdrSites: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, hardwareManager: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navVoiceEnabled:false, navVoiceMemory:null, navVoiceFailed:false, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, navFollowCameraSuspended:false, navFollowLastPosition:null, navFollowStartedAt:0, navFollowLastValidAt:0, navFollowSignalState:'waiting',navCameraAvoidTypes:null,navCameraComparison:null,navCameraRouteEpoch:0,navCameraReport:null,navCameraPanelOpen:false,navRouteChoices:null,navChoiceSelection:"standard",navChoicePanelClosed:false,navAvoidSession:[],navAvoidSaved:[],navAvoidAnchor:null,navAvoidPicking:false,navRoadPrefsDirty:false,navFollowEpoch:0,navRerouteBusy:false,navOffrouteCount:0,navOffrouteSince:0,navRerouteLast:0,
   navDemoActive:false,navDemoPaused:false,navDemoProgress:0,navDemoTimer:null,navDemoLastTime:0,
   navDemoMarker:null,navDemoMarkerMap:null,navDemoFix:null,rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, bleScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPickPointerStart:null, navPickSwallowClickUntil:0, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapObservationId:null, mapSurveySeriesKey:null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 state.navCameraAlertPrefs=null;state.navCameraAlertCatalog=null;
@@ -12,6 +12,11 @@ state.navCameraAlertSeen=new Set();state.navCameraAlertVoiceSeen=new Set();state
 state.navCameraAlertLastQualifiedAt=0;
 state.navVoiceLastTurnAt=0;
 
+// In the compact route card, keep GPS freshness visible without opening details.
+const navSignalIndicator=document.createElement('span');
+navSignalIndicator.id='map-follow-signal';navSignalIndicator.className='map-follow-signal';
+navSignalIndicator.textContent='GPS: waiting';navSignalIndicator.dataset.gps='waiting';
+$('map-follow-hud').querySelector('.map-follow-extras').append(navSignalIndicator);
 
 // v0.2.65 — remember map-layer visibility on this browser only. No server writes,
 // camera locations, observations or coordinates enter this preference record.
@@ -1140,6 +1145,22 @@ function queueMapToolRailAlignment() {
 }
 window.addEventListener('resize', queueMapToolRailAlignment);
 
+// Only features with click actions receive a hand cursor. Restore the native
+// pan/grab cursor between features, and never mask destination/area picking.
+function installMapFeatureHoverCursors(map){
+  const clickable=['camera-catalog-points','survey-series-points','survey-points','survey-sdr-sites','survey-waypoints'];
+  const hovered=new Set(),canvas=map.getCanvas();
+  const refresh=()=>{
+    canvas.style.cursor=hovered.size && !state.navPicking && !state.areaChoosing && !state.navAvoidPicking ? 'pointer' : '';
+  };
+  for(const layer of clickable){
+    map.on('mouseenter',layer,()=>{hovered.add(layer);refresh();});
+    map.on('mouseleave',layer,()=>{hovered.delete(layer);refresh();});
+  }
+  map.on('style.load',()=>{hovered.clear();refresh();});
+  canvas.addEventListener('mouseleave',()=>{hovered.clear();refresh();});
+  map.__openrfRefreshClickableCursor=refresh;
+}
 function startMap() {
   if (state.map || state.rasterMap) return;
   if (!window.maplibregl) { const view = state.preferredView; state.preferredView = null; return startRasterMap('MapLibre is unavailable. Using the built-in raster/coordinate map.', view); }
@@ -1163,7 +1184,7 @@ function startMap() {
       onRemove() { this._element?.remove(); this._element = null; }
     }, 'top-right');
     queueMapToolRailAlignment();
-    state.map.on('style.load', () => { updateOfflineAttribution(); state.mapReady = true; $('map-error').hidden = true; installMarkerLayer(); window.OpenRFCameras?.installVector(state.map); updateMap(); updateBrowserLocationMarker(); applyPendingLocation(); renderAreaOverlay(); renderNavigationOverlay(); applyNavigationFit(); });
+    state.map.on('style.load', () => { updateOfflineAttribution(); state.mapReady = true; $('map-error').hidden = true; installMarkerLayer(); window.OpenRFCameras?.installVector(state.map); if(!state.map.__openrfRefreshClickableCursor)installMapFeatureHoverCursors(state.map); updateMap(); updateBrowserLocationMarker(); applyPendingLocation(); renderAreaOverlay(); renderNavigationOverlay(); applyNavigationFit(); });
     state.map.on('movestart', event => { if (event.originalEvent) state.mapNavigationEpoch++; });
     // Rural Route-style behavior: a deliberate pan suspends camera following
     // without ending position acquisition. The recenter control resumes it.
@@ -3156,6 +3177,7 @@ for(const id of ['nav-start-query','nav-dest-query']) wireTripAddressField($(id)
 function syncDestinationPickMode() {
   $('map').classList.toggle('destination-picking', state.navPicking);
   $('map').parentElement.classList.toggle('destination-pick-active', state.navPicking);
+  state.map?.__openrfRefreshClickableCursor?.();
   for (const id of ['nav-pick-map','map-pick-destination']) {
     $(id).setAttribute('aria-pressed', String(state.navPicking));
   }
@@ -3647,6 +3669,8 @@ function stopNavigationFollow(){
   state.navFollowEpoch++;state.navRerouteBusy=false;state.navOffrouteCount=0;state.navOffrouteSince=0;
   if(finishingActiveTrip && state.navAvoidSession?.length){state.navAvoidSession=[];renderRoadAvoidList();}
   state.navFollowId=null;state.navFollowPriorFix=null;state.navFollowHeading=null;state.navFollowCameraSuspended=false;state.navFollowLastPosition=null;
+  state.navFollowStartedAt=0;state.navFollowLastValidAt=0;state.navFollowSignalState='waiting';
+  navSignalIndicator.textContent='GPS: waiting';navSignalIndicator.dataset.gps='waiting';
   if(typeof cameraPanelVisibility==='function')cameraPanelVisibility(false);
   $('page-map').classList.remove('navigation-driving');
   if(state.navRouteChoices && !state.navChoicePanelClosed)renderRouteChoices();
@@ -3662,6 +3686,33 @@ function navigationNearestShape(coords,lon,lat){
     return {index:match.index,offset_m:match.offset_m};
   }
   return {index:0,offset_m:Infinity};
+}
+function setNavigationSignalState(kind,accuracy=null,recovered=false){
+  state.navFollowSignalState=kind;
+  const chip=$('map-follow-signal');
+  if(!chip)return;
+  chip.dataset.gps=kind;
+  if(kind==='precise')chip.textContent=`GPS: ${recovered?'recovered · ':''}accurate ±${Math.round(accuracy)} m`;
+  else if(kind==='approximate')chip.textContent=`GPS: ${recovered?'recovered · ':''}approximate ±${Math.round(accuracy)} m`;
+  else if(kind==='lost')chip.textContent='GPS: signal lost · guidance paused';
+  else if(kind==='demo')chip.textContent='DEMO · not live GPS';
+  else if(kind==='unavailable')chip.textContent='GPS: fix unavailable';
+  else chip.textContent='GPS: waiting for first fix';
+}
+function enforceNavigationSignalFreshness(now=Date.now()){
+  if(state.navFollowId===null || state.navDemoActive)return;
+  if(OpenRFNavigationHealth.status(state.navFollowStartedAt,state.navFollowLastValidAt,now)!=='lost' ||
+     state.navFollowSignalState==='lost')return;
+  setNavigationSignalState('lost');
+  state.navFollowPriorFix=null;state.navOffrouteCount=0;state.navOffrouteSince=0;
+  if(typeof hideCameraApproachAlert==='function')hideCameraApproachAlert();
+  $('map-follow-hud').classList.remove('navigation-guiding');
+  $('map-follow-instruction').textContent='GPS signal lost · live guidance paused';
+  $('map-follow-distance').textContent='Planned directions remain available below';
+  $('map-follow-quality').textContent='No new valid GPS fix for 15 seconds. Check browser location permission or the local GNSS receiver. Do not rely on live turn timing until a fresh fix returns. No position history saved.';
+  $('map-follow-planned').hidden=false;
+  $('map-follow-camera-note').textContent='Camera position is frozen until a new GPS fix is received.';
+  renderNavigationLanes(null,false);navigationSilence();
 }
 async function tryNavigationReroute(route,lat,lon){
   if(state.navRerouteBusy || state.navFollowId===null || state.navDemoActive)return;
@@ -3731,9 +3782,13 @@ function followPosition(pos){
     distanceLabel.textContent='';
     detail.textContent=`Reported accuracy: ${Number.isFinite(accuracy)?'±'+Math.round(accuracy)+' m':'unavailable'} · Fix age: ${Number.isFinite(age)?Math.round(age/1000)+' s':'unknown'}. Check location source and device permissions. No data saved.`;
     $('map-follow-hud').classList.remove('navigation-guiding');
+    if(state.navFollowSignalState!=='lost')setNavigationSignalState('unavailable');
     renderNavigationLanes(null,false);navigationSilence();
     return;
   }
+  const recovered=state.navFollowSignalState==='lost';
+  state.navFollowLastValidAt=Math.max(state.navFollowLastValidAt||0,pos.timestamp);
+  setNavigationSignalState(accuracy<=75?'precise':'approximate',accuracy,recovered);
   state.navFollowLastPosition=pos; // In-memory only; discarded on Stop.
   state.browserLocation={lat,lon,accuracy,capturedAt:Date.now(),source:pos.origin==='gpsd'?'gpsd':'browser',source_device:pos.source_device||null};
   updateBrowserLocationMarker();
@@ -3843,6 +3898,7 @@ async function pollLocalNavigationGnss(){
   if(state.navCameraAlertLastQualifiedAt && Date.now()-state.navCameraAlertLastQualifiedAt>7000){
     if(typeof hideCameraApproachAlert==='function')hideCameraApproachAlert();
   }
+  enforceNavigationSignalFreshness();
   if(state.navFollowId===null || state.navGnssBusy)return;
   state.navGnssBusy=true;
   const epoch=state.navGnssEpoch;
@@ -3873,6 +3929,8 @@ $('map-begin-guidance').addEventListener('click',()=>{
   }
   stopNavigationFollow();
   state.navFollowLast=0;state.navFollowProgress=0;state.navFollowPriorFix=null;state.navRerouteLast=0;
+  state.navFollowStartedAt=Date.now();state.navFollowLastValidAt=0;
+  setNavigationSignalState('waiting');
   state.navVoiceArrived=false;renderNavigationLanes(null,false);
   state.navFollowCameraSuspended=false;state.navFollowLastPosition=null;
   cameraPanelVisibility(false);
@@ -3995,6 +4053,7 @@ function playNavigationDemo(){
   state.navGnssTimer=null;state.navGnssBusy=false;state.navGnssLast=0;
   resetNavigationVoice();renderNavigationLanes(null,false);
   state.navFollowId=-2;state.navDemoActive=true;state.navDemoPaused=false;
+  setNavigationSignalState('demo');
   state.navDemoProgress=0;state.navDemoLastTime=performance.now();state.navFollowLast=0;
   state.navFollowCameraSuspended=false;
   $('page-map').classList.add('navigation-demo');
