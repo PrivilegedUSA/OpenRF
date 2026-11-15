@@ -65,4 +65,4 @@ assert.equal(nodes['mesh-header-unread'].textContent,'1','A new inbound after le
 reticContext.track({receive_sequence:0});
 assert.equal(nodes['mesh-header-unread'].hidden,true,'A restarted worker does not fabricate unread messages');
 assert(!reticulum.includes('innerHTML')&&!mesh.includes('innerHTML'));
-console.log('PASS v0.2.85 combined genuine unread counts and touch-safe wrapping');
+console.log('PASS v0.2.86 combined genuine unread counts and touch-safe wrapping');

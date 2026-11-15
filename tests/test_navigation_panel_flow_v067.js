@@ -11,5 +11,5 @@ assert.match(js,/if \(planned\.road\) setMapSearchCollapsed\(true\);\s*showPage\
 assert.match(js,/panel\.hidden=!ready[^;]+!mapSearchForm\.hidden/,'do not draw choices while destination is edited');
 assert.match(js,/if\(panel\.hidden \|\| state\.navPicking \|\| directions\.hidden \|\| directions\.open \|\| !mapSearchForm\.hidden\)return;/,'do not record an invalid panel position while destination picking or search is open');
 assert.match(js,/renderRouteChoices\(\);\s*requestAnimationFrame\(\(\) => \{\s*updateNavOverlayLayout\(\);\s*renderRouteChoices\(\);/,'restore route panel position after closing editor');
-assert(html.includes('FIELD CONSOLE · 0.2.85'),'version bumped');
+assert(html.includes('FIELD CONSOLE · 0.2.86'),'version bumped');
 console.log('PASS v0.2.76 search/review exclusive transitions and route position refresh');

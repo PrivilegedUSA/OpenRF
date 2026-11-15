@@ -673,3 +673,9 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Add explicit word-wrapping and flex minimum-width rules for the Reticulum TCP checkbox text, interface names, and announcement details on narrow/5-inch screens, retaining original message and mapping layouts.
 - Add dynamic JavaScript tests for both inbound streams, initial history, message reading, restart behavior and responsive CSS. No Python service API, database migration, radio firmware or OS firewall changes. The live Sideband-to-OpenRF LXMF receive path was user-verified on v0.2.84, but this new header counter and 5-inch layout require field testing.
 
+## v0.2.86 — Compact teal unread badge over the header envelope (2026-11-15)
+
+- Change only badge presentation: shrink the header's unread count to a 13px teal circle overlapping the envelope's upper-right corner instead of the earlier amber counter positioned beyond the button edge. Keep the clickable 42px header button unobstructed and preserve `99+` for large totals.
+- Make the Messages navigation badge teal for visual consistency. Retain all existing v0.2.85 receive-sequence tracking, Reticulum TCP settings, privacy boundaries, and map-header behavior.
+- Add a focused CSS/markup regression test. Layout still needs confirmation at the operator's actual viewport; live LXMF message delivery and unread count were confirmed by the operator on the previous release, but the changed appearance is not field-tested.
+

@@ -1500,13 +1500,16 @@ body.map-workspace .topbar .menu-toggle:focus-visible,
 .sidebar .nav-btn{display:flex;align-items:center;gap:8px;min-width:0}
 .sidebar .nav-btn .nav-label{flex:1 1 auto;min-width:0}
 .sidebar .nav-btn .nav-icon{flex:0 0 24px;width:24px}
-.mesh-unread-badge{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 4px;border-radius:999px;background:#eeb461;color:#16252b;font-size:10px;font-weight:900;line-height:1}
+.mesh-unread-badge{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 4px;border-radius:999px;background:#34c9b1;color:#09252b;font-size:10px;font-weight:900;line-height:1}
 .mesh-unread-badge[hidden]{display:none!important}
 .sidebar .nav-btn .mesh-nav-unread{width:auto;flex:0 0 auto;font-size:10px}
 .messages-header-button{position:relative;display:grid;place-items:center;flex:0 0 auto;width:39px;height:39px;border:1px solid #315360;border-radius:10px;background:#13303b;color:#a9efe1;cursor:pointer}
 .messages-header-button svg{width:22px;height:22px}
 .messages-header-button:hover,.messages-header-button:focus-visible{border-color:#40d8c0;background:#1b4449}
 .messages-header-button .mesh-unread-badge{position:absolute;top:-7px;right:-7px}
+/* v0.2.86: a quiet, compact count that overlaps the envelope's top-right
+   edge instead of floating outside the 42px touch target. */
+#mesh-header-button #mesh-header-unread{position:absolute;top:8px;right:4px;min-width:13px;height:13px;padding:0 2px;border:1px solid #09252b;border-radius:999px;background:#34c9b1;color:#09252b;font-size:8px;font-weight:850;line-height:1;letter-spacing:-.25px;box-shadow:none;pointer-events:none}
 .visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 body.map-workspace .topbar{gap:7px}
 body.map-workspace .topbar .messages-header-button{pointer-events:auto;width:45px;height:45px;background:#0c2833ed;border-color:#35616b;color:#dcfff9}

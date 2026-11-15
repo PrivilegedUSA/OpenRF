@@ -1,4 +1,8 @@
-# OpenRF v0.2.85 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.86 — Offline-First Navigation and RF Toolkit
+
+## v0.2.86 — Smaller, quieter unread indicator
+
+The existing Messages envelope now has a **compact 13px teal unread counter** tucked over its upper-right edge. This retains the combined Meshtastic + Reticulum count from v0.2.85 without the larger amber circle sitting above the icon. The sidebar unread badge matches the teal palette; notification behavior, read state, LXMF transport, private data and the map's intentionally hidden Messages shortcut are unchanged. See `docs/RELEASE_0.2.86_TESTS.md`.
 
 ## v0.2.85 — Incoming-message envelope counter and compact Reticulum layout
 
