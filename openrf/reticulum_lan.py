@@ -17,6 +17,7 @@ import threading
 
 DESTINATION = re.compile(r'[0-9a-fA-F]{32}\Z')
 MESSAGE_BYTES = 1024
+TCP_PORT = 4242
 LAN_CONFIG = """[reticulum]
   enable_transport = No
   share_instance = No
@@ -25,8 +26,16 @@ LAN_CONFIG = """[reticulum]
   [[OpenRF LAN]]
     type = AutoInterface
     enabled = yes
-    group_id = openrf
+    group_id = reticulum
     discovery_scope = link
+"""
+TCP_SECTION = """
+
+  [[OpenRF Optional TCP Listener]]
+    type = TCPServerInterface
+    enabled = yes
+    listen_ip = 0.0.0.0
+    listen_port = 4242
 """
 
 
@@ -55,6 +64,18 @@ def validate_message(body):
     return {'destination': destination.lower(), 'text': text}
 
 
+def validate_start(body):
+    """Keep LAN exposure explicit; no arbitrary listener addresses or ports."""
+    if not isinstance(body, dict) or not set(body).issubset({'tcp_enabled'}):
+        raise ReticulumError('Enable accepts only the optional tcp_enabled flag.',
+                             'invalid_reticulum_command', 400)
+    enabled = body.get('tcp_enabled', False)
+    if type(enabled) is not bool:
+        raise ReticulumError('tcp_enabled must be true or false.',
+                             'invalid_reticulum_command', 400)
+    return {'tcp_enabled': enabled}
+
+
 def private_config(root):
     """Write a scoped, non-transporting AutoInterface configuration."""
     root = Path(root)
@@ -73,18 +94,79 @@ def private_config(root):
     return directory
 
 
+def runtime_config(root, tcp_enabled=False):
+    """Preserve operator-edited RNS config; derive a separate TCP-only runtime copy."""
+    root = Path(root)
+    original = private_config(root)
+    if not tcp_enabled:
+        return original
+    runtime = root / 'rns-tcp-runtime'
+    runtime.mkdir(mode=0o700, parents=True, exist_ok=True)
+    runtime.chmod(0o700)
+    source = (original / 'config').read_text(encoding='utf-8')
+    if '[[OpenRF Optional TCP Listener]]' in source:
+        raise RuntimeError('Operator config already defines the managed TCP listener.')
+    # Insert while still inside [interfaces], even if the operator has placed
+    # other top-level sections after it. Never rewrite their original config.
+    lines = source.splitlines(keepends=True)
+    interfaces_at = next((i for i, line in enumerate(lines)
+                          if line.strip() == '[interfaces]'), None)
+    if interfaces_at is None:
+        raise RuntimeError('Operator config has no [interfaces] section for the TCP listener.')
+    after_interfaces = next((i for i in range(interfaces_at + 1, len(lines))
+                             if re.fullmatch(r'\[[^\[\]]+\]\s*', lines[i].strip())), len(lines))
+    generated = ''.join(lines[:after_interfaces]).rstrip() + '\n' + TCP_SECTION + '\n' + ''.join(lines[after_interfaces:])
+    # This is only OpenRF's generated runtime config, never the operator file.
+    temporary = runtime / 'config.new'
+    fd = os.open(temporary, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, 'w', encoding='utf-8') as output:
+        output.write(generated)
+    os.replace(temporary, runtime / 'config')
+    (runtime / 'config').chmod(0o600)
+    return runtime
+
+
+def interface_diagnostics(instance):
+    """Expose bounded, factual local RNS interface counters, never private keys."""
+    try:
+        stats = instance.get_interface_stats()
+    except Exception as exc:
+        return {'available': False, 'interfaces': [],
+                'note': f'RNS interface counters unavailable ({type(exc).__name__}).'}
+    if not isinstance(stats, dict) or not isinstance(stats.get('interfaces'), list):
+        return {'available': False, 'interfaces': [],
+                'note': 'RNS returned no usable interface counter list.'}
+    interfaces = []
+    for row in stats['interfaces'][:20]:
+        if not isinstance(row, dict):
+            continue
+        def counter(key):
+            value = row.get(key)
+            return value if type(value) is int and 0 <= value <= 2**63 - 1 else None
+        raw_up = row.get('status')
+        interfaces.append({'name': str(row.get('name', 'Unknown interface'))[:100],
+                           'up': raw_up if type(raw_up) is bool else None,
+                           'reachable_peers': counter('peers'),
+                           'connected_clients': counter('clients'),
+                           'rx_bytes': counter('rxb'),
+                           'tx_bytes': counter('txb')})
+    return {'available': True, 'interfaces': interfaces,
+            'note': 'Counters reported by this local Reticulum instance; not LXMF delivery receipts.'}
+
+
 def _utc():
     return datetime.now(timezone.utc).isoformat(timespec='seconds')
 
 
-def reticulum_worker(pipe, data_root):
+def reticulum_worker(pipe, data_root, options=None):
     """Child-process LXMF endpoint. Never imported or started automatically."""
     try:
         import RNS
         import LXMF
         data_root = Path(data_root)
-        config_dir = private_config(data_root)
-        RNS.Reticulum(configdir=str(config_dir), loglevel=1)
+        tcp_enabled = bool((options or {}).get('tcp_enabled', False))
+        config_dir = runtime_config(data_root, tcp_enabled=tcp_enabled)
+        rns_instance = RNS.Reticulum(configdir=str(config_dir), loglevel=1)
         identity_file = data_root / 'identity'
         if identity_file.exists():
             identity = RNS.Identity.from_file(str(identity_file))
@@ -122,6 +204,8 @@ def reticulum_worker(pipe, data_root):
 
         router.register_delivery_callback(receive)
         router.announce(source.hash)  # Only after user-initiated Enable.
+        last_announce_requested_at = _utc()
+        announce_requests = 1
         pipe.send({'ok':True, 'address': source.hash.hex()})
         while True:
             if not pipe.poll(0.5):
@@ -133,7 +217,18 @@ def reticulum_worker(pipe, data_root):
                 break
             if action == 'announce':
                 router.announce(source.hash)
+                last_announce_requested_at = _utc()
+                announce_requests += 1
                 pipe.send({'ok':True, 'announced':True, 'delivery_verified':False})
+            elif action == 'diagnostics':
+                report = interface_diagnostics(rns_instance)
+                report.update({'ok':True,
+                               'tcp_requested':tcp_enabled,
+                               'tcp_port': TCP_PORT if tcp_enabled else None,
+                               'announce_requests':announce_requests,
+                               'last_announce_requested_at_utc':last_announce_requested_at,
+                               'announcement_received_by_peer':None})
+                pipe.send(report)
             elif action == 'messages':
                 pipe.send({'ok':True, 'messages':list(inbox), 'receive_sequence':received_count,
                            'storage':'WORKER_MEMORY_AND_PRIVATE_LXMF_RUNTIME'})
@@ -183,6 +278,7 @@ class ReticulumManager:
         self._pipe = None
         self._address = None
         self._error = None
+        self._tcp_enabled = False
 
     def _running(self):
         return self._process is not None and self._process.is_alive()
@@ -194,14 +290,15 @@ class ReticulumManager:
             return {'enabled':running, 'dependencies_available':available,
                     'address':self._address if running else None,
                     'last_error':self._error,
-                    'transport':'RETICULUM_LAN_AUTOINTERFACE',
+                    'transport':'RETICULUM_AUTOINTERFACE_WITH_OPTIONAL_TCP',
+                    'tcp_enabled':self._tcp_enabled if running else False,
+                    'tcp_port':TCP_PORT if running and self._tcp_enabled else None,
                     'delivery':'UNVERIFIED_UNTIL_LXMF_RECEIPT',
                     'network_activity_requires_operator_action':True,
-                    'note':'Network sends and announces occur only after Enable; LAN multicast can be visible to nearby hosts.'}
+                    'note':'Network activity only starts after Enable. TCP listens on all network adapters only when explicitly selected; peer reception and delivery remain unverified.'}
 
     def start(self, payload):
-        if payload != {}:
-            raise ReticulumError('Enable requires an empty object.', 'invalid_reticulum_command', 400)
+        options = validate_start(payload)
         with self._lock:
             if self._running():
                 raise ReticulumError('Reticulum LAN is already enabled.', 'reticulum_busy')
@@ -211,7 +308,7 @@ class ReticulumManager:
             ctx = multiprocessing.get_context('spawn')
             parent, child = ctx.Pipe()
             process = (self._factory or ctx.Process)(
-                target=reticulum_worker, args=(child,str(self.data_root)), daemon=True)
+                target=reticulum_worker, args=(child,str(self.data_root),options), daemon=True)
             process.start()
             child.close()
             self._process, self._pipe = process, parent
@@ -230,6 +327,7 @@ class ReticulumManager:
                 self._error = result.get('error','Reticulum startup failed.')
                 raise ReticulumError(self._error, 'reticulum_start_failed', 503)
             self._address = result['address']
+            self._tcp_enabled = options['tcp_enabled']
             self._error = None
             return self.status()
 
@@ -256,6 +354,18 @@ class ReticulumManager:
             return {'messages':[], 'receive_sequence':0, 'storage':'INACTIVE'}
         return self._command('messages')
 
+    def diagnostics(self):
+        if not self._running():
+            return {'active':False, 'available':False, 'interfaces':[],
+                    'tcp_requested':False, 'tcp_port':None,
+                    'announce_requests':0,
+                    'last_announce_requested_at_utc':None,
+                    'announcement_received_by_peer':None,
+                    'note':'Reticulum is stopped; no live interface counters.'}
+        result = self._command('diagnostics')
+        result['active'] = True
+        return result
+
     def send(self, payload):
         message = validate_message(payload)
         return self._command('send',message)
@@ -268,6 +378,7 @@ class ReticulumManager:
     def _terminate(self):
         process, pipe = self._process, self._pipe
         self._process, self._pipe, self._address = None, None, None
+        self._tcp_enabled = False
         if process is not None:
             if process.is_alive():
                 process.terminate()

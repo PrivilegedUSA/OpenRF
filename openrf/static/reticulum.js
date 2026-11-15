@@ -1,5 +1,5 @@
 'use strict';
-/* v0.2.83: opt-in Reticulum/LXMF over the local network, separate from Meshtastic. */
+/* v0.2.84: explicit LAN transport, optional TCP listener, honest RNS diagnostics. */
 (()=>{
   const el=id=>document.getElementById(id);
   if(!el('reticulum-panel'))return;
@@ -24,6 +24,7 @@
     el('reticulum-byte-count').textContent=`${count} / 1024 UTF-8 bytes${count>1024?' · too long':''}`;
     el('reticulum-byte-count').classList.toggle('error',count>1024);
     el('reticulum-enable').disabled=state.enabled||state.busy||!state.available;
+    el('reticulum-tcp-enable').disabled=state.enabled||state.busy;
     el('reticulum-disable').disabled=!state.enabled||state.busy;
     el('reticulum-announce').disabled=!state.enabled||state.busy;
     el('reticulum-send').disabled=!state.enabled||state.busy||count===0||count>1024||!validAddress;
@@ -31,11 +32,14 @@
   function renderStatus(result){
     state.enabled=Boolean(result.enabled);
     state.available=Boolean(result.dependencies_available);
+    if(state.enabled)el('reticulum-tcp-enable').checked=Boolean(result.tcp_enabled);
     el('reticulum-badge').textContent=state.enabled?'LAN ENABLED':'OFF';
     el('reticulum-address').value=state.enabled&&result.address?result.address:'Not enabled';
     updateControls();
     if(result.last_error)note(result.last_error,true);
-    else if(state.enabled)note('Reticulum LAN enabled. Address announced on LAN. No destination delivery or RF reachability is assumed.');
+    else if(state.enabled)note(result.tcp_enabled
+      ?'Reticulum active with TCP listener requested on port 4242. Check interface details for live state; reception is unverified.'
+      :'Reticulum LAN active. Address announce was requested; no remote reception or delivery is verified.');
     else if(!state.available)note('Reticulum is off. Optional Linux packages rns and lxmf are not installed.');
     else note('Reticulum is off. Press Enable only when you want local-network messaging.');
   }
@@ -57,6 +61,37 @@
     }
     box.scrollTop=nearBottom?box.scrollHeight:previous;
   }
+  const shown=value=>Number.isSafeInteger(value)&&value>=0?String(value):'unknown';
+  function renderDiagnostics(report){
+    const container=el('reticulum-interfaces');
+    container.replaceChildren();
+    const summary=document.createElement('p');summary.className='small muted';
+    if(!report.active)summary.textContent='Reticulum is stopped. No live network interfaces to inspect.';
+    else if(!report.available)summary.textContent=String(report.note||'RNS interface counters unavailable.');
+    else summary.textContent=report.interfaces.length
+      ?'Local Reticulum interface counters (not message receipts):'
+      :'RNS returned zero interfaces; the TCP listener is not confirmed to be listening.';
+    container.append(summary);
+    for(const item of report.interfaces||[]){
+      const entry=document.createElement('div');entry.className='reticulum-interface';
+      const header=document.createElement('strong');header.textContent=String(item.name||'Unknown interface');
+      const status=document.createElement('p');status.className='small';
+      const up=item.up===true?'UP':item.up===false?'DOWN':'state unknown';
+      status.textContent=`${up} · Peers: ${shown(item.reachable_peers)} · TCP clients: ${shown(item.connected_clients)}`;
+      const traffic=document.createElement('p');traffic.className='small muted';
+      traffic.textContent=`Received: ${shown(item.rx_bytes)} bytes · Sent: ${shown(item.tx_bytes)} bytes`;
+      entry.append(header,status,traffic);container.append(entry);
+    }
+    const announced=el('reticulum-announce-detail');
+    if(!report.active)announced.textContent='No live announce information. Remote reception is unverified.';
+    else announced.textContent=`Announce requests this session: ${shown(report.announce_requests)} · Last request (UTC): ${String(report.last_announce_requested_at_utc||'unknown')} · Reception by another device: unverified.`;
+    const tcp=el('reticulum-tcp-instructions');
+    tcp.classList.toggle('reticulum-tcp-active',Boolean(report.active&&report.tcp_requested));
+  }
+  async function refreshDiagnostics(){
+    try{renderDiagnostics(await request('/api/reticulum/diagnostics'));}
+    catch(error){el('reticulum-interfaces').textContent=`Connection diagnostics unavailable: ${error.message}`;}
+  }
   async function refreshInbox(){
     if(state.polling||!state.enabled)return;
     state.polling=true;
@@ -65,7 +100,8 @@
     finally{state.polling=false;}
   }
   async function refreshStatus(){
-    try{renderStatus(await request('/api/reticulum/status'));await refreshInbox();}
+    try{renderStatus(await request('/api/reticulum/status'));
+      await Promise.all([refreshInbox(),refreshDiagnostics()]);}
     catch(error){note(error.message,true);}
   }
   async function act(path,payload){
@@ -77,7 +113,8 @@
     }catch(error){note(error.message,true);return null;}
     finally{state.busy=false;updateControls();}
   }
-  el('reticulum-enable').addEventListener('click',()=>act('/api/reticulum/start',{}));
+  el('reticulum-enable').addEventListener('click',()=>act('/api/reticulum/start',
+    {tcp_enabled:el('reticulum-tcp-enable').checked}));
   el('reticulum-disable').addEventListener('click',async()=>{
     const result=await act('/api/reticulum/stop',{});
     if(result?.worker_stopped){renderInbox([]);note('Reticulum stopped. LAN process closed.');}
@@ -86,6 +123,10 @@
     if(await act('/api/reticulum/announce',{}))note('Destination announcement requested; reaching any other device is not verified.');
   });
   el('reticulum-refresh').addEventListener('click',refreshStatus);
+  el('reticulum-diagnostics-refresh').addEventListener('click',refreshDiagnostics);
+  el('reticulum-diagnostics-panel').addEventListener('toggle',()=>{
+    if(el('reticulum-diagnostics-panel').open)refreshDiagnostics();
+  });
   el('reticulum-recipient').addEventListener('input',updateControls);
   el('reticulum-text').addEventListener('input',updateControls);
   el('reticulum-compose').addEventListener('submit',async event=>{

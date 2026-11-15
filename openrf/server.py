@@ -330,6 +330,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, self.server.mesh_manager.messages())
         if path == '/api/reticulum/status':
             return self._json(200, self.server.reticulum_manager.status())
+        if path == '/api/reticulum/diagnostics':
+            try:
+                return self._json(200, self.server.reticulum_manager.diagnostics())
+            except ReticulumError as exc:
+                return self._error(exc.status, str(exc), exc.code)
         if path == '/api/reticulum/messages':
             try:
                 return self._json(200, self.server.reticulum_manager.messages())

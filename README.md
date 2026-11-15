@@ -1,4 +1,8 @@
-# OpenRF v0.2.83 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.84 — Offline-First Navigation and RF Toolkit
+
+## v0.2.84 — Direct Sideband TCP option and live connection diagnostics
+
+**Messages → Reticulum** now has an optional **direct TCP listener on port 4242** (off by default). This can let Sideband on an Android phone connect to OpenRF over the same Wi-Fi when WSL's IPv6 multicast AutoInterface discovery does not cross the host network. Enable the checkbox *before* starting Reticulum; in Sideband choose **Connectivity → Connect via TCP** and enter the Windows PC's actual LAN IPv4 address and port **4242**. A narrowly scoped Windows/WSL inbound firewall exception may be needed; OpenRF never creates one for you. The **OpenRF HTTP API remains loopback-only**. Check the expandable **Connection diagnostics** for actual locally reported RNS interface counters, and remember that an outgoing announce or a connected TCP socket does not prove LXMF delivery. See `docs/RELEASE_0.2.84_TESTS.md` for setup and tests. Native Sideband/WSL interoperability remains to be verified on the user's devices.
 
 ## v0.2.83 — Opt-in Reticulum/LXMF messaging over Wi-Fi/LAN
 

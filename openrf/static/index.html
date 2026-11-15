@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.83">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.84">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -19,15 +19,15 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/app.js?v=0.2.77"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.83"></script>
-  <script defer src="/static/reticulum.js?v=0.2.83"></script>
+  <script defer src="/static/mesh.js?v=0.2.84"></script>
+  <script defer src="/static/reticulum.js?v=0.2.84"></script>
   <script defer src="/static/camera-layers.js?v=0.2.76"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.83</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.84</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -522,6 +522,11 @@
           <div class="panel-title"><h3>Reticulum · Wi‑Fi/LAN messages</h3><span class="pill" id="reticulum-badge">OFF</span></div>
           <p class="small muted">Experimental, separate from Meshtastic. Reticulum and LXMF are optional Linux packages. Enabling starts local-network multicast discovery, which can be visible to other devices on your LAN; stopping ends the child process. No internet account required.</p>
           <p id="reticulum-status" class="small muted" role="status" aria-live="polite">Reticulum LAN is off. No network activity has been started by OpenRF.</p>
+          <div class="reticulum-tcp-settings">
+            <label class="switchline"><input type="checkbox" id="reticulum-tcp-enable"> Also accept a direct Sideband TCP connection (port 4242; OFF by default)</label>
+            <p class="small muted">Opt-in: this opens a Reticulum TCP listener on the device's network interfaces while messaging is enabled. It is <strong>not</strong> OpenRF's web API. Use only on a trusted LAN, and configure a restricted OS firewall rule before allowing other devices. Stop Reticulum to close the listener.</p>
+            <p class="small muted" id="reticulum-tcp-instructions">For Sideband: Connectivity → Connect via TCP. Set host to your computer's <strong>LAN IPv4 address</strong> (not 127.0.0.1 or the LXMF hash) and port <strong>4242</strong>. On WSL, Windows may require a separate inbound TCP 4242 Hyper-V firewall rule. Start the TCP listener in OpenRF before enabling Sideband's TCP connection.</p>
+          </div>
           <div class="button-line">
             <button type="button" class="btn primary" id="reticulum-enable">Enable LAN messaging</button>
             <button type="button" class="btn outline" id="reticulum-disable" disabled>Stop Reticulum</button>
@@ -532,6 +537,12 @@
           </label>
           <p class="small muted">This public destination is not your private identity key. The private key and LXMF runtime stay in OpenRF's local data folder, outside Git. This release does not automatically sync messages to OpenRF's Meshtastic inbox.</p>
           <div class="button-line"><button type="button" class="btn outline" id="reticulum-announce" disabled>Announce my address</button><span class="small muted">Only press when you want to advertise your destination on the LAN.</span></div>
+          <details class="reticulum-diagnostics" id="reticulum-diagnostics-panel">
+            <summary>Connection diagnostics · actual interfaces and peers</summary>
+            <div class="button-line"><button type="button" class="btn outline" id="reticulum-diagnostics-refresh">Refresh connection details</button><span class="small muted">RNS-reported counters, not delivery proof.</span></div>
+            <div id="reticulum-interfaces" aria-live="polite"><p class="small muted">Enable Reticulum to view real network interface counters.</p></div>
+            <p class="small muted" id="reticulum-announce-detail">No announce requests this session.</p>
+          </details>
           <div class="mesh-chat-grid">
             <div class="mesh-conversation-column">
               <div class="mesh-inbox-header"><h4>Reticulum inbox</h4><span class="small muted">Current session</span></div>

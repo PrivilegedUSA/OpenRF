@@ -658,3 +658,11 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Review the user-provided Haven MANET, RNode firmware and HF bridge repositories, record applicability, licenses and safety limitations in `docs/RETICULUM_LAN_AND_REPOSITORIES.md`; no external source or firmware is bundled into OpenRF.
 - Add dependency-free Python/JavaScript tests for idle behavior, validation, private config and UI. Real RNS/LXMF transport needs optional packages and two-device LAN verification; this release does not claim successful over-the-air messaging, 5-inch hardware appearance or Wi-Fi HaLow integration.
 
+## v0.2.84 — Optional TCP Reticulum listener and observed interface statistics (2026-11-15)
+
+- Add an explicit, off-by-default TCPServerInterface listener on local TCP port 4242 for an Android Sideband TCPClient link when LAN multicast does not reach WSL. Its config is a private, generated runtime copy; the operator's existing AutoInterface config and private LXMF identity are not modified by switching transport options.
+- Add read-only `/api/reticulum/diagnostics` and an expandable Messages panel reporting RNS's actual named interfaces, reported up/unknown states, available peer/client counters and received/sent byte counts. Absent counters display **unknown**, never invented zeroes. Announce request count and timestamp are local actions only; no claim of remote reception, route reachability or recipient delivery.
+- Retain the loopback-only OpenRF HTTP server. The separate Reticulum TCP listener only opens after explicit Enable with its checkbox selected and closes on Stop. No automatic firewall modification, listening HTTP API, internet account, data uploads, Meshtastic bridge or hardware access.
+- For newly generated Reticulum configurations, use the common `reticulum` discovery group. Existing operator-edited settings are preserved. Add API, config-safety and frontend regression tests, and Windows/Sideband test instructions in `docs/RELEASE_0.2.84_TESTS.md`.
+- Limitations: no real Sideband connection, Windows Hyper-V/firewall traversal, RF hardware or LXMF delivery was verified in this build environment. Test on the user's actual WSL/Android network before considering it functional end-to-end.
+
