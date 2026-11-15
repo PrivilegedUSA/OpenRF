@@ -1,4 +1,12 @@
-# OpenRF v0.2.80 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.82 — Offline-First Navigation and RF Toolkit
+
+## v0.2.82 — Diagnostics and 5-inch Messages layout
+
+The Meshtastic USB settings panel now provides read-only Linux SDK, serial-path access, and USB link diagnostics. It never probes for radio transmissions, claims a live mesh, or reads unknown firmware details. At approximately 800×480 landscape, the conversation and composer use a compact two-column layout, while narrower portrait screens keep the stacked view. All hardware findings still require checking on a real Raspberry Pi/LoRa node.
+
+## v0.2.81 — Node directory and message status
+
+The Messages workspace now lists locally observed correspondents and allows private nicknames; saved contacts are not a live radio scan. Direct Meshtastic messages can display routing ACK/error responses when the attached radio and Python SDK provide them. A routing acknowledgment does not prove a person read the text. All sending still requires your action.
 
 ## v0.2.80 — Easier conversations
 

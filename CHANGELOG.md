@@ -636,3 +636,17 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Avoid rebuilding unchanged chat history on four-second inbox polls and preserve a user's scroll position while reviewing older messages; stay pinned near the bottom when appropriate.
 - Preserve v0.2.79 UI, offline map assets, optional message-history semantics and explicit USB-only radio access. No automatic transmission, new dependency or firmware role changes. Live LoRa and touchscreen behavior remain unverified.
 
+## v0.2.81 — Local node directory and routing receipt states (2026-11-15)
+
+- Add a local directory of nodes actually observed in messages, plus optional user-defined nicknames persisted privately in SQLite. No node is marked online merely because it appears in the directory. Saved labels are independent of opt-in message-body history.
+- Add read-only node-list and operator-initiated nickname API endpoints, with node-ID, nickname-length and control-character validation. The five-inch Messages workspace can select a contact to address a direct message.
+- For the real Meshtastic SDK, request direct-message routing acknowledgments through its supported response callback. Separate an ACK reported by the radio from recipient read confirmation; routing errors remain explicitly unconfirmed. Broadcasts still have no individual acknowledgments. Handle callbacks racing the send response and ignore stale connection generations.
+- Preserve explicit USB connection and sending, history opt-in, normal/relay-focused radio behavior and the existing mapping tools. Fake adapter tests are not RF field tests; real SDK versions, LoRa links and device behavior require validation on actual hardware.
+
+## v0.2.82 — Read-only USB diagnostics and compact touchscreen chat (2026-11-15)
+
+- Show real Linux-side diagnostics for the optional Meshtastic SDK, reported USB serial ports and OS read/write accessibility, selected USB link and disconnected state. Do not open ports, scan for RF, invent firmware versions or imply reachability from a serial connection.
+- Add a responsive two-column Messages conversation/composer layout for a landscape 5-inch (about 800×480) screen; preserve a stacked accessible form for narrower screens and all existing connection, privacy, history, nicknames and relay controls.
+- Add regression checks for disconnected diagnostics, missing device paths and responsive markup. No new software dependency, transmit-on-startup behavior, database migration or map/navigation change.
+- Limitation: Real WSL USB passthrough, Meshtastic SDK/device compatibility, Pi-specific 5-inch appearance and actual LoRa acknowledgments remain unverified without physical hardware.
+

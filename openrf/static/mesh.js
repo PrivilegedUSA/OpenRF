@@ -75,6 +75,25 @@
     el('mesh-save-history').checked=Boolean(info.history_enabled);
     el('mesh-save-history').disabled=!info.history_available;
     el('mesh-storage-label').textContent=info.history_enabled?'Private local history · last 1000':'Session only · last 100';
+    const diag=info.diagnostics||{};
+    const diagnostics=el('mesh-diagnostics');diagnostics.replaceChildren();
+    const field=(label,value)=>{
+      const card=document.createElement('div');card.className='mesh-diagnostic';
+      const head=document.createElement('strong');head.textContent=label;
+      const item=document.createElement('span');item.textContent=value;
+      card.append(head,item);diagnostics.append(card);
+    };
+    field('Meshtastic SDK',diag.sdk==='AVAILABLE'?'Available':'Not installed in Linux');
+    field('USB link',diag.link==='OPEN'?'Connected to selected serial device; RF not tested':'Disconnected');
+    field('Selected port',diag.selected_port||'None');
+    field('LoRa reachability','Not tested · requires actual radios');
+    const checks=Array.isArray(diag.usb_ports)?diag.usb_ports:[];
+    field('Linux serial ports',checks.length?checks.map(p=>{
+      const status={READ_WRITE_AVAILABLE:'read/write available',PERMISSION_BLOCKED:'permission blocked',
+        NOT_CHARACTER_DEVICE:'not a serial character device',NOT_ACCESSIBLE_IN_LINUX:'not accessible'}[p.access]||'unknown';
+      return `${p.port}: ${status}`;
+    }).join(' · '):'No compatible USB serial ports enumerated');
+    field('Firmware version','Unknown · not queried');
     renderButtons();
     if(info.last_error)note(info.last_error,true);
     else if(state.connected)note(`${info.port||'USB node'} connected. ${state.mode==='relay_only'?'Relay-focused: composing disabled.':'Normal mode: user-started text sending available.'} Radio reception and mesh rebroadcast are controlled by its firmware; link status does not prove RF coverage.`);
@@ -82,6 +101,24 @@
       'Optional Meshtastic Python package not found in this Linux environment. Install meshtastic and attach a USB node before connecting. Nothing is transmitting.');
   }
   let latestRows=[];
+  let nicknames={};
+  async function loadNodes(){
+    const data=await request('/api/mesh/nodes');
+    const rows=Array.isArray(data.nodes)?data.nodes:[];
+    nicknames=Object.fromEntries(rows.map(item=>[item.id,item.alias||'']));
+    const box=el('mesh-nodes');box.replaceChildren();
+    if(!rows.length){const p=document.createElement('p');p.className='small muted';p.textContent='No recorded contacts.';box.append(p);return;}
+    for(const item of rows){
+      const button=document.createElement('button');button.type='button';button.className='mesh-node-choice';
+      button.textContent=`${item.alias?item.alias+' · ':''}${item.id} · online unknown`;
+      button.addEventListener('click',()=>{
+        el('mesh-alias-node').value=item.id;
+        el('mesh-alias-text').value=item.alias||'';
+        el('mesh-destination').value=item.id;
+      });
+      box.append(button);
+    }
+  }
   let lastRenderedSignature='';
   function conversationKey(message){
     return `${message.node||'unknown node'}|${Number.isInteger(message.channel)?message.channel:'?'}`;
@@ -111,11 +148,14 @@
     for(const m of filtered.slice(-1000)){
       const article=document.createElement('article');article.className='mesh-message';
       const title=document.createElement('div');title.className='mesh-message-head';
-      const label=document.createElement('strong');label.textContent=`${m.direction==='IN'?'Received from':'Submitted to'} ${m.node||'unknown node'} · channel ${Number.isInteger(m.channel)?m.channel:'?'}`;
+      const label=document.createElement('strong');label.textContent=`${m.direction==='IN'?'Received from':'Submitted to'} ${nicknames[m.node]?nicknames[m.node]+' · ':''}${m.node||'unknown node'} · channel ${Number.isInteger(m.channel)?m.channel:'?'}`;
       const time=document.createElement('span');time.textContent=m.received_at_utc||'UTC unavailable';
       title.append(label,time);
       const text=document.createElement('p');text.textContent=String(m.text||'');
-      const delivery=document.createElement('small');delivery.textContent=m.direction==='IN'?'Reported by connected radio; sender authenticity unverified.':'Submitted to connected radio; delivery not confirmed.';
+      const delivery=document.createElement('small');delivery.textContent=m.direction==='IN'?'Reported by connected radio; sender authenticity unverified.':
+        m.delivery==='ROUTING_ACK_REPORTED_NOT_READ'?'Routing acknowledgment reported by radio; not proof message was read.':
+        m.delivery==='ROUTING_ERROR_REPORTED'?'Radio reported a routing error; delivery not confirmed.':
+        'Submitted to connected radio; delivery not confirmed.';
       article.append(title,text,delivery);
       if(m.direction==='IN' && /^![0-9a-fA-F]{8}$/.test(m.node||'') && state.connected){
         const reply=document.createElement('button');reply.type='button';reply.className='mesh-message-reply';
@@ -143,7 +183,7 @@
     finally{state.polling=false;}
   }
   async function refresh(){
-    try{renderStatus(await request('/api/mesh/status'));await loadMessages();}
+    try{renderStatus(await request('/api/mesh/status'));await loadNodes();await loadMessages();}
     catch(error){note(error.message,true);}
   }
   async function run(body,path){
@@ -163,6 +203,11 @@
     el('mesh-destination').value=node;
     if(/^[0-7]$/.test(channel))el('mesh-channel').value=channel;
     el('mesh-text').focus();
+  });
+  el('mesh-save-alias').addEventListener('click',async()=>{
+    const node=el('mesh-alias-node').value.trim(),alias=el('mesh-alias-text').value.trim();
+    const result=await run({node,alias},'/api/mesh/nodes/alias');
+    if(result){lastRenderedSignature='';renderMessages(latestRows);note(alias?'Nickname saved on this device.':'Nickname removed.');}
   });
   function updateByteCount(){
     const count=new TextEncoder().encode(el('mesh-text').value).length;

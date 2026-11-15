@@ -325,6 +325,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, self.server.mesh_manager.status())
         if path == '/api/mesh/messages':
             return self._json(200, self.server.mesh_manager.messages())
+        if path == '/api/mesh/nodes':
+            return self._json(200, self.server.mesh_manager.nodes())
         if path.startswith('/api/radio/audio/') and path.endswith('.wav'):
             ident = path[len('/api/radio/audio/'):-len('.wav')]
             try:
@@ -535,6 +537,11 @@ class Handler(BaseHTTPRequestHandler):
             if path == '/api/mesh/history':
                 try:
                     return self._json(200, self.server.mesh_manager.set_history(body))
+                except MeshError as exc:
+                    return self._error(exc.status, str(exc), exc.code)
+            if path == '/api/mesh/nodes/alias':
+                try:
+                    return self._json(200, self.server.mesh_manager.set_alias(body))
                 except MeshError as exc:
                     return self._error(exc.status, str(exc), exc.code)
             if path == '/api/mesh/history/clear':

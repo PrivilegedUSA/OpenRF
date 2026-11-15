@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.80">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.82">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -19,14 +19,14 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/app.js?v=0.2.77"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.80"></script>
+  <script defer src="/static/mesh.js?v=0.2.82"></script>
   <script defer src="/static/camera-layers.js?v=0.2.76"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.80</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.82</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -465,11 +465,25 @@
           <p id="mesh-status" class="small" role="status" aria-live="polite">No mesh node connected. No transmission has been attempted.</p>
           <p class="small muted">Messages are from a connected Meshtastic USB radio only. Sending requires your action; received-node identity is unverified. There are no simulated chats or automatic network connections.</p>
           <div class="mesh-inbox-header"><h4>Inbox</h4><span class="small muted" id="mesh-storage-label">Session · last 100</span></div>
+          <details class="mesh-device-settings" id="mesh-node-directory">
+            <summary>Node directory &amp; nicknames</summary>
+            <p class="small muted">Contacts come from local conversations or nicknames you saved. These are not a live list of nearby radios.</p>
+            <div id="mesh-nodes" class="mesh-nodes"><p class="small muted">No contacts recorded yet.</p></div>
+            <div class="mesh-control-grid">
+              <label for="mesh-alias-node">Node ID<input class="field" id="mesh-alias-node" placeholder="!1234abcd" maxlength="9" autocomplete="off" spellcheck="false"></label>
+              <label for="mesh-alias-text">Nickname<input class="field" id="mesh-alias-text" maxlength="40" placeholder="Optional nickname" autocomplete="off"></label>
+            </div>
+            <div class="button-line"><button type="button" class="btn outline" id="mesh-save-alias">Save nickname</button><span class="small muted">Blank nickname removes the saved label.</span></div>
+          </details>
+          <div class="mesh-chat-grid">
+          <div class="mesh-conversation-column">
           <label class="mesh-conversation-select">Conversation
             <select class="field" id="mesh-conversation"><option value="all">All messages</option></select>
           </label>
           <div class="button-line"><button type="button" class="btn outline" id="mesh-reply-conversation" disabled>Reply to selected conversation</button></div>
           <div id="mesh-messages" class="mesh-messages" role="log" aria-label="Received and submitted mesh text messages"><p class="small muted">No real mesh messages. Connect a compatible node to begin.</p></div>
+          </div>
+          <div class="mesh-compose-column">
           <div class="mesh-inbox-header"><h4>Write a message</h4><span class="small muted">Direct node or channel broadcast</span></div>
           <form id="mesh-compose" class="mesh-compose">
             <div class="mesh-control-grid">
@@ -481,9 +495,12 @@
             <p id="mesh-byte-count" class="small muted" role="status">0 / 180 UTF-8 bytes</p>
             <div class="button-line"><button id="mesh-send" class="btn primary" type="submit" disabled>Send via connected radio</button><span class="small muted">Maximum 180 UTF-8 bytes. Submitting to the radio does not prove recipient delivery.</span></div>
           </form>
+          </div>
+          </div>
           <details class="mesh-device-settings" id="mesh-device-settings">
             <summary>USB radio connection &amp; relay settings</summary>
             <p class="small muted">Connect a compatible Meshtastic USB node explicitly. OpenRF does not supply a transmitter. Normal mode lets you compose text; relay-focused mode disables sending on this screen.</p>
+            <div class="mesh-diagnostics" id="mesh-diagnostics" role="group" aria-label="Read-only USB and radio diagnostics"><p class="small muted">USB and SDK checks will appear here. They do not transmit or scan for nearby nodes.</p></div>
           <div class="mesh-control-grid">
             <label for="mesh-serial">Linux USB port<select id="mesh-serial" class="field"><option value="">No USB node detected</option></select></label>
             <label for="mesh-mode">OpenRF operating mode<select id="mesh-mode" class="field"><option value="normal">Normal · text and automatic radio relay</option><option value="relay_only">Relay-focused · disable text sending</option></select></label>
