@@ -1199,11 +1199,9 @@ function startMap() {
     state.map.on('moveend', () => window.OpenRFCameras?.onViewportChanged());
     state.map.on('click', (evt) => {
       if (consumeNavigationPick(evt.lngLat.lng, evt.lngLat.lat)) return;
-      if (consumeAreaClick(evt.lngLat.lng, evt.lngLat.lat)) return;
-      const clickableLayers = ['survey-series-points','survey-points','survey-waypoints','survey-sdr-sites','camera-catalog-points'].filter(id=>state.mapReady && state.map.getLayer(id));
-      if (clickableLayers.length && state.map.queryRenderedFeatures(evt.point,{layers:clickableLayers}).length) return;
-      if (state.browserLocation && Math.abs(evt.lngLat.lat-state.browserLocation.lat) < 0.0001 && Math.abs(evt.lngLat.lng-state.browserLocation.lon) < 0.0001) return;
-      openObservation(evt.lngLat.lat.toFixed(6), evt.lngLat.lng.toFixed(6));
+      // Blank-map taps should only pan/inspect. Manual observations are opened
+      // by the explicit + button; clickable markers keep their own handlers.
+      consumeAreaClick(evt.lngLat.lng, evt.lngLat.lat);
     });
     state.map.on('click', 'survey-series-points', (evt) => {
       if (state.navPicking || state.areaChoosing || !evt.features?.length) return;
@@ -1712,7 +1710,7 @@ function startRasterMap(reason, view = null) {
       const ll=pixelWorld(cp[0]+e.clientX-rect.left-rect.width/2, cp[1]+e.clientY-rect.top-rect.height/2,state.rasterMap.zoom);
       if (consumeNavigationPick(ll[0], ll[1])) return;
       if (consumeAreaClick(ll[0], ll[1])) return;
-      openObservation(ll[1].toFixed(6), ll[0].toFixed(6));
+      // An ordinary raster-map tap is also intentionally a no-op.
     });
     root.addEventListener('pointercancel',()=>{start=null;});
     root.addEventListener('wheel',e=>{

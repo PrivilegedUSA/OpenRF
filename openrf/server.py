@@ -26,6 +26,7 @@ from .hardware_manager import manager_report
 from .sdr import capability_report as sdr_capability_report
 from .sdr_capture import SdrCaptureManager, CaptureError
 from .radio import RadioReceiver, RadioError
+from .mesh import MeshManager, MeshError
 from . import camera_catalog, chirp_channels, national_alpr, camera_routes
 from .sdr_survey import capture_sites_geojson
 from .routing import local_route, local_status, RouteUnavailable, RouteError
@@ -52,6 +53,8 @@ class OpenRFHTTPServer(ThreadingHTTPServer):
             self.national_alpr_manager.close()
         if hasattr(self, 'radio_receiver'):
             self.radio_receiver.close()
+        if hasattr(self, 'mesh_manager'):
+            self.mesh_manager.close()
         if hasattr(self, 'sdr_captures'):
             self.sdr_captures.close()
         super().server_close()
@@ -318,6 +321,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, self.repo.stats())
         if path == '/api/radio/status':
             return self._json(200, self.server.radio_receiver.status())
+        if path == '/api/mesh/status':
+            return self._json(200, self.server.mesh_manager.status())
+        if path == '/api/mesh/messages':
+            return self._json(200, self.server.mesh_manager.messages())
         if path.startswith('/api/radio/audio/') and path.endswith('.wav'):
             ident = path[len('/api/radio/audio/'):-len('.wav')]
             try:
@@ -402,7 +409,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, raw, 'text/csv; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.csv"'})
         if path in ('/', '/index.html'):
             file = STATIC_DIR / 'index.html'
-        elif path in ('/static/app.css', '/static/app.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/camera-layers.js', '/static/chirp-import.js'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/camera-layers.js', '/static/chirp-import.js'):
             file = STATIC_DIR / Path(path).name
         else:
             return self._error(404, 'Not found')
@@ -511,6 +518,25 @@ class Handler(BaseHTTPRequestHandler):
                 if set(body) != {'name','model','csv'}:
                     raise ValueError('Import only a named CHIRP CSV radio profile.')
                 return self._json(201,{'profile':chirp_channels.import_csv(self.repo,body['name'],body['model'],body['csv'])})
+            if path == '/api/mesh/connect':
+                try:
+                    return self._json(200, self.server.mesh_manager.connect(body))
+                except MeshError as exc:
+                    return self._error(exc.status, str(exc), exc.code)
+            if path == '/api/mesh/disconnect':
+                if body:
+                    raise ValueError('Disconnect accepts an empty JSON object only')
+                return self._json(200, self.server.mesh_manager.disconnect())
+            if path == '/api/mesh/mode':
+                try:
+                    return self._json(200, self.server.mesh_manager.set_mode(body))
+                except MeshError as exc:
+                    return self._error(exc.status, str(exc), exc.code)
+            if path == '/api/mesh/send':
+                try:
+                    return self._json(202, self.server.mesh_manager.send(body))
+                except MeshError as exc:
+                    return self._error(exc.status, str(exc), exc.code)
             if path == '/api/cameras/snapshot/update':
                 if body:
                     raise ValueError('Nationwide download accepts an empty JSON object only.')
@@ -818,6 +844,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.receiver_start_lock = threading.Lock()
     server.sdr_captures = SdrCaptureManager(repository.path.parent / 'sdr-captures')
     server.radio_receiver = RadioReceiver()
+    server.mesh_manager = MeshManager()
     server.alpr_import_lock = threading.Lock()
     server.national_alpr_manager = national_alpr.UpdateManager(repository)
     return server

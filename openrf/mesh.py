@@ -1,0 +1,274 @@
+"""Opt-in Meshtastic USB text bridge for OpenRF Linux/Raspberry Pi.
+
+The attached radio's own firmware does any mesh rebroadcasting. OpenRF never
+rebroadcasts packets in Python, changes the device role, probes ports at
+startup, stores message bodies on disk, or simulates a successful transmission.
+The optional Meshtastic Python SDK is imported only after Connect is pressed.
+"""
+from __future__ import annotations
+
+from collections import deque
+from datetime import datetime, timezone
+import importlib.util
+import re
+import threading
+
+from .hardware import enumerate_serial_ports
+
+SERIAL_PORT = re.compile(r'/dev/tty(?:USB|ACM)[0-9]{1,3}\Z')
+NODE_ID = re.compile(r'![0-9a-fA-F]{8}\Z')
+MAX_TEXT_BYTES = 180  # conservative bound under typical Meshtastic RF payloads
+
+
+class MeshError(Exception):
+    def __init__(self, message: str, code: str = 'mesh_unavailable', status: int = 409):
+        super().__init__(message)
+        self.code = code
+        self.status = status
+
+
+def validate_port(value):
+    if not isinstance(value, str) or not SERIAL_PORT.fullmatch(value):
+        raise MeshError('Choose a local USB serial node from /dev/ttyUSB# or /dev/ttyACM#.',
+                        'invalid_mesh_port', 400)
+    return value
+
+
+def validate_send(payload):
+    if not isinstance(payload, dict) or set(payload) != {'text', 'destination', 'channel'}:
+        raise MeshError('Provide text, destination and channel only.', 'invalid_mesh_message', 400)
+    text, destination, channel = payload['text'], payload['destination'], payload['channel']
+    if not isinstance(text, str) or not text.strip():
+        raise MeshError('Message must contain 1–180 UTF-8 bytes.', 'invalid_mesh_message', 400)
+    try:
+        encoded = text.encode('utf-8')
+    except UnicodeEncodeError as exc:
+        raise MeshError('Message contains invalid Unicode.', 'invalid_mesh_message', 400) from exc
+    if len(encoded) > MAX_TEXT_BYTES:
+        raise MeshError('Message must contain 1–180 UTF-8 bytes.', 'invalid_mesh_message', 400)
+    if any(ord(c) < 32 and c not in '\n\t' for c in text):
+        raise MeshError('Message contains unsupported control characters.', 'invalid_mesh_message', 400)
+    if not isinstance(destination, str) or not (destination == '^all' or NODE_ID.fullmatch(destination)):
+        raise MeshError('Destination must be ^all or a node ID such as !1234abcd.',
+                        'invalid_mesh_message', 400)
+    if type(channel) is not int or not 0 <= channel <= 7:
+        raise MeshError('Channel index must be 0–7.', 'invalid_mesh_message', 400)
+    return {'text': text, 'destination': destination.lower(), 'channel': channel}
+
+
+def _utc_now():
+    return datetime.now(timezone.utc).isoformat(timespec='seconds')
+
+
+class MeshtasticSerialBridge:
+    """Real optional SDK connection; callbacks are limited to decoded text."""
+
+    def __init__(self, port, on_text):
+        try:
+            import meshtastic.serial_interface
+            from pubsub import pub
+        except ImportError as exc:
+            raise MeshError('Meshtastic Python support is not installed in Linux. '
+                            'Install the optional meshtastic package before connecting.',
+                            'mesh_sdk_missing', 503) from exc
+        self.interface = None
+        self._pub = pub
+        self._on_text = on_text
+        self._pub.subscribe(self._on_receive, 'meshtastic.receive.text')
+        try:
+            # Never auto-probe: the operator explicitly selected one USB path.
+            self.interface = meshtastic.serial_interface.SerialInterface(devPath=port)
+        except Exception as exc:
+            self._pub.unsubscribe(self._on_receive, 'meshtastic.receive.text')
+            raise MeshError('Could not open the selected Meshtastic node. Check USB '
+                            'permissions, firmware and whether another app uses the port.',
+                            'mesh_connect_failed', 503) from exc
+
+    def _on_receive(self, packet, interface=None):
+        if self.interface is not None and interface is self.interface:
+            self._on_text(packet)
+
+    def send(self, text, destination, channel):
+        if self.interface is None:
+            raise MeshError('Meshtastic node is not connected.', 'mesh_disconnected')
+        packet = self.interface.sendText(text, destinationId=destination,
+                                         wantAck=(destination != '^all'), channelIndex=channel)
+        return getattr(packet, 'id', None)
+
+    def close(self):
+        self._pub.unsubscribe(self._on_receive, 'meshtastic.receive.text')
+        if self.interface is not None:
+            self.interface.close()
+            self.interface = None
+
+
+class MeshManager:
+    """Bounded, nonpersistent text inbox/outbox and explicit connection state."""
+
+    def __init__(self, bridge_factory=None, port_provider=None, sdk_available=None):
+        self._factory = bridge_factory or MeshtasticSerialBridge
+        self._ports = port_provider or enumerate_serial_ports
+        self._sdk_available = sdk_available or (lambda: importlib.util.find_spec('meshtastic') is not None)
+        self._lock = threading.RLock()
+        self._bridge = None
+        self._state = 'DISCONNECTED'
+        self._mode = 'normal'
+        self._port = None
+        self._generation = 0
+        self._messages = deque(maxlen=100)
+        self._last_error = None
+        self._closed = False
+
+    def _available_ports(self):
+        # The read-only hardware inventory returns ttyUSB0/ttyACM0 basenames.
+        ports = []
+        for name in self._ports():
+            if not isinstance(name, str):
+                continue
+            full = name if name.startswith('/dev/') else '/dev/' + name
+            if SERIAL_PORT.fullmatch(full) and full not in ports:
+                ports.append(full)
+        return ports[:32]
+
+    def status(self):
+        with self._lock:
+            state, mode, port, error, count = (self._state, self._mode, self._port,
+                                               self._last_error, len(self._messages))
+        try:
+            ports = self._available_ports()
+        except (OSError, ValueError):
+            ports = []
+        try:
+            sdk = bool(self._sdk_available())
+        except (ImportError, ValueError, ModuleNotFoundError):
+            sdk = False
+        return {'state': state, 'connected': state == 'CONNECTED', 'mode': mode,
+                'port': port, 'available_serial_ports': ports, 'sdk_available': sdk,
+                'message_count': count, 'last_error': error,
+                'device_role_modified': False, 'rebroadcast_owner': 'MESHTASTIC_FIRMWARE',
+                'relay_verified': False, 'message_storage': 'MEMORY_ONLY',
+                'transmit_requires_operator_action': True}
+
+    def messages(self):
+        with self._lock:
+            return {'messages': list(self._messages), 'storage': 'MEMORY_ONLY',
+                    'retained_limit': 100}
+
+    def _receive(self, packet, generation):
+        if not isinstance(packet, dict):
+            return
+        decoded = packet.get('decoded')
+        if not isinstance(decoded, dict):
+            return
+        text = decoded.get('text')
+        if not isinstance(text, str) or not text:
+            return
+        try:
+            if len(text.encode('utf-8')) > 1024:
+                return
+        except UnicodeEncodeError:
+            return
+        sender = packet.get('fromId', '')
+        if not isinstance(sender, str) or not NODE_ID.fullmatch(sender):
+            sender = 'unknown node'
+        channel = packet.get('channel', 0)
+        if type(channel) is not int or not 0 <= channel <= 7:
+            channel = None
+        with self._lock:
+            if generation != self._generation or self._state != 'CONNECTED':
+                return
+            self._messages.append({'direction': 'IN', 'text': text, 'node': sender,
+                                   'channel': channel, 'received_at_utc': _utc_now(),
+                                   'source': 'MESHTASTIC_RADIO',
+                                   'delivery': 'RECEIVED_FROM_RADIO_UNVERIFIED'})
+
+    def connect(self, settings):
+        if not isinstance(settings, dict) or set(settings) != {'port'}:
+            raise MeshError('Select one local serial port.', 'invalid_mesh_port', 400)
+        port = validate_port(settings['port'])
+        try:
+            available = self._available_ports()
+        except (OSError, ValueError):
+            available = []
+        if port not in available:
+            raise MeshError('Selected serial port is not visible to this Linux system. '
+                            'Check USB passthrough and reload the port list.',
+                            'mesh_port_unavailable', 404)
+        with self._lock:
+            if self._closed:
+                raise MeshError('Mesh service is shutting down.')
+            if self._state != 'DISCONNECTED':
+                raise MeshError('Disconnect the current node before opening another.', 'mesh_busy')
+            self._state = 'CONNECTING'
+            self._generation += 1
+            generation = self._generation
+            self._last_error = None
+        try:
+            bridge = self._factory(port, lambda packet: self._receive(packet, generation))
+        except Exception as exc:
+            message = str(exc) if isinstance(exc, MeshError) else 'Selected mesh USB connection failed.'
+            with self._lock:
+                if generation == self._generation:
+                    self._state = 'DISCONNECTED'; self._last_error = message
+            if isinstance(exc, MeshError):
+                raise
+            raise MeshError(message, 'mesh_connect_failed', 503) from exc
+        with self._lock:
+            if self._closed or generation != self._generation:
+                bridge.close()
+                raise MeshError('Mesh connection was cancelled.', 'mesh_disconnected')
+            self._bridge = bridge
+            self._port = port
+            self._state = 'CONNECTED'
+            return {'connected': True, 'port': port, 'mode': self._mode,
+                    'delivery': 'HARDWARE_LINK_ESTABLISHED_NOT_RF_VERIFIED'}
+
+    def set_mode(self, payload):
+        if not isinstance(payload, dict) or set(payload) != {'mode'} or payload['mode'] not in ('normal', 'relay_only'):
+            raise MeshError('Choose normal or relay_only only.', 'invalid_mesh_mode', 400)
+        with self._lock:
+            self._mode = payload['mode']
+            return {'mode': self._mode, 'device_role_modified': False,
+                    'note': 'Radio firmware role is unchanged. CLIENT nodes already use automatic rebroadcasting.'}
+
+    def send(self, payload):
+        message = validate_send(payload)
+        with self._lock:
+            if self._mode == 'relay_only':
+                raise MeshError('Relay-only mode disables sending from OpenRF. Switch to Normal to compose.',
+                                'mesh_relay_only', 409)
+            if self._state != 'CONNECTED' or self._bridge is None:
+                raise MeshError('Connect a real Meshtastic USB node before sending.',
+                                'mesh_disconnected', 409)
+            try:
+                packet_id = self._bridge.send(message['text'], message['destination'], message['channel'])
+            except Exception as exc:
+                raise MeshError('The attached radio did not accept this message. '
+                                'Check the USB connection; do not assume delivery.',
+                                'mesh_send_failed', 503) from exc
+            self._messages.append({'direction': 'OUT', 'text': message['text'],
+                                   'node': message['destination'], 'channel': message['channel'],
+                                   'received_at_utc': _utc_now(), 'source': 'LOCAL_OPERATOR',
+                                   'delivery': 'SUBMITTED_TO_RADIO_NOT_DELIVERED',
+                                   'packet_id': packet_id if type(packet_id) is int else None})
+            return {'submitted_to_radio': True, 'delivered_to_destination': False,
+                    'packet_id': packet_id if type(packet_id) is int else None}
+
+    def disconnect(self):
+        with self._lock:
+            bridge = self._bridge
+            self._bridge = None; self._port = None; self._state = 'DISCONNECTED'
+            self._generation += 1
+            self._messages.clear()  # Do not mix private conversations across nodes.
+            self._last_error = None
+        if bridge is not None:
+            try:
+                bridge.close()
+            except Exception:
+                pass
+        return {'disconnected': True, 'messages_cleared': True}
+
+    def close(self):
+        self.disconnect()
+        with self._lock:
+            self._closed = True

@@ -1,4 +1,10 @@
-# OpenRF v0.2.74 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.75 — Offline-First Navigation and RF Toolkit
+
+## v0.2.75 — Quiet map taps and USB mesh messaging foundation
+
+An ordinary click/tap on empty map space now **does nothing** in both MapLibre vector and the raster fallback. The **+ Add observation** button is still the deliberate way to open the manual form. Choosing a destination/area on the map and clicking existing observation/camera markers continue to work.
+
+Open **Radio → LoRa mesh messaging** for the first hardware-ready Meshtastic USB integration. The optional Python Meshtastic SDK is loaded only after pressing **Connect USB node** on an actual detected Linux port. With a compatible radio and configured channels, you can broadcast short text, send directly to a node ID, and see decoded incoming/outgoing message status. A **Relay-focused** mode disables OpenRF text sending while the radio's own CLIENT firmware continues normal automatic rebroadcasting; it does **not** configure an obsolete REPEATER role or assert coverage. Nothing transmits without pressing Send, message delivery is never assumed, and the last 100 text records are only in process memory (cleared on disconnect/restart). The UI gracefully reports missing hardware/SDK. See `docs/RELEASE_0.2.75_TESTS.md` and `docs/MESHTASTIC_SETUP.md`.
 
 ## v0.2.74 — Clickable map markers and GPS signal recovery
 
@@ -95,7 +101,7 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.74.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.75.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell

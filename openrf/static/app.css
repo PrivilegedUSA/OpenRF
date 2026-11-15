@@ -1477,7 +1477,7 @@ body.map-workspace .topbar .menu-toggle:focus-visible,
 #page-map .map-picked-action{box-sizing:border-box;left:9px;right:auto;width:min(430px,calc(100% - 71px));max-width:none}
 @media(max-width:550px){#page-map .map-picked-action{left:9px;width:calc(100% - 71px)}}
 
-/* v0.2.74 — compact, opt-in spoken camera approach warnings. Never cover the
+/* v0.2.75 — compact, opt-in spoken camera approach warnings. Never cover the
    live turn headline; the evidence label is always visible with an alert. */
 #page-map .camera-approach-settings{margin:10px 0;border:1px solid #35616b;border-radius:8px;background:#102b35;padding:9px;color:#dcefeb}
 #page-map .camera-approach-settings>summary{cursor:pointer;font-size:12px;font-weight:700;color:#d9f6ed}
@@ -1494,3 +1494,22 @@ body.map-workspace .topbar .menu-toggle:focus-visible,
 #page-map .map-camera-alert strong{display:block;font-size:13px;color:#ffdc88}
 #page-map .map-camera-alert small{display:block;font-size:10px;line-height:1.4;margin-top:3px;color:#ead7ae}
 #page-map .map-camera-alert-coverage{font-size:10px;line-height:1.35;color:#98c4bd;margin:3px 0}
+
+/* v0.2.75 — group mesh tools with radio on the compact five-inch interface. */
+#page-radio .mesh-panel{margin:14px 0}
+#page-radio .mesh-control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;margin:10px 0}
+#page-radio .mesh-control-grid label,#page-radio .mesh-compose>label{display:grid;gap:6px;font-size:11px;color:#b5d6d9;font-weight:650}
+#page-radio .mesh-actions{margin:10px 0}
+#page-radio #mesh-status{color:#a2e3d9;margin:8px 0}
+#page-radio .mesh-compose{border-top:1px solid #345766;padding-top:10px;margin-top:12px}
+#page-radio #mesh-text{min-height:66px;resize:vertical}
+#page-radio .mesh-inbox-header{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;border-top:1px solid #345766;margin-top:16px;padding-top:10px}
+#page-radio .mesh-inbox-header h4{font-size:13px;color:#d6eee9;margin:0}
+#page-radio .mesh-messages{margin-top:9px;max-height:210px;overflow-y:auto;border:1px solid #315263;border-radius:8px;background:#0a202a;padding:10px}
+#page-radio .mesh-message{border-bottom:1px solid #305261;padding:8px 0}
+#page-radio .mesh-message:last-child{border-bottom:0}
+#page-radio .mesh-message-head{display:flex;flex-wrap:wrap;gap:6px;justify-content:space-between;color:#88c4c0;font-size:10px}
+#page-radio .mesh-message p{white-space:pre-wrap;overflow-wrap:anywhere;color:#e1f5f0;margin:6px 0;font-size:12px}
+#page-radio .mesh-message small{font-size:10px;color:#a9c7bf}
+#page-radio #mesh-send:disabled,#page-radio #mesh-connect:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:650px){#page-radio .mesh-control-grid{grid-template-columns:1fr}#page-radio .mesh-actions .btn{flex:1 1 auto}}

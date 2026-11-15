@@ -69,4 +69,4 @@ assert.equal(state.navPicking,true);
 keyHandlers.keydown({key:'Escape',preventDefault(){}});
 assert.equal(state.navPicking,false,'Escape explicitly cancels');
 assert.equal(enabled,true);
-console.log('PASS v0.2.74 four consecutive destination/route cycles, pointer and click handling, idempotent pick, drag guard and Escape');
+console.log('PASS v0.2.75 four consecutive destination/route cycles, pointer and click handling, idempotent pick, drag guard and Escape');

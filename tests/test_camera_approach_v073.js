@@ -57,4 +57,4 @@ assert.match(app,/if\(!cameraApproach \|\| state\.navDemoActive \|\| state\.navF
   'camera alerts explicitly disabled for DEMO and inactive GPS follow');
 assert.match(app,/Date\.now\(\)-state\.navCameraAlertLastQualifiedAt>7000/,
   'old alert banners expire even if the GPS watch stops calling back');
-console.log('PASS v0.2.74 forward camera-report alerts, category/distance preferences and strict GPS/route gates');
+console.log('PASS v0.2.75 forward camera-report alerts, category/distance preferences and strict GPS/route gates');

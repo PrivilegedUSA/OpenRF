@@ -1,3 +1,11 @@
+## v0.2.75 — Quiet map taps and opt-in Meshtastic text foundation (2026-11-15)
+
+- Stop opening Add Survey Observation from ordinary blank vector/raster map clicks. Destination picking and area selection continue to consume explicit map taps; existing camera and survey marker click actions remain intact. The + Add Observation button and Saved-page add action are unchanged.
+- Add an offline-first Meshtastic USB bridge behind an optional Python SDK import. Explicit device selection/connection, no auto-probing on startup, and read-only capability/status before connecting. Support bounded channel broadcast and direct node-ID text send, received decoded text, and truthful submitted-to-radio (not delivered) receipts. Last 100 messages are kept in RAM only and purged on disconnect/restart.
+- Add Normal and Relay-focused app modes. Relay-focused mode blocks composing in OpenRF but does not change radio firmware roles, inject repeater packets or claim live relaying without a connected and correctly configured radio. The preferred Meshtastic CLIENT firmware already supports automatic intelligent retransmission; obsolete REPEATER firmware role is not used.
+- Group Mesh Messaging with Radio on the five-inch-friendly UI. Default disconnected state is read-only; all outgoing text and connection attempts require user actions. No required dependencies, internet accounts, SQLite migrations, automatic RF scans or uploads.
+- Register `navigation_health.js` as a locally served static asset (missing from previous HTTP allowlist), preserving the v0.2.74 GPS watchdog in actual browser runs. Add mock USB/HTTP/UI regressions and a hardware setup guide. Real hardware delivery, LoRa coverage, repeater operation and Raspberry Pi/WSL USB permissions are not yet field-tested.
+
 ## v0.2.74 — Map marker hover and GPS loss/recovery (2026-11-15)
 
 - Make mapped ALPR/speed/red-light camera reports and clickable survey observation, SDR survey site and waypoint dots display a hand-pointer cursor on vector map hover. Ordinary map dragging retains the normal cursor; destination, area and road point selection do not inherit the pointer. Raster camera buttons already advertise clickability.

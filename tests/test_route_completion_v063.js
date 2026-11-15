@@ -15,4 +15,4 @@ assert(!app.includes('mi · Leg ${t.leg}') && !app.includes('mi · leg ${t.leg}'
 assert(app.includes("$('map-directions-review').open"),'route choice hides while directions expanded');
 assert(app.includes('const cameraSwitches='),'camera choices share the plain preference list');
 assert(css.includes('top:calc(var(--openrf-nav-overlay-bottom, 67px) + 40px)'), 'route cards lower than directions header');
-console.log('PASS v0.2.74 complete road-avoidance directions, unified preferences and clear route selection');
+console.log('PASS v0.2.75 complete road-avoidance directions, unified preferences and clear route selection');

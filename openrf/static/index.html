@@ -6,26 +6,27 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.74">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.75">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
-  <script defer src="/static/spectrum-analysis.js?v=0.2.74"></script>
-  <script defer src="/static/spectrum.js?v=0.2.74"></script>
-  <script defer src="/static/sdr-history.js?v=0.2.74"></script>
-  <script defer src="/static/survey_map.js?v=0.2.74"></script>
-  <script defer src="/static/navigation.js?v=0.2.74"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.74"></script>
-  <script defer src="/static/navigation_health.js?v=0.2.74"></script>
-  <script defer src="/static/camera_alerts.js?v=0.2.74"></script>
-  <script defer src="/static/app.js?v=0.2.74"></script>
-  <script defer src="/static/radio.js?v=0.2.74"></script>
-  <script defer src="/static/camera-layers.js?v=0.2.74"></script>
-  <script defer src="/static/chirp-import.js?v=0.2.74"></script>
+  <script defer src="/static/spectrum-analysis.js?v=0.2.75"></script>
+  <script defer src="/static/spectrum.js?v=0.2.75"></script>
+  <script defer src="/static/sdr-history.js?v=0.2.75"></script>
+  <script defer src="/static/survey_map.js?v=0.2.75"></script>
+  <script defer src="/static/navigation.js?v=0.2.75"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.75"></script>
+  <script defer src="/static/navigation_health.js?v=0.2.75"></script>
+  <script defer src="/static/camera_alerts.js?v=0.2.75"></script>
+  <script defer src="/static/app.js?v=0.2.75"></script>
+  <script defer src="/static/radio.js?v=0.2.75"></script>
+  <script defer src="/static/mesh.js?v=0.2.75"></script>
+  <script defer src="/static/camera-layers.js?v=0.2.75"></script>
+  <script defer src="/static/chirp-import.js?v=0.2.75"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.74</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.75</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -452,6 +453,28 @@
           <div class="button-line"><button type="button" id="radio-start" class="btn primary">Receive short sample</button><button type="button" id="radio-stop" class="btn outline" disabled>Stop reception</button><button type="button" id="radio-refresh" class="btn outline">Refresh status</button></div>
           <p id="radio-state" class="small muted" role="status" aria-live="polite">Not checked. No receiver started.</p>
           <div id="radio-playback" hidden><label for="radio-player" class="fieldlabel">Received audio · captured sample, not live</label><audio id="radio-player" controls preload="none" aria-label="Listen to the last bounded RTL-SDR reception sample"></audio><p class="small muted">Audio is temporarily held in the local server's memory and replaced by the next sample or server restart; no automatic audio archive or upload.</p></div>
+        </div>
+        <div class="panel mesh-panel" id="mesh-panel" aria-label="LoRa mesh messaging">
+          <div class="panel-title"><h3>LoRa mesh messaging</h3><span class="pill" id="mesh-link-badge">NOT CONNECTED</span></div>
+          <p class="small muted">Optional Meshtastic USB radio required; OpenRF does not supply a LoRa transmitter. Connect a node explicitly to send or receive text over its configured channels. Messages remain in memory only and are cleared on disconnect or restart. No accounts, cloud relay or GPS collection.</p>
+          <div class="mesh-control-grid">
+            <label for="mesh-serial">Linux USB port<select id="mesh-serial" class="field"><option value="">No USB node detected</option></select></label>
+            <label for="mesh-mode">OpenRF operating mode<select id="mesh-mode" class="field"><option value="normal">Normal · text and automatic radio relay</option><option value="relay_only">Relay-focused · disable text sending</option></select></label>
+          </div>
+          <div class="button-line mesh-actions"><button type="button" id="mesh-connect" class="btn primary" disabled>Connect USB node</button><button type="button" id="mesh-disconnect" class="btn outline" disabled>Disconnect</button><button type="button" id="mesh-set-mode" class="btn outline">Apply OpenRF mode</button><button type="button" id="mesh-refresh" class="btn outline">Refresh</button></div>
+          <p class="small" id="mesh-status" role="status" aria-live="polite">No mesh node connected. No transmission has been attempted.</p>
+          <p class="small muted">An ordinary Meshtastic <strong>CLIENT</strong> radio already rebroadcasts when appropriate. <strong>Relay-focused</strong> mode disables sending from this OpenRF screen; it does <em>not</em> change the radio firmware role or guarantee repeater coverage. The old Meshtastic REPEATER role is deprecated; infrastructure routing roles require deliberate site-specific configuration and testing.</p>
+          <form id="mesh-compose" class="mesh-compose">
+            <div class="mesh-control-grid">
+              <label for="mesh-destination">Destination node<input id="mesh-destination" class="field" type="text" value="^all" maxlength="9" autocomplete="off" spellcheck="false" aria-describedby="mesh-destination-help"></label>
+              <label for="mesh-channel">Configured channel<select class="field" id="mesh-channel"><option value="0">0 · Primary</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option></select></label>
+            </div>
+            <p id="mesh-destination-help" class="small muted">Use <code>^all</code> for channel broadcast, or <code>!1234abcd</code> for a direct node message. OpenRF cannot verify the other node is online.</p>
+            <label for="mesh-text">Message<textarea id="mesh-text" class="field" rows="3" maxlength="180" placeholder="Type a short mesh message…" required></textarea></label>
+            <div class="button-line"><button id="mesh-send" class="btn primary" type="submit" disabled>Send via connected radio</button><span class="small muted">Maximum 180 UTF-8 bytes. Submitting to the radio does not prove recipient delivery.</span></div>
+          </form>
+          <div class="mesh-inbox-header"><h4>Session messages</h4><span class="small muted">Last 100 · volatile memory only</span></div>
+          <div id="mesh-messages" class="mesh-messages" role="log" aria-label="Received and submitted mesh text messages"><p class="small muted">No real mesh messages. Connect a compatible node to begin.</p></div>
         </div>
         <div class="panel radio-chirp-panel">
           <div class="panel-title"><h3>My Baofeng channel lists</h3><span class="pill">CHIRP CSV · IMPORT ONLY</span></div>
