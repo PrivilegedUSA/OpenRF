@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.84">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.85">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -19,15 +19,15 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/app.js?v=0.2.77"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.84"></script>
-  <script defer src="/static/reticulum.js?v=0.2.84"></script>
+  <script defer src="/static/mesh.js?v=0.2.85"></script>
+  <script defer src="/static/reticulum.js?v=0.2.85"></script>
   <script defer src="/static/camera-layers.js?v=0.2.76"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.84</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.85</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -49,7 +49,7 @@
     </aside>
     <button id="menu-backdrop" class="menu-backdrop" type="button" aria-label="Close navigation menu" hidden></button>
     <main class="main">
-      <header class="topbar"><div class="topbar-heading"><div><div class="eyebrow">OPENRF / <span id="page-crumb">OVERVIEW</span></div><h1 id="page-title">Field overview</h1></div></div><div class="top-right"><span id="runtime-pill" class="pill">LINUX</span><span class="pill green">OFFLINE DATA</span></div><button type="button" class="messages-header-button" id="mesh-header-button" data-jump="messages" aria-label="Open mesh messages" title="Open mesh messages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><span class="mesh-unread-badge" id="mesh-header-unread" hidden>0</span></button><span id="mesh-global-announcer" class="visually-hidden" aria-live="polite" aria-atomic="true"></span><button type="button" id="menu-toggle" class="menu-toggle" aria-label="Open navigation menu" aria-controls="main-sidebar" aria-expanded="false"><span aria-hidden="true">☰</span></button></header>
+      <header class="topbar"><div class="topbar-heading"><div><div class="eyebrow">OPENRF / <span id="page-crumb">OVERVIEW</span></div><h1 id="page-title">Field overview</h1></div></div><div class="top-right"><span id="runtime-pill" class="pill">LINUX</span><span class="pill green">OFFLINE DATA</span></div><button type="button" class="messages-header-button" id="mesh-header-button" data-jump="messages" aria-label="Open messages" title="Open messages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><span class="mesh-unread-badge" id="mesh-header-unread" hidden>0</span></button><span id="mesh-global-announcer" class="visually-hidden" aria-live="polite" aria-atomic="true"></span><button type="button" id="menu-toggle" class="menu-toggle" aria-label="Open navigation menu" aria-controls="main-sidebar" aria-expanded="false"><span aria-hidden="true">☰</span></button></header>
       <div id="flash" class="flash" role="status" aria-live="polite" hidden></div>
       <section class="page active" id="page-overview">
         <div class="hero"><div><div class="eyebrow accent">OPEN SOURCE RF FIELD PLATFORM</div><h2>Investigate the invisible.<br><em>Document what you can verify.</em></h2><p>Run locally on WSL now. Move the same backend to a Raspberry Pi later. No imaginary detections—every record retains its evidence source.</p><div class="actions"><button class="btn primary" data-jump="map">Open survey map</button><button class="btn ghost" data-jump="hardware">View sensor capabilities</button></div></div><div class="hero-graphic" aria-hidden="true"><div class="radar-ring r1"></div><div class="radar-ring r2"></div><div class="radar-ring r3"></div><div class="radar-cross h"></div><div class="radar-cross v"></div><div class="center-dot"></div></div></div>
@@ -523,7 +523,7 @@
           <p class="small muted">Experimental, separate from Meshtastic. Reticulum and LXMF are optional Linux packages. Enabling starts local-network multicast discovery, which can be visible to other devices on your LAN; stopping ends the child process. No internet account required.</p>
           <p id="reticulum-status" class="small muted" role="status" aria-live="polite">Reticulum LAN is off. No network activity has been started by OpenRF.</p>
           <div class="reticulum-tcp-settings">
-            <label class="switchline"><input type="checkbox" id="reticulum-tcp-enable"> Also accept a direct Sideband TCP connection (port 4242; OFF by default)</label>
+            <label class="switchline"><input type="checkbox" id="reticulum-tcp-enable"><span class="reticulum-tcp-label-text">Also accept a direct Sideband TCP connection (port 4242; OFF by default)</span></label>
             <p class="small muted">Opt-in: this opens a Reticulum TCP listener on the device's network interfaces while messaging is enabled. It is <strong>not</strong> OpenRF's web API. Use only on a trusted LAN, and configure a restricted OS firewall rule before allowing other devices. Stop Reticulum to close the listener.</p>
             <p class="small muted" id="reticulum-tcp-instructions">For Sideband: Connectivity → Connect via TCP. Set host to your computer's <strong>LAN IPv4 address</strong> (not 127.0.0.1 or the LXMF hash) and port <strong>4242</strong>. On WSL, Windows may require a separate inbound TCP 4242 Hyper-V firewall rule. Start the TCP listener in OpenRF before enabling Sideband's TCP connection.</p>
           </div>

@@ -1558,6 +1558,10 @@ body.map-workspace .topbar .messages-header-button svg{width:25px;height:25px}
 #page-messages .reticulum-interface{min-width:0;border:1px solid #35616b;border-radius:8px;background:#101d27;padding:9px;margin:8px 0;overflow-wrap:anywhere}
 #page-messages .reticulum-interface strong{font-size:11px;color:#34c9b1}
 #page-messages .reticulum-interface p{margin:5px 0 0}
+#page-messages .reticulum-tcp-settings .switchline{width:100%;min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere;align-items:flex-start}
+#page-messages .reticulum-tcp-settings .reticulum-tcp-label-text{display:block;flex:1 1 0;min-width:0;white-space:normal;overflow-wrap:anywhere}
+#page-messages .reticulum-panel,#page-messages .reticulum-tcp-settings,#page-messages .reticulum-diagnostics,#page-messages .reticulum-interface{min-width:0;max-width:100%}
+#page-messages .reticulum-diagnostics,#page-messages .reticulum-interface strong,#page-messages #reticulum-announce-detail{overflow-wrap:anywhere;white-space:normal}
 #page-messages .mesh-conversation-column,#page-messages .mesh-compose-column{min-width:0}
 @media(min-width:700px) and (max-height:600px){
  #page-messages .section-heading{margin-bottom:6px}

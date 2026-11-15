@@ -1,9 +1,32 @@
 'use strict';
-/* v0.2.84: explicit LAN transport, optional TCP listener, honest RNS diagnostics. */
+/* v0.2.85: Reticulum inbound unread events plus optional TCP and diagnostics. */
 (()=>{
   const el=id=>document.getElementById(id);
   if(!el('reticulum-panel'))return;
-  const state={enabled:false,busy:false,available:false,polling:false};
+  const state={enabled:false,busy:false,available:false,polling:false,
+    receiveSequence:null,unread:0};
+  const viewingMessages=()=>Boolean(el('page-messages')?.classList.contains('active'));
+  function publishUnread(){
+    document.dispatchEvent(new CustomEvent('openrf:reticulum-unread',
+      {detail:{count:state.unread}}));
+  }
+  function trackInbox(result){
+    // The worker increments this only for inbound LXMF messages with a
+    // validated signature. Never count queued outgoing texts or old records.
+    const sequence=result?.receive_sequence;
+    if(Number.isSafeInteger(sequence)&&sequence>=0){
+      if(state.receiveSequence!==null && sequence<state.receiveSequence)state.unread=0;
+      if(state.receiveSequence!==null && sequence>state.receiveSequence && !viewingMessages()){
+        const newlyReceived=sequence-state.receiveSequence;
+        state.unread+=newlyReceived;
+        if(!document.body.classList.contains('map-workspace'))
+          el('mesh-global-announcer').textContent=`${newlyReceived} new Reticulum message${newlyReceived===1?'':'s'} received. Open Messages to read.`;
+      }
+      state.receiveSequence=sequence;
+    }
+    if(viewingMessages())state.unread=0;
+    publishUnread();
+  }
   const note=(message,error=false)=>{
     el('reticulum-status').textContent=message;
     el('reticulum-status').classList.toggle('error',error);
@@ -30,8 +53,14 @@
     el('reticulum-send').disabled=!state.enabled||state.busy||count===0||count>1024||!validAddress;
   }
   function renderStatus(result){
+    const wasEnabled=state.enabled;
     state.enabled=Boolean(result.enabled);
     state.available=Boolean(result.dependencies_available);
+    if(!state.enabled){
+      state.receiveSequence=null;
+      state.unread=0;
+      publishUnread();
+    }else if(!wasEnabled)state.receiveSequence=null;
     if(state.enabled)el('reticulum-tcp-enable').checked=Boolean(result.tcp_enabled);
     el('reticulum-badge').textContent=state.enabled?'LAN ENABLED':'OFF';
     el('reticulum-address').value=state.enabled&&result.address?result.address:'Not enabled';
@@ -95,7 +124,9 @@
   async function refreshInbox(){
     if(state.polling||!state.enabled)return;
     state.polling=true;
-    try{const result=await request('/api/reticulum/messages');renderInbox(result.messages||[]);}
+    try{const result=await request('/api/reticulum/messages');
+      trackInbox(result);
+      if(viewingMessages())renderInbox(result.messages||[]);}
     catch(error){note(error.message,true);}
     finally{state.polling=false;}
   }
@@ -129,6 +160,10 @@
   });
   el('reticulum-recipient').addEventListener('input',updateControls);
   el('reticulum-text').addEventListener('input',updateControls);
+  document.addEventListener('openrf:messages-shown',()=>{
+    state.unread=0;publishUnread();
+    if(state.enabled)refreshInbox();
+  });
   el('reticulum-compose').addEventListener('submit',async event=>{
     event.preventDefault();
     if(!state.enabled||state.busy||el('reticulum-send').disabled)return;
@@ -142,7 +177,10 @@
       note('Route requested, but message was NOT sent. Wait for discovery, then send again.');
     }else note('Destination identity is not yet known. Nothing was sent.');
   });
-  setInterval(()=>{if(state.enabled&&!state.busy&&el('page-messages')?.classList.contains('active'))refreshInbox();},5000);
+  // The passive poll runs while messaging is enabled even when another page
+  // is open. It never enables Reticulum, announces, sends or starts RF scans.
+  setInterval(()=>{if(state.enabled&&!state.busy)refreshInbox();},5000);
   updateControls();
+  publishUnread();
   refreshStatus();
 })();

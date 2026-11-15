@@ -1,4 +1,8 @@
-# OpenRF v0.2.84 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.85 — Offline-First Navigation and RF Toolkit
+
+## v0.2.85 — Incoming-message envelope counter and compact Reticulum layout
+
+The envelope icon and Messages sidebar now show the **combined unread count** for genuine incoming Meshtastic and LXMF/Reticulum messages. Reticulum's read-only inbox poll continues while its operator-enabled process is running even when you are on another page; it never starts a connection or announces/sends anything. Outgoing messages and inbox history present at first observation never increment unread. Opening Messages clears the session-only count; no OS notification, persistent delivery state or message read receipt is implied. The long Reticulum direct TCP option label, interface names and announce timestamps now wrap within narrow panels rather than bleeding off the right edge. See `docs/RELEASE_0.2.85_TESTS.md`.
 
 ## v0.2.84 — Direct Sideband TCP option and live connection diagnostics
 

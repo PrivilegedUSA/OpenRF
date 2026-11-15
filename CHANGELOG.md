@@ -666,3 +666,10 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - For newly generated Reticulum configurations, use the common `reticulum` discovery group. Existing operator-edited settings are preserved. Add API, config-safety and frontend regression tests, and Windows/Sideband test instructions in `docs/RELEASE_0.2.84_TESTS.md`.
 - Limitations: no real Sideband connection, Windows Hyper-V/firewall traversal, RF hardware or LXMF delivery was verified in this build environment. Test on the user's actual WSL/Android network before considering it functional end-to-end.
 
+## v0.2.85 — Combined Meshtastic/Reticulum unread badge and text overflow fix (2026-11-15)
+
+- Reuse the existing header envelope and sidebar unread badge for the sum of genuine incoming Meshtastic and Reticulum LXMF messages, updating both the visible number and accessible label/title. No separate conflicting counter or new icon.
+- Reticulum now polls its existing read-only inbox about every five seconds while explicitly enabled, including when another page is open; never automatically starts transport, announces, sends or scans. Count changes in the worker's genuine inbound `receive_sequence`, not outgoing texts, outgoing-queue states, old inbox history or TCP bytes. Counts are session-only, cleared on opening Messages or stopping Reticulum and shown as `99+` when appropriate.
+- Add explicit word-wrapping and flex minimum-width rules for the Reticulum TCP checkbox text, interface names, and announcement details on narrow/5-inch screens, retaining original message and mapping layouts.
+- Add dynamic JavaScript tests for both inbound streams, initial history, message reading, restart behavior and responsive CSS. No Python service API, database migration, radio firmware or OS firewall changes. The live Sideband-to-OpenRF LXMF receive path was user-verified on v0.2.84, but this new header counter and 5-inch layout require field testing.
+

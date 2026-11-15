@@ -5,17 +5,19 @@
   const el=id=>document.getElementById(id);
   if(!el('mesh-panel'))return;
   const state={connected:false,mode:'normal',busy:false,polling:false,
-    receiveSequence:null,unread:0};
+    receiveSequence:null,unread:0,reticulumUnread:0};
   const viewingMessages=()=>Boolean(el('page-messages')?.classList.contains('active'));
   function renderUnread(){
-    const count=state.unread,display=count>99?'99+':String(count);
+    // One envelope badge represents the total of real incoming Meshtastic
+    // and Reticulum messages, never sent texts or initial inbox history.
+    const count=state.unread+(state.reticulumUnread||0),display=count>99?'99+':String(count);
     for(const id of ['mesh-header-unread','mesh-nav-unread']){
       const badge=el(id);if(!badge)continue;
       badge.hidden=count===0;badge.textContent=display;
     }
     const header=el('mesh-header-button');
-    header.setAttribute('aria-label',count?`Open mesh messages, ${count} unread`:'Open mesh messages');
-    header.title=count?`${count} unread mesh message${count===1?'':'s'}`:'Open mesh messages';
+    header.setAttribute('aria-label',count?`Open messages, ${count} unread`:'Open messages');
+    header.title=count?`${count} unread message${count===1?'':'s'} (Meshtastic: ${state.unread}, Reticulum: ${state.reticulumUnread||0})`:'Open messages';
   }
   function trackInbox(result){
     // The server counts *genuine inbound events*, not sent texts or old saved
@@ -247,6 +249,12 @@
       updateByteCount();
       note('Message submitted to the USB radio. Recipient delivery is NOT confirmed.');
     }
+  });
+  // Reticulum publishes its own genuine inbound-event count. The mesh script
+  // owns the shared badge so both channels cannot overwrite each other.
+  document.addEventListener('openrf:reticulum-unread',event=>{
+    const count=event.detail?.count;
+    if(Number.isSafeInteger(count)&&count>=0){state.reticulumUnread=count;renderUnread();}
   });
   document.addEventListener('openrf:messages-shown',refresh);
   // A read-only inbox poll continues across pages, so the header can indicate
