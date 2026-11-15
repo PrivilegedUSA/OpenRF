@@ -1,3 +1,11 @@
+## v0.2.70 — Third-and-later destination picks (2026-11-14)
+
+- Fix the repeated destination-selection lifecycle after multiple route calculations: the map-pick action is idempotent and cannot silently toggle itself off when invoked again. Search/Escape still cancel intentionally.
+- Register capture-phase pointer-down/pointer-up handling on the map surface, retaining the existing click fallback. A deliberate stationary pointer release chooses the selected geographic point even if MapLibre or an SVG route overlay handles the later click. Route-control buttons remain clickable.
+- Guard against click-through after a selected destination and against dragging being misinterpreted as a destination tap. Preserve map pan restoration and clean old route/turn/comparison invalidation when a destination actually changes.
+- Add a four-cycle destination-pick regression suite and run a real DOM Chromium test with repeated map/SVG clicks, a drag, and toolbar interaction. No live Valhalla or real device/browser session was verified; this needs checking in the user's installation.
+- Retain all previous features, source paths, regional offline maps, camera database code, and private-data boundaries.
+
 ## v0.2.69 — Repeatable map destination picking (2026-11-14)
 
 - Fix the regression where **Choose destination on map** could stop accepting taps after calculating an earlier route: use a map-container capture handler so taps on MapLibre and sibling route/pin overlays are handled consistently.

@@ -1,4 +1,8 @@
-# OpenRF v0.2.69 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.70 — Offline-First Navigation and RF Toolkit
+
+## v0.2.70 — Repeated destination selection after multiple routes
+
+After **Get directions**, you can reopen **Where to? → Choose destination on map** repeatedly, including after a second or third calculated route. Re-pressing the pick action keeps the picking state enabled, rather than silently cancelling it. On supported pointer devices, the outer map surface consumes a deliberate pointer release before MapLibre/route overlays can intercept the later click. Mouse/touch drags do not place a destination. Escape or opening destination text search cancels an unfinished pick. Previous route state is still invalidated only when changing destinations, and all saved map and avoidance preferences are retained. See `docs/RELEASE_0.2.70_TESTS.md`.
 
 ## v0.2.69 — Reliable repeated destination selection
 
@@ -73,7 +77,7 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.69.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.70.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell

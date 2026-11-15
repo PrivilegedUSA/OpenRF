@@ -22,7 +22,7 @@ function makeHarness(type) {
     addEventListener(name,fn,capture){this.listeners[name]={fn,capture};}
   }]));
   const states={};
-  const mapWrap={listeners:{},addEventListener(name,fn,capture){this.listeners[name]={fn,capture};}};
+  const mapWrap={listeners:{},classList:{toggle(){}},addEventListener(name,fn,capture){this.listeners[name]={fn,capture};}};
   elements.map.parentElement=mapWrap;
   elements.map.classList={toggle(className,active){states[className]=active;}};
   elements.map.getBoundingClientRect=()=>({left:100,top:200,width:200,height:100});
@@ -76,7 +76,7 @@ assert(v.calls.status.some(s=>s.includes('Destination placed')));
 v.actions.beginDestinationMapPick();
 const controls=v.tap({closest:()=>({className:'maplibregl-ctrl'})});
 assert.equal(controls.prevented,0);assert.equal(v.state.navPicking,true);
-// Escape and a second press both cancel without changing the destination.
+// Escape cancels without changing the destination.
 v.keys.keydown({key:'Escape',preventDefault(){}});
 assert.equal(v.state.navPicking,false);assert.equal(v.isEnabled(),true);
 // Regression: after a completed route, a stale road-avoidance pick must not
@@ -96,6 +96,8 @@ assert.deepEqual(v.state.navPickedPoint,[-121.2345,39.12345]);
 assert(v.calls.resets>=2,'old route plan was cleared');
 const previous=v.elements['map-destination-query'].value;
 v.actions.beginDestinationMapPick();v.actions.beginDestinationMapPick();
+assert.equal(v.state.navPicking,true,'repeating the pick action must remain armed');
+v.keys.keydown({key:'Escape',preventDefault(){}});
 assert.equal(v.state.navPicking,false);assert.equal(v.elements['map-destination-query'].value,previous);
 // The independent raster/MBTiles map also uses the actual pixel tap, not its
 // center; this works even without vector tiles or a saved browser fix.

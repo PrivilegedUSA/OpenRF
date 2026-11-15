@@ -26,7 +26,7 @@ const $=id=>{
   });
   return nodes.get(id);
 };
-const surface={listeners:{},addEventListener(k,fn,capture){this.listeners[k]={fn,capture}}};
+const surface={listeners:{},classList:{toggle(){}},addEventListener(k,fn,capture){this.listeners[k]={fn,capture}}};
 $('map').parentElement=surface;
 $('map').getBoundingClientRect=()=>({left:100,top:200,width:450,height:400});
 const actions={disable:0,enable:0,stopped:0,resets:0,statuses:[]};
@@ -86,4 +86,4 @@ context.pickActions.syncDestinationPickMode();assert.equal(panEnabled,false);
 state.navPicking=false;context.pickActions.syncDestinationPickMode();assert.equal(panEnabled,true);
 assert.match(source,/if \(!isCollapsed && state\.navPicking\)/,'text search cancels incomplete map picking');
 assert.match(source,/if \(state\.navPicking\)\s*\{\s*state\.navPicking=false;\s*syncDestinationPickMode\(\);\s*renderNavigationOverlay\(\);/,'road picking cancels destination picking');
-console.log('PASS v0.2.69 repeated map destinations, sibling-overlay clicks, exclusive modes, panning restoration, interactive controls');
+console.log('PASS v0.2.70 repeated map destinations, sibling-overlay clicks, exclusive modes, panning restoration, interactive controls');

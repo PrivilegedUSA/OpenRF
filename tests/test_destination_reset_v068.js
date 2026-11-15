@@ -27,7 +27,7 @@ assert.match(js,/function consumeNavigationPick\([\s\S]*?resetRouteForNewDestina
 assert.match(js,/\$\('map-destination-query'\)\.addEventListener\('input',\(\)=>\{[\s\S]*?resetRouteForNewDestination\(\)/);
 assert.match(js,/function showMapAddressMatches\([\s\S]*?resetRouteForNewDestination\(\)/);
 assert.match(css,/#page-map \.map-picked-action\{box-sizing:border-box;left:9px;right:auto;width:min\(430px,calc\(100% - 71px\)\)/);
-assert(html.includes('FIELD CONSOLE · 0.2.69'));
+assert(html.includes('FIELD CONSOLE · 0.2.70'));
 (async()=>{
   const start=js.indexOf('async function planRoadRoute('),end=js.indexOf('async function freshNavigationOrigin()',start);
   assert(start>0&&end>start);
@@ -42,5 +42,5 @@ assert(html.includes('FIELD CONSOLE · 0.2.69'));
   const result=await task;
   assert.equal(result.cancelled,true,'late route request must be ignored');
   assert.equal(usedOld,false,'old route must never overwrite the new destination');
-  console.log('PASS v0.2.69 stale route reset, data preservation, destination panels and asynchronous safety');
+  console.log('PASS v0.2.70 stale route reset, data preservation, destination panels and asynchronous safety');
 })().catch(error=>{console.error(error);process.exitCode=1;});

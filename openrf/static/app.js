@@ -6,7 +6,7 @@ const format = (val, suffix = '') => val === null || val === undefined || val ==
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
 const state = { observations: [], sessions: [], waypoints: [], sdrSites: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, hardwareManager: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navVoiceEnabled:false, navVoiceMemory:null, navVoiceFailed:false, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, navFollowCameraSuspended:false, navFollowLastPosition:null,navCameraAvoidTypes:null,navCameraComparison:null,navCameraRouteEpoch:0,navCameraReport:null,navCameraPanelOpen:false,navRouteChoices:null,navChoiceSelection:"standard",navChoicePanelClosed:false,navAvoidSession:[],navAvoidSaved:[],navAvoidAnchor:null,navAvoidPicking:false,navRoadPrefsDirty:false,navFollowEpoch:0,navRerouteBusy:false,navOffrouteCount:0,navOffrouteSince:0,navRerouteLast:0,
   navDemoActive:false,navDemoPaused:false,navDemoProgress:0,navDemoTimer:null,navDemoLastTime:0,
-  navDemoMarker:null,navDemoMarkerMap:null,navDemoFix:null,rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, bleScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapObservationId:null, mapSurveySeriesKey:null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+  navDemoMarker:null,navDemoMarkerMap:null,navDemoFix:null,rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, bleScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPickPointerStart:null, navPickSwallowClickUntil:0, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapObservationId:null, mapSurveySeriesKey:null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 
 
 // v0.2.65 — remember map-layer visibility on this browser only. No server writes,
@@ -3032,6 +3032,7 @@ for(const id of ['nav-start-query','nav-dest-query']) wireTripAddressField($(id)
 // screen-to-coordinate conversion, independent of the browser GPS marker.
 function syncDestinationPickMode() {
   $('map').classList.toggle('destination-picking', state.navPicking);
+  $('map').parentElement.classList.toggle('destination-pick-active', state.navPicking);
   for (const id of ['nav-pick-map','map-pick-destination']) {
     $(id).setAttribute('aria-pressed', String(state.navPicking));
   }
@@ -3048,10 +3049,14 @@ function syncDestinationPickMode() {
     if (restore.map===map && restore.pan) map.dragPan.enable();
   }
 }
+function destinationPickIgnoresTarget(target) {
+  // Exclude interactive controls, but accept MapLibre's canvas, GPS marker,
+  // and SVG route overlays. Both pointerup and click use this exact filter.
+  return Boolean(target.closest?.('button,a,input,select,textarea,summary,.map-destination-panel,.map-picked-action,.map-camera-route-review,.camera-route-review,.map-route-choices,.map-tool-overlay,.map-tool-rail,.map-navigation-settings,.map-follow-hud,.maplibregl-ctrl,.raster-control,.map-credits,.map-error,.raster-notice'));
+}
 function handleDestinationMapClick(event) {
   if (!state.navPicking || (event.button !== undefined && event.button !== 0)) return;
-  // The controls, copyright disclosure and other map UI remain functional.
-  if (event.target.closest?.('button,a,input,select,textarea,summary,.map-destination-panel,.map-picked-action,.map-camera-route-review,.camera-route-review,.map-route-choices,.map-tool-overlay,.map-tool-rail,.map-navigation-settings,.map-follow-hud,.maplibregl-ctrl,.raster-control,.map-credits,.map-error,.raster-notice')) return;
+  if (destinationPickIgnoresTarget(event.target)) return;
   const root=$('map'), rect=root.getBoundingClientRect();
   const x=event.clientX-rect.left, y=event.clientY-rect.top;
   if (!Number.isFinite(x) || !Number.isFinite(y) || x<0 || y<0 || x>rect.width || y>rect.height) return;
@@ -3068,10 +3073,42 @@ function handleDestinationMapClick(event) {
   event.preventDefault();event.stopImmediatePropagation();
   consumeNavigationPick(lon,lat);
 }
-// Listen on the outer map surface, not just the MapLibre canvas. Alternate
-// route hit-paths, existing pins and other SVG overlays are *siblings* of
-// #map, so canvas-only handling can miss a second destination selection.
-$('map').parentElement.addEventListener('click',handleDestinationMapClick,true);
+// Pointerup capture handles third and later destinations even if a map
+// engine or overlay consumes the eventual synthetic click. A click fallback
+// remains for keyboard or browsers without PointerEvent support. Ignore
+// drags to avoid placing a point while someone is moving the map.
+const destinationMapSurface=$('map').parentElement;
+destinationMapSurface.addEventListener('pointerdown',event=>{
+  if (!state.navPicking || event.isPrimary===false || (event.button!==undefined && event.button!==0) || destinationPickIgnoresTarget(event.target)){
+    state.navPickPointerStart=null;return;
+  }
+  state.navPickPointerStart={id:event.pointerId,x:event.clientX,y:event.clientY};
+},true);
+destinationMapSurface.addEventListener('pointercancel',()=>{state.navPickPointerStart=null;},true);
+destinationMapSurface.addEventListener('pointerup',event=>{
+  if (!state.navPicking || event.isPrimary===false || destinationPickIgnoresTarget(event.target))return;
+  const start=state.navPickPointerStart;state.navPickPointerStart=null;
+  if (!start || start.id!==event.pointerId)return;
+  if(Math.hypot(event.clientX-start.x,event.clientY-start.y)>9){
+    // A release after dragging sometimes synthesizes a click. Do not treat
+    // that click as a tap-to-select destination.
+    state.navPickSwallowClickUntil=Date.now()+600;
+    return;
+  }
+  const wasPicking=state.navPicking;
+  handleDestinationMapClick(event);
+  if(wasPicking && !state.navPicking){
+    // The click event following this pointerup must not open a map
+    // observation or trigger a route hit after a destination was placed.
+    state.navPickSwallowClickUntil=Date.now()+600;
+  }
+},true);
+destinationMapSurface.addEventListener('click',event=>{
+  if(state.navPickSwallowClickUntil>Date.now() && !destinationPickIgnoresTarget(event.target)){
+    state.navPickSwallowClickUntil=0;event.preventDefault();event.stopImmediatePropagation();return;
+  }
+  handleDestinationMapClick(event);
+},true);
 window.addEventListener('keydown',event=>{
   if (event.key==='Escape' && state.navPicking) {
     event.preventDefault();state.navPicking=false;syncDestinationPickMode();
@@ -3081,6 +3118,7 @@ window.addEventListener('keydown',event=>{
 
 function consumeNavigationPick(lon,lat) {
   if (!state.navPicking) return false;
+  state.navPickPointerStart=null;
   if (!Number.isFinite(lon) || !Number.isFinite(lat) || Math.abs(lon)>180 || Math.abs(lat)>90) return false;
   if(state.navRouteChoices || state.navPreview || state.navCameraComparison) resetRouteForNewDestination();
   state.navPicking = false;
@@ -3331,10 +3369,15 @@ $('nav-use-location').addEventListener('click',()=>{
   },{enableHighAccuracy:true,maximumAge:0,timeout:15000});
 });
 function beginDestinationMapPick() {
-  if (state.navPicking) {
-    state.navPicking=false;syncDestinationPickMode();renderNavigationOverlay();
-    setMapDestinationStatus('Map destination selection cancelled.');return;
+  // Idempotent: reopening this workflow (or tapping the action twice) must
+  // never silently cancel map picking. Escape remains the explicit cancel.
+  if(state.navPicking){
+    syncDestinationPickMode();
+    setMapDestinationStatus('Tap a point on the map to choose a destination. Press Escape to cancel.');
+    return;
   }
+  state.navPickPointerStart=null;
+  state.navPickSwallowClickUntil=0;
   if (state.areaChoosing) cancelAreaChoosing();
   // A previously started 'pick a road to avoid' action must never consume
   // the tap intended for the new destination (it registered first on #map).

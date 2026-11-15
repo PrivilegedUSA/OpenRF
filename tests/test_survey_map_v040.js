@@ -46,7 +46,7 @@ const html=fs.readFileSync('openrf/static/index.html','utf8');
 const src=fs.readFileSync('openrf/static/app.js','utf8');
 const css=fs.readFileSync('openrf/static/app.css','utf8');
 for(const id of ['map-metric-mode','map-survey-age','map-wireless-recent','map-observation-detail','map-scan-ble','map-ble-readings']) assert(html.includes(`id="${id}"`),id);
-assert(html.includes('/static/survey_map.js?v=0.2.69'));
+assert(html.includes('/static/survey_map.js?v=0.2.70'));
 assert(src.includes('renderMapObservationDetail()')&&src.includes('state.map.getSource(\'survey-data\').setData'));
 assert(src.includes('marker_color:markerAppearance(o).color')&&src.includes('selectMapObservation(o.id)'));
 assert(src.includes("$('map-scan-ble').addEventListener('click', scanBleOnce)"));
