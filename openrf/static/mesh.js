@@ -1,5 +1,5 @@
 'use strict';
-/* v0.2.77: independent message workspace and local unread indicator.
+/* v0.2.80: conversation reply targeting, stable inbox scroll and UTF-8 counter.
    No fake nodes, background connections or transmissions; storage is opt-in. */
 (() => {
   const el=id=>document.getElementById(id);
@@ -53,7 +53,8 @@
     el('mesh-connect').disabled=!canConnect;
     el('mesh-disconnect').disabled=!state.connected||state.busy;
     el('mesh-set-mode').disabled=state.busy;
-    el('mesh-send').disabled=!state.connected||state.mode!=='normal'||state.busy;
+    el('mesh-send').disabled=!state.connected||state.mode!=='normal'||state.busy||
+      new TextEncoder().encode(el('mesh-text').value).length>180;
     el('mesh-link-badge').textContent=state.connected?'USB LINK CONNECTED':'NOT CONNECTED';
   }
   function renderStatus(info){
@@ -81,6 +82,7 @@
       'Optional Meshtastic Python package not found in this Linux environment. Install meshtastic and attach a USB node before connecting. Nothing is transmitting.');
   }
   let latestRows=[];
+  let lastRenderedSignature='';
   function conversationKey(message){
     return `${message.node||'unknown node'}|${Number.isInteger(message.channel)?message.channel:'?'}`;
   }
@@ -93,9 +95,15 @@
       const [node,channel]=key.split('|');selector.append(new Option(`${node} · channel ${channel}`,key));
     }
     selector.value=keys.includes(selected)?selected:'all';
+    el('mesh-reply-conversation').disabled=selector.value==='all'||!state.connected;
     const filtered=selector.value==='all'?latestRows:latestRows.filter(m=>conversationKey(m)===selector.value);
+    const signature=JSON.stringify([selector.value,filtered]);
+    if(signature===lastRenderedSignature)return;
+    lastRenderedSignature=signature;
 
     const box=el('mesh-messages');box.replaceChildren();
+    const oldScroll=box.scrollTop;
+    const wasNearBottom=box.scrollHeight-box.scrollTop-box.clientHeight<28;
     if(!filtered.length){
       const p=document.createElement('p');p.className='small muted';
       p.textContent='No recorded messages in this conversation. A connected radio is required for actual messages.';box.append(p);return;
@@ -121,7 +129,7 @@
       }
       box.append(article);
     }
-    box.scrollTop=box.scrollHeight;
+    box.scrollTop=wasNearBottom?box.scrollHeight:oldScroll;
   }
   async function loadMessages(){
     if(state.polling)return;
@@ -145,6 +153,25 @@
     finally{state.busy=false;renderButtons();}
   }
   el('mesh-conversation').addEventListener('change',()=>renderMessages(latestRows));
+  el('mesh-reply-conversation').addEventListener('click',()=>{
+    const key=el('mesh-conversation').value;
+    if(key==='all'||!state.connected)return;
+    const [node,channel]=key.split('|');
+    if(!/^![0-9a-fA-F]{8}$/.test(node)){
+      note('This conversation has no verified-format destination node. Choose a direct node manually.',true);return;
+    }
+    el('mesh-destination').value=node;
+    if(/^[0-7]$/.test(channel))el('mesh-channel').value=channel;
+    el('mesh-text').focus();
+  });
+  function updateByteCount(){
+    const count=new TextEncoder().encode(el('mesh-text').value).length;
+    const label=el('mesh-byte-count');
+    label.textContent=`${count} / 180 UTF-8 bytes${count>180?' · too long to send':''}`;
+    label.classList.toggle('error',count>180);
+    el('mesh-send').disabled=state.busy||!state.connected||state.mode!=='normal'||count>180;
+  }
+  el('mesh-text').addEventListener('input',updateByteCount);
   el('mesh-save-history').addEventListener('change',async event=>{
     const enabled=event.target.checked;
     const result=await run({enabled},'/api/mesh/history');
@@ -172,6 +199,7 @@
       channel:Number(el('mesh-channel').value)},'/api/mesh/send');
     if(result?.submitted_to_radio){
       el('mesh-text').value='';
+      updateByteCount();
       note('Message submitted to the USB radio. Recipient delivery is NOT confirmed.');
     }
   });
@@ -183,6 +211,7 @@
     if(state.connected&&!state.busy)loadMessages();
   },4000);
   renderButtons();
+  updateByteCount();
   renderUnread();
   refresh();
 })();

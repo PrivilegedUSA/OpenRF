@@ -1,4 +1,8 @@
-# OpenRF v0.2.79 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.80 — Offline-First Navigation and RF Toolkit
+
+## v0.2.80 — Easier conversations
+
+Select a conversation and use **Reply to selected conversation** to prefill its direct node and channel (without sending). The composer now counts real UTF-8 bytes and blocks messages exceeding the Meshtastic bridge's 180-byte limit. Inbox polling preserves your reading position on older messages. The existing local privacy, radio connection and relay controls are unchanged. Real radio behavior has not been field-tested for this release.
 
 ## v0.2.79 — Smaller, centered header envelope
 

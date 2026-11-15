@@ -629,3 +629,10 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Give the envelope and hamburger equal 42×42-pixel borderless, invisible touch targets aligned by their centers, while the envelope artwork is 18×18 pixels and the hamburger symbol stays larger. Reduce regular-header spacing to 2 pixels.
 - Keep the messaging shortcut hidden on Map, sidebar unread badge and navigation unchanged. No RF communication, backend or database change; real device appearance remains to be checked after installation.
 
+## v0.2.80 — Conversation replies and readable message composer (2026-11-15)
+
+- Add an explicit reply-to-conversation action for observed Meshtastic node IDs; it pre-fills node and channel without transmitting anything. Unknown sender IDs cannot be auto-addressed.
+- Show a live 180-byte UTF-8 message count, including multibyte characters, and disable Send when over limit. Preserve server-side validation.
+- Avoid rebuilding unchanged chat history on four-second inbox polls and preserve a user's scroll position while reviewing older messages; stay pinned near the bottom when appropriate.
+- Preserve v0.2.79 UI, offline map assets, optional message-history semantics and explicit USB-only radio access. No automatic transmission, new dependency or firmware role changes. Live LoRa and touchscreen behavior remain unverified.
+
