@@ -1,4 +1,10 @@
-# OpenRF v0.2.75 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.77 — Offline-First Navigation and RF Toolkit
+
+## v0.2.77 — Dedicated messaging and separated radio tools
+
+**Messages** is now its own sidebar page. The conversation list appears first, followed by message composition, with USB connection/relay settings and optional private message storage in expandable sections. The header has an always-available message icon; when a connected Meshtastic USB node delivers a new text while another page is open, a local unread count appears on the header and sidebar icon. Reading Messages clears it. Old SQLite history and operator-submitted texts are not counted as new; the app checks the existing loopback inbox in the background without connecting or transmitting automatically. No browser push or account is involved. The indicator is session-only and does not guarantee RF delivery.
+
+The old large **Radio** workspace is now **Radio Receiver** for receive-only RTL-SDR listening, **Messages** for Meshtastic text, and **Ham Radio** for offline CHIRP/Baofeng channel profiles. Copying an imported CHIRP frequency takes you to the independent receive-only tuner. See `docs/RELEASE_0.2.77_TESTS.md`.
 
 ## v0.2.75 — Quiet map taps and USB mesh messaging foundation
 

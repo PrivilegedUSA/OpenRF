@@ -1495,27 +1495,44 @@ body.map-workspace .topbar .menu-toggle:focus-visible,
 #page-map .map-camera-alert small{display:block;font-size:10px;line-height:1.4;margin-top:3px;color:#ead7ae}
 #page-map .map-camera-alert-coverage{font-size:10px;line-height:1.35;color:#98c4bd;margin:3px 0}
 
-/* v0.2.75 — group mesh tools with radio on the compact five-inch interface. */
-#page-radio .mesh-panel{margin:14px 0}
-#page-radio .mesh-control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;margin:10px 0}
-#page-radio .mesh-control-grid label,#page-radio .mesh-compose>label{display:grid;gap:6px;font-size:11px;color:#b5d6d9;font-weight:650}
-#page-radio .mesh-actions{margin:10px 0}
-#page-radio #mesh-status{color:#a2e3d9;margin:8px 0}
-#page-radio .mesh-compose{border-top:1px solid #345766;padding-top:10px;margin-top:12px}
-#page-radio #mesh-text{min-height:66px;resize:vertical}
-#page-radio .mesh-inbox-header{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;border-top:1px solid #345766;margin-top:16px;padding-top:10px}
-#page-radio .mesh-inbox-header h4{font-size:13px;color:#d6eee9;margin:0}
-#page-radio .mesh-messages{margin-top:9px;max-height:210px;overflow-y:auto;border:1px solid #315263;border-radius:8px;background:#0a202a;padding:10px}
-#page-radio .mesh-message{border-bottom:1px solid #305261;padding:8px 0}
-#page-radio .mesh-message:last-child{border-bottom:0}
-#page-radio .mesh-message-head{display:flex;flex-wrap:wrap;gap:6px;justify-content:space-between;color:#88c4c0;font-size:10px}
-#page-radio .mesh-message p{white-space:pre-wrap;overflow-wrap:anywhere;color:#e1f5f0;margin:6px 0;font-size:12px}
-#page-radio .mesh-message small{font-size:10px;color:#a9c7bf}
-#page-radio #mesh-send:disabled,#page-radio #mesh-connect:disabled{opacity:.45;cursor:not-allowed}
-@media(max-width:650px){#page-radio .mesh-control-grid{grid-template-columns:1fr}#page-radio .mesh-actions .btn{flex:1 1 auto}}
-
-/* v0.2.76 — bounded, opt-in mesh history and conversations. */
-#page-radio .mesh-history-controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:15px 0 8px}
-#page-radio .mesh-history-controls label{display:flex;align-items:center;gap:8px;color:#c9e4e2;font-size:12px}
-#page-radio .mesh-conversation-select{display:grid;gap:5px;color:#b5d6d9;font-size:12px;margin:8px 0}
-#page-radio .mesh-message-reply{font-size:11px;margin-top:5px;color:#34c9b1;background:transparent;border:0;cursor:pointer;padding:5px 0}
+/* v0.2.77 — standalone Messages, ham memories, quiet app-wide badge. */
+.sidebar .nav{min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.sidebar .nav-btn{display:flex;align-items:center;gap:8px;min-width:0}
+.sidebar .nav-btn .nav-label{flex:1 1 auto;min-width:0}
+.sidebar .nav-btn .nav-icon{flex:0 0 24px;width:24px}
+.mesh-unread-badge{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 4px;border-radius:999px;background:#eeb461;color:#16252b;font-size:10px;font-weight:900;line-height:1}
+.mesh-unread-badge[hidden]{display:none!important}
+.sidebar .nav-btn .mesh-nav-unread{width:auto;flex:0 0 auto;font-size:10px}
+.messages-header-button{position:relative;display:grid;place-items:center;flex:0 0 auto;width:39px;height:39px;border:1px solid #315360;border-radius:10px;background:#13303b;color:#a9efe1;cursor:pointer}
+.messages-header-button svg{width:22px;height:22px}
+.messages-header-button:hover,.messages-header-button:focus-visible{border-color:#40d8c0;background:#1b4449}
+.messages-header-button .mesh-unread-badge{position:absolute;top:-7px;right:-7px}
+.visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+body.map-workspace .topbar{gap:7px}
+body.map-workspace .topbar .messages-header-button{pointer-events:auto;width:45px;height:45px;background:#0c2833ed;border-color:#35616b;color:#dcfff9}
+body.map-workspace .topbar .messages-header-button svg{width:25px;height:25px}
+#page-messages .mesh-panel{margin:14px 0;max-width:950px}
+#page-messages .mesh-control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;margin:10px 0}
+#page-messages .mesh-control-grid label,#page-messages .mesh-compose>label{display:grid;gap:6px;font-size:11px;color:#b5d6d9;font-weight:650}
+#page-messages .mesh-actions{margin:10px 0}
+#page-messages #mesh-status{color:#a2e3d9;margin:8px 0}
+#page-messages .mesh-compose{border-top:1px solid #345766;padding-top:10px;margin-top:12px}
+#page-messages #mesh-text{min-height:66px;resize:vertical}
+#page-messages .mesh-inbox-header{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;border-top:1px solid #345766;margin-top:16px;padding-top:10px}
+#page-messages .mesh-inbox-header h4{font-size:13px;color:#d6eee9;margin:0}
+#page-messages .mesh-messages{margin-top:9px;min-height:120px;max-height:300px;overflow-y:auto;border:1px solid #315263;border-radius:8px;background:#0a202a;padding:10px}
+#page-messages .mesh-message{border-bottom:1px solid #305261;padding:8px 0}
+#page-messages .mesh-message:last-child{border-bottom:0}
+#page-messages .mesh-message-head{display:flex;flex-wrap:wrap;gap:6px;justify-content:space-between;color:#88c4c0;font-size:10px}
+#page-messages .mesh-message p{white-space:pre-wrap;overflow-wrap:anywhere;color:#e1f5f0;margin:6px 0;font-size:12px}
+#page-messages .mesh-message small{font-size:10px;color:#a9c7bf}
+#page-messages #mesh-send:disabled,#page-messages #mesh-connect:disabled{opacity:.45;cursor:not-allowed}
+#page-messages .mesh-history-controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:15px 0 8px}
+#page-messages .mesh-history-controls label{display:flex;align-items:center;gap:8px;color:#c9e4e2;font-size:12px}
+#page-messages .mesh-conversation-select{display:grid;gap:5px;color:#b5d6d9;font-size:12px;margin:8px 0}
+#page-messages .mesh-message-reply{font-size:11px;margin-top:5px;color:#34c9b1;background:transparent;border:0;cursor:pointer;padding:5px 0}
+#page-messages .mesh-device-settings{margin-top:12px;padding:10px 12px;border:1px solid #315263;border-radius:9px;background:#0c222c}
+#page-messages .mesh-device-settings summary{cursor:pointer;color:#c1e8e1;font-size:12px;font-weight:750}
+#page-messages .mesh-device-settings[open] summary{margin-bottom:10px}
+#page-messages .mesh-device-settings:not([open])>*:not(summary){display:none!important}
+@media(max-width:650px){#page-messages .mesh-control-grid{grid-template-columns:1fr}#page-messages .mesh-actions .btn{flex:1 1 auto}#page-messages .mesh-panel{padding:12px}#page-messages .mesh-messages{max-height:34dvh}}

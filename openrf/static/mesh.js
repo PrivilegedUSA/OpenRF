@@ -1,10 +1,40 @@
 'use strict';
-/* v0.2.75: no fake mesh nodes, no background connections or transmission.
-   A real USB Meshtastic radio is required; storage is opt-in local SQLite. */
+/* v0.2.77: independent message workspace and local unread indicator.
+   No fake nodes, background connections or transmissions; storage is opt-in. */
 (() => {
   const el=id=>document.getElementById(id);
   if(!el('mesh-panel'))return;
-  const state={connected:false,mode:'normal',busy:false,polling:false};
+  const state={connected:false,mode:'normal',busy:false,polling:false,
+    receiveSequence:null,unread:0};
+  const viewingMessages=()=>Boolean(el('page-messages')?.classList.contains('active'));
+  function renderUnread(){
+    const count=state.unread,display=count>99?'99+':String(count);
+    for(const id of ['mesh-header-unread','mesh-nav-unread']){
+      const badge=el(id);if(!badge)continue;
+      badge.hidden=count===0;badge.textContent=display;
+    }
+    const header=el('mesh-header-button');
+    header.setAttribute('aria-label',count?`Open mesh messages, ${count} unread`:'Open mesh messages');
+    header.title=count?`${count} unread mesh message${count===1?'':'s'}`:'Open mesh messages';
+  }
+  function trackInbox(result){
+    // The server counts *genuine inbound events*, not sent texts or old saved
+    // rows. Establish a baseline on first load so historical chat is not new.
+    const sequence=result?.receive_sequence;
+    if(Number.isSafeInteger(sequence)&&sequence>=0){
+      if(state.receiveSequence!==null && sequence>state.receiveSequence && !viewingMessages()){
+        const newlyReceived=sequence-state.receiveSequence;
+        state.unread+=newlyReceived;
+        // Keep driving/map view quiet: visible badge only, no live-region
+        // announcement competing with safety-critical navigation prompts.
+        if(!document.body.classList.contains('map-workspace'))
+          el('mesh-global-announcer').textContent=`${newlyReceived} new mesh message${newlyReceived===1?'':'s'} received. Open Messages to read.`;
+      }
+      state.receiveSequence=sequence;
+    }
+    if(viewingMessages())state.unread=0;
+    renderUnread();
+  }
   const note=(text,error=false)=>{
     const node=el('mesh-status');node.textContent=text;node.classList.toggle('error',error);
   };
@@ -96,7 +126,11 @@
   async function loadMessages(){
     if(state.polling)return;
     state.polling=true;
-    try{const result=await request('/api/mesh/messages');renderMessages(result.messages);}
+    try{
+      const result=await request('/api/mesh/messages');
+      trackInbox(result);
+      if(viewingMessages())renderMessages(result.messages);
+    }
     catch(error){note(error.message,true);}
     finally{state.polling=false;}
   }
@@ -120,7 +154,7 @@
   el('mesh-clear-history').addEventListener('click',async ()=>{
     if(!window.confirm('Clear all session and saved mesh messages on this device?'))return;
     const result=await run({},'/api/mesh/history/clear');
-    if(result)note('Mesh message history cleared.');
+    if(result){state.unread=0;renderUnread();note('Mesh message history cleared.');}
   });
   el('mesh-serial').addEventListener('change',renderButtons);
   el('mesh-connect').addEventListener('click',()=>run({port:el('mesh-serial').value},'/api/mesh/connect'));
@@ -141,11 +175,14 @@
       note('Message submitted to the USB radio. Recipient delivery is NOT confirmed.');
     }
   });
-  document.addEventListener('openrf:radio-shown',refresh);
-  // Poll the in-memory inbox only while the user views Radio with an explicitly
-  // connected node; never trigger radio discovery or RF transmissions.
+  document.addEventListener('openrf:messages-shown',refresh);
+  // A read-only inbox poll continues across pages, so the header can indicate
+  // real incoming texts without an open message page. No auto-connection,
+  // radio scanning or transmission is initiated by this timer.
   setInterval(()=>{
-    if(state.connected&&!state.busy&&el('page-radio')?.classList.contains('active'))loadMessages();
+    if(state.connected&&!state.busy)loadMessages();
   },4000);
   renderButtons();
+  renderUnread();
+  refresh();
 })();

@@ -118,6 +118,9 @@ class MeshManager:
         self._port = None
         self._generation = 0
         self._messages = deque(maxlen=100)
+        # Monotonic since server startup, even if the bounded inbox rolls over.
+        # Used only for opt-in UI unread indicators; it reveals no message body.
+        self._receive_sequence = 0
         self._last_error = None
         self._closed = False
         self._history_path = Path(history_path) if history_path else None
@@ -227,8 +230,10 @@ class MeshManager:
                 messages = [dict(direction=r[0], node=r[1], channel=r[2], text=r[3],
                                  received_at_utc=r[4], source=r[5], delivery=r[6], packet_id=r[7])
                             for r in reversed(rows)]
-                return {'messages': messages, 'storage': 'LOCAL_SQLITE_OPT_IN', 'retained_limit': 1000}
-            return {'messages': list(self._messages), 'storage': 'MEMORY_ONLY', 'retained_limit': 100}
+                return {'messages': messages, 'storage': 'LOCAL_SQLITE_OPT_IN', 'retained_limit': 1000,
+                        'receive_sequence': self._receive_sequence}
+            return {'messages': list(self._messages), 'storage': 'MEMORY_ONLY', 'retained_limit': 100,
+                    'receive_sequence': self._receive_sequence}
 
     def _receive(self, packet, generation):
         if not isinstance(packet, dict):
@@ -253,6 +258,7 @@ class MeshManager:
         with self._lock:
             if generation != self._generation or self._state != 'CONNECTED':
                 return
+            self._receive_sequence += 1
             self._append({'direction': 'IN', 'text': text, 'node': sender,
                                    'channel': channel, 'received_at_utc': _utc_now(),
                                    'source': 'MESHTASTIC_RADIO',

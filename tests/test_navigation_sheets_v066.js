@@ -21,5 +21,5 @@ assert(css.includes('#page-map .map-directions-review[open] {\n  max-height:min(
 assert(css.includes('#page-map .map-directions-review > .map-directions-body {\n  overflow:visible;'),'No second scroll within turns');
 assert(js.includes('function updateDirectionsStickyOffset()'),'Dynamic sticky header supports wrapped summaries');
 assert(js.includes("new ResizeObserver(updateDirectionsStickyOffset).observe($('map-directions-summary'))"),'Dynamic resize updates sticky offset');
-assert(html.includes('FIELD CONSOLE · 0.2.76'),'Version updated');
+assert(html.includes('FIELD CONSOLE · 0.2.77'),'Version updated');
 console.log('PASS v0.2.76 aligned navigation sheets, fixed exports and single scroll area');

@@ -34,6 +34,8 @@ Official references:
 
 ## v0.2.76 conversations and local history
 
+**v0.2.77 interface update:** Use the standalone **Messages** page to read conversations and compose a text. Open **USB radio connection & relay settings** to select and connect a Linux-visible Meshtastic node; open **Message storage & privacy** to opt into local history. A small message icon in the header and sidebar shows a session-only unread count of new incoming texts while you are on other pages. The count uses the local HTTP inbox after explicit USB connection, never browser push or automatic radio transmission. Opening Messages marks those texts read. Old history is not counted as new.
+
 The Radio page now offers a **Conversation** filter, grouped by source/destination
 node ID and channel index. Tap **Reply to this node** on a real received
 message to fill the destination and channel fields. This does **not** send

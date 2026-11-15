@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.76">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.77">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -17,23 +17,25 @@
   <script defer src="/static/route_guidance.js?v=0.2.76"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/app.js?v=0.2.76"></script>
+  <script defer src="/static/app.js?v=0.2.77"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.76"></script>
+  <script defer src="/static/mesh.js?v=0.2.77"></script>
   <script defer src="/static/camera-layers.js?v=0.2.76"></script>
-  <script defer src="/static/chirp-import.js?v=0.2.76"></script>
+  <script defer src="/static/chirp-import.js?v=0.2.77"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.76</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.77</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
         <button class="nav-btn" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
         <button class="nav-btn" data-page="scanner"><span class="nav-icon" aria-hidden="true">≋</span><span class="nav-label">Analysis</span></button>
         <button class="nav-btn" data-page="spectrum"><span class="nav-icon" aria-hidden="true">▥</span><span class="nav-label">Spectrum</span></button>
-        <button class="nav-btn" data-page="radio"><span class="nav-icon" aria-hidden="true">◉</span><span class="nav-label">Radio</span></button>
+        <button class="nav-btn" data-page="radio"><span class="nav-icon" aria-hidden="true">◉</span><span class="nav-label">Radio Receiver</span></button>
+        <button class="nav-btn" data-page="messages"><span class="nav-icon" aria-hidden="true">✉</span><span class="nav-label">Messages</span><span class="mesh-unread-badge mesh-nav-unread" id="mesh-nav-unread" hidden>0</span></button>
+        <button class="nav-btn" data-page="hamradio"><span class="nav-icon" aria-hidden="true">♫</span><span class="nav-label">Ham Radio</span></button>
         <button class="nav-btn" data-page="discoveries"><span class="nav-icon" aria-hidden="true">◈</span><span class="nav-label">Saved</span></button>
         <button class="nav-btn" data-page="sessions"><span class="nav-icon" aria-hidden="true">◷</span><span class="nav-label">Sessions</span></button>
         <button class="nav-btn" data-page="hardware"><span class="nav-icon" aria-hidden="true">▤</span><span class="nav-label">Hardware</span></button>
@@ -46,7 +48,7 @@
     </aside>
     <button id="menu-backdrop" class="menu-backdrop" type="button" aria-label="Close navigation menu" hidden></button>
     <main class="main">
-      <header class="topbar"><div class="topbar-heading"><div><div class="eyebrow">OPENRF / <span id="page-crumb">OVERVIEW</span></div><h1 id="page-title">Field overview</h1></div></div><div class="top-right"><span id="runtime-pill" class="pill">LINUX</span><span class="pill green">OFFLINE DATA</span></div><button type="button" id="menu-toggle" class="menu-toggle" aria-label="Open navigation menu" aria-controls="main-sidebar" aria-expanded="false"><span aria-hidden="true">☰</span></button></header>
+      <header class="topbar"><div class="topbar-heading"><div><div class="eyebrow">OPENRF / <span id="page-crumb">OVERVIEW</span></div><h1 id="page-title">Field overview</h1></div></div><div class="top-right"><span id="runtime-pill" class="pill">LINUX</span><span class="pill green">OFFLINE DATA</span></div><button type="button" class="messages-header-button" id="mesh-header-button" data-jump="messages" aria-label="Open mesh messages" title="Open mesh messages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.7 8.7 0 0 1-3.6-.8L3 21l1.9-5.7a8.5 8.5 0 1 1 16.1-3.8Z"/><path d="M8 11h8M8 15h5"/></svg><span class="mesh-unread-badge" id="mesh-header-unread" hidden>0</span></button><span id="mesh-global-announcer" class="visually-hidden" aria-live="polite" aria-atomic="true"></span><button type="button" id="menu-toggle" class="menu-toggle" aria-label="Open navigation menu" aria-controls="main-sidebar" aria-expanded="false"><span aria-hidden="true">☰</span></button></header>
       <div id="flash" class="flash" role="status" aria-live="polite" hidden></div>
       <section class="page active" id="page-overview">
         <div class="hero"><div><div class="eyebrow accent">OPEN SOURCE RF FIELD PLATFORM</div><h2>Investigate the invisible.<br><em>Document what you can verify.</em></h2><p>Run locally on WSL now. Move the same backend to a Raspberry Pi later. No imaginary detections—every record retains its evidence source.</p><div class="actions"><button class="btn primary" data-jump="map">Open survey map</button><button class="btn ghost" data-jump="hardware">View sensor capabilities</button></div></div><div class="hero-graphic" aria-hidden="true"><div class="radar-ring r1"></div><div class="radar-ring r2"></div><div class="radar-ring r3"></div><div class="radar-cross h"></div><div class="radar-cross v"></div><div class="center-dot"></div></div></div>
@@ -454,16 +456,20 @@
           <p id="radio-state" class="small muted" role="status" aria-live="polite">Not checked. No receiver started.</p>
           <div id="radio-playback" hidden><label for="radio-player" class="fieldlabel">Received audio · captured sample, not live</label><audio id="radio-player" controls preload="none" aria-label="Listen to the last bounded RTL-SDR reception sample"></audio><p class="small muted">Audio is temporarily held in the local server's memory and replaced by the next sample or server restart; no automatic audio archive or upload.</p></div>
         </div>
+        <div class="panel"><h3>Linux receiver setup</h3><p class="small muted">Install the optional <code>rtl-sdr</code> utilities (for example <code>sudo apt install rtl-sdr</code> on Ubuntu), connect a compatible receive-only RTL-SDR and antenna, then test USB access in the same Ubuntu environment. WSL often requires explicit USB passthrough; the Windows built-in radio is not shared automatically.</p><p class="small muted">Short samples play only after recording completes. This version does not offer continuous live listening, scanning presets, transmitter controls, voice identification, audio logging or a promise of a received signal.</p><div class="button-line"><button class="btn outline" data-jump="hardware" type="button">Hardware readiness</button><button class="btn outline" data-jump="spectrum" type="button">Open Spectrum</button><button class="btn outline" data-jump="hamradio" type="button">Ham Radio channel lists</button></div></div>
+      </section>
+      <section class="page" id="page-messages" aria-label="LoRa mesh messages and conversations">
+        <div class="section-heading"><div><h2>Messages</h2><p>Local-first Meshtastic texts and conversations. No internet connection or account is required.</p></div><span class="pill">MESH · USB RADIO</span></div>
         <div class="panel mesh-panel" id="mesh-panel" aria-label="LoRa mesh messaging">
-          <div class="panel-title"><h3>LoRa mesh messaging</h3><span class="pill" id="mesh-link-badge">NOT CONNECTED</span></div>
-          <p class="small muted">Optional Meshtastic USB radio required; OpenRF does not supply a LoRa transmitter. Connect a node explicitly to send or receive text over its configured channels. Messages stay in memory unless you explicitly enable private local history. No accounts, cloud relay or GPS collection.</p>
-          <div class="mesh-control-grid">
-            <label for="mesh-serial">Linux USB port<select id="mesh-serial" class="field"><option value="">No USB node detected</option></select></label>
-            <label for="mesh-mode">OpenRF operating mode<select id="mesh-mode" class="field"><option value="normal">Normal · text and automatic radio relay</option><option value="relay_only">Relay-focused · disable text sending</option></select></label>
-          </div>
-          <div class="button-line mesh-actions"><button type="button" id="mesh-connect" class="btn primary" disabled>Connect USB node</button><button type="button" id="mesh-disconnect" class="btn outline" disabled>Disconnect</button><button type="button" id="mesh-set-mode" class="btn outline">Apply OpenRF mode</button><button type="button" id="mesh-refresh" class="btn outline">Refresh</button></div>
-          <p class="small" id="mesh-status" role="status" aria-live="polite">No mesh node connected. No transmission has been attempted.</p>
-          <p class="small muted">An ordinary Meshtastic <strong>CLIENT</strong> radio already rebroadcasts when appropriate. <strong>Relay-focused</strong> mode disables sending from this OpenRF screen; it does <em>not</em> change the radio firmware role or guarantee repeater coverage. The old Meshtastic REPEATER role is deprecated; infrastructure routing roles require deliberate site-specific configuration and testing.</p>
+          <div class="panel-title"><h3>Mesh conversations</h3><span class="pill" id="mesh-link-badge">NOT CONNECTED</span></div>
+          <p id="mesh-status" class="small" role="status" aria-live="polite">No mesh node connected. No transmission has been attempted.</p>
+          <p class="small muted">Messages are from a connected Meshtastic USB radio only. Sending requires your action; received-node identity is unverified. There are no simulated chats or automatic network connections.</p>
+          <div class="mesh-inbox-header"><h4>Inbox</h4><span class="small muted" id="mesh-storage-label">Session · last 100</span></div>
+          <label class="mesh-conversation-select">Conversation
+            <select class="field" id="mesh-conversation"><option value="all">All messages</option></select>
+          </label>
+          <div id="mesh-messages" class="mesh-messages" role="log" aria-label="Received and submitted mesh text messages"><p class="small muted">No real mesh messages. Connect a compatible node to begin.</p></div>
+          <div class="mesh-inbox-header"><h4>Write a message</h4><span class="small muted">Direct node or channel broadcast</span></div>
           <form id="mesh-compose" class="mesh-compose">
             <div class="mesh-control-grid">
               <label for="mesh-destination">Destination node<input id="mesh-destination" class="field" type="text" value="^all" maxlength="9" autocomplete="off" spellcheck="false" aria-describedby="mesh-destination-help"></label>
@@ -473,17 +479,28 @@
             <label for="mesh-text">Message<textarea id="mesh-text" class="field" rows="3" maxlength="180" placeholder="Type a short mesh message…" required></textarea></label>
             <div class="button-line"><button id="mesh-send" class="btn primary" type="submit" disabled>Send via connected radio</button><span class="small muted">Maximum 180 UTF-8 bytes. Submitting to the radio does not prove recipient delivery.</span></div>
           </form>
+          <details class="mesh-device-settings" id="mesh-device-settings">
+            <summary>USB radio connection &amp; relay settings</summary>
+            <p class="small muted">Connect a compatible Meshtastic USB node explicitly. OpenRF does not supply a transmitter. Normal mode lets you compose text; relay-focused mode disables sending on this screen.</p>
+          <div class="mesh-control-grid">
+            <label for="mesh-serial">Linux USB port<select id="mesh-serial" class="field"><option value="">No USB node detected</option></select></label>
+            <label for="mesh-mode">OpenRF operating mode<select id="mesh-mode" class="field"><option value="normal">Normal · text and automatic radio relay</option><option value="relay_only">Relay-focused · disable text sending</option></select></label>
+          </div>
+          <div class="button-line mesh-actions"><button type="button" id="mesh-connect" class="btn primary" disabled>Connect USB node</button><button type="button" id="mesh-disconnect" class="btn outline" disabled>Disconnect</button><button type="button" id="mesh-set-mode" class="btn outline">Apply OpenRF mode</button><button type="button" id="mesh-refresh" class="btn outline">Refresh</button></div>
+          <p class="small muted">An ordinary Meshtastic <strong>CLIENT</strong> radio already rebroadcasts when appropriate. <strong>Relay-focused</strong> mode disables sending from this OpenRF screen; it does <em>not</em> change the radio firmware role or guarantee repeater coverage. The old Meshtastic REPEATER role is deprecated; infrastructure routing roles require deliberate site-specific configuration and testing.</p>
+          </details>
+          <details class="mesh-device-settings mesh-history-settings">
+            <summary>Message storage &amp; privacy</summary>
           <div class="mesh-history-controls">
             <label><input id="mesh-save-history" type="checkbox"> Save message history locally (opt-in)</label>
             <button id="mesh-clear-history" class="btn outline" type="button">Clear messages</button>
           </div>
           <p class="small muted">Saved text remains on this device outside Git, is not encrypted at rest, and can be erased here. Disabling saving removes the saved messages. No messages are generated without a connected radio.</p>
-          <div class="mesh-inbox-header"><h4>Mesh conversations</h4><span class="small muted" id="mesh-storage-label">Session · last 100</span></div>
-          <label class="mesh-conversation-select">Conversation
-            <select class="field" id="mesh-conversation"><option value="all">All messages</option></select>
-          </label>
-          <div id="mesh-messages" class="mesh-messages" role="log" aria-label="Received and submitted mesh text messages"><p class="small muted">No real mesh messages. Connect a compatible node to begin.</p></div>
+          </details>
         </div>
+      </section>
+      <section class="page" id="page-hamradio" aria-label="Ham radio channel memories">
+        <div class="section-heading"><div><h2>Ham Radio</h2><p>Import and review offline CHIRP channel profiles. RF transmission and live radio control are not implemented.</p></div><span class="pill">LOCAL · READ ONLY</span></div>
         <div class="panel radio-chirp-panel">
           <div class="panel-title"><h3>My Baofeng channel lists</h3><span class="pill">CHIRP CSV · IMPORT ONLY</span></div>
           <p class="small muted">Use your existing UV-5R or BF-F8HP programming cable with CHIRP (typically on Windows), download memories from the radio, and export to CSV. Import the file here; OpenRF saves a local offline copy and NEVER writes to the radio or transmits. A programming cable does not carry listening audio.</p>
@@ -496,7 +513,7 @@
           <p id="chirp-status" class="small muted" role="status" aria-live="polite">No radio connection attempted. No channel list imported.</p>
           <div id="chirp-profiles" class="chirp-profiles"></div>
         </div>
-        <div class="panel"><h3>Linux receiver setup</h3><p class="small muted">Install the optional <code>rtl-sdr</code> utilities (for example <code>sudo apt install rtl-sdr</code> on Ubuntu), connect a compatible receive-only RTL-SDR and antenna, then test USB access in the same Ubuntu environment. WSL often requires explicit USB passthrough; the Windows built-in radio is not shared automatically.</p><p class="small muted">Short samples play only after recording completes. This version does not offer continuous live listening, scanning presets, transmitter controls, voice identification, audio logging or a promise of a received signal.</p><div class="button-line"><button class="btn outline" data-jump="hardware" type="button">Hardware readiness</button><button class="btn outline" data-jump="spectrum" type="button">Open Spectrum</button></div></div>
+        <div class="panel"><h3>Radio tools</h3><p class="small muted">This page manages imported channel lists only. To tune and listen to short samples from a separate RTL-SDR receiver, open Radio Receiver. OpenRF does not control a handheld ham transmitter, program a Baofeng directly, or automatically transmit.</p><div class="button-line"><button class="btn outline" data-jump="radio" type="button">Radio Receiver</button><button class="btn outline" data-jump="hardware" type="button">Hardware readiness</button></div></div>
       </section>
       <section class="page" id="page-sessions"><div class="section-heading"><div><h2>Field surveys &amp; investigations</h2><p>Plan a receiver, save individual observations, and review the evidence collected. No automatic RF recording.</p></div><button id="new-session" class="btn primary">+ Start field survey</button></div>
         <section class="panel field-survey-active" aria-label="Active field survey"><div class="panel-title"><h3>Current field survey</h3><span id="field-active-state" class="pill">NONE ACTIVE</span></div><div id="field-active-summary" role="status" aria-live="polite"><p class="muted small">No field survey is currently active. Start one to associate explicitly saved observations with your chosen investigation.</p></div><div class="button-line" id="field-action-row" hidden><button class="btn primary" type="button" id="field-open-receiver">Open receiver workspace</button><button class="btn outline" type="button" id="field-open-map">Survey map</button><button class="btn outline" type="button" id="field-edit-plan">Edit survey plan</button><button class="btn outline" type="button" id="field-add-observation">Manual observation</button></div><p class="muted small">A planned receiver is a workflow preference only. Hardware capability is checked separately. Scanning, saving and attaching observer coordinates each require explicit action.</p></section>

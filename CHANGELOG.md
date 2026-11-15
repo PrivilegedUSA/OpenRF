@@ -608,3 +608,11 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 
 ---
 
+## v0.2.77 — Dedicated messaging workspace, unread indicator and Ham Radio page (2026-11-15)
+
+- Split the former long Radio workspace into **Radio Receiver** (RTL-SDR receive-only samples), **Messages** (Meshtastic conversations, composing, opt-in private history and explicit USB/relay settings), and **Ham Radio** (read-only imported CHIRP channel lists).
+- Add a compact Messages button in the header (including the map workspace) and sidebar with an unread count of new, genuine inbound text events. Reading Messages clears the count. Poll the existing local, read-only inbox every four seconds only after a node has been explicitly connected. No radio discovery, automatic connection, transmission, browser push notification or location logging.
+- Introduce a monotonic in-memory receive sequence for reliable unread deltas even when the bounded chat list rolls over; old saved history and submitted outgoing texts are not counted. The unread badge is session-only and resets on browser refresh. Messages and source identity remain unverified until actual hardware testing.
+- Separate USB device/relay settings and message storage into expandable panels, and keep conversation history above the compose form on small screens. CHIRP's “Copy to RTL-SDR tuner” opens the actual receiver page after pre-filling its frequency.
+- Preserve offline navigation, camera alerts, radio sample APIs, Meshtastic firmware role boundaries, existing local-data privacy and full package structure. No schema migration, new dependencies or demonstrated live RF activity. Python/JS synthetic regression suites cover receipt counting and page separation; real Pi/LoRa device behavior remains untested.
+

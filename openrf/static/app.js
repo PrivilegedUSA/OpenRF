@@ -295,10 +295,11 @@ function showPage(page, options = {}) {
   }
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.toggle('active', el.dataset.page === page));
   document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === `page-${page}`));
-  const titles = {overview:'Field overview',map:'Survey map',scanner:'Signal analysis',spectrum:'Spectrum workspace',radio:'Radio receiver',discoveries:'Saved discoveries',sessions:'Investigations',hardware:'Hardware manager'};
+  const titles = {overview:'Field overview',map:'Survey map',scanner:'Signal analysis',spectrum:'Spectrum workspace',radio:'Radio receiver',messages:'Mesh messages',hamradio:'Ham radio channel lists',discoveries:'Saved discoveries',sessions:'Investigations',hardware:'Hardware manager'};
   $('page-title').textContent = titles[page] || 'OpenRF'; $('page-crumb').textContent = page.toUpperCase();
   if (page === 'spectrum') document.dispatchEvent(new Event('openrf:spectrum-shown'));
   if (page === 'radio') document.dispatchEvent(new Event('openrf:radio-shown'));
+  if (page === 'messages') document.dispatchEvent(new Event('openrf:messages-shown'));
   if (page === 'map') { startMap(); if (options.autoLocate !== false) locateMap(false); renderMapSurveyPanel(); setTimeout(() => { state.map?.resize(); state.rasterMap?.resize(); }, 80); }
   window.scrollTo(0, 0);
 }

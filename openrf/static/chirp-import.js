@@ -24,7 +24,11 @@
           const tune=document.createElement('button');tune.type='button';tune.className='btn mini outline';tune.textContent='Copy to RTL-SDR tuner';
           tune.title='Fill the separate receive-only RTL-SDR frequency form; does not tune Baofeng';
           tune.addEventListener('click',()=>{get('radio-frequency').value=channel.frequency_mhz;get('radio-mode').value='nfm';
-            setStatus(`Loaded ${channel.frequency_mhz.toFixed(5)} MHz into the RTL-SDR form only. Your Baofeng was not controlled.`);});
+            setStatus(`Loaded ${channel.frequency_mhz.toFixed(5)} MHz into the RTL-SDR form only. Your Baofeng was not controlled.`);
+            // Ham Radio now has its own page; reveal the receive-only tuner.
+            document.querySelector('.nav-btn[data-page="radio"]')?.click();
+            get('radio-frequency').focus({preventScroll:true});
+          });
           row.append(desc,tune);rows.append(row);
         }
         details.append(rows);
