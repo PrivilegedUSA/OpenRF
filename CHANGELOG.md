@@ -616,3 +616,10 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Separate USB device/relay settings and message storage into expandable panels, and keep conversation history above the compose form on small screens. CHIRP's “Copy to RTL-SDR tuner” opens the actual receiver page after pre-filling its frequency.
 - Preserve offline navigation, camera alerts, radio sample APIs, Meshtastic firmware role boundaries, existing local-data privacy and full package structure. No schema migration, new dependencies or demonstrated live RF activity. Python/JS synthetic regression suites cover receipt counting and page separation; real Pi/LoRa device behavior remains untested.
 
+## v0.2.78 — Borderless header controls and centered sidebar close (2026-11-15)
+
+- Remove the visible border/background box from header Messages and menu icons on ordinary pages. Preserve touch-friendly button targets and visible hover/focus behavior.
+- Hide the Messages header shortcut only in Map workspace to minimize distractions; the sidebar Messages entry and genuine unread count are unchanged. The map hamburger stays accessible over map imagery with a subtle borderless contrast surface.
+- Replace the sidebar menu close X text glyph with a true centered SVG cross. Remove its border/background, preserve its accessibility label and interaction.
+- No navigation, Meshtastic, radio, backend, persistence or hardware behavior changes; no database migration. UI regression coverage added. Real 5-inch device appearance remains to be checked after installing.
+

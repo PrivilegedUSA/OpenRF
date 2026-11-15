@@ -1,4 +1,8 @@
-# OpenRF v0.2.77 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.78 — Offline-First Navigation and RF Toolkit
+
+## v0.2.78 — Header and sidebar icon polish
+
+The header's **Messages** and hamburger buttons now have clean borderless styling on ordinary pages. On **Map**, the Messages shortcut is hidden to keep the navigation view uncluttered; the Messages sidebar entry and its unread badge remain available from the menu. The map hamburger remains readable without a border. The sidebar close X is now a centered vector icon with a borderless button, preserving its original tap target and keyboard accessibility. No route, radio or message-handling behavior has changed. See `docs/RELEASE_0.2.78_TESTS.md`.
 
 ## v0.2.77 — Dedicated messaging and separated radio tools
 

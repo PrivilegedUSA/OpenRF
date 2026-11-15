@@ -1536,3 +1536,32 @@ body.map-workspace .topbar .messages-header-button svg{width:25px;height:25px}
 #page-messages .mesh-device-settings[open] summary{margin-bottom:10px}
 #page-messages .mesh-device-settings:not([open])>*:not(summary){display:none!important}
 @media(max-width:650px){#page-messages .mesh-control-grid{grid-template-columns:1fr}#page-messages .mesh-actions .btn{flex:1 1 auto}#page-messages .mesh-panel{padding:12px}#page-messages .mesh-messages{max-height:34dvh}}
+
+/* v0.2.78 — quiet, borderless header actions and a centered sidebar close X. */
+.topbar .menu-toggle,
+.topbar .messages-header-button{
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  border-radius:9px;
+  padding:0;
+}
+.topbar .menu-toggle:hover,
+.topbar .messages-header-button:hover{background:#1a414b!important}
+/* Keep the map focused: the Messages entry stays available in the sidebar. */
+body.map-workspace .topbar #mesh-header-button{display:none!important}
+/* The map menu remains legible over mixed map imagery, with no visible border. */
+body.map-workspace .topbar .menu-toggle{border:0!important;box-shadow:none!important;background:#0c2833d9!important}
+body.map-workspace .topbar .menu-toggle:hover{background:#20505a!important}
+.sidebar .menu-close{
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  display:grid;
+  place-items:center;
+  padding:0;
+  font-size:0;
+  line-height:0;
+}
+.sidebar .menu-close svg{display:block;width:22px;height:22px;flex:none}
+.sidebar .menu-close:hover{background:#173640!important}

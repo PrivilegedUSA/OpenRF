@@ -1,0 +1,18 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const html=fs.readFileSync('openrf/static/index.html','utf8');
+const css=fs.readFileSync('openrf/static/app.css','utf8');
+assert(html.includes('FIELD CONSOLE · 0.2.78'));
+assert(html.includes('/static/app.css?v=0.2.78'));
+assert(html.includes('id="mesh-header-button"') && html.includes('id="mesh-header-unread"'));
+assert(html.includes('id="menu-toggle"') && html.includes('id="menu-close"'));
+const close=html.match(/<button[^>]*id="menu-close"[^>]*>([\s\S]*?)<\/button>/)?.[1]||'';
+assert(close.includes('<svg')&&close.includes('M5 5 19 19M19 5 5 19'),'Vector close X');
+assert(!close.includes('>×<'),'No font-metric-dependent close glyph');
+assert(css.includes('body.map-workspace .topbar #mesh-header-button{display:none!important}'));
+assert(/\.topbar \.menu-toggle,\s*\.topbar \.messages-header-button\s*\{\s*border:0!important;/.test(css),'Borderless header controls');
+assert(/\.sidebar \.menu-close\s*\{[\s\S]*?border:0!important;[\s\S]*?place-items:center;/.test(css),'Centered borderless sidebar close');
+assert(css.includes('.sidebar .menu-close svg{display:block;width:22px;height:22px'));
+assert(html.includes('data-page="messages"'),'Sidebar Messages entry preserved');
+console.log('PASS v0.2.78 borderless header, hidden map messaging icon and centered close X');
