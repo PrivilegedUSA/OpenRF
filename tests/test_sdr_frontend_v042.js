@@ -44,7 +44,7 @@ assert.equal(demo.stored, false);
 assert(demo.frames[0].bins.some(b => b.db > -75));
 assert(html.includes('data-page="spectrum"') && html.includes('id="sdr-local-file"') && html.includes('id="sdr-demo"'));
 assert(html.includes('id="sdr-spectrum"') && html.includes('id="sdr-waterfall"') && html.includes('id="sdr-frame-slider"'));
-assert(html.includes('id="sdr-clear"') && html.includes('/static/spectrum.js?v=0.2.72'));
+assert(html.includes('id="sdr-clear"') && html.includes('/static/spectrum.js?v=0.2.73'));
 assert(app.includes("document.dispatchEvent(new Event('openrf:spectrum-shown'))"));
 assert(js.includes('await file.text()') && !js.includes("fetch('/api/sdr/upload") && !js.includes('localStorage'));
 assert(js.includes('not calibrated dBm') || html.includes('not calibrated dBm'));

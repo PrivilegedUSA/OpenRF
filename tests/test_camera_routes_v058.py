@@ -34,6 +34,16 @@ class RouteCameras(unittest.TestCase):
         self.assertEqual(camera_routes.route_cameras(self.repo,self.road,['ALPR'])['count'],1)
         self.assertFalse(result['incomplete'])
 
+    def test_route_catalog_exposes_more_than_24_for_approach_alerts(self):
+        # Previously only 24 records were available to the browser, which
+        # meant later reports could never produce approach warnings.
+        for i in range(28):
+            self.add(38.4002,-120.698+i*0.001)
+        result=camera_routes.route_cameras(self.repo,self.road)
+        self.assertEqual(result['count'],28)
+        self.assertEqual(len(result['sites']),28)
+        self.assertFalse(result['incomplete'])
+
     def test_alternate_requested_only_with_exclusions_and_never_automatically_used(self):
         self.add(38.4002,-120.68)
         alt={**self.road,'coordinates':[[ -120.70,38.40],[-120.695,38.407],[-120.685,38.407],[-120.66,38.40]],

@@ -10,7 +10,10 @@ from . import camera_catalog
 from .routing import local_route, RouteError, RouteUnavailable, route_preferences
 
 RADIUS_M = 120
-MAX_DISPLAY = 24
+# Full per-route camera catalog for client-side approach checks. Still bounded,
+# route-local and sourced from the private offline camera database. A truncated
+# response explicitly marks alerts incomplete; no live GPS location is sent.
+MAX_DISPLAY = 256
 MAX_EXCLUSIONS = 8
 
 

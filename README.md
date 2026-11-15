@@ -1,4 +1,8 @@
-# OpenRF v0.2.72 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.73 — Offline-First Navigation and RF Toolkit
+
+## v0.2.73 — Offline mapped-camera approach alerts
+
+During explicitly started **real GPS navigation**, OpenRF can show a compact warning when you approach a locally stored ALPR, speed-camera or red-light-camera *report* near your selected Valhalla road. Open **Navigation & route preferences → Camera approach alerts** to switch categories on/off, choose 0.25, 0.5 or 1-mile notice distance, and optionally enable spoken alerts (off by default). Choices persist on this browser. Visual alerts default on, but require a fresh, accurate, moving and route-aligned GPS fix; they remain off for DEMO playback and when location quality or direction is unreliable. Each site is announced at most once per navigation session, and speech is suppressed close to a turn. This works with the local, offline camera catalog and does not log GPS history, send positions to third parties, or claim to detect a live camera. Up to 256 mapped reports per route can be considered; missing/dated records and uncertain camera direction are explicitly acknowledged. See `docs/RELEASE_0.2.73_TESTS.md`.
 
 ## v0.2.72 — Keep the route until a replacement is selected
 
@@ -85,7 +89,7 @@ OpenRF is a local-first, open-source RF and geographic investigation platform in
 
 ## Install/update via the existing Windows updater
 
-1. Download `OpenRF-v0.2.72.zip` into Windows Downloads.
+1. Download `OpenRF-v0.2.73.zip` into Windows Downloads.
 2. In PowerShell (from any folder), run:
 
    ```powershell

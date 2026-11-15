@@ -6,24 +6,25 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.72">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.73">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
-  <script defer src="/static/spectrum-analysis.js?v=0.2.72"></script>
-  <script defer src="/static/spectrum.js?v=0.2.72"></script>
-  <script defer src="/static/sdr-history.js?v=0.2.72"></script>
-  <script defer src="/static/survey_map.js?v=0.2.72"></script>
-  <script defer src="/static/navigation.js?v=0.2.72"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.72"></script>
-  <script defer src="/static/app.js?v=0.2.72"></script>
-  <script defer src="/static/radio.js?v=0.2.72"></script>
-  <script defer src="/static/camera-layers.js?v=0.2.72"></script>
-  <script defer src="/static/chirp-import.js?v=0.2.72"></script>
+  <script defer src="/static/spectrum-analysis.js?v=0.2.73"></script>
+  <script defer src="/static/spectrum.js?v=0.2.73"></script>
+  <script defer src="/static/sdr-history.js?v=0.2.73"></script>
+  <script defer src="/static/survey_map.js?v=0.2.73"></script>
+  <script defer src="/static/navigation.js?v=0.2.73"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.73"></script>
+  <script defer src="/static/camera_alerts.js?v=0.2.73"></script>
+  <script defer src="/static/app.js?v=0.2.73"></script>
+  <script defer src="/static/radio.js?v=0.2.73"></script>
+  <script defer src="/static/camera-layers.js?v=0.2.73"></script>
+  <script defer src="/static/chirp-import.js?v=0.2.73"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.72</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.73</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu">×</button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -82,6 +83,19 @@
     <div id="route-road-list" aria-label="Chosen road exclusions"></div>
   </details>
 </div>
+<details class="camera-approach-settings" id="camera-approach-settings">
+  <summary>Camera approach alerts <span id="camera-alert-settings-summary">On · 0.5 mi</span></summary>
+  <label><input id="camera-alert-enable" type="checkbox" checked> Visual warnings during real GPS navigation</label>
+  <div class="camera-alert-types" role="group" aria-label="Camera report categories for approach alerts">
+    <label><input data-camera-alert-type="ALPR" type="checkbox" checked> ALPR / Flock</label>
+    <label><input data-camera-alert-type="SPEED" type="checkbox" checked> Speed cameras</label>
+    <label><input data-camera-alert-type="RED_LIGHT" type="checkbox" checked> Red-light cameras</label>
+  </div>
+  <label for="camera-alert-distance">Warn at</label>
+  <select id="camera-alert-distance" class="field"><option value="0.25">0.25 mile</option><option value="0.5" selected>0.5 mile</option><option value="1">1 mile</option></select>
+  <label><input id="camera-alert-voice" type="checkbox"> Speak camera alerts (off by default)</label>
+  <p class="small muted">Alerts use locally saved camera reports near your planned road, not live detections. Direction of operation is usually unknown. Reports and route coverage may be incomplete. Requires fresh, accurate, moving GPS fixes; no position history is saved.</p>
+</details>
 <details class="map-address-advanced" id="map-address-advanced"><summary>Address search and provider settings</summary>
 <div class="map-navigation-options-inner">
           <label class="map-online-address"><input type="checkbox" id="map-online-address"><span>Online U.S. address search</span><small>When enabled, typed addresses are sent to your selected geocoder (MapTiler when configured, otherwise public Photon/Census). Your GPS coordinates are never sent. Disable here to search local saved places only.</small></label>

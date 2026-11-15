@@ -7,6 +7,10 @@ const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
 const state = { observations: [], sessions: [], waypoints: [], sdrSites: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, hardwareManager: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navVoiceEnabled:false, navVoiceMemory:null, navVoiceFailed:false, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, navFollowCameraSuspended:false, navFollowLastPosition:null,navCameraAvoidTypes:null,navCameraComparison:null,navCameraRouteEpoch:0,navCameraReport:null,navCameraPanelOpen:false,navRouteChoices:null,navChoiceSelection:"standard",navChoicePanelClosed:false,navAvoidSession:[],navAvoidSaved:[],navAvoidAnchor:null,navAvoidPicking:false,navRoadPrefsDirty:false,navFollowEpoch:0,navRerouteBusy:false,navOffrouteCount:0,navOffrouteSince:0,navRerouteLast:0,
   navDemoActive:false,navDemoPaused:false,navDemoProgress:0,navDemoTimer:null,navDemoLastTime:0,
   navDemoMarker:null,navDemoMarkerMap:null,navDemoFix:null,rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, bleScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPickPointerStart:null, navPickSwallowClickUntil:0, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapObservationId:null, mapSurveySeriesKey:null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+state.navCameraAlertPrefs=null;state.navCameraAlertCatalog=null;
+state.navCameraAlertSeen=new Set();state.navCameraAlertVoiceSeen=new Set();state.navCameraAlertLastVoice=0;
+state.navCameraAlertLastQualifiedAt=0;
+state.navVoiceLastTurnAt=0;
 
 
 // v0.2.65 — remember map-layer visibility on this browser only. No server writes,
@@ -233,6 +237,7 @@ function resetRouteForNewDestination() {
   state.navPreview=null;
   state.navCameraComparison=null;
   state.navCameraReport=null;
+  if(typeof updateCameraApproachCandidates==='function')updateCameraApproachCandidates();
   state.navRouteChoices=null;
   state.navChoiceSelection='standard';
   state.navChoicePanelClosed=false;
@@ -2280,6 +2285,100 @@ async function resolveTypedPlace(query) {
 // A route sheet is generated entirely in the browser from a real local Valhalla
 // response. No travel positions are saved, and export happens only on click.
 const routeGuide=window.OpenRFRouteGuidance;
+const cameraApproach=window.OpenRFCameraAlerts||null;
+const CAMERA_ALERT_PREF_KEY='openrf-camera-approach-v1';
+const cameraAlertCard=document.createElement('section');
+cameraAlertCard.id='map-camera-alert';cameraAlertCard.className='map-camera-alert';cameraAlertCard.hidden=true;
+const cameraAlertTitle=document.createElement('strong');
+const cameraAlertDetail=document.createElement('small');
+cameraAlertCard.append(cameraAlertTitle,cameraAlertDetail);
+$('map-follow-hud').querySelector('.map-follow-top').insertAdjacentElement('afterend',cameraAlertCard);
+const cameraAlertCoverage=document.createElement('small');
+cameraAlertCoverage.id='map-camera-alert-coverage';cameraAlertCoverage.className='map-camera-alert-coverage';
+$('map-follow-hud').querySelector('.map-follow-extras').insertAdjacentElement('afterend',cameraAlertCoverage);
+function hideCameraApproachAlert(){cameraAlertCard.hidden=true;state.navCameraAlertLastQualifiedAt=0;}
+function syncCameraApproachSettings(){
+  if(!cameraApproach)return;
+  const p=state.navCameraAlertPrefs;
+  $('camera-alert-enable').checked=p.enabled;
+  $('camera-alert-voice').checked=p.voice;
+  $('camera-alert-distance').value=String(p.miles);
+  for(const input of document.querySelectorAll('[data-camera-alert-type]'))input.checked=p.types[input.dataset.cameraAlertType];
+  $('camera-alert-settings-summary').textContent=p.enabled?`On · ${p.miles} mi${p.voice?' · voice':''}`:'Off';
+  cameraAlertCoverage.textContent=!p.enabled?'Camera approach alerts off in settings.':
+    state.navCameraAlertCatalog?.ready ?
+      `${state.navCameraAlertCatalog.sites.length} mapped reports near selected route${state.navCameraAlertCatalog.incomplete?' · coverage incomplete':''}; not live detections.`:
+      'Camera approach alerts use selected route reports. Catalog coverage may be incomplete.';
+  if(p.voice && !navigationVoiceAvailable())cameraAlertCoverage.textContent+=' Spoken alerts are not supported by this browser.';
+  if(!p.enabled)hideCameraApproachAlert();
+}
+function persistCameraApproachSettings(){
+  const current={enabled:$('camera-alert-enable').checked,voice:$('camera-alert-voice').checked,
+    miles:Number($('camera-alert-distance').value),types:{}};
+  for(const input of document.querySelectorAll('[data-camera-alert-type]'))current.types[input.dataset.cameraAlertType]=input.checked;
+  state.navCameraAlertPrefs=cameraApproach.preferences(current);
+  try{window.localStorage?.setItem(CAMERA_ALERT_PREF_KEY,JSON.stringify(state.navCameraAlertPrefs));}
+  catch(_error){/* Private browser storage unavailable; session choice remains active. */}
+  syncCameraApproachSettings();
+}
+if(cameraApproach){
+  let saved=null;
+  try{saved=JSON.parse(window.localStorage?.getItem(CAMERA_ALERT_PREF_KEY)||'null');}
+  catch(_error){/* Malformed or disabled browser storage uses safe defaults. */}
+  state.navCameraAlertPrefs=cameraApproach.preferences(saved);
+  syncCameraApproachSettings();
+  for(const el of [$('camera-alert-enable'),$('camera-alert-voice'),$('camera-alert-distance'),
+    ...document.querySelectorAll('[data-camera-alert-type]')])el.addEventListener('change',persistCameraApproachSettings);
+}else{
+  $('camera-alert-settings-summary').textContent='Unavailable · missing module';
+  cameraAlertCoverage.textContent='Camera approach module unavailable. Refresh OpenRF.';
+}
+function updateCameraApproachCandidates(){
+  state.navCameraAlertCatalog=cameraApproach?.candidates(state.navPreview,state.navCameraReport,routeGuide)||null;
+  state.navCameraAlertSeen.clear();state.navCameraAlertVoiceSeen.clear();state.navCameraAlertLastVoice=0;
+  state.navCameraAlertLastQualifiedAt=0;
+  hideCameraApproachAlert();
+  if(cameraApproach)syncCameraApproachSettings();
+}
+function cameraApproachSpeak(text){
+  if(!state.navCameraAlertPrefs?.voice||state.navDemoActive||state.navFollowId===null||!navigationVoiceAvailable())return false;
+  try{
+    navigationSilence();
+    const phrase=new window.SpeechSynthesisUtterance(text.slice(0,250));
+    phrase.lang='en-US';phrase.rate=0.95;phrase.volume=1;
+    window.speechSynthesis.speak(phrase);
+    state.navCameraAlertLastVoice=Date.now();
+    return true;
+  }catch(_error){return false;}
+}
+function updateCameraApproachAlert(route,progress,fix,turn){
+  if(!cameraApproach || state.navDemoActive || state.navFollowId===null){hideCameraApproachAlert();return;}
+  let view=null;
+  try{view=routeGuide.routeVisualHeading(route,fix.longitude,fix.latitude,progress.along_m);}
+  catch(_error){hideCameraApproachAlert();return;}
+  const difference=view&&fix.heading!==null ? Math.abs((fix.heading-view.heading+540)%360-180):180;
+  const found=cameraApproach.approach(state.navCameraAlertCatalog,state.navCameraAlertPrefs,{
+    along_m:progress.along_m,accuracy_m:fix.accuracy,age_ms:fix.ageMs,offroute:progress.offroute,
+    moving:fix.heading!==null,headingAligned:difference<=75
+  },state.navCameraAlertSeen);
+  if(!found){hideCameraApproachAlert();return;}
+  const site=found.site,distance=cameraApproach.distanceLabel(found.distance_m);
+  cameraAlertTitle.textContent=`Mapped ${cameraApproach.typeLabel(site.type)} report · ${distance} ahead`;
+  cameraAlertDetail.textContent=`${site.state==='VERIFIED'?'Document-backed':'Reported'} location near planned road · ${site.source||'source unspecified'}. Operational status and camera direction unknown.`;
+  cameraAlertCard.hidden=false;
+  state.navCameraAlertLastQualifiedAt=Date.now();
+  if(found.newAlert)state.navCameraAlertSeen.add(site.key);
+  // Voice is an additional explicit opt-in. Turns win: no camera speech near
+  // a maneuver, during a voice prompt, or repeatedly for a camera cluster.
+  const now=Date.now();
+  if(state.navCameraAlertPrefs.voice && !state.navCameraAlertVoiceSeen.has(site.key) &&
+     (!turn||turn.distance_m>150) &&
+     now-state.navVoiceLastTurnAt>8000 &&
+     (!state.navCameraAlertLastVoice || now-state.navCameraAlertLastVoice>15000)){
+    if(cameraApproachSpeak(`Mapped ${cameraApproach.typeLabel(site.type)} reported ahead in ${distance}. Camera operation and direction are not confirmed.`))
+      state.navCameraAlertVoiceSeen.add(site.key);
+  }
+}
 // The summary wraps at small widths. Pin the export actions to its measured
 // height rather than a fixed number that can overlap two-line summaries.
 function updateDirectionsStickyOffset(){
@@ -2557,6 +2656,7 @@ window.addEventListener('keydown',event=>{
 });
 function showRouteCameras(report){
   state.navCameraReport=report;
+  if(typeof updateCameraApproachCandidates==='function')updateCameraApproachCandidates();
   const road=state.navPreview?.is_driving_route;
   const chip=$('map-camera-route-chip');chip.hidden=true;
   $('map-route-camera-summary').textContent=road?cameraReportSummary(report):'Choose camera types, then Get directions to compare local road routes.';
@@ -3479,6 +3579,7 @@ function navigationSpeak(text){
     phrase.lang='en-US';phrase.rate=0.95;phrase.volume=1;
     phrase.onerror=()=>{$('map-voice-status').textContent='Speech playback failed; use the on-screen directions.';};
     window.speechSynthesis.speak(phrase);
+    state.navVoiceLastTurnAt=Date.now();
     return true;
   }catch(_err){
     $('map-voice-status').textContent='Speech playback unavailable; use on-screen directions.';
@@ -3524,6 +3625,9 @@ function renderNavigationLanes(turn,eligible){
 function stopNavigationFollow(){
   const finishingActiveTrip=state.navFollowId!==null;
   resetNavigationVoice();renderNavigationLanes(null,false);
+  state.navCameraAlertSeen?.clear?.();state.navCameraAlertVoiceSeen?.clear?.();state.navCameraAlertLastVoice=0;
+  state.navCameraAlertLastQualifiedAt=0;
+  if(typeof hideCameraApproachAlert==='function')hideCameraApproachAlert();
   // Stop every DEMO playback interval and remove its synthetic map marker.
   if(state.navDemoTimer!==null)clearInterval(state.navDemoTimer);
   state.navDemoTimer=null;state.navDemoActive=false;state.navDemoPaused=false;
@@ -3622,6 +3726,7 @@ function followPosition(pos){
   }
   if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180||
      !Number.isFinite(accuracy)||accuracy<0||!Number.isFinite(age)||age< -5000||age>15000){
+    if(typeof hideCameraApproachAlert==='function')hideCameraApproachAlert();
     message.textContent='No recent valid browser location or GNSS fix. Live guidance paused.';
     distanceLabel.textContent='';
     detail.textContent=`Reported accuracy: ${Number.isFinite(accuracy)?'±'+Math.round(accuracy)+' m':'unavailable'} · Fix age: ${Number.isFinite(age)?Math.round(age/1000)+' s':'unknown'}. Check location source and device permissions. No data saved.`;
@@ -3649,6 +3754,7 @@ function followPosition(pos){
   const activeBearing=movingHeading!==null?movingHeading:0;
   let offRoute=false;
   if(!precise){
+    if(typeof hideCameraApproachAlert==='function')hideCameraApproachAlert();
     renderNavigationLanes(null,false);navigationSilence();
     message.textContent=first?`Planned: ${first.instruction}`:'Planned driving route ready';
     distanceLabel.textContent=`Approximate location ±${Math.round(accuracy)} m · LIVE turn timing paused`;
@@ -3657,6 +3763,7 @@ function followPosition(pos){
     const progress=routeGuide.guidance(route,lon,lat,accuracy,state.navFollowProgress||0);
     offRoute=progress.offroute;
     if(offRoute){
+      if(typeof hideCameraApproachAlert==='function')hideCameraApproachAlert();
       message.textContent='Location off planned road · checking reliable GPS fixes';
       distanceLabel.textContent='Turn timing paused during route assessment';
       const reliable=accuracy<=40 && movingHeading!==null && progress.offset_m>Math.max(100,accuracy*3);
@@ -3680,6 +3787,8 @@ function followPosition(pos){
         const cue=routeGuide.voiceCue(state.navVoiceMemory,turn);
         if(cue.text && navigationSpeak(cue.text))state.navVoiceMemory=cue.memory;
       }
+      if(typeof updateCameraApproachAlert==='function')updateCameraApproachAlert(route,progress,{latitude:lat,longitude:lon,accuracy,
+        ageMs:age,heading:movingHeading},turn);
       const minutes=Number.isFinite(route.duration_seconds)&&progress.total_m>0 ?
         Math.max(0,Math.ceil(route.duration_seconds*(progress.remaining_m/progress.total_m)/60)):null;
       detail.textContent=`${sourceName} ±${Math.round(accuracy)} m · ${movingHeading===null?'Moving heading unavailable: north-up map':'Moving heading available: forward-facing map'} · Route offset ${Math.round(progress.offset_m)} m · ${minutes===null?'ETA unavailable':`~${minutes} min remaining, no live traffic`} · No GPS history saved.`;
@@ -3729,6 +3838,11 @@ function followPosition(pos){
 // A loopback-only, read-only gpsd request. No polling except during an active
 // user-started navigation session; server never stores or logs position fields.
 async function pollLocalNavigationGnss(){
+  // A stopped/frozen browser geolocation watch does not invoke followPosition.
+  // Expire old approach banners even if no further GPS callback arrives.
+  if(state.navCameraAlertLastQualifiedAt && Date.now()-state.navCameraAlertLastQualifiedAt>7000){
+    if(typeof hideCameraApproachAlert==='function')hideCameraApproachAlert();
+  }
   if(state.navFollowId===null || state.navGnssBusy)return;
   state.navGnssBusy=true;
   const epoch=state.navGnssEpoch;

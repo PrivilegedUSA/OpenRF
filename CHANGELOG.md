@@ -575,3 +575,13 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Add regression coverage for focused coordinates, draft edits, automatic single-route selection, delayed reset, four repeated map-pick cycles, and cancellation. Existing routing, hardware, privacy and map data behavior is unchanged.
 - Tests run in Node/Python; full touch UI in Firefox, live Valhalla routing, and Raspberry Pi field operation have not been verified in this build environment.
 
+## v0.2.73 — Evidence-limited offline camera approach alerts (2026-11-15)
+
+- Add separate camera-approach preferences (ALPR, speed, red-light), persistent per-browser settings, and 0.25/0.5/1-mile route-ahead warning distances. Visual warnings default on during real GPS navigation; voice is an independent explicit opt-in.
+- Add a compact camera report banner inside the active navigation HUD and optional spoken alerts with per-camera deduplication, clustered-voice cooldowns, and turn-prompt priority. Show report provenance and clearly state that camera operational status/direction are unknown.
+- Only trigger warnings with a confirmed Valhalla road route, an accurate fix no older than five seconds, measured or defensibly inferred moving heading aligned with the route, and a point ahead along the route; never trigger for DEMO, stale/approximate GPS, wrong-way motion or off-route positions.
+- Increase the bounded local route-camera report from 24 to 256 mapped sites for longer-route alert coverage; explicitly mark truncated reports as incomplete. No external GPS requests or location history storage are introduced.
+- Add deterministic camera-report approach regression tests and server catalog coverage tests. Real-world GNSS accuracy, browser voice playback, Raspberry Pi performance and on-road alerts remain unverified pending hardware and field testing.
+
+---
+
