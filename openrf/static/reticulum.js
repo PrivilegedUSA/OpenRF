@@ -1,11 +1,11 @@
 'use strict';
-/* v0.2.85: Reticulum inbound unread events plus optional TCP and diagnostics. */
+/* v0.2.88: Reticulum inbox replies, address copying and dedicated screen. */
 (()=>{
   const el=id=>document.getElementById(id);
   if(!el('reticulum-panel'))return;
   const state={enabled:false,busy:false,available:false,polling:false,
     receiveSequence:null,unread:0};
-  const viewingMessages=()=>Boolean(el('page-messages')?.classList.contains('active'));
+  const viewingMessages=()=>Boolean(el('page-reticulum')?.classList.contains('active'));
   function publishUnread(){
     document.dispatchEvent(new CustomEvent('openrf:reticulum-unread',
       {detail:{count:state.unread}}));
@@ -86,9 +86,48 @@
       const content=document.createElement('p');content.textContent=String(message.text||'');
       const detail=document.createElement('small');
       detail.textContent=`${String(message.status||'UNVERIFIED')} · ${String(message.utc||'UTC unknown')}`;
-      article.append(heading,content,detail);box.append(article);
+      article.append(heading,content,detail);
+      // A received LXMF row stores the sender hash in `destination`. Never
+      // offer a reply to an outgoing row or a malformed/untrusted address.
+      const sender=String(message.destination||'').trim();
+      if(message.direction==='IN' && /^[0-9a-fA-F]{32}$/.test(sender)){
+        const actions=document.createElement('div');actions.className='reticulum-message-actions';
+        const reply=document.createElement('button');reply.type='button';
+        reply.className='btn mini primary';reply.textContent='Reply';
+        reply.setAttribute('aria-label',`Reply to LXMF sender ${sender}`);
+        reply.addEventListener('click',()=>prefillReply(sender));
+        const copy=document.createElement('button');copy.type='button';
+        copy.className='btn mini outline';copy.textContent='Copy address';
+        copy.setAttribute('aria-label',`Copy LXMF sender address ${sender}`);
+        copy.addEventListener('click',()=>copySenderAddress(sender));
+        actions.append(reply,copy);article.append(actions);
+      }
+      box.append(article);
     }
     box.scrollTop=nearBottom?box.scrollHeight:previous;
+  }
+  function prefillReply(sender){
+    const recipient=el('reticulum-recipient');
+    recipient.value=sender;
+    updateControls();
+    el('reticulum-text').focus();
+    el('reticulum-compose').scrollIntoView({block:'nearest',behavior:'smooth'});
+    note('Reply address filled. Write your message and press Send when ready.');
+  }
+  async function copySenderAddress(sender){
+    try{
+      if(!navigator.clipboard?.writeText)throw Error('Clipboard access unavailable');
+      await navigator.clipboard.writeText(sender);
+      note('Sender LXMF address copied to clipboard.');
+    }catch(_){
+      // Clipboard permission can be denied; leave the address selected for
+      // the operator to copy manually. Never send or post it anywhere.
+      const recipient=el('reticulum-recipient');
+      recipient.value=sender;
+      updateControls();
+      recipient.focus();recipient.select();
+      note('Clipboard unavailable. Sender address selected in the recipient field; copy it there.');
+    }
   }
   const shown=value=>Number.isSafeInteger(value)&&value>=0?String(value):'unknown';
   function renderDiagnostics(report){
@@ -160,7 +199,7 @@
   });
   el('reticulum-recipient').addEventListener('input',updateControls);
   el('reticulum-text').addEventListener('input',updateControls);
-  document.addEventListener('openrf:messages-shown',()=>{
+  document.addEventListener('openrf:reticulum-shown',()=>{
     state.unread=0;publishUnread();
     if(state.enabled)refreshInbox();
   });

@@ -1633,3 +1633,51 @@ body:not(.map-workspace) .topbar .messages-header-button svg{
   stroke-width:1.9;
 }
 body:not(.map-workspace) .topbar .menu-toggle{font-size:25px}
+
+/* v0.2.88 — compact Messages submenu and a dedicated Reticulum workspace. */
+.sidebar .nav-group{min-width:0;display:grid;gap:3px}
+.sidebar .nav-parent{width:100%;position:relative}
+.sidebar .nav-parent .nav-chevron{width:auto;flex:0 0 auto;font-size:12px;color:#7fadb3;transition:transform .15s ease}
+.sidebar .nav-parent[aria-expanded="true"] .nav-chevron{transform:rotate(180deg)}
+.sidebar .nav-subpages{min-width:0;display:grid;gap:3px;margin:0 0 5px 19px;padding-left:12px;border-left:1px solid #2c555c}
+.sidebar .nav-subpages[hidden]{display:none!important}
+.sidebar .nav-subpage{width:100%;padding:9px 12px;min-height:39px;color:#a6c7cc;font-size:12px}
+.sidebar .nav-subpage .nav-label{font-size:12px}
+.sidebar .nav-subpage.active{color:#d1fff4;background:#173840}
+#page-reticulum .reticulum-panel{margin:8px 0;max-width:950px;min-width:0}
+#page-reticulum .reticulum-panel .mesh-compose>label{display:grid;gap:6px;font-size:11px;color:#b5d6d9;font-weight:650;margin-top:10px}
+#page-reticulum .mesh-inbox-header{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;border-top:1px solid #345766;margin-top:16px;padding-top:10px}
+#page-reticulum .mesh-inbox-header h4{font-size:13px;color:#d6eee9;margin:0}
+#page-reticulum .mesh-conversation-select{display:grid;gap:5px;color:#b5d6d9;font-size:12px;margin:8px 0}
+#page-reticulum .mesh-chat-grid,#page-reticulum .mesh-conversation-column,#page-reticulum .mesh-compose-column{min-width:0}
+#page-reticulum .mesh-messages{margin-top:9px;min-height:125px;max-height:300px;overflow-y:auto;border:1px solid #315263;border-radius:8px;background:#0a202a;padding:10px}
+#page-reticulum .mesh-message{min-width:0;border-bottom:1px solid #305261;padding:9px 0;overflow-wrap:anywhere}
+#page-reticulum .mesh-message:last-child{border-bottom:0}
+#page-reticulum .mesh-message p{white-space:pre-wrap;overflow-wrap:anywhere;color:#e1f5f0;margin:6px 0;font-size:12px}
+#page-reticulum .mesh-message small{display:block;font-size:10px;color:#a9c7bf}
+#page-reticulum #reticulum-address{font-family:ui-monospace,monospace;font-size:12px}
+#page-reticulum #reticulum-text{min-height:66px;resize:vertical}
+#page-reticulum .reticulum-tcp-settings{margin:10px 0;padding:10px 12px;border-radius:9px;border:1px solid #315263;background:#0c222c;overflow-wrap:anywhere;min-width:0;max-width:100%}
+#page-reticulum .reticulum-tcp-settings .switchline{width:100%;min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere;display:flex;gap:8px;align-items:flex-start;font-size:12px;font-weight:700;color:#e1f5ef}
+#page-reticulum .reticulum-tcp-settings input{flex:none;accent-color:#34c9b1;margin-top:2px}
+#page-reticulum .reticulum-tcp-settings p{margin:7px 0 0}
+#page-reticulum .reticulum-tcp-label-text{display:block;flex:1 1 0;min-width:0;white-space:normal;overflow-wrap:anywhere}
+#page-reticulum .reticulum-tcp-active{color:#34c9b1}
+#page-reticulum .reticulum-diagnostics{min-width:0;max-width:100%;margin:12px 0;border:1px solid #315263;border-radius:9px;padding:10px;background:#0c222c;overflow-wrap:anywhere}
+#page-reticulum .reticulum-diagnostics summary{font-size:12px;font-weight:700;color:#b9e6dc;cursor:pointer}
+#page-reticulum .reticulum-diagnostics[open] summary{margin-bottom:10px}
+#page-reticulum .reticulum-interface{min-width:0;max-width:100%;border:1px solid #35616b;border-radius:8px;background:#101d27;padding:9px;margin:8px 0;overflow-wrap:anywhere}
+#page-reticulum .reticulum-interface strong{font-size:11px;color:#34c9b1;overflow-wrap:anywhere;white-space:normal}
+#page-reticulum .reticulum-interface p{margin:5px 0 0}
+#page-reticulum #reticulum-announce-detail{overflow-wrap:anywhere;white-space:normal}
+#page-reticulum .mesh-compose{border-top:1px solid #345766;padding-top:10px;margin-top:12px}
+#page-reticulum .reticulum-message-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:7px 0 2px}
+#page-reticulum .reticulum-message-actions .btn{min-height:33px;padding:7px 10px;font-size:11px;white-space:normal}
+@media(min-width:700px) and (max-height:600px){
+  #page-reticulum .reticulum-panel{padding:12px}
+  #page-reticulum .mesh-chat-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
+  #page-reticulum .mesh-chat-grid .mesh-inbox-header{margin-top:0}
+  #page-reticulum .mesh-chat-grid .mesh-compose{margin-top:0;border-top:0}
+  #page-reticulum .mesh-messages{max-height:38dvh}
+}
+@media(max-width:650px){#page-reticulum .mesh-messages{max-height:34dvh}}

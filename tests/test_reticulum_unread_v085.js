@@ -37,7 +37,7 @@ vm.runInNewContext(`const state=globalThis.state;
 const reticContext={state:{receiveSequence:null,unread:0},document,nodes,viewing:false};
 const reticSnippet=reticulum.slice(reticulum.indexOf('  const viewingMessages='),reticulum.indexOf('  const note='));
 vm.runInNewContext(`const state=globalThis.state;
-  const el=id=>id==='page-messages'?{classList:{contains:()=>globalThis.viewing}}:globalThis.nodes[id];
+  const el=id=>id==='page-reticulum'?{classList:{contains:()=>globalThis.viewing}}:globalThis.nodes[id];
   class CustomEvent{constructor(type,options){this.type=type;this.detail=options.detail;}}
   ${reticSnippet}
   globalThis.track=trackInbox;`,reticContext);
@@ -53,16 +53,18 @@ assert.equal(nodes['mesh-header-unread'].textContent,'3','2 mesh plus 1 Reticulu
 assert.match(nodes['mesh-header-button'].title,/Meshtastic: 2, Reticulum: 1/);
 reticContext.track({receive_sequence:8});
 assert.equal(nodes['mesh-header-unread'].textContent,'3','No count change for outgoing or repeat polls');
-reticContext.viewing=true;
 meshContext.viewing=true;
 reticContext.track({receive_sequence:9});
 meshContext.track({receive_sequence:5});
+assert.equal(nodes['mesh-header-unread'].textContent,'2','Mesh inbox does not mark unseen Reticulum messages as read');
+meshContext.viewing=false;
+reticContext.viewing=true;
+reticContext.track({receive_sequence:9});
 assert.equal(nodes['mesh-header-unread'].hidden,true,'Reading Messages clears both counts');
 reticContext.viewing=false;
-meshContext.viewing=false;
 reticContext.track({receive_sequence:10});
 assert.equal(nodes['mesh-header-unread'].textContent,'1','A new inbound after leaving Messages is counted');
 reticContext.track({receive_sequence:0});
 assert.equal(nodes['mesh-header-unread'].hidden,true,'A restarted worker does not fabricate unread messages');
 assert(!reticulum.includes('innerHTML')&&!mesh.includes('innerHTML'));
-console.log('PASS v0.2.87 combined genuine unread counts and touch-safe wrapping');
+console.log('PASS v0.2.88 combined genuine unread counts and touch-safe wrapping');

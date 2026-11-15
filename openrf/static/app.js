@@ -294,12 +294,15 @@ function showPage(page, options = {}) {
     $('page-title').focus({preventScroll: true});
   }
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.toggle('active', el.dataset.page === page));
+  if (page === 'messages' || page === 'reticulum') setMessagesSubpagesOpen(true);
+  $('messages-nav-toggle').classList.toggle('active', page === 'messages' || page === 'reticulum');
   document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === `page-${page}`));
-  const titles = {overview:'Field overview',map:'Survey map',scanner:'Signal analysis',spectrum:'Spectrum workspace',radio:'Radio receiver',messages:'Mesh messages',hamradio:'Ham radio channel lists',discoveries:'Saved discoveries',sessions:'Investigations',hardware:'Hardware manager'};
+  const titles = {overview:'Field overview',map:'Survey map',scanner:'Signal analysis',spectrum:'Spectrum workspace',radio:'Radio receiver',messages:'Mesh messages',reticulum:'Reticulum messages',hamradio:'Ham radio channel lists',discoveries:'Saved discoveries',sessions:'Investigations',hardware:'Hardware manager'};
   $('page-title').textContent = titles[page] || 'OpenRF'; $('page-crumb').textContent = page.toUpperCase();
   if (page === 'spectrum') document.dispatchEvent(new Event('openrf:spectrum-shown'));
   if (page === 'radio') document.dispatchEvent(new Event('openrf:radio-shown'));
   if (page === 'messages') document.dispatchEvent(new Event('openrf:messages-shown'));
+  if (page === 'reticulum') document.dispatchEvent(new Event('openrf:reticulum-shown'));
   if (page === 'map') { startMap(); if (options.autoLocate !== false) locateMap(false); renderMapSurveyPanel(); setTimeout(() => { state.map?.resize(); state.rasterMap?.resize(); }, 80); }
   window.scrollTo(0, 0);
 }
@@ -4090,6 +4093,13 @@ for(const id of ['nav-start-lat','nav-start-lon']) {
   $(id).addEventListener('input',()=>{state.navOriginManual=true;
     $('nav-origin-status').textContent='Custom starting point selected. Use fresh browser location to reset it.';});
 }
+function setMessagesSubpagesOpen(open) {
+  $('messages-nav-subpages').hidden = !open;
+  $('messages-nav-toggle').setAttribute('aria-expanded', String(open));
+}
+$('messages-nav-toggle').addEventListener('click', () => {
+  setMessagesSubpagesOpen($('messages-nav-subpages').hidden);
+});
 document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
 document.querySelectorAll('[data-jump]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.jump)));
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));

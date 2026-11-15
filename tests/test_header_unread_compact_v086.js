@@ -13,4 +13,4 @@ assert(badge.includes('background:#34c9b1'),'Use muted teal instead of large amb
 assert(mesh.includes('state.unread+(state.reticulumUnread||0)'),
   'Preserve the shared Meshtastic and Reticulum counter');
 assert(css.includes('.mesh-unread-badge[hidden]{display:none!important}'));
-console.log('PASS v0.2.87 compact teal notification overlay without losing unread counts');
+console.log('PASS v0.2.88 compact teal notification overlay without losing unread counts');

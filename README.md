@@ -1,4 +1,8 @@
-# OpenRF v0.2.87 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.88 — Offline-First Navigation and RF Toolkit
+
+## v0.2.88 — Dedicated messaging screens and fast LXMF replies
+
+The sidebar **Messages** parent now expands to **Mesh messages** (Meshtastic USB) and **Reticulum** (LXMF LAN/TCP) subpages. Each system has its own inbox and message composer, reducing scrolling on a small screen. The combined teal envelope badge remains, but unread counts are cleared independently when you view the respective inbox; when only Reticulum has unread messages, the envelope opens Reticulum directly. In the Reticulum inbox, **Reply** pre-fills the genuine incoming sender's 32-digit LXMF address and focuses the message composer without sending; **Copy address** writes it to the clipboard or selects it in the recipient field when clipboard permission is unavailable. No automatic network connections, announcements or sends were added. See `docs/RELEASE_0.2.88_TESTS.md`.
 
 ## v0.2.87 — Borderless unread badge
 

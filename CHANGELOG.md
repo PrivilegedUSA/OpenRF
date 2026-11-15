@@ -684,3 +684,10 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Remove the dark 1px outline from the compact teal count on the header envelope; leave the fill, numeral, upper-right overlap, unread behavior and sidebar badge untouched.
 - No backend, network, identity, privacy, radio, map, routing or database changes. Add a targeted CSS regression assertion and retain the full release format. Visual appearance should be confirmed in the operator's real browser.
 
+## v0.2.88 — Separate Mesh and Reticulum message screens with one-tap reply (2026-11-15)
+
+- Expand Messages in the sidebar to independent Mesh messages (Meshtastic) and Reticulum (LXMF over LAN/TCP) pages, each containing its existing conversation, composer and settings without forcing users to scroll past the other messaging platform.
+- Incoming Reticulum messages with a validated 32-hex sender address show Reply, which fills the recipient and focuses the composer, and Copy address, which uses the clipboard or selects the address for manual copying when clipboard access is unavailable. No auto-send or address actions for sent/malformed rows.
+- Keep the total unread count on the header envelope, but only clear a channel's unread when visiting its own inbox. If just Reticulum has unread messages, clicking the envelope goes straight to Reticulum. Maintain small-screen wrapped text, a readable two-column landscape layout, and no sideways scroll.
+- Preserve explicit Enable/Stop, opt-in TCP listener on port 4242, dormant AutoInterface unless Reticulum is enabled, loopback-only HTTP service and unverified-delivery labels. No migrations, transmissions on load or OS firewall changes. JavaScript DOM regression added; actual Sideband/WSL UI needs operator testing.
+

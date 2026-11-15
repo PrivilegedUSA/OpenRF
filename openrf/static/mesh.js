@@ -16,6 +16,9 @@
       badge.hidden=count===0;badge.textContent=display;
     }
     const header=el('mesh-header-button');
+    // When only Reticulum has new messages, open that inbox directly.
+    // If both channels have unread messages, the sidebar exposes both.
+    if(header.dataset)header.dataset.jump=state.reticulumUnread>0&&state.unread===0?'reticulum':'messages';
     header.setAttribute('aria-label',count?`Open messages, ${count} unread`:'Open messages');
     header.title=count?`${count} unread message${count===1?'':'s'} (Meshtastic: ${state.unread}, Reticulum: ${state.reticulumUnread||0})`:'Open messages';
   }
