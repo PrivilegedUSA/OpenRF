@@ -11,4 +11,4 @@ assert(css.includes('grid-template-columns:minmax(0,1fr) minmax(0,1fr)'));
 assert(js.includes("diag.rf_reachability")===false);
 assert(js.includes('Firmware version')&&js.includes('Unknown · not queried'));
 assert(!js.includes('innerHTML'));
-console.log('PASS v0.2.88 diagnostic honesty and compact landscape layout');
+console.log('PASS v0.2.89 diagnostic honesty and compact landscape layout');

@@ -219,6 +219,11 @@
   // The passive poll runs while messaging is enabled even when another page
   // is open. It never enables Reticulum, announces, sends or starts RF scans.
   setInterval(()=>{if(state.enabled&&!state.busy)refreshInbox();},5000);
+  // Prompt read-only refresh when a backgrounded browser regains focus.
+  // The existing polling guard coalesces simultaneous focus/visibility events.
+  const resumeInbox=()=>{if(state.enabled&&!state.busy)refreshInbox();};
+  window.addEventListener('focus',resumeInbox);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)resumeInbox();});
   updateControls();
   publishUnread();
   refreshStatus();

@@ -691,3 +691,10 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Keep the total unread count on the header envelope, but only clear a channel's unread when visiting its own inbox. If just Reticulum has unread messages, clicking the envelope goes straight to Reticulum. Maintain small-screen wrapped text, a readable two-column landscape layout, and no sideways scroll.
 - Preserve explicit Enable/Stop, opt-in TCP listener on port 4242, dormant AutoInterface unless Reticulum is enabled, loopback-only HTTP service and unverified-delivery labels. No migrations, transmissions on load or OS firewall changes. JavaScript DOM regression added; actual Sideband/WSL UI needs operator testing.
 
+## v0.2.89 — Independent sidebar unread counters and foreground refresh (2026-11-15)
+
+- Remove the cramped aggregate badge from the Messages parent dropdown. Place separate compact, right-aligned teal counters on its Mesh messages and Reticulum children; keep the header envelope as the total of both channels' genuine unread messages.
+- Make the unread indicators accessible via the child buttons' labels and lightly accent the Messages parent icon when it has unread messages. Preserve per-inbox read clearing and no automatic send.
+- Poll already-connected/explicitly-enabled message inboxes immediately when a backgrounded OpenRF tab regains focus or visibility. Keep existing periodic polling and in-flight guards so no auto-connect, auto-announce, unintended radio activity or redundant overlapping requests are introduced.
+- Add separate counter-layout and foreground-refresh regression tests. No backend changes or persistent data migration. Browser/Sideband behavior must still be verified in the user's actual environment.
+

@@ -10,7 +10,7 @@ assert(badge.includes('min-width:13px;height:13px'),'Compact count');
 assert(badge.includes('font-size:8px'),'Small count font');
 assert(badge.includes('pointer-events:none'),'Do not block envelope tap');
 assert(badge.includes('background:#34c9b1'),'Use muted teal instead of large amber badge');
-assert(mesh.includes('state.unread+(state.reticulumUnread||0)'),
+assert(mesh.includes('const reticulumUnread=state.reticulumUnread||0;')&&mesh.includes('const count=state.unread+reticulumUnread;'),
   'Preserve the shared Meshtastic and Reticulum counter');
 assert(css.includes('.mesh-unread-badge[hidden]{display:none!important}'));
-console.log('PASS v0.2.88 compact teal notification overlay without losing unread counts');
+console.log('PASS v0.2.89 compact teal notification overlay without losing unread counts');

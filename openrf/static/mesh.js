@@ -8,12 +8,27 @@
     receiveSequence:null,unread:0,reticulumUnread:0};
   const viewingMessages=()=>Boolean(el('page-messages')?.classList.contains('active'));
   function renderUnread(){
-    // One envelope badge represents the total of real incoming Meshtastic
-    // and Reticulum messages, never sent texts or initial inbox history.
-    const count=state.unread+(state.reticulumUnread||0),display=count>99?'99+':String(count);
-    for(const id of ['mesh-header-unread','mesh-nav-unread']){
+    // The envelope is the total, but each sidebar child shows only its own
+    // genuine incoming unread count. Never count sends or initial history.
+    const reticulumUnread=state.reticulumUnread||0;
+    const count=state.unread+reticulumUnread;
+    for(const [id,value] of [
+      ['mesh-header-unread',count],
+      ['mesh-nav-unread',state.unread],
+      ['reticulum-nav-unread',reticulumUnread]
+    ]){
       const badge=el(id);if(!badge)continue;
-      badge.hidden=count===0;badge.textContent=display;
+      badge.hidden=value===0;
+      badge.textContent=value>99?'99+':String(value);
+    }
+    const parent=el('messages-nav-toggle');
+    parent?.classList?.toggle('has-unread',count>0);
+    for(const [id,label,value] of [
+      ['mesh-nav-item','Mesh messages',state.unread],
+      ['reticulum-nav-item','Reticulum',reticulumUnread]
+    ]){
+      const button=el(id);
+      button?.setAttribute('aria-label',value?`${label}, ${value} unread`:`${label}, no unread messages`);
     }
     const header=el('mesh-header-button');
     // When only Reticulum has new messages, open that inbox directly.
@@ -266,6 +281,11 @@
   setInterval(()=>{
     if(state.connected&&!state.busy)loadMessages();
   },4000);
+  // Background tabs may throttle polling. Refresh immediately on returning;
+  // this never connects to a radio or attempts to send anything.
+  const resumeInbox=()=>{if(state.connected&&!state.busy)loadMessages();};
+  window.addEventListener('focus',resumeInbox);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)resumeInbox();});
   renderButtons();
   updateByteCount();
   renderUnread();

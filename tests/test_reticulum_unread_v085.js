@@ -7,7 +7,7 @@ const css=fs.readFileSync('openrf/static/app.css','utf8');
 const mesh=fs.readFileSync('openrf/static/mesh.js','utf8');
 const reticulum=fs.readFileSync('openrf/static/reticulum.js','utf8');
 
-assert(html.includes('id="mesh-header-unread"')&&html.includes('id="mesh-nav-unread"'));
+assert(html.includes('id="mesh-header-unread"')&&html.includes('id="mesh-nav-unread"')&&html.includes('id="reticulum-nav-unread"'));
 assert(html.includes('class="reticulum-tcp-label-text"'));
 assert(css.includes('.reticulum-tcp-settings .switchline{width:100%;min-width:0;max-width:100%;white-space:normal;'));
 assert(css.includes('.reticulum-tcp-settings .reticulum-tcp-label-text{display:block;flex:1 1 0;min-width:0;white-space:normal;'));
@@ -15,7 +15,7 @@ assert(css.includes('.reticulum-interface strong,#page-messages #reticulum-annou
 assert(reticulum.includes("if(state.enabled&&!state.busy)refreshInbox()"),
   'Poll while another page is open, never start the backend automatically');
 
-const nodes=Object.fromEntries(['mesh-header-unread','mesh-nav-unread','mesh-header-button','mesh-global-announcer']
+const nodes=Object.fromEntries(['mesh-header-unread','mesh-nav-unread','reticulum-nav-unread','mesh-header-button','mesh-global-announcer']
   .map(id=>[id,{hidden:true,textContent:'',title:'',setAttribute(name,value){this[name]=value;}}]));
 const handlers={};
 const document={
@@ -46,10 +46,13 @@ reticContext.track({receive_sequence:7,messages:[{direction:'IN'}]});
 assert.equal(nodes['mesh-header-unread'].hidden,true,'Initial received sequence only sets a baseline');
 reticContext.track({receive_sequence:8});
 assert.equal(nodes['mesh-header-unread'].textContent,'1','Reticulum incoming text updates header');
-assert.equal(nodes['mesh-nav-unread'].textContent,'1','Reticulum also updates sidebar');
+assert.equal(nodes['reticulum-nav-unread'].textContent,'1','Reticulum updates only its sidebar subpage');
+assert.equal(nodes['mesh-nav-unread'].hidden,true,'No mesh unread shown for Reticulum-only text');
 meshContext.track({receive_sequence:3});
 meshContext.track({receive_sequence:5});
 assert.equal(nodes['mesh-header-unread'].textContent,'3','2 mesh plus 1 Reticulum unread');
+assert.equal(nodes['mesh-nav-unread'].textContent,'2','Mesh subpage keeps its own count');
+assert.equal(nodes['reticulum-nav-unread'].textContent,'1','Reticulum subpage keeps its own count');
 assert.match(nodes['mesh-header-button'].title,/Meshtastic: 2, Reticulum: 1/);
 reticContext.track({receive_sequence:8});
 assert.equal(nodes['mesh-header-unread'].textContent,'3','No count change for outgoing or repeat polls');
@@ -57,14 +60,16 @@ meshContext.viewing=true;
 reticContext.track({receive_sequence:9});
 meshContext.track({receive_sequence:5});
 assert.equal(nodes['mesh-header-unread'].textContent,'2','Mesh inbox does not mark unseen Reticulum messages as read');
+assert.equal(nodes['mesh-nav-unread'].hidden,true,'Opening Mesh clears only Mesh badge');
+assert.equal(nodes['reticulum-nav-unread'].textContent,'2','Reticulum badge remains after reading Mesh');
 meshContext.viewing=false;
 reticContext.viewing=true;
 reticContext.track({receive_sequence:9});
-assert.equal(nodes['mesh-header-unread'].hidden,true,'Reading Messages clears both counts');
+assert.equal(nodes['mesh-header-unread'].hidden,true,'Reading both inboxes clears both counts');
 reticContext.viewing=false;
 reticContext.track({receive_sequence:10});
 assert.equal(nodes['mesh-header-unread'].textContent,'1','A new inbound after leaving Messages is counted');
 reticContext.track({receive_sequence:0});
 assert.equal(nodes['mesh-header-unread'].hidden,true,'A restarted worker does not fabricate unread messages');
 assert(!reticulum.includes('innerHTML')&&!mesh.includes('innerHTML'));
-console.log('PASS v0.2.88 combined genuine unread counts and touch-safe wrapping');
+console.log('PASS v0.2.89 combined genuine unread counts and touch-safe wrapping');

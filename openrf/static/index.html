@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.88">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.89">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -19,15 +19,15 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/app.js?v=0.2.77"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.88"></script>
-  <script defer src="/static/reticulum.js?v=0.2.88"></script>
+  <script defer src="/static/mesh.js?v=0.2.89"></script>
+  <script defer src="/static/reticulum.js?v=0.2.89"></script>
   <script defer src="/static/camera-layers.js?v=0.2.76"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.88</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.89</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -36,10 +36,10 @@
         <button class="nav-btn" data-page="spectrum"><span class="nav-icon" aria-hidden="true">▥</span><span class="nav-label">Spectrum</span></button>
         <button class="nav-btn" data-page="radio"><span class="nav-icon" aria-hidden="true">◉</span><span class="nav-label">Radio Receiver</span></button>
         <div class="nav-group" id="messages-nav-group">
-          <button class="nav-btn nav-parent" type="button" id="messages-nav-toggle" aria-expanded="false" aria-controls="messages-nav-subpages"><span class="nav-icon" aria-hidden="true">✉</span><span class="nav-label">Messages</span><span class="mesh-unread-badge mesh-nav-unread" id="mesh-nav-unread" hidden>0</span><span class="nav-chevron" aria-hidden="true">▾</span></button>
+          <button class="nav-btn nav-parent" type="button" id="messages-nav-toggle" aria-expanded="false" aria-controls="messages-nav-subpages"><span class="nav-icon" aria-hidden="true">✉</span><span class="nav-label">Messages</span><span class="nav-chevron" aria-hidden="true">▾</span></button>
           <div class="nav-subpages" id="messages-nav-subpages" hidden>
-            <button class="nav-btn nav-subpage" data-page="messages" type="button"><span class="nav-label">Mesh messages</span></button>
-            <button class="nav-btn nav-subpage" data-page="reticulum" type="button"><span class="nav-label">Reticulum</span></button>
+            <button class="nav-btn nav-subpage" id="mesh-nav-item" data-page="messages" type="button"><span class="nav-label">Mesh messages</span><span class="mesh-unread-badge mesh-nav-unread" id="mesh-nav-unread" hidden>0</span></button>
+            <button class="nav-btn nav-subpage" id="reticulum-nav-item" data-page="reticulum" type="button"><span class="nav-label">Reticulum</span><span class="mesh-unread-badge mesh-nav-unread" id="reticulum-nav-unread" hidden>0</span></button>
           </div>
         </div>
         <button class="nav-btn" data-page="hamradio"><span class="nav-icon" aria-hidden="true">♫</span><span class="nav-label">Ham Radio</span></button>

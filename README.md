@@ -1,4 +1,8 @@
-# OpenRF v0.2.88 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.89 — Offline-First Navigation and RF Toolkit
+
+## v0.2.89 — Individual message alerts in the sidebar
+
+The expandable Messages menu now shows small, correctly centered teal unread counters beside **Mesh messages** and **Reticulum** independently. The parent Messages row stays uncluttered; the header envelope continues showing the **combined unread total**. Opening one inbox only clears that inbox's count. When OpenRF's tab becomes active again, it immediately checks for new messages on already-enabled transports, reducing delays caused by browser background timer throttling without connecting or transmitting automatically. Counts are session-only, based on genuine inbound events—not guaranteed delivery/read receipts. See `docs/RELEASE_0.2.89_TESTS.md`.
 
 ## v0.2.88 — Dedicated messaging screens and fast LXMF replies
 
