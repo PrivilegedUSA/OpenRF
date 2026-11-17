@@ -42,8 +42,30 @@ def _driver_hint(driver: str) -> bool:
     return driver in _DRIVER_NAMES
 
 
+def _linklocal_ipv6_ifaces(path: Path) -> set[str]:
+    """Read kernel's IPv6 address table; return names only, never IP addresses.
+
+    An IPv6 link-local address is required for RNS AutoInterface discovery,
+    but does not establish multicast operation or successful peer discovery.
+    """
+    try:
+        lines = path.read_text(encoding='ascii', errors='replace').splitlines()[:1024]
+    except (OSError, ValueError):
+        return set()
+    result = set()
+    for line in lines:
+        fields = line.split()
+        if (len(fields) == 6 and len(fields[0]) == 32 and
+                re.fullmatch(r'[0-9a-fA-F]{32}', fields[0]) and
+                fields[3].lower() == '20' and
+                _IFACE_PATTERN.fullmatch(fields[5])):
+            result.add(fields[5])
+    return result
+
+
 def status_report(*, net_root: Path = Path('/sys/class/net'),
                   module_root: Path = Path('/sys/module'),
+                  ipv6_table: Path = Path('/proc/net/if_inet6'),
                   usb_devices: list[dict] | None = None,
                   wsl: bool | None = None,
                   now: datetime | None = None,
@@ -64,6 +86,7 @@ def status_report(*, net_root: Path = Path('/sys/class/net'),
     tools = {name: bool(lookup(name)) for name in
              ('iw', 'ip', 'morse_cli', 'hostapd_s1g', 'wpa_supplicant_s1g')}
     modules = [name for name in _MODULE_NAMES if (module_root / name).is_dir()]
+    linklocal_ifaces = _linklocal_ipv6_ifaces(ipv6_table)
 
     interfaces = []
     try:
@@ -86,10 +109,17 @@ def status_report(*, net_root: Path = Path('/sys/class/net'),
         if state not in ('up', 'down', 'dormant', 'unknown', 'lowerlayerdown', 'notpresent', 'testing'):
             state = 'unknown'
         carrier = _read(path / 'carrier', 2)
+        carrier_reported = True if carrier == '1' else False if carrier == '0' else None
+        linklocal = path.name in linklocal_ifaces
+        # A conservative *preflight* for a voluntary RNS interface selection.
+        # There is no ICMP probe, multicast join or actual RF connectivity test.
+        eligible = state == 'up' and carrier_reported is not False and linklocal
         interfaces.append({
             'name': path.name, 'driver_hint': driver,
             'os_operstate': state,
-            'os_carrier_reported': True if carrier == '1' else False if carrier == '0' else None,
+            'os_carrier_reported': carrier_reported,
+            'ipv6_link_local_present': linklocal,
+            'reticulum_opt_in_eligible': eligible,
             'halow_rf_link_verified': False,
             'ip_transport_verified': False,
         })
@@ -153,6 +183,7 @@ def status_report(*, net_root: Path = Path('/sys/class/net'),
         'rf_link_verified': False,
         'ip_transport_verified': False,
         'reticulum_transport_verified': False,
+        'reticulum_opt_in_requires_confirmation': True,
         'performs_scan_or_connection': False,
         'limitations': 'Vendor hints, module presence, Linux carrier and OS interface UP do not prove IEEE 802.11ah association, RF reachability, payload throughput, mesh forwarding or LXMF delivery.',
     }

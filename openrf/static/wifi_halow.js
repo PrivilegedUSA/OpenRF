@@ -27,7 +27,7 @@
       const row=create('div','halow-row','');
       row.append(create('strong','',`Network interface: ${iface.name}`),
         create('span','',`Driver hint: ${iface.driver_hint} · OS: ${iface.os_operstate} · carrier: ${iface.os_carrier_reported===true?'reported':iface.os_carrier_reported===false?'absent':'unknown'}`),
-        create('small','muted','Potential 802.11ah hardware only. RF peer, IP traffic and messaging unverified.'));
+        create('small','muted',`IPv6 link-local: ${iface.ipv6_link_local_present?'present':'not observed'} · Reticulum selection: ${iface.reticulum_opt_in_eligible?'eligible for manual opt-in':'not yet eligible'} · RF/multicast/peer unverified.`));
       box.append(row);
     }
     for(const usb of report.candidate_usb_descriptors||[]){

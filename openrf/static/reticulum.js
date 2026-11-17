@@ -15,7 +15,7 @@
   }
   const state={enabled:false,busy:false,available:false,polling:false,
     contacts:[],messages:[],historyEnabled:false,editingContact:null,
-    activeThread:null,drafts:Object.create(null),...restoredUnread()};
+    activeThread:null,drafts:Object.create(null),halowEligible:[],...restoredUnread()};
   const viewingMessages=()=>Boolean(el('page-reticulum')?.classList.contains('active'));
   function persistUnread(){
     try{
@@ -72,6 +72,9 @@
     el('reticulum-byte-count').classList.toggle('error',count>1024);
     el('reticulum-enable').disabled=state.enabled||state.busy||!state.available;
     el('reticulum-tcp-enable').disabled=state.enabled||state.busy;
+    el('reticulum-halow-refresh').disabled=state.busy;
+    el('reticulum-halow-activate').disabled=state.enabled||state.busy||!state.halowEligible.length;
+    el('reticulum-halow-device').disabled=state.enabled||state.busy||!el('reticulum-halow-activate').checked;
     el('reticulum-rnode-activate').disabled=state.enabled||state.busy;
     const rnodeSelected=el('reticulum-rnode-activate').checked;
     const rnodeSetupLocked=state.enabled||state.busy||!rnodeSelected;
@@ -98,9 +101,10 @@
     // A temporary status disconnect must not erase an unread notification.
     // The first successful inbox poll will establish/reset its sequence.
     if(state.enabled)el('reticulum-tcp-enable').checked=Boolean(result.tcp_enabled);
+    if(state.enabled)el('reticulum-halow-activate').checked=Boolean(result.halow_device_requested);
     el('reticulum-badge').textContent=state.enabled?'LAN ENABLED':'OFF';
     el('reticulum-connection-brief').textContent=state.enabled
-      ?`Reticulum enabled · TCP ${result.tcp_enabled?'requested':'off'} · ${result.rnode_count||0} USB RNode(s) requested · forwarding ${result.transport_forwarding_requested?'requested':'off'} · delivery unverified`
+      ?`Reticulum enabled · TCP ${result.tcp_enabled?'requested':'off'} · ${result.rnode_count||0} USB RNode(s) requested · HaLow ${result.halow_device_requested||'not selected'} · forwarding ${result.transport_forwarding_requested?'requested':'off'} · delivery unverified`
       :'Connection: off · no TCP listener requested by OpenRF.';
     el('reticulum-address').value=state.enabled&&result.address?result.address:'Not enabled';
     updateControls();
@@ -482,8 +486,42 @@
     }catch(error){label.textContent=`USB readiness unavailable: ${error.message}`;}
     updateControls();
   }
+  async function refreshHaLowReadiness(){
+    const label=el('reticulum-halow-status');
+    label.textContent='Checking local Linux driver and IPv6 prerequisites…';
+    try{
+      const report=await request('/api/wifi-halow/status');
+      if(report.kind!=='PASSIVE_WIFI_HALOW_READINESS'||report.read_only!==true)
+        throw Error('Unexpected HaLow readiness response');
+      const picker=el('reticulum-halow-device');
+      const selected=picker.value;
+      state.halowEligible=(report.candidate_interfaces||[])
+        .filter(item=>item.reticulum_opt_in_eligible===true&&/^[a-zA-Z0-9_.:-]{1,32}$/.test(item.name||''))
+        .map(item=>item.name);
+      picker.replaceChildren(new Option('No HaLow device selected',''));
+      for(const name of state.halowEligible)
+        picker.append(new Option(`${name} · OS up + IPv6 link-local (peer unverified)`,name));
+      picker.value=state.halowEligible.includes(selected)?selected:'';
+      if(!state.halowEligible.length&&!state.enabled)el('reticulum-halow-activate').checked=false;
+      label.textContent=state.halowEligible.length
+        ?`${state.halowEligible.length} eligible candidate(s) · RF/multicast/peer unverified`
+        :`${report.state.replaceAll('_',' ')} · no eligible HaLow IP interface; check Hardware`;
+    }catch(error){
+      state.halowEligible=[];
+      el('reticulum-halow-device').replaceChildren(new Option('Readiness unavailable',''));
+      if(!state.enabled)el('reticulum-halow-activate').checked=false;
+      label.textContent=`HaLow readiness failed: ${error.message}`;
+    }
+    updateControls();
+  }
   function rnodeStartOptions(){
     const options={tcp_enabled:el('reticulum-tcp-enable').checked};
+    if(el('reticulum-halow-activate')?.checked){
+      const candidate=el('reticulum-halow-device')?.value||'';
+      if(!/^[a-zA-Z0-9_.:-]{1,32}$/.test(candidate))
+        throw Error('Check HaLow readiness and select a candidate Linux interface first.');
+      options.halow_device=candidate;
+    }
     if(!el('reticulum-rnode-activate').checked)return options;
     const profile=suffix=>{
       const port=el(`reticulum-rnode-port${suffix}`).value;
@@ -522,10 +560,16 @@
     try{options=rnodeStartOptions();}
     catch(error){note(error.message,true);return;}
     if((options.rnode||options.rnodes)&&!window.confirm('Start Reticulum with the selected USB RNode radio(s)? Each may transmit immediately (including an LXMF announcement). Confirm firmware, antennas, legal frequencies/powers and channel agreement first.'))return;
+    if(options.halow_device&&!window.confirm(`Start Reticulum AutoInterface on ${options.halow_device}? This may send IPv6 multicast/UDP announcements on the vendor-configured HaLow network. An OS UP/carrier indicator is not proof of RF reachability or peer delivery. Continue?`))return;
     if(options.transport_enabled&&!window.confirm('Enable Reticulum transport forwarding? This can relay other traffic and transmit additional RF packets. Proceed only for a deliberately configured node.'))return;
     await act('/api/reticulum/start',options);
   });
   el('reticulum-rnode-refresh').addEventListener('click',refreshRNodeReadiness);
+  el('reticulum-halow-refresh').addEventListener('click',refreshHaLowReadiness);
+  el('reticulum-halow-activate').addEventListener('change',updateControls);
+  el('reticulum-halow-panel').addEventListener('toggle',()=>{
+    if(el('reticulum-halow-panel').open)refreshHaLowReadiness();
+  });
   el('reticulum-rnode-activate').addEventListener('change',updateControls);
   el('reticulum-rnode-second-activate').addEventListener('change',updateControls);
   el('reticulum-disable').addEventListener('click',async()=>{

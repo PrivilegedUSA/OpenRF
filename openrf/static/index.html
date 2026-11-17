@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.98">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.99">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -17,19 +17,19 @@
   <script defer src="/static/route_guidance.js?v=0.2.76"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/app.js?v=0.2.98"></script>
+  <script defer src="/static/app.js?v=0.2.99"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.98"></script>
-  <script defer src="/static/reticulum.js?v=0.2.98"></script>
-  <script defer src="/static/mesh_connections.js?v=0.2.98"></script>
-  <script defer src="/static/wifi_halow.js?v=0.2.98"></script>
+  <script defer src="/static/mesh.js?v=0.2.99"></script>
+  <script defer src="/static/reticulum.js?v=0.2.99"></script>
+  <script defer src="/static/mesh_connections.js?v=0.2.99"></script>
+  <script defer src="/static/wifi_halow.js?v=0.2.99"></script>
   <script defer src="/static/camera-layers.js?v=0.2.76"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.98</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.99</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -554,6 +554,16 @@
             <p class="small muted">Opt-in: this opens a Reticulum TCP listener on the device's network interfaces while messaging is enabled. It is <strong>not</strong> OpenRF's web API. Use only on a trusted LAN, and configure a restricted OS firewall rule before allowing other devices. Stop Reticulum to close the listener.</p>
             <p class="small muted" id="reticulum-tcp-instructions">For Sideband: Connectivity → Connect via TCP. Set host to your computer's <strong>LAN IPv4 address</strong> (not 127.0.0.1 or the LXMF hash) and port <strong>4242</strong>. On WSL, Windows may require a separate inbound TCP 4242 Hyper-V firewall rule. Start the TCP listener in OpenRF before enabling Sideband's TCP connection.</p>
           </div>
+          <details class="reticulum-diagnostics reticulum-halow-settings" id="reticulum-halow-panel">
+            <summary>Wi-Fi HaLow IP link · optional interface selection</summary>
+            <p class="small muted">First configure and associate your 802.11ah adapter using its vendor tools outside OpenRF. Then check the Linux interface below. A recognized driver, OS UP state and IPv6 link-local address are required for selection, but do <strong>not</strong> prove RF reachability or a working Reticulum peer.</p>
+            <div class="button-line"><button type="button" class="btn mini outline" id="reticulum-halow-refresh">Check HaLow interface (read-only)</button><span class="small muted" id="reticulum-halow-status" role="status">Not checked · no link verified</span></div>
+            <label class="switchline"><input id="reticulum-halow-activate" type="checkbox" disabled><span>Use one selected HaLow interface for Reticulum AutoInterface (OFF by default)</span></label>
+            <label class="reticulum-halow-choice" for="reticulum-halow-device">Linux HaLow interface
+              <select id="reticulum-halow-device" class="field" disabled><option value="">No qualified interface checked</option></select>
+            </label>
+            <p class="small muted">When selected, enabling Reticulum scopes only its managed <strong>AutoInterface</strong> to this device; it may send IPv6 multicast/UDP announcements across the HaLow network. It does not connect/configure Wi-Fi, change firewall/IP routes or enable relay forwarding. Any separately enabled TCP listener still binds all adapters, so keep TCP off if you only intend HaLow. You can stop Reticulum to end the worker.</p>
+          </details>
           <details class="reticulum-diagnostics reticulum-rnode-setup" id="reticulum-rnode-panel">
             <summary>RNode / LoRa hardware &amp; relay setup (optional)</summary>
             <p class="small muted">Choose this only with a real, compatible USB RNode running RNode firmware. Linux USB ports are <strong>candidates, not identified RNodes</strong>. Unlike Meshtastic, RNode runs Reticulum over LoRa. No port probing or RF operation occurs while viewing these settings.</p>
@@ -581,7 +591,7 @@
             </div>
             <label class="switchline"><input id="reticulum-transport-enable" type="checkbox" disabled><span>Enable Reticulum transport forwarding / relay (advanced; OFF by default)</span></label>
             <p class="small muted">Starting an RNode can configure its radio, announce your LXMF address and transmit RF. Verify your exact board's supported band, antenna, power, local laws, channel agreement and duty-cycle requirements. OpenRF cannot establish compliance from this form. Do not let Meshtastic or another app open the same USB port. Relay forwarding can produce extra RF traffic; use only on a deliberately deployed node. All interfaces stop with Stop Reticulum.</p>
-            <p class="small muted">Wi-Fi HaLow (802.11ah) is a separate future IP-link option. Hardware now shows passive vendor-driver readiness hints; Reticulum AutoInterface may use an independently configured IP network. OpenRF does not configure HaLow drivers or BATMAN-adv, and no HaLow link is verified.</p>
+            <p class="small muted">Wi-Fi HaLow (802.11ah) has a separate optional AutoInterface selector above once the vendor-configured Linux IP link passes basic readiness checks. OpenRF does not configure HaLow drivers or BATMAN-adv, and no HaLow link is verified.</p>
           </details>
           <div class="button-line">
             <button type="button" class="btn primary" id="reticulum-enable">Enable LAN messaging</button>
@@ -715,7 +725,7 @@
         <div id="halow-candidates" class="halow-list"><p class="small muted">No hardware readiness report yet.</p></div>
         <details class="halow-setup"><summary>Hardware bring-up checklist</summary><ol id="halow-setup-steps"><li>Choose an 802.11ah module with a Linux driver supported by the target Raspberry Pi OS kernel.</li><li>Install the appropriate vendor driver, firmware, board calibration, and country settings outside OpenRF.</li><li>Verify the HaLow IP network independently before testing Reticulum over it.</li></ol><p class="small muted">Vendor references (internet optional): <a href="https://github.com/MorseMicro/morse_driver" target="_blank" rel="noopener noreferrer">Morse Micro Linux driver</a> · <a href="https://github.com/newracom/nrc7394_sw_pkg" target="_blank" rel="noopener noreferrer">Newracom NRC7394</a>. Use firmware and calibration data for your exact hardware.</p></details>
         <div class="button-line"><button type="button" class="btn outline" id="halow-refresh">Refresh HaLow readiness</button></div>
-        <p class="small muted">No network discovery, pairing, packets, port opening, firmware flashing, AP setup, IP routing or Reticulum bridge is started by this feature. Actual HaLow connection and radio testing are still future work.</p>
+        <p class="small muted">This read-only check never starts network discovery, pairing, packets, firmware flashing, AP setup, IP routing or Reticulum. Separately, Reticulum can now be explicitly scoped to an eligible vendor-configured HaLow interface; actual RF and peer communication remain unverified.</p>
       </section>
       <div class="hardware-grid" id="hardware-cards"></div><p id="wifi-driver-status" class="muted small hardware-wifi-status">Checking one-shot Wi-Fi adapter readiness…</p><div class="panel hardware-inventory"><div class="panel-title"><h3>Detected host devices</h3><button id="refresh-hardware" class="btn outline">Refresh inventory</button></div><p class="muted small">Read-only Linux inventory. USB and serial entries do not mean that a receiver is supported, configured, or actively scanning.</p><div id="device-inventory" class="device-inventory"><div class="empty">Checking accessible Linux devices...</div></div></div><div class="panel sensor-registry"><div class="panel-title"><h3>Sensor connections</h3><span class="pill">DRIVER CONTRACT v1</span></div><p class="muted small">Only verified drivers can create SENSOR observations. USB detection alone does not mean live capture.</p><div id="sensor-registry-list" class="sensor-registry-list"><div class="empty">Checking sensor drivers…</div></div><div id="sensor-diagnostics" class="diagnostics-note">Checking connection readiness…</div></div>
       <section class="panel hardware-readiness" aria-label="Read-only hardware readiness">

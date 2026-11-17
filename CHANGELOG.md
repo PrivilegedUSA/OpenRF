@@ -765,3 +765,10 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Keep the Meshtastic, RNode and Reticulum subsystems independent. Do not auto-install vendor drivers, configure regions, scan Wi-Fi, connect to APs, transmit, configure IP routes or bridge HaLow into Reticulum. No new Python/JS dependency, private data output, data migration or network startup.
 - Add deterministic Python fake-sysfs tests for missing/WSL hardware, Morse interface UP+carrier, Newracom loaded module, USB candidate privacy and GET/static endpoint; add a JavaScript passive refresh/no POST UI test. Physical HaLow hardware, Raspberry Pi OS, kernel/vendor compatibility and actual peer/forwarding remain unverified.
 
+## v0.2.99 — Opt-in Wi-Fi HaLow interface for Reticulum (2026-11-17)
+
+- Add a separate, default-off HaLow AutoInterface selector under Reticulum and a one-shot read-only readiness refresh. Select only a recognized Linux HaLow driver interface with OS UP and link-local IPv6; never assume USB descriptor, carrier, link-local IP or driver name proves RF/IP reachability.
+- On explicit Reticulum Enable and confirmation, revalidate Linux prerequisites and scope the managed AutoInterface to the selected network name in a generated **temporary** RNS config. Preserve the operator's base config and independent TCP/RNode settings; do not open a TCP listener or enable forwarding implicitly.
+- Refuse malformed device names, missing or stale host prerequisites and custom operator-managed AutoInterface device restrictions. Nothing starts on page load; no vendor driver install, Wi-Fi association, network scan, AP/router setup, privileged command, packet capture or Meshtastic↔Reticulum bridge.
+- Add Python deterministic sysfs/IPv6, validation, generated config, coexistence and HTTP rejection tests, plus JavaScript read-only selection and no hidden connection tests. Live HaLow, real multicast, Pi OS/RNS compatibility and LXMF peer delivery remain **untested**.
+

@@ -1,4 +1,12 @@
-# OpenRF v0.2.98 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.99 — Offline-First Navigation and RF Toolkit
+
+## v0.2.99 — Optional HaLow-only Reticulum AutoInterface selection
+
+The existing **Hardware → Wi-Fi HaLow** panel now also identifies whether a driver-associated Linux interface is **eligible for explicit Reticulum selection**: it must be OS `UP`, not report carrier explicitly absent, and have an IPv6 link-local address. These are **only local prerequisites**; neither device identification nor link-local IPv6 proves HaLow association, peer reachability, IPv6 multicast or actual Reticulum/LXMF delivery. No IP address, MAC, SSID or USB serial number is returned. Ordinary Wi-Fi interfaces do not qualify just because they are up.
+
+In **Messages → Reticulum → Wi-Fi HaLow IP link**, first choose **Check HaLow interface (read-only)**. If the vendor-configured Linux device meets the prerequisites, you can check **Use one selected HaLow interface**, select it and then intentionally **Enable LAN messaging**. A separate confirmation warns that Reticulum may emit IPv6 multicast/UDP traffic on that interface; **Stop Reticulum** ends the worker. OpenRF validates the candidate again immediately before starting Reticulum. If the driver, UP state or IPv6 link-local prerequisites are missing, the server rejects the operation without creating a worker.
+
+Selecting HaLow adds Reticulum's documented `devices = <interface>` restriction to a **temporary managed AutoInterface configuration**, preserving your original private RNS settings. With the option off, legacy LAN/TCP and one- or two-RNode behavior is unchanged. If the optional TCP listener is enabled separately, it still listens across adapters; Reticulum transport forwarding remains a different consent-gated RNode option. The HaLow selector does not connect or configure an AP/station, install drivers or firmware, adjust firewall/region/IP, scan RF, make a BATMAN-adv mesh or verify the link. To work in the field, first configure compatible 802.11ah hardware in Raspberry Pi OS with the correct vendor package and verify it independently. See [v0.2.99 test notes](docs/RELEASE_0.2.99_TESTS.md).
 
 ## v0.2.98 — Passive Wi-Fi HaLow (802.11ah) readiness
 

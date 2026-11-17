@@ -18,6 +18,7 @@ import threading
 from .reticulum_history import ReticulumLocalStore, ContactExistsError, ContactMissingError
 from .hardware import enumerate_serial_ports
 from .serial_diagnostics import serial_port_diagnostics
+from .wifi_halow import status_report as halow_status_report
 
 
 DESTINATION = re.compile(r'[0-9a-fA-F]{32}\Z')
@@ -43,6 +44,7 @@ TCP_SECTION = """
     listen_port = 4242
 """
 RNODE_PORT = re.compile(r'/dev/tty(?:USB|ACM)\d{1,3}\Z')
+HALOW_INTERFACE = re.compile(r'[a-zA-Z0-9_.:-]{1,32}\Z')
 RNODE_BANDWIDTHS = (62500, 125000, 250000, 500000)
 
 
@@ -128,8 +130,8 @@ def validate_message(body):
 
 def validate_start(body):
     """Keep LAN exposure explicit; no arbitrary listener addresses or ports."""
-    if not isinstance(body, dict) or not set(body).issubset({'tcp_enabled', 'rnode', 'rnodes', 'transport_enabled'}):
-        raise ReticulumError('Enable accepts only tcp_enabled, rnode/rnodes and transport_enabled options.',
+    if not isinstance(body, dict) or not set(body).issubset({'tcp_enabled', 'rnode', 'rnodes', 'transport_enabled', 'halow_device'}):
+        raise ReticulumError('Enable accepts only tcp_enabled, rnode/rnodes, transport_enabled and halow_device options.',
                              'invalid_reticulum_command', 400)
     if 'rnode' in body and 'rnodes' in body:
         raise ReticulumError('Choose either the legacy single rnode option or the rnodes list, not both.',
@@ -139,6 +141,12 @@ def validate_start(body):
         raise ReticulumError('tcp_enabled must be true or false.',
                              'invalid_reticulum_command', 400)
     options = {'tcp_enabled': enabled}
+    if 'halow_device' in body:
+        device = body['halow_device']
+        if not isinstance(device, str) or device == 'lo' or not HALOW_INTERFACE.fullmatch(device):
+            raise ReticulumError('Select a valid Linux HaLow interface name from read-only readiness.',
+                                 'invalid_halow_interface', 400)
+        options['halow_device'] = device
     if 'rnode' in body:
         options['rnode'] = validate_rnode(body['rnode'])
     if 'rnodes' in body:
@@ -172,21 +180,37 @@ def private_config(root):
     return directory
 
 
-def runtime_config(root, tcp_enabled=False, rnode=None, transport_enabled=False, rnodes=None):
+def runtime_config(root, tcp_enabled=False, rnode=None, transport_enabled=False,
+                   rnodes=None, halow_device=None):
     """Preserve operator RNS config; derive opt-in temporary transport config."""
     if rnode is not None and rnodes is not None:
         raise ValueError('Provide either rnode or rnodes, not both.')
     profiles = validate_rnodes(rnodes) if rnodes is not None else ([validate_rnode(rnode)] if rnode is not None else [])
+    if halow_device is not None and (not isinstance(halow_device,str) or
+                                     halow_device == 'lo' or not HALOW_INTERFACE.fullmatch(halow_device)):
+        raise ValueError('Invalid HaLow network interface name.')
     if transport_enabled and not profiles:
         raise ValueError('Transport forwarding requires an RNode.')
     root = Path(root)
     original = private_config(root)
-    if not (tcp_enabled or profiles or transport_enabled):
+    if not (tcp_enabled or profiles or transport_enabled or halow_device):
         return original
     runtime = root / 'rns-tcp-runtime' if tcp_enabled and not (profiles or transport_enabled) else root / 'rns-optin-runtime'
     runtime.mkdir(mode=0o700, parents=True, exist_ok=True)
     runtime.chmod(0o700)
     source = (original / 'config').read_text(encoding='utf-8')
+    if halow_device:
+        # Only the managed OpenRF AutoInterface can be scoped to this device.
+        # Never rewrite the operator config or replace a device restriction.
+        marker = re.search(r'(?m)^  \[\[OpenRF LAN\]\][ \t]*$', source)
+        if not marker:
+            raise RuntimeError('The private config has no managed OpenRF LAN AutoInterface to scope.')
+        next_section = re.search(r'(?m)^\s*(?:\[\[[^\]\n]+\]\]|\[[^\[\]\n]+\])[ \t]*$', source[marker.end():])
+        end = marker.end() + next_section.start() if next_section else len(source)
+        block = source[marker.end():end]
+        if not re.search(r'(?im)^\s*type\s*=\s*AutoInterface\s*$', block) or re.search(r'(?im)^\s*devices\s*=', block):
+            raise RuntimeError('The managed LAN interface was changed by the operator; cannot safely add HaLow device selection.')
+        source = source[:end].rstrip() + '\n    devices = ' + halow_device + '\n\n' + source[end:]
     if '[[OpenRF Optional TCP Listener]]' in source:
         raise RuntimeError('Operator config already defines the managed TCP listener.')
     if profiles and any(f'[[{name}]]' in source for name in
@@ -263,7 +287,8 @@ def reticulum_worker(pipe, data_root, options=None):
         config_dir = runtime_config(data_root, tcp_enabled=tcp_enabled,
                                     rnode=(options or {}).get('rnode'),
                                     transport_enabled=(options or {}).get('transport_enabled', False),
-                                    rnodes=(options or {}).get('rnodes'))
+                                    rnodes=(options or {}).get('rnodes'),
+                                    halow_device=(options or {}).get('halow_device'))
         rns_instance = RNS.Reticulum(configdir=str(config_dir), loglevel=1)
         identity_file = data_root / 'identity'
         if identity_file.exists():
@@ -393,6 +418,7 @@ class ReticulumManager:
         self._tcp_enabled = False
         self._rnodes = []
         self._transport_enabled = False
+        self._halow_device = None
         self._worker_id = None
         self._store = ReticulumLocalStore(self.data_root)
 
@@ -413,6 +439,8 @@ class ReticulumManager:
                     'rnode_ports':[profile['port'] for profile in self._rnodes] if running else [],
                     'rnode_count':len(self._rnodes) if running else 0,
                     'transport_forwarding_requested':bool(running and self._transport_enabled),
+                    'halow_device_requested':self._halow_device if running else None,
+                    'halow_ip_or_rf_link_verified':False,
                     'tcp_port':TCP_PORT if running and self._tcp_enabled else None,
                     'delivery':'UNVERIFIED_UNTIL_LXMF_RECEIPT',
                     'network_activity_requires_operator_action':True,
@@ -420,6 +448,17 @@ class ReticulumManager:
 
     def start(self, payload):
         options = validate_start(payload)
+        if options.get('halow_device'):
+            # Re-evaluate OS readiness immediately before any Reticulum child
+            # starts. This is not an RF/IP peer test, and does not mutate any
+            # interface. A generic wlan0 is intentionally insufficient.
+            report = halow_status_report()
+            selected = next((row for row in report.get('candidate_interfaces', [])
+                             if row.get('name') == options['halow_device'] and
+                             row.get('reticulum_opt_in_eligible') is True), None)
+            if selected is None:
+                raise ReticulumError('Selected HaLow interface is not ready in Linux: a recognized driver, OS UP state and IPv6 link-local address are required. Refresh Hardware readiness and configure the vendor network outside OpenRF.',
+                                     'halow_not_ready', 409)
         with self._lock:
             if self._running():
                 raise ReticulumError('Reticulum LAN is already enabled.', 'reticulum_busy')
@@ -452,6 +491,7 @@ class ReticulumManager:
             self._tcp_enabled = options['tcp_enabled']
             self._rnodes = options.get('rnodes') or ([options['rnode']] if 'rnode' in options else [])
             self._transport_enabled = options.get('transport_enabled', False)
+            self._halow_device = options.get('halow_device')
             self._error = None
             return self.status()
 
@@ -574,6 +614,7 @@ class ReticulumManager:
         self._tcp_enabled = False
         self._rnodes = []
         self._transport_enabled = False
+        self._halow_device = None
         if process is not None:
             if process.is_alive():
                 process.terminate()

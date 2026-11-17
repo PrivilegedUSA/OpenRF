@@ -71,5 +71,5 @@ const submit=()=>form.events.submit({preventDefault(){}});
   assert.equal(state.editingContact,null);
   assert.equal(address.readOnly,false);
   assert.match(status.textContent,/canceled/);
-  console.log('PASS v0.2.98 duplicate contact guard and explicit nickname edit');
+  console.log('PASS v0.2.99 duplicate contact guard and explicit nickname edit');
 })().catch(error=>{console.error(error);process.exitCode=1;});

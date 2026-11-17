@@ -1850,3 +1850,10 @@ body.map-workspace.has-message-unread .topbar #mesh-header-button{display:inline
 #page-hardware .halow-setup ol{padding-left:20px;color:#c2e2df;font-size:12px;line-height:1.5}
 #page-hardware .halow-setup li+li{margin-top:5px}
 #page-hardware .halow-setup a{color:#4de1cb}
+
+/* v0.2.99 — explicit, compact HaLow AutoInterface selector on Reticulum. */
+#page-reticulum .reticulum-halow-settings{min-width:0;max-width:900px;overflow-wrap:anywhere}
+#page-reticulum .reticulum-halow-settings .button-line{align-items:center;gap:8px;flex-wrap:wrap;margin:9px 0}
+#page-reticulum .reticulum-halow-settings .switchline{min-width:0;flex-wrap:wrap;margin:12px 0 8px}
+#page-reticulum .reticulum-halow-choice{display:grid;gap:6px;max-width:480px;min-width:0;color:#c4e1e1;font-size:12px}
+#page-reticulum .reticulum-halow-choice select{min-width:0;max-width:100%;width:100%}
