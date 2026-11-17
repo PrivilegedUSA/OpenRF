@@ -40,6 +40,10 @@ vm.runInNewContext(`const el=id=>globalThis.elements[id];
 const messageTexts=()=>elements['reticulum-messages'].children.map(item=>item.children[1].textContent);
 context.renderInbox(rows);
 assert.deepEqual(messageTexts(),['newest','middle','oldest'],'All inbox rows newest-first');
+assert(elements['reticulum-messages'].children[0].className.includes('message-inbound'),
+  'Received LXMF text uses incoming bubble');
+assert(elements['reticulum-messages'].children[1].className.includes('message-outbound'),
+  'Queued LXMF text uses outgoing bubble without claiming delivery');
 assert.deepEqual(rows.map(row=>row.text),['oldest','middle','newest'],'Input order preserved');
 assert.deepEqual(context.state.messages.map(row=>row.text),['oldest','middle','newest']);
 context.renderInbox(rows);
@@ -57,4 +61,4 @@ assert.equal(box.scrollTop,70,'Polling does not jump to latest while reading old
 box.scrollTop=0;
 context.renderInbox(rows);
 assert.equal(box.scrollTop,0,'Latest stays visible at top');
-console.log('PASS v0.2.92 Reticulum newest-first inbox, filters and scroll stability');
+console.log('PASS v0.2.93 Reticulum newest-first inbox, filters and scroll stability');

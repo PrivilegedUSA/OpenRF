@@ -1,4 +1,12 @@
-# OpenRF v0.2.92 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.93 — Offline-First Navigation and RF Toolkit
+
+## v0.2.93 — Persistent unread indicators while reading
+
+The Mesh and Reticulum inboxes now count new received messages **even when you are already on the corresponding messaging page**. Opening, refreshing, or remaining on an inbox never silently dismisses its unread badge. Each inbox has a compact **Mark all as read** button; only selecting it (or explicitly deleting all messages) clears that inbox's count. The header envelope remains the combined unread total, with independent counts in its Mesh and Reticulum choices and in the sidebar. On the map-first page, the compact envelope appears only while there are unread messages.
+
+Both inboxes also use readable **text-message bubbles**: received texts on the left and outgoing/submitted texts on the right, with compact local timestamps and clear routing/delivery-status caveats. Mesh conversations now display **newest first** too, matching Reticulum. This remains an offline-first local messaging UI; there are no invented delivery/read receipts, network connections, or fake messages.
+
+Unread counts are based on genuine inbound event sequences, not sent texts, history replay or delivery receipts. They persist through refresh of the same browser tab where session storage is available. A brand-new tab still establishes its own baseline; messages that arrived before it opened are not automatically identified as unread. No backend, network, or message-storage changes were needed. See `docs/RELEASE_0.2.93_TESTS.md`.
 
 ## v0.2.92 — Newest messages first
 

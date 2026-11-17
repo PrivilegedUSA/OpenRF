@@ -73,5 +73,5 @@ assert(!snippet.includes("'/api/reticulum/send'"));
   assert(nodes['reticulum-recipient'].selected,'Clipboard-denied fallback selects the address');
   assert(notes.at(-1).includes('Clipboard unavailable'));
   assert(!js.includes('innerHTML'));
-  console.log('PASS v0.2.92 separate inboxes and explicit, safe LXMF Reply/Copy');
+  console.log('PASS v0.2.93 separate inboxes and explicit, safe LXMF Reply/Copy');
 })().catch(error=>{console.error(error);process.exitCode=1;});

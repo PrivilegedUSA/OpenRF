@@ -1,5 +1,5 @@
 'use strict';
-/* v0.2.90: reliable per-tab inbound sequence tracking and unread badges.
+/* v0.2.93: persistent unread badges until explicit Mark all as read.
    No fake nodes, background connections or transmissions; storage is opt-in. */
 (() => {
   const el=id=>document.getElementById(id);
@@ -35,6 +35,9 @@
     }
     const parent=el('messages-nav-toggle');
     parent?.classList?.toggle('has-unread',count>0);
+    // Keep the full-screen Map clean when idle; surface the compact envelope
+    // there only while a real unread message needs attention.
+    document.body.classList?.toggle?.('has-message-unread',count>0);
     for(const [id,label,value] of [
       ['mesh-nav-item','Mesh messages',state.unread],
       ['reticulum-nav-item','Reticulum',reticulumUnread]
@@ -45,6 +48,12 @@
     const header=el('mesh-header-button');
     header.setAttribute('aria-label',count?`Choose message inbox, ${count} unread`:'Choose message inbox');
     header.title=count?`${count} unread message${count===1?'':'s'} (Meshtastic: ${state.unread}, Reticulum: ${state.reticulumUnread||0})`:'Choose message inbox';
+    const markRead=el('mesh-mark-read');
+    if(markRead)markRead.disabled=state.unread===0;
+    const inboxCount=el('mesh-inbox-unread');
+    if(inboxCount)inboxCount.textContent=state.unread
+      ?`${state.unread} unread · review messages, then mark all read`
+      :'No unread mesh messages';
     persistUnread();
   }
   function persistUnread(){
@@ -58,19 +67,18 @@
     // rows. Establish a baseline on first load so historical chat is not new.
     const sequence=result?.receive_sequence;
     if(Number.isSafeInteger(sequence)&&sequence>=0){
-      // A reconnect or server restart can reset the counter. Keep genuine
-      // unread badges until opened, but don't synthesize new messages.
-      if(state.receiveSequence!==null && sequence>state.receiveSequence && !viewingMessages()){
+      // Page visibility is not proof that a person read the new message.
+      // Keep the badge until a deliberate Mark all as read action.
+      if(state.receiveSequence!==null && sequence>state.receiveSequence){
         const newlyReceived=sequence-state.receiveSequence;
         state.unread+=newlyReceived;
         // Keep driving/map view quiet: visible badge only, no live-region
         // announcement competing with safety-critical navigation prompts.
         if(!document.body.classList.contains('map-workspace'))
-          el('mesh-global-announcer').textContent=`${newlyReceived} new mesh message${newlyReceived===1?'':'s'} received. Open Messages to read.`;
+          el('mesh-global-announcer').textContent=`${newlyReceived} new mesh message${newlyReceived===1?'':'s'} received. Review Messages and mark them read.`;
       }
       state.receiveSequence=sequence;
     }
-    if(viewingMessages())state.unread=0;
     renderUnread();
   }
   const note=(text,error=false)=>{
@@ -158,6 +166,13 @@
     }
   }
   let lastRenderedSignature='';
+  function friendlyMessageTime(value){
+    const raw=String(value||'');
+    const date=new Date(raw);
+    return raw&&!Number.isNaN(date.getTime())
+      ?date.toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})
+      :raw||'UTC unavailable';
+  }
   function conversationKey(message){
     return `${message.node||'unknown node'}|${Number.isInteger(message.channel)?message.channel:'?'}`;
   }
@@ -176,18 +191,22 @@
     if(signature===lastRenderedSignature)return;
     lastRenderedSignature=signature;
 
-    const box=el('mesh-messages');box.replaceChildren();
+    const box=el('mesh-messages');
     const oldScroll=box.scrollTop;
-    const wasNearBottom=box.scrollHeight-box.scrollTop-box.clientHeight<28;
+    const oldHeight=box.scrollHeight;
+    const wasNearTop=oldScroll<24;
+    box.replaceChildren();
     if(!filtered.length){
       const p=document.createElement('p');p.className='small muted';
       p.textContent='No recorded messages in this conversation. A connected radio is required for actual messages.';box.append(p);return;
     }
-    for(const m of filtered.slice(-1000)){
-      const article=document.createElement('article');article.className='mesh-message';
+    for(const m of filtered.slice(-1000).reverse()){
+      const article=document.createElement('article');
+      article.className=`mesh-message message-bubble ${m.direction==='IN'?'message-inbound':'message-outbound'}`;
       const title=document.createElement('div');title.className='mesh-message-head';
       const label=document.createElement('strong');label.textContent=`${m.direction==='IN'?'Received from':'Submitted to'} ${nicknames[m.node]?nicknames[m.node]+' · ':''}${m.node||'unknown node'} · channel ${Number.isInteger(m.channel)?m.channel:'?'}`;
-      const time=document.createElement('span');time.textContent=m.received_at_utc||'UTC unavailable';
+      const time=document.createElement('span');time.textContent=friendlyMessageTime(m.received_at_utc);
+      time.title=m.received_at_utc||'UTC unavailable';
       title.append(label,time);
       const text=document.createElement('p');text.textContent=String(m.text||'');
       const delivery=document.createElement('small');delivery.textContent=m.direction==='IN'?'Reported by connected radio; sender authenticity unverified.':
@@ -207,7 +226,7 @@
       }
       box.append(article);
     }
-    box.scrollTop=wasNearBottom?box.scrollHeight:oldScroll;
+    box.scrollTop=wasNearTop?0:Math.max(0,oldScroll+box.scrollHeight-oldHeight);
   }
   async function loadMessages(){
     if(state.polling)return;
@@ -230,7 +249,10 @@
     catch(error){note(error.message,true);return null;}
     finally{state.busy=false;renderButtons();}
   }
-  el('mesh-conversation').addEventListener('change',()=>renderMessages(latestRows));
+  el('mesh-conversation').addEventListener('change',()=>{
+    el('mesh-messages').scrollTop=0;
+    renderMessages(latestRows);
+  });
   el('mesh-reply-conversation').addEventListener('click',()=>{
     const key=el('mesh-conversation').value;
     if(key==='all'||!state.connected)return;
@@ -266,6 +288,10 @@
     const result=await run({},'/api/mesh/history/clear');
     if(result){state.unread=0;renderUnread();note('Mesh message history cleared.');}
   });
+  el('mesh-mark-read').addEventListener('click',()=>{
+    state.unread=0;renderUnread();
+    note('Mesh messages marked as read on this tab.');
+  });
   el('mesh-serial').addEventListener('change',renderButtons);
   el('mesh-connect').addEventListener('click',()=>run({port:el('mesh-serial').value},'/api/mesh/connect'));
   el('mesh-disconnect').addEventListener('click',()=>run({},'/api/mesh/disconnect'));
@@ -292,9 +318,7 @@
     const count=event.detail?.count;
     if(Number.isSafeInteger(count)&&count>=0){state.reticulumUnread=count;renderUnread();}
   });
-  document.addEventListener('openrf:messages-shown',()=>{
-    state.unread=0;renderUnread();refresh();
-  });
+  document.addEventListener('openrf:messages-shown',refresh);
   // A read-only inbox poll continues across pages, so the header can indicate
   // real incoming texts without an open message page. No auto-connection,
   // radio scanning or transmission is initiated by this timer.

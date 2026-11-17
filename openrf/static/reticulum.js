@@ -1,5 +1,5 @@
 'use strict';
-/* v0.2.92: newest-first inbox, with contacts, filters and opt-in history. */
+/* v0.2.93: explicit unread acknowledgment and newest-first LXMF inbox. */
 (()=>{
   const el=id=>document.getElementById(id);
   if(!el('reticulum-panel'))return;
@@ -24,6 +24,12 @@
   }
   function publishUnread(){
     persistUnread();
+    const markRead=el('reticulum-mark-read');
+    if(markRead)markRead.disabled=state.unread===0;
+    const inboxCount=el('reticulum-inbox-unread');
+    if(inboxCount)inboxCount.textContent=state.unread
+      ?`${state.unread} unread · review messages, then mark all read`
+      :'No unread Reticulum messages';
     document.dispatchEvent(new CustomEvent('openrf:reticulum-unread',
       {detail:{count:state.unread}}));
   }
@@ -34,15 +40,14 @@
     if(Number.isSafeInteger(sequence)&&sequence>=0){
       // Worker restart resets its sequence but doesn't mean earlier unread
       // messages were actually opened; retain the badge until read.
-      if(state.receiveSequence!==null && sequence>state.receiveSequence && !viewingMessages()){
+      if(state.receiveSequence!==null && sequence>state.receiveSequence){
         const newlyReceived=sequence-state.receiveSequence;
         state.unread+=newlyReceived;
         if(!document.body.classList.contains('map-workspace'))
-          el('mesh-global-announcer').textContent=`${newlyReceived} new Reticulum message${newlyReceived===1?'':'s'} received. Open Messages to read.`;
+          el('mesh-global-announcer').textContent=`${newlyReceived} new Reticulum message${newlyReceived===1?'':'s'} received. Review Messages and mark them read.`;
       }
       state.receiveSequence=sequence;
     }
-    if(viewingMessages())state.unread=0;
     publishUnread();
   }
   const note=(message,error=false)=>{
@@ -95,6 +100,13 @@
     const found=state.contacts.find(item=>item.address===value);
     return found?`${found.alias} (${value.slice(0,7)}…)`:String(address||'unknown');
   }
+  function friendlyMessageTime(value){
+    const raw=String(value||'');
+    const date=new Date(raw);
+    return raw&&!Number.isNaN(date.getTime())
+      ?date.toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})
+      :raw||'UTC unavailable';
+  }
   function renderConversationChoices(){
     const selector=el('reticulum-conversation');
     if(!selector)return;
@@ -126,7 +138,8 @@
     if(!visible.length){const p=document.createElement('p');p.className='small muted';
       p.textContent=selected==='all'?'No LXMF messages in this inbox.':'No messages for this contact.';box.append(p);return;}
     for(const message of visible){
-      const article=document.createElement('article');article.className='mesh-message';
+      const article=document.createElement('article');
+      article.className=`mesh-message message-bubble ${message.direction==='IN'?'message-inbound':'message-outbound'}`;
       const heading=document.createElement('strong');
       heading.textContent=`${message.direction==='IN'?'Received from':'To'} ${contactName(message.destination)}`;
       const content=document.createElement('p');content.textContent=String(message.text||'');
@@ -134,7 +147,8 @@
       const status=message.status==='RECEIVED_VALID_SIGNATURE'?'Received · valid LXMF signature':
         message.status==='QUEUED_WITH_LXMF_NOT_DELIVERED'?'Queued with LXMF · delivery not confirmed':
         'Status unverified';
-      detail.textContent=`${status} · ${String(message.utc||'UTC unknown')}`;
+      detail.textContent=`${status} · ${friendlyMessageTime(message.utc)}`;
+      detail.title=String(message.utc||'UTC unknown');
       article.append(heading,content,detail);
       // A received LXMF row stores the sender hash in `destination`. Never
       // offer a reply to an outgoing row or a malformed/untrusted address.
@@ -396,10 +410,11 @@
       await refreshHistory();note('Reticulum messages cleared locally. Contacts were preserved.');
     }catch(error){note(error.message,true);}
   });
-  document.addEventListener('openrf:reticulum-shown',()=>{
+  el('reticulum-mark-read').addEventListener('click',()=>{
     state.unread=0;publishUnread();
-    refreshInbox();
+    note('Reticulum messages marked as read on this tab.');
   });
+  document.addEventListener('openrf:reticulum-shown',refreshInbox);
   el('reticulum-compose').addEventListener('submit',async event=>{
     event.preventDefault();
     if(!state.enabled||state.busy||el('reticulum-send').disabled)return;

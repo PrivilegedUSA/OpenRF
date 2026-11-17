@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.92">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.93">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -17,17 +17,17 @@
   <script defer src="/static/route_guidance.js?v=0.2.76"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/app.js?v=0.2.92"></script>
+  <script defer src="/static/app.js?v=0.2.93"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.92"></script>
-  <script defer src="/static/reticulum.js?v=0.2.92"></script>
+  <script defer src="/static/mesh.js?v=0.2.93"></script>
+  <script defer src="/static/reticulum.js?v=0.2.93"></script>
   <script defer src="/static/camera-layers.js?v=0.2.76"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.92</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.93</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -486,6 +486,7 @@
           <p id="mesh-status" class="small" role="status" aria-live="polite">No mesh node connected. No transmission has been attempted.</p>
           <p class="small muted">Messages are from a connected Meshtastic USB radio only. Sending requires your action; received-node identity is unverified. There are no simulated chats or automatic network connections.</p>
           <div class="mesh-inbox-header"><h4>Inbox</h4><span class="small muted" id="mesh-storage-label">Session · last 100</span></div>
+          <div class="button-line message-read-actions"><button type="button" class="btn mini outline" id="mesh-mark-read" disabled>Mark all as read</button><span id="mesh-inbox-unread" class="small muted" role="status">No unread mesh messages</span></div>
           <details class="mesh-device-settings" id="mesh-node-directory">
             <summary>Node directory &amp; nicknames</summary>
             <p class="small muted">Contacts come from local conversations or nicknames you saved. These are not a live list of nearby radios.</p>
@@ -584,6 +585,7 @@
           <div class="mesh-chat-grid">
             <div class="mesh-conversation-column">
               <div class="mesh-inbox-header"><h4>Reticulum inbox</h4><span class="small muted" id="reticulum-storage-label">Current session · last 100</span></div>
+              <div class="button-line message-read-actions"><button type="button" class="btn mini outline" id="reticulum-mark-read" disabled>Mark all as read</button><span id="reticulum-inbox-unread" class="small muted" role="status">No unread Reticulum messages</span></div>
               <label class="mesh-conversation-select" for="reticulum-conversation">Conversation
                 <select class="field" id="reticulum-conversation"><option value="all">All messages</option></select>
               </label>

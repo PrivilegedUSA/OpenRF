@@ -1,5 +1,5 @@
 'use strict';
-// v0.2.92: inbox selection, page state, and genuine receive counters.
+// v0.2.93: inbox selection, page state, and genuine receive counters.
 // No radio, LAN transmission, location API, or third-party DOM library.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -94,9 +94,9 @@ for(const [name,source] of [['mesh',mesh],['reticulum',retic]]){
   assert.equal(refreshed.context.unreadState.unread,3,`${name}: service restart must not erase unread`);
   refreshed.context.viewing=true;
   refreshed.context.track({receive_sequence:0});
-  assert.equal(refreshed.context.unreadState.unread,0,`${name}: opening this inbox marks it read`);
-  assert.equal(inboxFixture(source,name,sessionStorage).context.unreadState.unread,0,
-    `${name}: read state survives refresh`);
+  assert.equal(refreshed.context.unreadState.unread,3,`${name}: merely viewing the inbox does not mark it read`);
+  assert.equal(inboxFixture(source,name,sessionStorage).context.unreadState.unread,3,
+    `${name}: unread state survives refresh even while on its page`);
   if(name==='mesh'){
     assert.equal(first.nodes['mesh-header-unread'].textContent,'2');
     assert.equal(first.nodes['mesh-header-mesh-unread'].textContent,'2');
@@ -106,4 +106,4 @@ const reticStatus=retic.slice(retic.indexOf('  function renderStatus('),retic.in
 assert(!reticStatus.includes('state.unread=0'),'A connection status change must not clear a message badge');
 assert(mesh.includes('if(!state.busy)loadMessages();'),'Disconnected local inbox still checks last receipts');
 assert(!mesh.includes('innerHTML')&&!retic.includes('innerHTML'));
-console.log('PASS v0.2.92 header inbox chooser, page restore, and persistent genuine unread counters');
+console.log('PASS v0.2.93 header inbox chooser, page restore, and persistent genuine unread counters');

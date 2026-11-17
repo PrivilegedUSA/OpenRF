@@ -26,7 +26,7 @@ assert(html.includes('id="mesh-header-button"')&&html.includes('id="mesh-header-
 assert(html.includes('id="mesh-nav-unread"')&&html.includes('id="mesh-global-announcer"'));
 assert(css.includes('body.map-workspace .topbar .messages-header-button'));
 assert(app.includes("new Event('openrf:messages-shown')"));
-assert(mesh.includes("document.addEventListener('openrf:messages-shown',()=>{"));
+assert(mesh.includes("document.addEventListener('openrf:messages-shown',refresh);"));
 assert(!mesh.includes("document.addEventListener('openrf:radio-shown',refresh)"));
 assert(!mesh.includes('innerHTML'));
 
@@ -51,11 +51,11 @@ context.track({receive_sequence:8});
 assert.equal(context.state.unread,2,'An outgoing send leaves received sequence unchanged');
 context.visible=true;
 context.track({receive_sequence:9});
-assert.equal(context.state.unread,0,'Opening/reading Messages clears unread');
-assert.equal(nodes['mesh-nav-unread'].hidden,true);
+assert.equal(context.state.unread,3,'Inbound while Messages is visible still counts as unread');
+assert.equal(nodes['mesh-nav-unread'].hidden,false);
 context.visible=false;
 context.track({receive_sequence:10});
-assert.equal(context.state.unread,1,'Leaving Messages resumes notification count');
+assert.equal(context.state.unread,4,'Leaving Messages continues the same notification count');
 context.track({receive_sequence:0});
-assert.equal(context.state.unread,1,'Backend restart does not invent received messages');
+assert.equal(context.state.unread,4,'Backend restart does not invent received messages');
 console.log('PASS v0.2.77 dedicated radio/message/ham pages and genuine unread sequence');

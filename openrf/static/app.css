@@ -1715,6 +1715,33 @@ body:not(.map-workspace) .topbar .menu-toggle{font-size:25px}
 /* The map retains its uncluttered header; Messages remains in the sidebar. */
 body.map-workspace .topbar .header-messages-menu{display:none!important}
 
+/* v0.2.93 — show a small message affordance on the map only while unread. */
+body.map-workspace.has-message-unread .topbar .header-messages-menu{display:flex!important;pointer-events:auto}
+body.map-workspace.has-message-unread .topbar #mesh-header-button{display:inline-flex!important;pointer-events:auto}
+
+/* v0.2.93 — compact explicit unread-message controls in both inboxes. */
+#page-messages .message-read-actions,#page-reticulum .message-read-actions{gap:8px;flex-wrap:wrap;margin:5px 0 10px}
+#page-messages .message-read-actions .btn,#page-reticulum .message-read-actions .btn{min-height:31px;padding:5px 9px}
+#page-messages .message-read-actions .small,#page-reticulum .message-read-actions .small{min-width:0;overflow-wrap:anywhere}
+
+/* v0.2.93 — short, readable conversation bubbles without chat-style
+   delivery claims. The most recent event is at the top of each inbox. */
+#page-messages .mesh-messages,#page-reticulum .mesh-messages{display:flex;flex-direction:column;gap:8px;min-width:0}
+#page-messages .mesh-message.message-bubble,#page-reticulum .mesh-message.message-bubble{
+  width:fit-content;max-width:88%;min-width:0;padding:9px 11px;margin:0;
+  border:1px solid #2e5363;border-radius:13px 13px 13px 4px;
+  background:#122d38;overflow-wrap:anywhere;text-align:left}
+#page-messages .mesh-message.message-inbound,#page-reticulum .mesh-message.message-inbound{align-self:flex-start}
+#page-messages .mesh-message.message-outbound,#page-reticulum .mesh-message.message-outbound{
+  align-self:flex-end;border-color:#287469;background:#16483e;
+  border-radius:13px 13px 4px 13px}
+#page-messages .mesh-message.message-bubble:last-child,#page-reticulum .mesh-message.message-bubble:last-child{border-bottom:1px solid #2e5363}
+#page-messages .mesh-message.message-outbound:last-child,#page-reticulum .mesh-message.message-outbound:last-child{border-bottom-color:#287469}
+#page-messages .message-bubble .mesh-message-head,#page-reticulum .message-bubble>strong{color:#a5e2d9;font-size:11px;line-height:1.4}
+#page-messages .message-bubble .mesh-message-head{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+#page-messages .message-bubble .mesh-message-head span{color:#90aaa9;font-size:10px}
+#page-messages .message-bubble p,#page-reticulum .message-bubble p{margin:5px 0;font-size:12px;line-height:1.45}
+#page-messages .message-bubble small,#page-reticulum .message-bubble small{display:block;color:#9fbfb9;font-size:9px;line-height:1.4}
 /* v0.2.92 — compact local Reticulum contact and privacy controls. */
 #page-reticulum .reticulum-contact-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:9px;align-items:end;margin:11px 0}
 #page-reticulum .reticulum-contact-form label{display:grid;gap:5px;min-width:0;color:#b5d6d9;font-size:11px}

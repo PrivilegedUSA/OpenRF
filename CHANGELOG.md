@@ -691,6 +691,15 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Keep the total unread count on the header envelope, but only clear a channel's unread when visiting its own inbox. If just Reticulum has unread messages, clicking the envelope goes straight to Reticulum. Maintain small-screen wrapped text, a readable two-column landscape layout, and no sideways scroll.
 - Preserve explicit Enable/Stop, opt-in TCP listener on port 4242, dormant AutoInterface unless Reticulum is enabled, loopback-only HTTP service and unverified-delivery labels. No migrations, transmissions on load or OS firewall changes. JavaScript DOM regression added; actual Sideband/WSL UI needs operator testing.
 
+## v0.2.93 — Explicit unread acknowledgment on both message pages (2026-11-17)
+
+- Count genuine inbound Meshtastic and Reticulum messages even while their own inbox is active. Never treat opening or staying on the page as proof the operator has read them.
+- Add independent **Mark all as read** controls and unread counts to both inboxes. The combined header envelope, individual header choices and sidebar badges stay visible until a deliberate acknowledgment; clearing all messages also clears their count.
+- Show the compact message-envelope control on full-screen Map only while unread counts are nonzero, so the map stays quiet otherwise.
+- Use compact SMS-like incoming/outgoing chat bubbles in both inboxes, with local-time summaries, full UTC values retained in tooltips, truthful routing/delivery detail and no made-up read receipts. Bring Meshtastic's per-peer message order in line with Reticulum: latest event first, stable on repeated polls.
+- Preserve same-tab unread persistence and immediate recheck on return, and retain previous delivery-status honesty, per-contact filters, local history, transport permissions and privacy boundaries. No schema change or automatic radio transmission.
+- Add deterministic JavaScript regressions for live messages on the open inbox, counter persistence, duplicate-poll suppression, manual acknowledgment, renewed alerts after acknowledgment, small bubble layout contracts and mesh newest-first filtering. Field UI and live radio behavior remain operator-test items.
+
 ## v0.2.92 — Newest-first Reticulum inbox (2026-11-17)
 
 - Show recent LXMF texts at the top of both the full inbox and per-contact conversations. Reorder only a copy of the received event list, keeping message history and unread sequence tracking intact.

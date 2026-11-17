@@ -21,7 +21,7 @@ assert(js.includes('queueMapToolRailAlignment();'));
 assert(js.includes('bounds.height - top - 57'));
 for (const label of ['Where to?', 'data-map-tool="trip"','data-map-tool="settings"','data-map-tool="gps"','data-map-tool="offline"', 'id="map-picked-route"'])
   assert(html.includes(label),`preserved ${label}`);
-assert(html.includes('/static/app.css?v=0.2.92'));
+assert(html.includes('/static/app.css?v=0.2.93'));
 assert(js.includes('new maplibregl.NavigationControl()'));
 assert(js.includes('makeMapRecenterButton()'));
 console.log('PASS v0.2.52 right-aligned control stack, preserved actions, versioning');
