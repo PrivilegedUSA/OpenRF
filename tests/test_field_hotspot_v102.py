@@ -1,4 +1,4 @@
-"""v0.2.102 hotspot: all NetworkManager calls are FAKE; no real radios used."""
+"""v0.2.103 hotspot: all NetworkManager calls are FAKE; no real radios used."""
 import json
 import os
 import subprocess
@@ -107,7 +107,7 @@ class HotspotUnitTests(unittest.TestCase):
         self.assertEqual(add[add.index('connection.autoconnect')+1], 'no')
         self.assertEqual(add[add.index('802-11-wireless.mode')+1], 'ap')
         self.assertEqual(add[add.index('ipv4.method')+1], 'shared')
-        self.assertEqual(add[add.index('ipv6.method')+1], 'disabled')
+        self.assertEqual(add[add.index('ipv6.method')+1], 'link-local')
         self.assertFalse(any('hotspot' in part or 'wep' in part for part in add))
         stopped = self.manager.stop({'confirm':True})
         self.assertFalse(stopped['managed_profile_present'])

@@ -10,7 +10,7 @@ for(const id of ['reticulum-contacts-panel','reticulum-contact-form','reticulum-
   'reticulum-contact-alias','reticulum-contacts-list','reticulum-conversation',
   'reticulum-save-history','reticulum-clear-history','reticulum-storage-label',
   'reticulum-connection-brief'])assert(html.includes(`id="${id}"`),`Missing ${id}`);
-assert(html.includes('/static/reticulum.js?v=0.2.102'));
+assert(html.includes('/static/reticulum.js?v=0.2.103'));
 assert(css.includes('.reticulum-contact-form{display:grid;'));
 assert(css.includes('@media(max-width:500px){#page-reticulum .reticulum-contact-form{'));
 assert(js.includes("'/api/reticulum/contacts'"));
@@ -77,4 +77,4 @@ contact.children[1].children[1].events.click();
 assert.equal(elements['reticulum-contact-address'].value,a);
 assert.equal(elements['reticulum-contact-alias'].value,'My phone');
 assert(!snippet.includes("'/api/reticulum/send'"),'Neither selecting nor editing a contact transmits');
-console.log('PASS v0.2.102 Reticulum contacts, conversations and truthful message status UI');
+console.log('PASS v0.2.103 Reticulum contacts, conversations and truthful message status UI');

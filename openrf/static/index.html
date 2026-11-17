@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.102">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.103">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -17,22 +17,22 @@
   <script defer src="/static/route_guidance.js?v=0.2.76"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/app.js?v=0.2.102"></script>
+  <script defer src="/static/app.js?v=0.2.103"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.102"></script>
-  <script defer src="/static/reticulum.js?v=0.2.102"></script>
-  <script defer src="/static/mesh_connections.js?v=0.2.102"></script>
-  <script defer src="/static/wifi_halow.js?v=0.2.102"></script>
-  <script defer src="/static/field_network.js?v=0.2.102"></script>
-  <script defer src="/static/field_hotspot.js?v=0.2.102"></script>
-  <script defer src="/static/offline_readiness.js?v=0.2.102"></script>
+  <script defer src="/static/mesh.js?v=0.2.103"></script>
+  <script defer src="/static/reticulum.js?v=0.2.103"></script>
+  <script defer src="/static/mesh_connections.js?v=0.2.103"></script>
+  <script defer src="/static/wifi_halow.js?v=0.2.103"></script>
+  <script defer src="/static/field_network.js?v=0.2.103"></script>
+  <script defer src="/static/field_hotspot.js?v=0.2.103"></script>
+  <script defer src="/static/offline_readiness.js?v=0.2.103"></script>
   <script defer src="/static/camera-layers.js?v=0.2.76"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.102</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.103</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -562,9 +562,24 @@
           <p id="reticulum-status" class="small muted" role="status" aria-live="polite">Reticulum LAN is off. No network activity has been started by OpenRF.</p>
           <p id="reticulum-connection-brief" class="small muted">Connection: off · no TCP listener requested by OpenRF.</p>
           <div class="reticulum-tcp-settings">
-            <label class="switchline"><input type="checkbox" id="reticulum-tcp-enable"><span class="reticulum-tcp-label-text">Also accept a direct Sideband TCP connection (port 4242; OFF by default)</span></label>
+            <label class="switchline"><input type="checkbox" id="reticulum-tcp-enable"><span class="reticulum-tcp-label-text">Accept direct Reticulum TCP connections from Sideband or another OpenRF box (OFF by default)</span></label>
+            <label class="reticulum-tcp-port-label" for="reticulum-tcp-port">Local TCP listener port
+              <input id="reticulum-tcp-port" type="number" class="field" min="1024" max="65535" step="1" value="4242" disabled>
+            </label>
             <p class="small muted">Opt-in: this opens a Reticulum TCP listener on the device's network interfaces while messaging is enabled. It is <strong>not</strong> OpenRF's web API. Use only on a trusted LAN, and configure a restricted OS firewall rule before allowing other devices. Stop Reticulum to close the listener.</p>
-            <p class="small muted" id="reticulum-tcp-instructions">For Sideband: Connectivity → Connect via TCP. Set host to your computer's <strong>LAN IPv4 address</strong> (not 127.0.0.1 or the LXMF hash) and port <strong>4242</strong>. On WSL, Windows may require a separate inbound TCP 4242 Hyper-V firewall rule. Start the TCP listener in OpenRF before enabling Sideband's TCP connection.</p>
+            <p class="small muted" id="reticulum-tcp-instructions">For another physical device or Sideband: connect to the listener box's <strong>LAN IPv4 address</strong> and chosen port (default port <strong>4242</strong>). For two test instances on this same Linux host, use 127.0.0.1 as the peer host. On WSL, physical LAN connections may need a separate Windows/Hyper-V firewall rule. Starting a listener does not prove remote reachability.</p>
+            <div class="reticulum-peer-settings">
+              <label class="switchline"><input id="reticulum-peer-enable" type="checkbox"><span>Connect to another OpenRF / Reticulum TCP listener (OFF by default)</span></label>
+              <div class="reticulum-peer-fields">
+                <label for="reticulum-peer-host">Peer IPv4 address (loopback or private network)
+                  <input id="reticulum-peer-host" class="field" type="text" value="127.0.0.1" spellcheck="false" autocomplete="off" disabled>
+                </label>
+                <label for="reticulum-peer-port">Peer TCP port
+                  <input id="reticulum-peer-port" class="field" type="number" min="1024" max="65535" step="1" value="4242" disabled>
+                </label>
+              </div>
+              <p class="small muted">Outbound TCP is only attempted after Enable and separate confirmation. OpenRF accepts numeric loopback or RFC1918 private addresses—no public IPs, DNS hostnames or automatic network search. A configured TCP peer is not proof of an established Reticulum link or delivered LXMF message.</p>
+            </div>
           </div>
           <details class="reticulum-diagnostics reticulum-halow-settings" id="reticulum-halow-panel">
             <summary>Wi-Fi HaLow IP link · optional interface selection</summary>

@@ -72,6 +72,16 @@
     el('reticulum-byte-count').classList.toggle('error',count>1024);
     el('reticulum-enable').disabled=state.enabled||state.busy||!state.available;
     el('reticulum-tcp-enable').disabled=state.enabled||state.busy;
+    const listenPort=el('reticulum-tcp-port');
+    if(listenPort)listenPort.disabled=state.enabled||state.busy||!el('reticulum-tcp-enable').checked;
+    const peerToggle=el('reticulum-peer-enable');
+    if(peerToggle){
+      peerToggle.disabled=state.enabled||state.busy;
+      for(const id of ['reticulum-peer-host','reticulum-peer-port']){
+        const field=el(id);
+        if(field)field.disabled=state.enabled||state.busy||!peerToggle.checked;
+      }
+    }
     el('reticulum-halow-refresh').disabled=state.busy;
     el('reticulum-halow-activate').disabled=state.enabled||state.busy||!state.halowEligible.length;
     el('reticulum-halow-device').disabled=state.enabled||state.busy||!el('reticulum-halow-activate').checked;
@@ -104,7 +114,7 @@
     if(state.enabled)el('reticulum-halow-activate').checked=Boolean(result.halow_device_requested);
     el('reticulum-badge').textContent=state.enabled?'LAN ENABLED':'OFF';
     el('reticulum-connection-brief').textContent=state.enabled
-      ?`Reticulum enabled · TCP ${result.tcp_enabled?'requested':'off'} · ${result.rnode_count||0} USB RNode(s) requested · HaLow ${result.halow_device_requested||'not selected'} · forwarding ${result.transport_forwarding_requested?'requested':'off'} · delivery unverified`
+      ?`Reticulum enabled · TCP listener ${result.tcp_enabled?`port ${result.tcp_port||4242}`:'off'} · outbound TCP ${result.tcp_peer_requested?'requested':'off'} · ${result.rnode_count||0} USB RNode(s) requested · HaLow ${result.halow_device_requested||'not selected'} · forwarding ${result.transport_forwarding_requested?'requested':'off'} · delivery unverified`
       :'Connection: off · no TCP listener requested by OpenRF.';
     el('reticulum-address').value=state.enabled&&result.address?result.address:'Not enabled';
     updateControls();
@@ -112,7 +122,9 @@
     else if(state.enabled)note(result.rnode_requested
       ?'RNode requested. Inspect actual RNS interface counters; radio startup and peer reception are not verified by this status alone.'
       :result.tcp_enabled
-      ?'Reticulum active with TCP listener requested on port 4242. Check interface details for live state; reception is unverified.'
+      ?`Reticulum active with TCP listener requested on port ${result.tcp_port||4242}. Check interface details for live state; reception is unverified.`
+      :result.tcp_peer_requested
+      ?'Reticulum outbound TCP peer requested. Check interface counters and message receipts; remote connection and delivery are unverified.'
       :'Reticulum LAN active. Address announce was requested; no remote reception or delivery is verified.');
     else if(!state.available)note('Reticulum is off. Optional Linux packages rns and lxmf are not installed.');
     else note('Reticulum is off. Press Enable only when you want local-network messaging.');
@@ -516,6 +528,19 @@
   }
   function rnodeStartOptions(){
     const options={tcp_enabled:el('reticulum-tcp-enable').checked};
+    if(options.tcp_enabled && el('reticulum-tcp-port')){
+      const port=Number(el('reticulum-tcp-port').value);
+      if(!Number.isInteger(port)||port<1024||port>65535)
+        throw Error('Choose a valid TCP listener port between 1024 and 65535.');
+      if(port!==4242)options.tcp_listen_port=port;
+    }
+    if(el('reticulum-peer-enable')?.checked){
+      const host=el('reticulum-peer-host')?.value.trim();
+      const port=Number(el('reticulum-peer-port')?.value);
+      if(!/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host||'') || !Number.isInteger(port)||port<1024||port>65535)
+        throw Error('Enter a numeric private IPv4 peer address and port 1024–65535.');
+      options.tcp_peer={host,port,confirm:true};
+    }
     if(el('reticulum-halow-activate')?.checked){
       const candidate=el('reticulum-halow-device')?.value||'';
       if(!/^[a-zA-Z0-9_.:-]{1,32}$/.test(candidate))
@@ -561,10 +586,14 @@
     catch(error){note(error.message,true);return;}
     if((options.rnode||options.rnodes)&&!window.confirm('Start Reticulum with the selected USB RNode radio(s)? Each may transmit immediately (including an LXMF announcement). Confirm firmware, antennas, legal frequencies/powers and channel agreement first.'))return;
     if(options.halow_device&&!window.confirm(`Start Reticulum AutoInterface on ${options.halow_device}? This may send IPv6 multicast/UDP announcements on the vendor-configured HaLow network. An OS UP/carrier indicator is not proof of RF reachability or peer delivery. Continue?`))return;
+    if(options.tcp_peer&&!window.confirm(`Attempt outbound Reticulum TCP connection to ${options.tcp_peer.host}:${options.tcp_peer.port}? This sends network traffic on your private LAN. A connection is not proof of encrypted LXMF delivery. Continue?`))return;
     if(options.transport_enabled&&!window.confirm('Enable Reticulum transport forwarding? This can relay other traffic and transmit additional RF packets. Proceed only for a deliberately configured node.'))return;
     await act('/api/reticulum/start',options);
   });
   el('reticulum-rnode-refresh').addEventListener('click',refreshRNodeReadiness);
+  el('reticulum-tcp-enable').addEventListener('change',updateControls);
+  el('reticulum-tcp-port')?.addEventListener('change',updateControls);
+  el('reticulum-peer-enable')?.addEventListener('change',updateControls);
   el('reticulum-halow-refresh').addEventListener('click',refreshHaLowReadiness);
   el('reticulum-halow-activate').addEventListener('change',updateControls);
   el('reticulum-halow-panel').addEventListener('toggle',()=>{

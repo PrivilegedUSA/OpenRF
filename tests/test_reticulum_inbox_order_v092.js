@@ -61,4 +61,4 @@ assert.equal(box.scrollTop,70,'Polling does not jump to latest while reading old
 box.scrollTop=0;
 context.renderInbox(rows);
 assert.equal(box.scrollTop,0,'Latest stays visible at top');
-console.log('PASS v0.2.102 Reticulum newest-first inbox, filters and scroll stability');
+console.log('PASS v0.2.103 Reticulum newest-first inbox, filters and scroll stability');

@@ -156,6 +156,8 @@ class HotspotManager:
                 'auto_start': False,
                 'security_required': 'WPA-PSK, 12–63 printable ASCII characters',
                 'network_manager_ipv4_sharing_may_forward_internet': True,
+                'ipv6_link_local_requested': True,
+                'reticulum_auto_interface_discovery_verified': False,
                 'openrf_http_api_exposed_to_lan': False,
                 'note': 'Starting requires explicit confirmation and an idle ordinary Linux Wi-Fi adapter. A running hotspot is not a HaLow link. NetworkManager may NAT a separate existing internet uplink; it also stores the WPA key in the owned profile until Stop removes it.',
             }
@@ -197,7 +199,7 @@ class HotspotManager:
                     '802-11-wireless.ssid', ssid,
                     'wifi-sec.key-mgmt', 'wpa-psk', 'wifi-sec.proto', 'rsn',
                     'wifi-sec.psk', secret,
-                    'ipv4.method', 'shared', 'ipv6.method', 'disabled', timeout=15)
+                    'ipv4.method', 'shared', 'ipv6.method', 'link-local', timeout=15)
                 if created.returncode != 0:
                     raise HotspotError('NetworkManager could not create the WPA-protected Wi-Fi profile.', 'profile_create_failed')
                 enabled = self._nm('connection', 'up', 'uuid', ident, timeout=20)

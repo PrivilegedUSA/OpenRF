@@ -8,6 +8,7 @@ from __future__ import annotations
 from collections import deque
 from datetime import datetime, timezone
 import importlib.util
+import ipaddress
 import multiprocessing
 import os
 from pathlib import Path
@@ -43,6 +44,16 @@ TCP_SECTION = """
     listen_ip = 0.0.0.0
     listen_port = 4242
 """
+TCP_PEER_SECTION = """
+
+  [[OpenRF Optional TCP Peer]]
+    type = TCPClientInterface
+    enabled = yes
+    target_host = {host}
+    target_port = {port}
+"""
+_LOCAL_TCP_NETWORKS = tuple(ipaddress.ip_network(net) for net in (
+    '127.0.0.0/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'))
 RNODE_PORT = re.compile(r'/dev/tty(?:USB|ACM)\d{1,3}\Z')
 HALOW_INTERFACE = re.compile(r'[a-zA-Z0-9_.:-]{1,32}\Z')
 RNODE_BANDWIDTHS = (62500, 125000, 250000, 500000)
@@ -109,6 +120,23 @@ class ReticulumError(Exception):
         self.code, self.status = code, status
 
 
+def validate_tcp_peer(value):
+    """Only an explicitly approved, numeric loopback/RFC1918 target."""
+    if not isinstance(value, dict) or set(value) != {'host', 'port', 'confirm'} or value['confirm'] is not True:
+        raise ReticulumError('Choose and confirm one private IPv4 TCP peer.', 'invalid_tcp_peer', 400)
+    try:
+        address = ipaddress.IPv4Address(value['host']) if isinstance(value['host'], str) else None
+    except ipaddress.AddressValueError:
+        address = None
+    if address is None or not any(address in subnet for subnet in _LOCAL_TCP_NETWORKS):
+        raise ReticulumError('Peer must be a numeric loopback or private IPv4 address; public hosts are blocked.',
+                             'invalid_tcp_peer', 400)
+    port = value['port']
+    if type(port) is not int or not 1024 <= port <= 65535:
+        raise ReticulumError('Peer port must be 1024–65535.', 'invalid_tcp_peer', 400)
+    return {'host': str(address), 'port': port}
+
+
 def validate_message(body):
     if not isinstance(body, dict) or set(body) != {'destination', 'text'}:
         raise ReticulumError('Provide destination and text only.', 'invalid_lxmf_message', 400)
@@ -130,8 +158,8 @@ def validate_message(body):
 
 def validate_start(body):
     """Keep LAN exposure explicit; no arbitrary listener addresses or ports."""
-    if not isinstance(body, dict) or not set(body).issubset({'tcp_enabled', 'rnode', 'rnodes', 'transport_enabled', 'halow_device'}):
-        raise ReticulumError('Enable accepts only tcp_enabled, rnode/rnodes, transport_enabled and halow_device options.',
+    if not isinstance(body, dict) or not set(body).issubset({'tcp_enabled', 'tcp_listen_port', 'tcp_peer', 'rnode', 'rnodes', 'transport_enabled', 'halow_device'}):
+        raise ReticulumError('Enable accepts only explicit TCP, RNode, transport and HaLow settings.',
                              'invalid_reticulum_command', 400)
     if 'rnode' in body and 'rnodes' in body:
         raise ReticulumError('Choose either the legacy single rnode option or the rnodes list, not both.',
@@ -141,6 +169,18 @@ def validate_start(body):
         raise ReticulumError('tcp_enabled must be true or false.',
                              'invalid_reticulum_command', 400)
     options = {'tcp_enabled': enabled}
+    if 'tcp_listen_port' in body:
+        port = body['tcp_listen_port']
+        if not enabled or type(port) is not int or not 1024 <= port <= 65535:
+            raise ReticulumError('TCP listener port requires enabled TCP and port 1024–65535.',
+                                 'invalid_tcp_listen_port', 400)
+        options['tcp_listen_port'] = port
+    if 'tcp_peer' in body:
+        options['tcp_peer'] = validate_tcp_peer(body['tcp_peer'])
+        if (enabled and ipaddress.IPv4Address(options['tcp_peer']['host']).is_loopback and
+                options['tcp_peer']['port'] == options.get('tcp_listen_port', TCP_PORT)):
+            raise ReticulumError('Do not connect a Reticulum TCP listener back to itself on the same port.',
+                                 'tcp_peer_self_connection', 400)
     if 'halow_device' in body:
         device = body['halow_device']
         if not isinstance(device, str) or device == 'lo' or not HALOW_INTERFACE.fullmatch(device):
@@ -181,7 +221,7 @@ def private_config(root):
 
 
 def runtime_config(root, tcp_enabled=False, rnode=None, transport_enabled=False,
-                   rnodes=None, halow_device=None):
+                   rnodes=None, halow_device=None, tcp_listen_port=TCP_PORT, tcp_peer=None):
     """Preserve operator RNS config; derive opt-in temporary transport config."""
     if rnode is not None and rnodes is not None:
         raise ValueError('Provide either rnode or rnodes, not both.')
@@ -191,9 +231,17 @@ def runtime_config(root, tcp_enabled=False, rnode=None, transport_enabled=False,
         raise ValueError('Invalid HaLow network interface name.')
     if transport_enabled and not profiles:
         raise ValueError('Transport forwarding requires an RNode.')
+    if type(tcp_listen_port) is not int or not 1024 <= tcp_listen_port <= 65535:
+        raise ValueError('TCP listener port must be 1024–65535.')
+    if tcp_peer is not None and (not isinstance(tcp_peer, dict) or set(tcp_peer) != {'host', 'port'}):
+        raise ValueError('Invalid runtime TCP peer settings.')
+    peer = validate_tcp_peer({**tcp_peer, 'confirm':True}) if tcp_peer is not None else None
+    if (tcp_enabled and peer and ipaddress.IPv4Address(peer['host']).is_loopback and
+            peer['port'] == tcp_listen_port):
+        raise ValueError('A TCP listener cannot connect to itself on the same port.')
     root = Path(root)
     original = private_config(root)
-    if not (tcp_enabled or profiles or transport_enabled or halow_device):
+    if not (tcp_enabled or peer or profiles or transport_enabled or halow_device):
         return original
     runtime = root / 'rns-tcp-runtime' if tcp_enabled and not (profiles or transport_enabled) else root / 'rns-optin-runtime'
     runtime.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -213,6 +261,8 @@ def runtime_config(root, tcp_enabled=False, rnode=None, transport_enabled=False,
         source = source[:end].rstrip() + '\n    devices = ' + halow_device + '\n\n' + source[end:]
     if '[[OpenRF Optional TCP Listener]]' in source:
         raise RuntimeError('Operator config already defines the managed TCP listener.')
+    if '[[OpenRF Optional TCP Peer]]' in source:
+        raise RuntimeError('Operator config already defines the managed TCP peer.')
     if profiles and any(f'[[{name}]]' in source for name in
                         ('OpenRF Optional USB RNode', 'OpenRF Optional USB RNode 2')):
         raise RuntimeError('Operator config already defines a managed USB RNode.')
@@ -225,7 +275,9 @@ def runtime_config(root, tcp_enabled=False, rnode=None, transport_enabled=False,
         raise RuntimeError('Operator config has no [interfaces] section for optional interfaces.')
     after_interfaces = next((i for i in range(interfaces_at + 1, len(lines))
                              if re.fullmatch(r'\[[^\[\]]+\]\s*', lines[i].strip())), len(lines))
-    optional_sections = (TCP_SECTION if tcp_enabled else '') + ''.join(
+    listener = TCP_SECTION.replace('listen_port = 4242', f'listen_port = {tcp_listen_port}') if tcp_enabled else ''
+    outbound = TCP_PEER_SECTION.format(**peer) if peer else ''
+    optional_sections = listener + outbound + ''.join(
         rnode_config_section(profile, index) for index, profile in enumerate(profiles, 1))
     generated = ''.join(lines[:after_interfaces]).rstrip() + '\n' + optional_sections + '\n' + ''.join(lines[after_interfaces:])
     if profiles or transport_enabled:
@@ -284,7 +336,10 @@ def reticulum_worker(pipe, data_root, options=None):
         import LXMF
         data_root = Path(data_root)
         tcp_enabled = bool((options or {}).get('tcp_enabled', False))
+        tcp_port = (options or {}).get('tcp_listen_port', TCP_PORT)
+        tcp_peer = (options or {}).get('tcp_peer')
         config_dir = runtime_config(data_root, tcp_enabled=tcp_enabled,
+                                    tcp_listen_port=tcp_port, tcp_peer=tcp_peer,
                                     rnode=(options or {}).get('rnode'),
                                     transport_enabled=(options or {}).get('transport_enabled', False),
                                     rnodes=(options or {}).get('rnodes'),
@@ -355,7 +410,8 @@ def reticulum_worker(pipe, data_root, options=None):
                 report = interface_diagnostics(rns_instance)
                 report.update({'ok':True,
                                'tcp_requested':tcp_enabled,
-                               'tcp_port': TCP_PORT if tcp_enabled else None,
+                               'tcp_port': tcp_port if tcp_enabled else None,
+                               'tcp_peer_requested': bool(tcp_peer),
                                'announce_requests':announce_requests,
                                'last_announce_requested_at_utc':last_announce_requested_at,
                                'announcement_received_by_peer':None})
@@ -416,6 +472,8 @@ class ReticulumManager:
         self._address = None
         self._error = None
         self._tcp_enabled = False
+        self._tcp_port = TCP_PORT
+        self._tcp_peer = None
         self._rnodes = []
         self._transport_enabled = False
         self._halow_device = None
@@ -441,7 +499,8 @@ class ReticulumManager:
                     'transport_forwarding_requested':bool(running and self._transport_enabled),
                     'halow_device_requested':self._halow_device if running else None,
                     'halow_ip_or_rf_link_verified':False,
-                    'tcp_port':TCP_PORT if running and self._tcp_enabled else None,
+                    'tcp_port':self._tcp_port if running and self._tcp_enabled else None,
+                    'tcp_peer_requested':bool(running and self._tcp_peer),
                     'delivery':'UNVERIFIED_UNTIL_LXMF_RECEIPT',
                     'network_activity_requires_operator_action':True,
                     'note':'Network activity only starts after Enable. TCP listens on all network adapters only when selected. A selected USB RNode may transmit RF; forwarding requires a separate opt-in. Peer reception and delivery remain unverified.'}
@@ -489,6 +548,8 @@ class ReticulumManager:
                 raise ReticulumError(self._error, 'reticulum_start_failed', 503)
             self._address = result['address']
             self._tcp_enabled = options['tcp_enabled']
+            self._tcp_port = options.get('tcp_listen_port', TCP_PORT)
+            self._tcp_peer = options.get('tcp_peer')
             self._rnodes = options.get('rnodes') or ([options['rnode']] if 'rnode' in options else [])
             self._transport_enabled = options.get('transport_enabled', False)
             self._halow_device = options.get('halow_device')
@@ -612,6 +673,8 @@ class ReticulumManager:
         self._process, self._pipe, self._address = None, None, None
         self._worker_id = None
         self._tcp_enabled = False
+        self._tcp_port = TCP_PORT
+        self._tcp_peer = None
         self._rnodes = []
         self._transport_enabled = False
         self._halow_device = None

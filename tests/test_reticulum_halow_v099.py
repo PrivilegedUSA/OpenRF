@@ -1,4 +1,4 @@
-"""v0.2.102: HaLow RNS AutoInterface selection is explicit and preflight-gated."""
+"""v0.2.103: HaLow RNS AutoInterface selection is explicit and preflight-gated."""
 import json
 import tempfile
 import threading

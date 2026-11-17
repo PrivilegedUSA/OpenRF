@@ -1,4 +1,14 @@
-# OpenRF v0.2.102 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.103 — Offline-First Navigation and RF Toolkit
+
+## v0.2.103 — Two OpenRF nodes can be configured for Reticulum TCP
+
+Under **Reticulum → TCP connections**, OpenRF can now request a local TCP listener on a chosen port (default 4242) and/or a direct outbound `TCPClientInterface` to a separately confirmed **numeric private IPv4** peer. The outbound peer setting accepts loopback and RFC1918 private addresses only; DNS hostnames and public IP addresses are intentionally excluded. Neither connection is attempted until **Enable LAN messaging** is explicitly pressed. The Reticulum/LXMF packages remain optional, and the service's own unauthenticated HTTP API stays bound to localhost. An OpenRF TCP connection is not a remote web-dashboard login, internet service, or proof of successful LXMF delivery.
+
+You can rehearse the two-device workflow on a single Linux/WSL computer *without radio hardware*: start `bash /mnt/c/projects/OpenRF/scripts/run-two-node-lab.sh`. Two independent local consoles open at `http://localhost:8871` (Box A) and `http://localhost:8872` (Box B), using separate temporary SQLite databases and Reticulum identities. In A, check **Accept direct Reticulum TCP connections** (port 4242), confirm and Enable. In B, check **Connect to another OpenRF / Reticulum TCP listener**, set 127.0.0.1 and 4242, confirm and Enable. Share the two LXMF addresses and use manual announcements and inbox checks. Live messaging requires `rns` and `lxmf` installed in the **Python interpreter running both consoles**; this release's automated tests only use fakes because these optional packages were unavailable. Closing the lab stops both local consoles but preserves their private lab files for the operator to review or remove.
+
+The **Field network ordinary-Wi-Fi hotspot** now requests IPv6 link-local support (alongside its existing shared IPv4/DHCP) so that Reticulum's AutoInterface may use IPv6 multicast peer discovery. Whether the selected AP hardware and actual phone/box clients can exchange Reticulum packets remains unverified; existing v0.2.102 WPA2 and explicit start/stop safeguards remain. The hotspot is still **not HaLow**. A real long-range HaLow bridge will need an appropriate supported device, vendor drivers, a working IP link and separate hardware tests.
+
+**Status accuracy:** OpenRF currently records the fact that a TCP client/server was requested and any real RNS interface counters available; it does **not** claim another box was reached or that an encrypted LXMF message was delivered merely because a socket was configured. An LXMF outbound status of `QUEUED_WITH_LXMF_NOT_DELIVERED` or `PATH_REQUESTED_NOT_SENT` remains what it says. We will add end-to-end delivery-receipt testing once the optional runtime packages can be exercised. See [v0.2.103 test and lab guide](docs/RELEASE_0.2.103_TESTS.md).
 
 ## v0.2.102 — Create a local Wi-Fi hotspot (explicitly)
 
