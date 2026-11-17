@@ -15,7 +15,7 @@ import re
 import secrets
 import threading
 
-from .reticulum_history import ReticulumLocalStore
+from .reticulum_history import ReticulumLocalStore, ContactExistsError, ContactMissingError
 
 
 DESTINATION = re.compile(r'[0-9a-fA-F]{32}\Z')
@@ -391,11 +391,19 @@ class ReticulumManager:
             return {'contacts':self._store.contacts(), 'storage':'PRIVATE_LOCAL_SQLITE'}
 
     def save_contact(self, payload):
-        if not isinstance(payload,dict) or set(payload)!={'destination','alias'}:
-            raise ReticulumError('Provide exactly a destination and nickname.', 'invalid_reticulum_contact',400)
+        fields=set(payload) if isinstance(payload,dict) else set()
+        if fields not in ({'destination','alias'},{'destination','alias','update'}) or (
+                'update' in fields and payload['update'] is not True):
+            raise ReticulumError('Provide a destination and nickname; set update=true only when editing.',
+                                 'invalid_reticulum_contact',400)
         try:
             with self._lock:
-                return {'contact':self._store.save_contact(payload['destination'],payload['alias'])}
+                return {'contact':self._store.save_contact(payload['destination'],payload['alias'],
+                                                          update=payload.get('update',False))}
+        except ContactExistsError as exc:
+            raise ReticulumError(str(exc),'reticulum_contact_exists',409) from exc
+        except ContactMissingError as exc:
+            raise ReticulumError(str(exc),'reticulum_contact_missing',404) from exc
         except ValueError as exc:
             raise ReticulumError(str(exc),'invalid_reticulum_contact',400) from exc
 

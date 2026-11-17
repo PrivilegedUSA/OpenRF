@@ -6,7 +6,7 @@ import tempfile
 import threading
 import unittest
 
-from openrf.reticulum_history import ReticulumLocalStore
+from openrf.reticulum_history import ReticulumLocalStore, ContactExistsError, ContactMissingError
 from openrf.reticulum_lan import ReticulumManager, ReticulumError
 from openrf.server import create_server
 from openrf.storage import Repository
@@ -73,14 +73,39 @@ class ReticulumLocalStoreTests(unittest.TestCase):
             self.assertEqual(store.contacts()[0]['alias'],'Phone')
             self.assertEqual(ReticulumLocalStore(store.root).messages(),[])
 
+    def test_same_address_requires_explicit_edit_not_second_save(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store=ReticulumLocalStore(Path(tmp)/'reticulum')
+            store.save_contact(ADDRESS.upper(),'Phone')
+            with self.assertRaises(ContactExistsError):
+                store.save_contact(ADDRESS,'Accidental overwrite')
+            self.assertEqual(store.contacts()[0]['alias'],'Phone')
+            updated=store.save_contact(ADDRESS,'Renamed phone',update=True)
+            self.assertEqual(updated['alias'],'Renamed phone')
+            self.assertEqual(len(store.contacts()),1)
+            with self.assertRaises(ContactMissingError):
+                store.save_contact(OTHER,'Unknown contact',update=True)
+            with self.assertRaises(ValueError):
+                store.save_contact(OTHER,'Unknown contact',update=1)
+            self.assertEqual(len(store.contacts()),1)
+
     def test_manager_keeps_saved_rows_after_stop_without_starting_network(self):
         with tempfile.TemporaryDirectory() as tmp:
             manager=ReticulumManager(Path(tmp)/'reticulum',dependencies_available=lambda:False)
             self.assertEqual(manager.contacts()['contacts'],[])
             self.assertFalse(manager.data_root.exists())
             manager.save_contact({'destination':ADDRESS,'alias':'Local peer'})
+            with self.assertRaises(ReticulumError) as existing:
+                manager.save_contact({'destination':ADDRESS.upper(),'alias':'Second contact'})
+            self.assertEqual(existing.exception.status,409)
             with self.assertRaises(ReticulumError):manager.save_contact({'destination':ADDRESS,'alias':''})
-            self.assertEqual(manager.contacts()['contacts'][0]['alias'],'Local peer')
+            manager.save_contact({'destination':ADDRESS,'alias':'Edited peer','update':True})
+            self.assertEqual(manager.contacts()['contacts'][0]['alias'],'Edited peer')
+            with self.assertRaises(ReticulumError) as missing:
+                manager.save_contact({'destination':OTHER,'alias':'Missing peer','update':True})
+            self.assertEqual(missing.exception.status,404)
+            with self.assertRaises(ReticulumError):
+                manager.save_contact({'destination':ADDRESS,'alias':'Peer','update':False})
             self.assertTrue(manager.set_history({'enabled':True})['enabled'])
             manager._store.save_events(RUN,[sample(1)])
             self.assertEqual(manager.messages()['messages'][0]['text'],'Hello')
@@ -150,7 +175,11 @@ class ReticulumLocalStoreTests(unittest.TestCase):
                 self.assertEqual(request('POST','/api/reticulum/contacts',{'destination':ADDRESS,'alias':'Phone'},
                     origin='https://hostile.example')[0],403)
                 self.assertEqual(request('POST','/api/reticulum/contacts',{'destination':ADDRESS,'alias':'Phone'})[0],200)
+                self.assertEqual(request('POST','/api/reticulum/contacts',{'destination':ADDRESS.upper(),'alias':'Again'})[0],409)
                 self.assertEqual(request('GET','/api/reticulum/contacts')[1]['contacts'][0]['alias'],'Phone')
+                self.assertEqual(request('POST','/api/reticulum/contacts',
+                    {'destination':ADDRESS,'alias':'Edited phone','update':True})[0],200)
+                self.assertEqual(request('GET','/api/reticulum/contacts')[1]['contacts'][0]['alias'],'Edited phone')
                 self.assertEqual(request('POST','/api/reticulum/history',{'enabled':True})[1]['enabled'],True)
                 self.assertEqual(request('POST','/api/reticulum/contacts/delete',{'destination':ADDRESS})[1]['deleted'],True)
                 self.assertEqual(request('POST','/api/reticulum/history/clear',{})[1]['removed'],0)

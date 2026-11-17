@@ -1,4 +1,10 @@
-# OpenRF v0.2.91 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.92 — Offline-First Navigation and RF Toolkit
+
+## v0.2.92 — Newest messages first
+
+Reticulum inbox messages now display **newest first**, both in All messages and in a selected contact conversation. The ordering is based on the worker's or local history database's original event order, including when several messages share the same second. Automatic refreshes leave the user at the latest message when already at the top and preserve the viewing position when reading older messages.
+
+Saving a contact with an LXMF address already on the contact list now produces a clear **already saved** warning, without overwriting its nickname. Choose **Edit → Update contact** to intentionally rename a saved address, or **Cancel edit** to return to adding. The local API also rejects duplicate creates, while SQLite's address-unique key prevents duplicate records. Reply, Copy address and optional private history are unchanged. See `docs/RELEASE_0.2.92_TESTS.md`.
 
 ## v0.2.91 — Private Reticulum contacts and optional conversation history
 

@@ -10,7 +10,7 @@ for(const id of ['reticulum-contacts-panel','reticulum-contact-form','reticulum-
   'reticulum-contact-alias','reticulum-contacts-list','reticulum-conversation',
   'reticulum-save-history','reticulum-clear-history','reticulum-storage-label',
   'reticulum-connection-brief'])assert(html.includes(`id="${id}"`),`Missing ${id}`);
-assert(html.includes('/static/reticulum.js?v=0.2.91'));
+assert(html.includes('/static/reticulum.js?v=0.2.92'));
 assert(css.includes('.reticulum-contact-form{display:grid;'));
 assert(css.includes('@media(max-width:500px){#page-reticulum .reticulum-contact-form{'));
 assert(js.includes("'/api/reticulum/contacts'"));
@@ -35,7 +35,8 @@ const elements={
   'reticulum-recipient':node('input'),'reticulum-text':node('textarea'),
   'reticulum-compose':node('form'),'reticulum-contact-count':node('span'),
   'reticulum-contact-status':node('p'),'reticulum-contacts-list':node('div'),
-  'reticulum-contact-address':node('input'),'reticulum-contact-alias':node('input')
+  'reticulum-contact-address':node('input'),'reticulum-contact-alias':node('input'),
+  'reticulum-contact-submit':node('button'),'reticulum-contact-cancel':node('button')
 };
 const data=[
   {direction:'IN',destination:a,text:'Hello from my phone',status:'RECEIVED_VALID_SIGNATURE',utc:'time1'},
@@ -57,9 +58,9 @@ context.renderInbox(data);
 assert.equal(elements['reticulum-conversation'].children.length,3,'All plus two distinct correspondents');
 const rows=elements['reticulum-messages'].children;
 assert.equal(rows.length,2);
-assert.match(rows[0].children[0].textContent,/My phone/);
-assert.match(rows[0].children[2].textContent,/valid LXMF signature/);
-assert.match(rows[1].children[2].textContent,/delivery not confirmed/);
+assert.match(rows[0].children[2].textContent,/delivery not confirmed/);
+assert.match(rows[1].children[0].textContent,/My phone/);
+assert.match(rows[1].children[2].textContent,/valid LXMF signature/);
 elements['reticulum-conversation'].value=a;
 context.renderInbox(data);
 assert.equal(elements['reticulum-messages'].children.length,1,'Conversation selection filters to one peer');
@@ -76,4 +77,4 @@ contact.children[1].children[1].events.click();
 assert.equal(elements['reticulum-contact-address'].value,a);
 assert.equal(elements['reticulum-contact-alias'].value,'My phone');
 assert(!snippet.includes("'/api/reticulum/send'"),'Neither selecting nor editing a contact transmits');
-console.log('PASS v0.2.91 Reticulum contacts, conversations and truthful message status UI');
+console.log('PASS v0.2.92 Reticulum contacts, conversations and truthful message status UI');

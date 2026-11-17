@@ -20,6 +20,14 @@ HISTORY_LIMIT = 1000
 MAX_BODY_BYTES = 1024
 
 
+class ContactExistsError(ValueError):
+    """The destination is already saved; use an explicit edit to rename."""
+
+
+class ContactMissingError(ValueError):
+    """The requested destination no longer exists for editing."""
+
+
 def _utc():
     return datetime.now(timezone.utc).isoformat(timespec='seconds')
 
@@ -120,17 +128,31 @@ class ReticulumLocalStore:
             rows = db.execute('SELECT address, alias, updated_at_utc FROM contacts ORDER BY alias COLLATE NOCASE, address').fetchall()
             return [dict(address=a, alias=n, updated_at_utc=t) for a, n, t in rows]
 
-    def save_contact(self, address, alias):
+    def save_contact(self, address, alias, *, update=False):
         address, alias = valid_address(address), valid_alias(alias)
+        if type(update) is not bool:
+            raise ValueError('Contact update mode must be true or false.')
         connection = self._connection(create=True)
         with closing(connection) as db, db:
             existing = db.execute('SELECT 1 FROM contacts WHERE address=?', (address,)).fetchone()
-            if not existing and db.execute('SELECT COUNT(*) FROM contacts').fetchone()[0] >= MAX_CONTACTS:
-                raise ValueError(f'Contact limit reached ({MAX_CONTACTS}).')
+            if update:
+                if not existing:
+                    raise ContactMissingError('Contact no longer exists. Add it as a new contact instead.')
+            else:
+                if existing:
+                    raise ContactExistsError('This LXMF address is already saved. Use Edit to change its nickname.')
+                if db.execute('SELECT COUNT(*) FROM contacts').fetchone()[0] >= MAX_CONTACTS:
+                    raise ValueError(f'Contact limit reached ({MAX_CONTACTS}).')
             timestamp = _utc()
-            db.execute('''INSERT INTO contacts(address,alias,updated_at_utc) VALUES(?,?,?)
-                ON CONFLICT(address) DO UPDATE SET alias=excluded.alias,
-                updated_at_utc=excluded.updated_at_utc''', (address, alias, timestamp))
+            if update:
+                db.execute('UPDATE contacts SET alias=?,updated_at_utc=? WHERE address=?',
+                           (alias, timestamp, address))
+            else:
+                try:
+                    db.execute('INSERT INTO contacts(address,alias,updated_at_utc) VALUES(?,?,?)',
+                               (address, alias, timestamp))
+                except sqlite3.IntegrityError as exc:
+                    raise ContactExistsError('This LXMF address is already saved. Use Edit to change its nickname.') from exc
         return {'address': address, 'alias': alias, 'updated_at_utc': timestamp}
 
     def delete_contact(self, address):

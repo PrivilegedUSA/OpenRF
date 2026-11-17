@@ -1,5 +1,5 @@
 'use strict';
-/* v0.2.91: local contacts, conversation filters and opt-in history. */
+/* v0.2.92: newest-first inbox, with contacts, filters and opt-in history. */
 (()=>{
   const el=id=>document.getElementById(id);
   if(!el('reticulum-panel'))return;
@@ -14,7 +14,7 @@
     return {receiveSequence:null,unread:0};
   }
   const state={enabled:false,busy:false,available:false,polling:false,
-    contacts:[],messages:[],historyEnabled:false,...restoredUnread()};
+    contacts:[],messages:[],historyEnabled:false,editingContact:null,...restoredUnread()};
   const viewingMessages=()=>Boolean(el('page-reticulum')?.classList.contains('active'));
   function persistUnread(){
     try{
@@ -113,11 +113,15 @@
     state.messages=Array.isArray(rows)?rows:[];
     renderConversationChoices();
     const selected=el('reticulum-conversation')?.value||'all';
-    const visible=selected==='all'?state.messages:
-      state.messages.filter(row=>String(row.destination||'').toLowerCase()===selected);
+    // The worker inbox and saved SQLite history both arrive oldest-first.
+    // Reverse a copy AFTER filtering so repeated polls and conversations
+    // remain newest-first without mutating the canonical message order.
+    const visible=(selected==='all'?state.messages:
+      state.messages.filter(row=>String(row.destination||'').toLowerCase()===selected)).slice().reverse();
     const box=el('reticulum-messages');
     const previous=box.scrollTop;
-    const nearBottom=box.scrollHeight-box.scrollTop-box.clientHeight<24;
+    const oldHeight=box.scrollHeight;
+    const nearTop=box.scrollTop<24;
     box.replaceChildren();
     if(!visible.length){const p=document.createElement('p');p.className='small muted';
       p.textContent=selected==='all'?'No LXMF messages in this inbox.':'No messages for this contact.';box.append(p);return;}
@@ -149,13 +153,16 @@
       }
       box.append(article);
     }
-    box.scrollTop=nearBottom?box.scrollHeight:previous;
+    // The latest item is now at the top. Do not drag someone reading an older
+    // message back to the top during automatic inbox refreshes.
+    box.scrollTop=nearTop?0:Math.max(0,previous+box.scrollHeight-oldHeight);
   }
   function prefillReply(sender){
     const recipient=el('reticulum-recipient');
     recipient.value=sender;
     if(el('reticulum-conversation')){
       el('reticulum-conversation').value=sender.toLowerCase();
+      el('reticulum-messages').scrollTop=0;
       renderInbox(state.messages);
     }
     updateControls();
@@ -182,6 +189,12 @@
     const node=el('reticulum-contact-status');
     node.textContent=message;node.classList.toggle('error',error);
   }
+  function contactEditMode(address=null){
+    state.editingContact=address;
+    el('reticulum-contact-address').readOnly=Boolean(address);
+    el('reticulum-contact-submit').textContent=address?'Update contact':'Save contact';
+    el('reticulum-contact-cancel').hidden=!address;
+  }
   function renderContacts(){
     el('reticulum-contact-count').textContent=`${state.contacts.length} saved`;
     const box=el('reticulum-contacts-list');box.replaceChildren();
@@ -202,8 +215,10 @@
       const edit=document.createElement('button');edit.type='button';
       edit.className='btn mini outline';edit.textContent='Edit';
       edit.addEventListener('click',()=>{
+        contactEditMode(item.address);
         el('reticulum-contact-address').value=item.address;
         el('reticulum-contact-alias').value=item.alias;
+        contactNote(`Editing ${item.alias}. Change the nickname, then select Update contact.`);
         el('reticulum-contact-alias').focus();
       });
       const remove=document.createElement('button');remove.type='button';
@@ -212,6 +227,7 @@
         if(!window.confirm(`Remove contact ${item.alias}? Existing messages will not be deleted.`))return;
         try{
           await request('/api/reticulum/contacts/delete',{destination:item.address});
+          if(state.editingContact===item.address){el('reticulum-contact-form').reset();contactEditMode();}
           await refreshContacts();contactNote('Contact removed. Existing messages were preserved.');
         }catch(error){contactNote(error.message,true);}
       });
@@ -317,22 +333,48 @@
   });
   el('reticulum-recipient').addEventListener('input',updateControls);
   el('reticulum-text').addEventListener('input',updateControls);
-  el('reticulum-conversation').addEventListener('change',()=>renderInbox(state.messages));
+  el('reticulum-conversation').addEventListener('change',()=>{
+    el('reticulum-messages').scrollTop=0;
+    renderInbox(state.messages);
+  });
   el('reticulum-save-recipient').addEventListener('click',()=>{
     const address=el('reticulum-recipient').value.trim();
     if(!/^[0-9a-fA-F]{32}$/.test(address))return;
-    el('reticulum-contact-address').value=address;
     el('reticulum-contacts-panel').open=true;
+    const existing=state.contacts.find(item=>item.address===address.toLowerCase());
+    el('reticulum-contact-form').reset();contactEditMode();
+    el('reticulum-contact-address').value=address;
+    if(existing){
+      contactNote(`This address is already saved as ${existing.alias}. Select Edit in your contacts to rename it.`,true);
+      return;
+    }
+    contactNote('Enter a nickname to save this address.');
     el('reticulum-contact-alias').focus();
+  });
+  el('reticulum-contact-cancel').addEventListener('click',()=>{
+    el('reticulum-contact-form').reset();contactEditMode();
+    contactNote('Contact edit canceled.');
   });
   el('reticulum-contact-form').addEventListener('submit',async event=>{
     event.preventDefault();
     try{
-      const result=await request('/api/reticulum/contacts',{
-        destination:el('reticulum-contact-address').value.trim(),
-        alias:el('reticulum-contact-alias').value.trim()});
+      const address=el('reticulum-contact-address').value.trim().toLowerCase();
+      const existing=state.contacts.find(item=>item.address===address);
+      if(!state.editingContact && existing){
+        contactNote(`This address is already saved as ${existing.alias}. Use Edit to change the nickname.`,true);
+        return;
+      }
+      if(state.editingContact && state.editingContact!==address){
+        contactNote('The contact address cannot change while editing. Cancel edit to add a new address.',true);
+        return;
+      }
+      const payload={destination:address,alias:el('reticulum-contact-alias').value.trim()};
+      if(state.editingContact)payload.update=true;
+      const wasEditing=Boolean(state.editingContact);
+      const result=await request('/api/reticulum/contacts',payload);
       el('reticulum-contact-form').reset();
-      await refreshContacts();contactNote(`${result.contact.alias} saved on this device.`);
+      contactEditMode();
+      await refreshContacts();contactNote(`${result.contact.alias} ${wasEditing?'updated':'saved'} on this device.`);
     }catch(error){contactNote(error.message,true);}
   });
   el('reticulum-save-history').addEventListener('change',async event=>{

@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.91">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.92">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -17,17 +17,17 @@
   <script defer src="/static/route_guidance.js?v=0.2.76"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/app.js?v=0.2.91"></script>
+  <script defer src="/static/app.js?v=0.2.92"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.91"></script>
-  <script defer src="/static/reticulum.js?v=0.2.91"></script>
+  <script defer src="/static/mesh.js?v=0.2.92"></script>
+  <script defer src="/static/reticulum.js?v=0.2.92"></script>
   <script defer src="/static/camera-layers.js?v=0.2.76"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.91</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.92</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -573,7 +573,10 @@
             <form id="reticulum-contact-form" class="reticulum-contact-form">
               <label for="reticulum-contact-address">LXMF address<input id="reticulum-contact-address" class="field" maxlength="32" spellcheck="false" autocomplete="off" placeholder="32-character LXMF address" required></label>
               <label for="reticulum-contact-alias">Nickname<input id="reticulum-contact-alias" class="field" maxlength="40" autocomplete="off" placeholder="e.g. My phone" required></label>
-              <button type="submit" class="btn outline">Save contact</button>
+              <div class="reticulum-contact-form-actions">
+                <button type="submit" class="btn outline" id="reticulum-contact-submit">Save contact</button>
+                <button type="button" class="btn outline" id="reticulum-contact-cancel" hidden>Cancel edit</button>
+              </div>
             </form>
             <div id="reticulum-contacts-list" class="reticulum-contacts-list"><p class="small muted">No saved Reticulum contacts.</p></div>
             <p id="reticulum-contact-status" class="small muted" role="status" aria-live="polite"></p>
@@ -584,7 +587,7 @@
               <label class="mesh-conversation-select" for="reticulum-conversation">Conversation
                 <select class="field" id="reticulum-conversation"><option value="all">All messages</option></select>
               </label>
-              <div id="reticulum-messages" class="mesh-messages" role="log" aria-label="Reticulum LXMF messages"><p class="small muted">No received or queued LXMF messages.</p></div>
+              <div id="reticulum-messages" class="mesh-messages" role="log" aria-label="Reticulum LXMF messages, newest first"><p class="small muted">No received or queued LXMF messages.</p></div>
             </div>
             <div class="mesh-compose-column">
               <div class="mesh-inbox-header"><h4>Send LXMF</h4><span class="small muted">Direct destination</span></div>

@@ -48,12 +48,15 @@ const sender='0123456789abcdef0123456789abcdef';
 const messages=[{direction:'IN',destination:sender,text:'Hello from Sideband',status:'RECEIVED_VALID_SIGNATURE',utc:'UTC'},
   {direction:'OUT',destination:sender,text:'sent'},{direction:'IN',destination:'invalid',text:'bad address'}];
 context.renderInbox(messages);
-const incoming=nodes['reticulum-messages'].children[0];
+const incoming=nodes['reticulum-messages'].children[2];
 const buttons=incoming.children.find(child=>child.className==='reticulum-message-actions').children;
 assert.equal(buttons.length,2);
 assert.deepEqual(buttons.map(button=>button.textContent),['Reply','Copy address']);
+assert.equal(incoming.children[1].textContent,'Hello from Sideband','Oldest received message is last');
+assert.equal(nodes['reticulum-messages'].children[0].children[1].textContent,'bad address',
+  'Most recently appended item is first, even when its sender cannot be replied to');
 assert.equal(nodes['reticulum-messages'].children[1].children.length,3,'Sent messages have no reply actions');
-assert.equal(nodes['reticulum-messages'].children[2].children.length,3,'Invalid sender cannot become a reply');
+assert.equal(nodes['reticulum-messages'].children[0].children.length,3,'Invalid sender cannot become a reply');
 buttons[0].events.click();
 assert.equal(nodes['reticulum-recipient'].value,sender);
 assert(nodes['reticulum-text'].focused && nodes['reticulum-compose'].scrolled);
@@ -70,5 +73,5 @@ assert(!snippet.includes("'/api/reticulum/send'"));
   assert(nodes['reticulum-recipient'].selected,'Clipboard-denied fallback selects the address');
   assert(notes.at(-1).includes('Clipboard unavailable'));
   assert(!js.includes('innerHTML'));
-  console.log('PASS v0.2.91 separate inboxes and explicit, safe LXMF Reply/Copy');
+  console.log('PASS v0.2.92 separate inboxes and explicit, safe LXMF Reply/Copy');
 })().catch(error=>{console.error(error);process.exitCode=1;});

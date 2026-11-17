@@ -691,6 +691,13 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Keep the total unread count on the header envelope, but only clear a channel's unread when visiting its own inbox. If just Reticulum has unread messages, clicking the envelope goes straight to Reticulum. Maintain small-screen wrapped text, a readable two-column landscape layout, and no sideways scroll.
 - Preserve explicit Enable/Stop, opt-in TCP listener on port 4242, dormant AutoInterface unless Reticulum is enabled, loopback-only HTTP service and unverified-delivery labels. No migrations, transmissions on load or OS firewall changes. JavaScript DOM regression added; actual Sideband/WSL UI needs operator testing.
 
+## v0.2.92 — Newest-first Reticulum inbox (2026-11-17)
+
+- Show recent LXMF texts at the top of both the full inbox and per-contact conversations. Reorder only a copy of the received event list, keeping message history and unread sequence tracking intact.
+- Keep the inbox positioned at the top on new messages; preserve scroll position while someone reads older messages and reset to the top on a deliberate conversation change or reply.
+- Reject saving an LXMF address already in Contacts, with a clear warning in both quick-save and the contact form. Existing address nicknames only change through explicit **Edit → Update contact**; Cancel edit restores add mode. The same distinction is enforced by the loopback API (409 duplicate, 404 missing edit target), using the existing SQLite address key without a schema migration.
+- Preserve v0.2.91 replies, opt-in local history, transport controls and private-data boundaries. Add repeat-render, filter, scroll-position and duplicate-contact tests. Real Sideband/RNS message ordering on the user's hardware remains to be confirmed.
+
 ## v0.2.91 — Reticulum contacts, conversation filtering and private history (2026-11-17)
 
 - Add explicitly saved Reticulum contacts with short nicknames, safe local editing/removal, and an inbox filter per peer.
