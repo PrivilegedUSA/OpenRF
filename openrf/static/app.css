@@ -1851,6 +1851,46 @@ body.map-workspace.has-message-unread .topbar #mesh-header-button{display:inline
 #page-hardware .halow-setup li+li{margin-top:5px}
 #page-hardware .halow-setup a{color:#4de1cb}
 
+/* v0.2.101 — field-network capability planner, deliberately no activation. */
+#page-hardware .field-network-panel{min-width:0;max-width:100%;overflow-wrap:anywhere}
+#page-hardware .field-network-controls{display:flex;flex-wrap:wrap;gap:9px;align-items:end;margin:12px 0}
+#page-hardware .field-network-controls label{flex:0 0 100%;color:#baf8e8;font-size:12px}
+#page-hardware .field-network-controls select{flex:1 1 180px;min-width:0;max-width:100%}
+#page-hardware .field-network-controls .btn{flex:0 1 auto;white-space:normal}
+#page-hardware .field-network-rows{display:grid;gap:8px;margin:9px 0;min-width:0}
+#page-hardware .field-network-row{display:grid;gap:5px;min-width:0;padding:10px;
+  border-radius:9px;background:#0a202b;border:1px solid #315462;color:#d7f4ed;font-size:12px}
+#page-hardware .field-network-row strong{color:#baf8e8;overflow-wrap:anywhere}
+#page-hardware .field-network-row span,#page-hardware .field-network-row small{overflow-wrap:anywhere}
+@media(max-width:520px){#page-hardware .field-network-controls .btn,
+  #page-hardware .field-network-controls select{flex:1 1 100%}}
+
+/* Navigation preflight stays collapsed below map, never hides or moves map UI. */
+.map-offline-readiness,.map-offline-inner{min-width:0;max-width:100%;overflow-wrap:anywhere}
+.map-offline-inner{padding:12px}
+.map-offline-results{display:grid;gap:7px;margin:12px 0;min-width:0}
+.map-offline-row{display:grid;grid-template-columns:minmax(0,140px) minmax(0,1fr);gap:10px;
+  border-radius:8px;border:1px solid #315462;background:#0a202b;padding:9px;font-size:12px}
+.map-offline-row strong{color:#baf8e8}
+.map-offline-row span{color:#d7f4ed;overflow-wrap:anywhere}
+@media(max-width:520px){.map-offline-row{grid-template-columns:minmax(0,1fr)}}
+
+/* v0.2.100 — compact, explicit Linux-only HaLow connection diagnostic. */
+#page-hardware .halow-diagnostics{min-width:0;border:1px solid #315462;background:#081b26;
+  border-radius:10px;padding:12px;margin:14px 0;overflow-wrap:anywhere}
+#page-hardware .halow-diagnostics h4{margin:0 0 7px;color:#baf8e8;font-size:13px}
+#page-hardware .halow-diag-controls{display:flex;flex-wrap:wrap;align-items:end;gap:8px;margin:11px 0}
+#page-hardware .halow-diag-controls label{flex:0 0 100%;font-size:12px;color:#baf8e8}
+#page-hardware .halow-diag-controls select{flex:1 1 180px;min-width:0;max-width:100%;width:auto}
+#page-hardware .halow-diag-controls .btn{flex:0 1 auto;white-space:normal}
+#page-hardware .halow-diag-results{display:grid;gap:6px;min-width:0;margin:10px 0}
+#page-hardware .halow-diag-row{display:grid;grid-template-columns:minmax(0,140px) minmax(0,1fr);
+  gap:8px;padding:8px;border-radius:7px;background:#0d2933;font-size:12px}
+#page-hardware .halow-diag-row strong{color:#baf8e8;overflow-wrap:anywhere}
+#page-hardware .halow-diag-row span{color:#d1e8e4;overflow-wrap:anywhere}
+@media(max-width:520px){#page-hardware .halow-diag-row{grid-template-columns:minmax(0,1fr)}
+  #page-hardware .halow-diag-controls select,#page-hardware .halow-diag-controls .btn{flex:1 1 100%}}
+
 /* v0.2.99 — explicit, compact HaLow AutoInterface selector on Reticulum. */
 #page-reticulum .reticulum-halow-settings{min-width:0;max-width:900px;overflow-wrap:anywhere}
 #page-reticulum .reticulum-halow-settings .button-line{align-items:center;gap:8px;flex-wrap:wrap;margin:9px 0}

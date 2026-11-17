@@ -28,7 +28,7 @@ const ctx={nodes};
 vm.runInNewContext(`const el=id=>globalThis.nodes[id]; ${snippet}
   globalThis.options=rnodeStartOptions;`,ctx);
 assert.equal(ctx.options().rnode.port,'/dev/ttyUSB0');
-assert.equal(ctx.options().rnodes,undefined,'One radio preserves the v0.2.99 API contract');
+assert.equal(ctx.options().rnodes,undefined,'One radio preserves the v0.2.101 API contract');
 nodes['reticulum-rnode-second-activate'].checked=true;
 const prepared=JSON.parse(JSON.stringify(ctx.options()));
 assert.deepEqual(prepared.rnodes,[
@@ -65,4 +65,4 @@ assert.match(diagNodes['reticulum-traffic-summary'].textContent,/No comparable p
   'Counter reset must not show a negative or invented packet rate');
 diagCtx.renderDiagnostics({active:false,available:false,interfaces:[]});
 assert.match(diagNodes['reticulum-traffic-summary'].textContent,/No live counters/);
-console.log('PASS v0.2.99 distinct USB RNodes and honest interface diagnostics');
+console.log('PASS v0.2.101 distinct USB RNodes and honest interface diagnostics');

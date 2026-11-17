@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.99">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.101">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -17,19 +17,21 @@
   <script defer src="/static/route_guidance.js?v=0.2.76"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/app.js?v=0.2.99"></script>
+  <script defer src="/static/app.js?v=0.2.101"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.99"></script>
-  <script defer src="/static/reticulum.js?v=0.2.99"></script>
-  <script defer src="/static/mesh_connections.js?v=0.2.99"></script>
-  <script defer src="/static/wifi_halow.js?v=0.2.99"></script>
+  <script defer src="/static/mesh.js?v=0.2.101"></script>
+  <script defer src="/static/reticulum.js?v=0.2.101"></script>
+  <script defer src="/static/mesh_connections.js?v=0.2.101"></script>
+  <script defer src="/static/wifi_halow.js?v=0.2.101"></script>
+  <script defer src="/static/field_network.js?v=0.2.101"></script>
+  <script defer src="/static/offline_readiness.js?v=0.2.101"></script>
   <script defer src="/static/camera-layers.js?v=0.2.76"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.99</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.101</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -276,6 +278,15 @@
         </div>
         </details>
         <details class="map-area-manager map-control-settings" id="map-control-settings"><summary>Map settings <span class="small muted">(style, location and survey options)</span></summary><div class="button-line"><label class="switchline"><input id="show-demo-map" type="checkbox"> Show demo</label><button class="btn outline" id="map-geolocate">My browser location</button><button class="btn outline" id="map-style">OpenRF Light</button><button class="btn outline" id="map-vector-source">Use offline regional vectors</button><button class="btn outline" id="map-mode">Offline / raster</button></div><p id="map-vector-status" class="muted small" role="status" aria-live="polite">Checking regional OpenRF vector maps…</p><button type="button" class="btn outline" id="map-open-address-setup">Address search setup</button></details>
+        <details class="map-area-manager map-offline-readiness" id="map-offline-readiness">
+          <summary>Offline navigation readiness <span class="small muted">(road routing · map tiles · GPS limitations)</span></summary>
+          <div class="map-offline-inner">
+            <p class="small muted">Check the local road router and installed visual map packages before leaving coverage. This does not start navigation, request your location, or contact online services. A real route still requires coverage between your actual start and destination.</p>
+            <button type="button" class="btn outline" id="map-offline-check">Check offline readiness</button>
+            <p class="small muted" id="map-offline-status" role="status" aria-live="polite">Not checked yet.</p>
+            <div id="map-offline-results" class="map-offline-results"></div>
+          </div>
+        </details>
         <details class="map-area-manager survey-waypoint-manager" id="survey-waypoint-manager">
           <summary>GPS-linked survey waypoints <span class="small muted">(manual · private · no background tracking)</span></summary>
           <div class="survey-waypoint-inner">
@@ -718,11 +729,35 @@
         </div>
         <p class="small muted">Disconnect/Stop affect the local services only, and require confirmation. They do not change firmware roles or erase contacts or opted-in message history. HaLow has its own separate passive readiness panel below.</p>
       </section>
+      <section class="panel field-network-panel" id="field-network-panel" aria-label="Field network and gateway planning">
+        <div class="panel-title"><h3>Field network · gateway foundation</h3><span class="pill">PLANNING ONLY · NO HOTSPOT</span></div>
+        <p class="small muted">OpenRF's planned network: ordinary phone/laptop Wi-Fi near the box, separate long-range HaLow links to other OpenRF boxes, and optional consent-gated Reticulum transport. This version inventories Linux-supported interface modes only. It does not create a hotspot, configure routing, expose the OpenRF API or claim connectivity.</p>
+        <div class="field-network-controls">
+          <label for="field-network-mode">Explore network role</label>
+          <select id="field-network-mode" class="field"><option value="two_radio_gateway">Two-radio gateway</option><option value="local_wifi_hotspot">Local Wi-Fi hotspot</option><option value="halow_access_point">HaLow access point</option><option value="halow_station">Join HaLow network</option><option value="reticulum_transport">Reticulum transport</option></select>
+          <button class="btn outline" type="button" id="field-network-refresh">Inspect Linux network capability</button>
+        </div>
+        <p id="field-network-status" class="small muted" role="status" aria-live="polite">Choose Inspect to see Linux-visible interfaces. No network changes occur.</p>
+        <div id="field-network-mode-detail" class="field-network-rows"></div>
+        <div id="field-network-interfaces" class="field-network-rows"></div>
+        <p class="small muted">For an ordinary phone to join, OpenRF will need a compatible regular Wi-Fi AP radio in addition to its HaLow adapter. AP/station combinations, encryption, DHCP/routing, power draw and regulatory settings require hardware testing before activation controls can be implemented safely.</p>
+      </section>
       <section class="panel halow-panel" id="halow-panel" aria-label="Wi-Fi HaLow driver readiness">
         <div class="panel-title"><h3>Wi-Fi HaLow · 802.11ah</h3><span class="pill">READ-ONLY · NO RADIO SCAN</span></div>
         <p class="small muted">Long-range, sub-GHz Wi-Fi is an optional <strong>IP network link</strong>, distinct from LoRa/RNode and Meshtastic. This panel checks Linux driver names and USB descriptions only. A possible adapter or an OS interface marked UP does not prove a working HaLow link.</p>
         <div class="halow-headline"><span id="halow-state" class="pill">NOT CHECKED</span><p id="halow-status" class="small muted" role="status" aria-live="polite">Open Hardware to check Linux-visible HaLow prerequisites.</p></div>
         <div id="halow-candidates" class="halow-list"><p class="small muted">No hardware readiness report yet.</p></div>
+        <div class="halow-diagnostics" aria-label="HaLow local link diagnostic">
+          <h4>Connection diagnostic · Linux host only</h4>
+          <p class="small muted">Select a recognized candidate, then inspect its Linux association report and cumulative traffic/error counters. This does not scan, send traffic, test another device, or verify Reticulum delivery. Network names, device addresses and IPs are never displayed.</p>
+          <div class="halow-diag-controls">
+            <label for="halow-diag-interface">Candidate interface</label>
+            <select id="halow-diag-interface" disabled><option value="">No recognized interface yet</option></select>
+            <button id="halow-diag-check" class="btn outline" type="button" disabled>Inspect local link</button>
+          </div>
+          <p id="halow-diag-status" class="small muted" role="status" aria-live="polite">Available after Linux detects a candidate HaLow network interface.</p>
+          <div id="halow-diag-results" class="halow-diag-results" aria-live="off"></div>
+        </div>
         <details class="halow-setup"><summary>Hardware bring-up checklist</summary><ol id="halow-setup-steps"><li>Choose an 802.11ah module with a Linux driver supported by the target Raspberry Pi OS kernel.</li><li>Install the appropriate vendor driver, firmware, board calibration, and country settings outside OpenRF.</li><li>Verify the HaLow IP network independently before testing Reticulum over it.</li></ol><p class="small muted">Vendor references (internet optional): <a href="https://github.com/MorseMicro/morse_driver" target="_blank" rel="noopener noreferrer">Morse Micro Linux driver</a> · <a href="https://github.com/newracom/nrc7394_sw_pkg" target="_blank" rel="noopener noreferrer">Newracom NRC7394</a>. Use firmware and calibration data for your exact hardware.</p></details>
         <div class="button-line"><button type="button" class="btn outline" id="halow-refresh">Refresh HaLow readiness</button></div>
         <p class="small muted">This read-only check never starts network discovery, pairing, packets, firmware flashing, AP setup, IP routing or Reticulum. Separately, Reticulum can now be explicitly scoped to an eligible vendor-configured HaLow interface; actual RF and peer communication remain unverified.</p>

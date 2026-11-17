@@ -30,6 +30,9 @@ from .mesh import MeshManager, MeshError
 from .reticulum_lan import ReticulumManager, ReticulumError, rnode_readiness
 from .mesh_connections import connection_report
 from .wifi_halow import status_report as halow_status_report
+from .halow_diagnostics import diagnostic_report as halow_diagnostic_report, HaLowDiagnosticError
+from .field_network import readiness_report as field_network_readiness_report
+from .offline_navigation_readiness import readiness_report as offline_navigation_readiness_report
 from . import camera_catalog, chirp_channels, national_alpr, camera_routes
 from .sdr_survey import capture_sites_geojson
 from .routing import local_route, local_status, RouteUnavailable, RouteError
@@ -276,6 +279,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, read_local_gpsd())
         if path == '/api/navigation/routing/status':
             return self._json(200, local_status())
+        if path == '/api/navigation/offline-readiness':
+            if urlparse(self.path).query:
+                return self._error(400, 'Offline navigation preflight accepts no query parameters')
+            return self._json(200, offline_navigation_readiness_report(
+                route_status=local_status(), vector_status=vector_maps.status(),
+                raster_maps=available_maps(self.server.map_directory)))
         if path == '/api/navigation/geocoding/status':
             return self._json(200, geocoder_status())
         if path == '/api/navigation/geocode':
@@ -404,6 +413,19 @@ class Handler(BaseHTTPRequestHandler):
                                                    last_probe=self.server.serial_last_probe))
         if path == '/api/wifi-halow/status':
             return self._json(200, halow_status_report())
+        if path == '/api/network/field-readiness':
+            if urlparse(self.path).query:
+                return self._error(400, 'Field network inspection accepts no query parameters')
+            return self._json(200, field_network_readiness_report())
+        if path == '/api/wifi-halow/diagnostics':
+            query = parse_qs(urlparse(self.path).query, keep_blank_values=True)
+            if (set(query) != {'interface'} or len(query['interface']) != 1 or
+                    not query['interface'][0]):
+                return self._error(400, 'Choose exactly one candidate HaLow interface')
+            try:
+                return self._json(200, halow_diagnostic_report(query['interface'][0]))
+            except HaLowDiagnosticError as exc:
+                return self._error(exc.status, str(exc))
         if path == '/api/hardware/readiness':
             return self._json(200, readiness_report(status_report(),
                 last_probe=self.server.serial_last_probe,
@@ -439,7 +461,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, raw, 'text/csv; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.csv"'})
         if path in ('/', '/index.html'):
             file = STATIC_DIR / 'index.html'
-        elif path in ('/static/app.css', '/static/app.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
             file = STATIC_DIR / Path(path).name
         else:
             return self._error(404, 'Not found')

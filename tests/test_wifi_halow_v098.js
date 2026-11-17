@@ -1,5 +1,5 @@
 'use strict';
-// v0.2.99 — passive adapter candidates; UI never starts RF or trusts a carrier flag.
+// v0.2.101 — passive adapter candidates; UI never starts RF or trusts a carrier flag.
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm');
 const html=fs.readFileSync('openrf/static/index.html','utf8');
@@ -8,7 +8,7 @@ const script=fs.readFileSync('openrf/static/wifi_halow.js','utf8');
 const server=fs.readFileSync('openrf/server.py','utf8');
 for(const id of ['halow-panel','halow-state','halow-status','halow-candidates',
   'halow-setup-steps','halow-refresh'])assert(html.includes(`id="${id}"`),id);
-assert(html.includes('/static/wifi_halow.js?v=0.2.99'));
+assert(html.includes('/static/wifi_halow.js?v=0.2.101'));
 assert(css.includes('#page-hardware .halow-row{'));
 assert(server.includes("'/api/wifi-halow/status'"));
 assert(!script.includes('innerHTML')&&!script.includes('POST')&&
@@ -45,5 +45,5 @@ assert.equal(requests.length,0,'No HaLow inspection before user opens Hardware')
   assert.match(nodes['halow-setup-steps'].children[0].textContent,/Install firmware/);
   await nodes['halow-refresh'].listeners.click();
   assert.equal(requests.length,2,'Explicit refresh uses GET only');
-  console.log('PASS v0.2.99 passive Wi-Fi HaLow page and no hidden setup actions');
+  console.log('PASS v0.2.101 passive Wi-Fi HaLow page and no hidden setup actions');
 })().catch(error=>{console.error(error);process.exitCode=1;});

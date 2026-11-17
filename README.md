@@ -1,4 +1,18 @@
-# OpenRF v0.2.99 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.101 — Offline-First Navigation and RF Toolkit
+
+## v0.2.101 — Long-range field-network foundation + offline trip preflight
+
+Under **Hardware → Field network · gateway foundation**, OpenRF now inventories Linux-visible regular Wi-Fi and recognized HaLow candidate interfaces separately, along with PHY-supported access-point/station mode hints where the optional Linux `iw` utility can report them. Explore five planned roles: **local phone/laptop hotspot, long-range HaLow access point, HaLow station, two-radio field gateway and Reticulum transport**. An explicit **Inspect Linux network capability** button collects only host interface and driver-mode hints; it never creates a hotspot, scans, connects, sends traffic, changes routes/firewalls or enables a Reticulum transport. A network interface reporting AP support is not proof of usable HaLow or simultaneous AP/station operation. Ordinary phones still need conventional Wi-Fi for their local connection.
+
+Under **Map → Offline navigation readiness** (collapsed until opened), a new explicit **Check offline readiness** button reports three separate prerequisites: whether local Valhalla responds on loopback, whether bundled regional vector map/font data are usable, and how many user-installed raster map packages are available. **Visual map tiles do not contain a drivable road graph.** A running Valhalla service does not guarantee coverage for a chosen journey; only a real route calculation does. The preflight does not request, save, or guess GPS locations, start navigation, fetch internet data or imply live traffic. Existing navigation routes, map controls, messaging and manual HaLow settings remain unchanged.
+
+Both additions are the next **software foundation**, not yet an active Wi-Fi hotspot, HaLow mesh, Ethernet bridge, shared mobile access point or tested hardware gateway. Actual activation needs compatible Pi OS drivers, adapter AP-mode testing, WPA security, DHCP/routing design, verified RF links, regional settings and a separately authenticated LAN management surface. OpenRF's unauthenticated local HTTP service remains loopback-bound. See [v0.2.101 test guide](docs/RELEASE_0.2.101_TESTS.md).
+
+## v0.2.100 — Wi-Fi HaLow Linux connection diagnostics
+
+The **Hardware → Wi-Fi HaLow** panel now includes an explicit **Inspect local link** control for Linux-visible interfaces with recognized HaLow driver hints. The one-shot diagnostic reads the interface's kernel operational/carrier state, IPv6 link-local prerequisite, local cumulative RX/TX bytes, packets, errors and drops, and, if installed, the read-only Linux `iw dev <interface> link` association report. Inspecting never scans, associates, sends test packets or changes the radio, IP routing or Reticulum. It never displays Wi-Fi network names, BSSIDs, MAC addresses or IP addresses. All network-interface counter values are transferred as exact decimal strings; the browser compares monotonic samples only for the same candidate/driver, with an explicit reset warning instead of negative deltas.
+
+A driver hint or Linux association **does not prove HaLow RF peer reachability, an actual IP/multicast path, RNS AutoInterface transport or delivered LXMF messages**. `iw` may not support every HaLow vendor driver; unavailable/unsupported states remain clear. Without HaLow hardware this diagnostic correctly reports no candidate to inspect. The separate v0.2.99 Reticulum opt-in selector is unchanged and remains default-off. No background probe, new dependency, persistent scan log, location collection or database migration was added. See [v0.2.100 diagnostics and test guide](docs/RELEASE_0.2.100_TESTS.md).
 
 ## v0.2.99 — Optional HaLow-only Reticulum AutoInterface selection
 

@@ -1,3 +1,17 @@
+## v0.2.101 — Field-network gateway architecture + offline trip preflight (2026-11-17)
+
+- Add an explicit read-only **Field network** panel in Hardware, distinguishing Linux-visible ordinary Wi-Fi and known HaLow interface candidates. Use bounded, sanitized `iw phy <phy> info` mode inspection to show OS-reported AP/station/mesh-point capabilities, with no SSIDs, BSSIDs, IP addresses, device serials or raw command output.
+- Explore separately planned network roles: conventional Wi-Fi hotspot, HaLow AP, HaLow station, dual-radio gateway and optional Reticulum transport. No activation endpoints, credentials, hotspot configuration, bridging, DHCP, firewall changes, packet generation, RNS forwarding or OS privilege escalation. Simultaneous radio roles and actual hardware/peer connectivity are not verified; management remains loopback-only.
+- Add a collapsed **Map → Offline navigation readiness** section with an operator-triggered diagnostic distinguishing local Valhalla HTTP health from visual regional vector fonts and installed raster map packages. No GPS fix, chosen road route or road graph coverage is claimed from a preflight. It does not access external endpoints, trigger GPS permission or alter existing routes.
+- Add deterministic Python capability parsing, absent-hardware, privacy and API tests; JavaScript mode-selection, no-background-requests and diagnostic display tests. Preserve prior map, navigation, messaging, HaLow and radio features without new mandatory packages or database schema changes.
+
+## v0.2.100 — Linux Wi-Fi HaLow connection diagnostic (2026-11-17)
+
+- Add an explicit **Hardware → Wi-Fi HaLow → Inspect local link** check for Linux network interfaces with recognized HaLow-associated driver names. Report Linux operstate/carrier, IPv6 link-local prerequisite and optional read-only `iw dev <interface> link` association status. Reject unknown/unrecognized interfaces and malformed HTTP query parameters; never execute operator-supplied shell text.
+- Read eight cumulative kernel network-interface packet/byte/error/drop counters without generating traffic. Serialize unsigned counters as exact decimal strings; the UI computes positive deltas between two manually requested checks of the same candidate and labels counter reset/missing fields rather than assuming zero or claiming RF throughput. No network SSIDs, BSSIDs, MACs, IPs, CLI output or stderr are returned.
+- Distinguish OS-association status from verified 802.11ah RF, peer reachability, IP/multicast transport, Reticulum forwarding and message delivery. No automatic network probe, driver installation, access point configuration, radio scan, background refresh, mandatory dependency or schema migration. Actual hardware verification remains outstanding.
+- Add mocked Linux sysfs/`iw`, failure/timeout, privacy, input validation, HTTP and frontend counter/consent tests, preserving previous HaLow preflight and manually gated Reticulum interface selection.
+
 ## v0.2.97 — Unified mesh connection management and safe local stops (2026-11-17)
 
 - Add a compact Hardware-page connection manager covering independent Meshtastic and Reticulum local state, Linux USB serial access, claimed/unclaimed OpenRF ports and actual RNS-reported interface counters. A new read-only local endpoint composes existing manager reports without opening, probing or reconfiguring any radio.

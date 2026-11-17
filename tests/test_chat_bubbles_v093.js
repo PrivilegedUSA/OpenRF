@@ -56,4 +56,4 @@ assert.deepEqual(texts(),['Queued reply','Old hello'],'Per-peer mesh chat newest
 elements['mesh-conversation'].value='all';
 context.renderMessages(rows);
 assert.deepEqual(texts(),['New hello','Queued reply','Old hello']);
-console.log('PASS v0.2.99 mesh and Reticulum chat bubbles, newest-first conversations');
+console.log('PASS v0.2.101 mesh and Reticulum chat bubbles, newest-first conversations');

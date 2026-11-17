@@ -1,5 +1,5 @@
 'use strict';
-// v0.2.99: manual IP interface selection never connects a HaLow radio.
+// v0.2.101: manual IP interface selection never connects a HaLow radio.
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm');
 const html=fs.readFileSync('openrf/static/index.html','utf8');
@@ -43,4 +43,4 @@ const preflightSnippet=js.slice(js.indexOf('  async function refreshHaLowReadine
   js.indexOf('  function rnodeStartOptions(){'));
 assert(preflightSnippet.includes('reticulum_opt_in_eligible===true'));
 assert(!preflightSnippet.includes("'/api/reticulum/start'"));
-console.log('PASS v0.2.99 HaLow opt-in selector and separated Reticulum controls');
+console.log('PASS v0.2.101 HaLow opt-in selector and separated Reticulum controls');
