@@ -1,3 +1,10 @@
+## v0.2.97 — Unified mesh connection management and safe local stops (2026-11-17)
+
+- Add a compact Hardware-page connection manager covering independent Meshtastic and Reticulum local state, Linux USB serial access, claimed/unclaimed OpenRF ports and actual RNS-reported interface counters. A new read-only local endpoint composes existing manager reports without opening, probing or reconfiguring any radio.
+- Distinguish SDK-open USB sessions, selected RNode ports, OS-visible ports, RNS UP/DOWN state and unverified RF reachability/delivery. Never imply firmware verification, transmitter position, peer identity or live link quality from inventory or counters.
+- Add confirmed **Disconnect Meshtastic** and **Stop Reticulum** controls that call existing same-origin loopback APIs, without erasing opted-in messages or contacts. Existing messaging pages refresh status after either action. Opening Hardware never starts any radios.
+- Add Python status-composition, absent/failure, privacy and API tests and a JavaScript simulated refresh/confirmation/stops test. No Python dependency, migration, cloud upload or Mesh↔Reticulum bridge. Real LoRa links, Pi touch, HaLow and live firmware diagnostics remain unverified.
+
 ## v0.2.96 — Multi-RNode setup and evidence-limited link counters (2026-11-17)
 
 - Support one or two **distinct physical USB RNodeInterface** profiles in the explicit Reticulum start operation. Legacy single-radio callers remain supported; multiple profiles require distinct validated Linux USB ports and radio parameters, and preserve original operator settings and identities.

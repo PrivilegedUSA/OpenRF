@@ -322,6 +322,7 @@ function showPage(page, options = {}) {
   if (page === 'radio') document.dispatchEvent(new Event('openrf:radio-shown'));
   if (page === 'messages') document.dispatchEvent(new Event('openrf:messages-shown'));
   if (page === 'reticulum') document.dispatchEvent(new Event('openrf:reticulum-shown'));
+  if (page === 'hardware') document.dispatchEvent(new Event('openrf:hardware-shown'));
   if (page === 'map') { startMap(); if (options.autoLocate !== false) locateMap(false); renderMapSurveyPanel(); setTimeout(() => { state.map?.resize(); state.rasterMap?.resize(); }, 80); }
   window.scrollTo(0, 0);
 }

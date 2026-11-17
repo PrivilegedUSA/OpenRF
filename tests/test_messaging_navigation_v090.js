@@ -1,5 +1,5 @@
 'use strict';
-// v0.2.96: inbox selection, page state, and genuine receive counters.
+// v0.2.97: inbox selection, page state, and genuine receive counters.
 // No radio, LAN transmission, location API, or third-party DOM library.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -106,4 +106,4 @@ const reticStatus=retic.slice(retic.indexOf('  function renderStatus('),retic.in
 assert(!reticStatus.includes('state.unread=0'),'A connection status change must not clear a message badge');
 assert(mesh.includes('if(!state.busy)loadMessages();'),'Disconnected local inbox still checks last receipts');
 assert(!mesh.includes('innerHTML')&&!retic.includes('innerHTML'));
-console.log('PASS v0.2.96 header inbox chooser, page restore, and persistent genuine unread counters');
+console.log('PASS v0.2.97 header inbox chooser, page restore, and persistent genuine unread counters');

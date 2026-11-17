@@ -297,6 +297,7 @@
   el('mesh-disconnect').addEventListener('click',()=>run({},'/api/mesh/disconnect'));
   el('mesh-set-mode').addEventListener('click',()=>run({mode:el('mesh-mode').value},'/api/mesh/mode'));
   el('mesh-refresh').addEventListener('click',refresh);
+  document.addEventListener('openrf:connections-changed',refresh);
   el('mesh-compose').addEventListener('submit',async event=>{
     event.preventDefault();
     if(state.busy||!state.connected||state.mode!=='normal'){

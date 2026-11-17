@@ -1819,3 +1819,17 @@ body.map-workspace.has-message-unread .topbar #mesh-header-button{display:inline
 #page-reticulum #reticulum-rnode-second-fields[hidden]{display:none!important}
 #page-reticulum #reticulum-rnode-second-fields{min-width:0;border-left:2px solid #2a776e;padding-left:10px;margin:10px 0}
 #page-reticulum #reticulum-traffic-summary{overflow-wrap:anywhere}
+
+/* v0.2.97 — compact, status-only radio connection management for 5-inch UI. */
+#page-hardware .mesh-connections-panel{min-width:0;max-width:100%;overflow-wrap:anywhere}
+#page-hardware .mesh-connection-overview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:10px 0}
+#page-hardware .mesh-connection-card,#page-hardware .mesh-connection-row{display:grid;gap:5px;min-width:0;
+  background:#0a202b;border:1px solid #315462;border-radius:9px;padding:10px}
+#page-hardware .mesh-connection-card strong,#page-hardware .mesh-connection-row strong{color:#bcf5e9;font-size:12px;overflow-wrap:anywhere}
+#page-hardware .mesh-connection-card span,#page-hardware .mesh-connection-row span{color:#e0f5ef;font-size:12px}
+#page-hardware .mesh-connection-card small,#page-hardware .mesh-connection-row small{color:#97bbc2;font-size:11px;overflow-wrap:anywhere}
+#page-hardware .mesh-connection-rows{display:grid;gap:7px;max-width:100%;margin:8px 0 14px}
+#page-hardware .mesh-connections-panel h4{color:#b9e9df;font-size:13px;margin:14px 0 6px}
+#page-hardware .mesh-connection-actions{gap:7px;flex-wrap:wrap}
+#page-hardware .mesh-connection-actions .btn{min-width:0;white-space:normal;text-align:center}
+@media(max-width:720px){#page-hardware .mesh-connection-overview{grid-template-columns:minmax(0,1fr)}}

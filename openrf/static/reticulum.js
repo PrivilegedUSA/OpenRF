@@ -629,6 +629,7 @@
     note('Reticulum messages marked as read on this tab.');
   });
   document.addEventListener('openrf:reticulum-shown',refreshInbox);
+  document.addEventListener('openrf:connections-changed',refreshStatus);
   el('reticulum-compose').addEventListener('submit',async event=>{
     event.preventDefault();
     if(!state.enabled||state.busy||el('reticulum-send').disabled)return;

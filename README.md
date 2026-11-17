@@ -1,4 +1,12 @@
-# OpenRF v0.2.96 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.97 — Offline-First Navigation and RF Toolkit
+
+## v0.2.97 — Unified, read-only mesh connection manager
+
+On **Hardware → Mesh radio connections**, view the actual local OpenRF USB-session and Reticulum worker states in one compact panel, along with Linux-visible USB serial endpoints, which service has requested a port, and RNS-reported interface counts. Each report is a one-shot, read-only status check: opening Hardware and choosing **Refresh connections** never probes a radio, starts a mesh service, connects to a device or transmits.
+
+The panel keeps evidence distinct: **Meshtastic USB session open** means a compatible SDK connection was opened, not that another radio is in RF range. **Reticulum RNode requested** means the user started a worker with that USB interface, not that firmware, frequency compatibility, an active over-the-air link or message delivery has been verified. **Not claimed by OpenRF** does not guarantee a port is available to other processes. Linux permissions and missing-device states are called out explicitly; Wi-Fi HaLow remains unverified. Only local status is displayed—no contact names, LXMF addresses, message text, GPS positions or USB serial numbers.
+
+Use **Open Mesh messaging** or **Open Reticulum** to make connections on their existing opt-in pages. The new **Disconnect Meshtastic** and **Stop Reticulum** buttons require an additional confirmation; they use the established local API stop operations and leave saved contacts and opt-in history intact. The two messaging pages refresh their status after a stop from Hardware. Nothing here changes Meshtastic firmware roles or automatically enables a Reticulum relay. There are no new required Python packages, database migrations or online services. See [v0.2.97 test notes](docs/RELEASE_0.2.97_TESTS.md).
 
 ## v0.2.96 — Two separate RNode radios and real interface-counter comparisons
 

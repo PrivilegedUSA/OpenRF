@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.96">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.97">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -17,17 +17,18 @@
   <script defer src="/static/route_guidance.js?v=0.2.76"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/app.js?v=0.2.96"></script>
+  <script defer src="/static/app.js?v=0.2.97"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.96"></script>
-  <script defer src="/static/reticulum.js?v=0.2.96"></script>
+  <script defer src="/static/mesh.js?v=0.2.97"></script>
+  <script defer src="/static/reticulum.js?v=0.2.97"></script>
+  <script defer src="/static/mesh_connections.js?v=0.2.97"></script>
   <script defer src="/static/camera-layers.js?v=0.2.76"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.96</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.97</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -687,7 +688,26 @@
         <div class="panel-title"><h3>Connection overview</h3><span class="pill">READ-ONLY · NO LIVE RF CLAIMS</span></div>
         <p class="muted small" id="hardware-manager-summary" role="status" aria-live="polite">Checking Linux hardware prerequisites…</p>
         <div id="hardware-manager-entries" class="hardware-manager-entries"><div class="empty">No inventory retrieved yet.</div></div>
-      </section><div class="hardware-grid" id="hardware-cards"></div><p id="wifi-driver-status" class="muted small hardware-wifi-status">Checking one-shot Wi-Fi adapter readiness…</p><div class="panel hardware-inventory"><div class="panel-title"><h3>Detected host devices</h3><button id="refresh-hardware" class="btn outline">Refresh inventory</button></div><p class="muted small">Read-only Linux inventory. USB and serial entries do not mean that a receiver is supported, configured, or actively scanning.</p><div id="device-inventory" class="device-inventory"><div class="empty">Checking accessible Linux devices...</div></div></div><div class="panel sensor-registry"><div class="panel-title"><h3>Sensor connections</h3><span class="pill">DRIVER CONTRACT v1</span></div><p class="muted small">Only verified drivers can create SENSOR observations. USB detection alone does not mean live capture.</p><div id="sensor-registry-list" class="sensor-registry-list"><div class="empty">Checking sensor drivers…</div></div><div id="sensor-diagnostics" class="diagnostics-note">Checking connection readiness…</div></div>
+      </section>
+      <section class="panel mesh-connections-panel" id="mesh-connections-panel" aria-label="Mesh radio connection management">
+        <div class="panel-title"><h3>Mesh radio connections</h3><span class="pill">LOCAL STATUS · NO RF SCAN</span></div>
+        <p class="small muted">See USB port assignments and real Reticulum interface counters without probing, connecting or transmitting. An open USB session is <strong>not</strong> proof of another radio within range.</p>
+        <p id="mesh-connections-status" class="small muted" role="status" aria-live="polite">Open Hardware to check local mesh connections.</p>
+        <div class="mesh-connection-overview" id="mesh-connection-overview"><p class="small muted">No connection report yet.</p></div>
+        <h4>Linux USB serial ports</h4>
+        <div id="mesh-connection-ports" class="mesh-connection-rows"><p class="small muted">USB inventory not requested yet.</p></div>
+        <h4>Reticulum reported interfaces</h4>
+        <div id="mesh-connection-interfaces" class="mesh-connection-rows"><p class="small muted">No Reticulum interface report yet.</p></div>
+        <div class="button-line mesh-connection-actions">
+          <button id="mesh-connections-refresh" type="button" class="btn outline">Refresh connections</button>
+          <button type="button" class="btn outline" data-jump="messages">Open Mesh messaging</button>
+          <button type="button" class="btn outline" data-jump="reticulum">Open Reticulum</button>
+          <button id="mesh-connections-disconnect" type="button" class="btn danger-outline" disabled>Disconnect Meshtastic</button>
+          <button id="mesh-connections-stop-reticulum" type="button" class="btn danger-outline" disabled>Stop Reticulum</button>
+        </div>
+        <p class="small muted">Disconnect/Stop affect the local services only, and require confirmation. They do not change firmware roles or erase contacts or opted-in message history. Wi-Fi HaLow remains unverified.</p>
+      </section>
+      <div class="hardware-grid" id="hardware-cards"></div><p id="wifi-driver-status" class="muted small hardware-wifi-status">Checking one-shot Wi-Fi adapter readiness…</p><div class="panel hardware-inventory"><div class="panel-title"><h3>Detected host devices</h3><button id="refresh-hardware" class="btn outline">Refresh inventory</button></div><p class="muted small">Read-only Linux inventory. USB and serial entries do not mean that a receiver is supported, configured, or actively scanning.</p><div id="device-inventory" class="device-inventory"><div class="empty">Checking accessible Linux devices...</div></div></div><div class="panel sensor-registry"><div class="panel-title"><h3>Sensor connections</h3><span class="pill">DRIVER CONTRACT v1</span></div><p class="muted small">Only verified drivers can create SENSOR observations. USB detection alone does not mean live capture.</p><div id="sensor-registry-list" class="sensor-registry-list"><div class="empty">Checking sensor drivers…</div></div><div id="sensor-diagnostics" class="diagnostics-note">Checking connection readiness…</div></div>
       <section class="panel hardware-readiness" aria-label="Read-only hardware readiness">
         <div class="panel-title"><h3>Hardware readiness checklist</h3><button type="button" class="btn outline" id="hardware-readiness-export">Save diagnostic JSON</button></div>
         <p class="muted small">Read-only checks of Linux inventory and previous user-started probes. A visible port does not prove that a receiver can collect measurements. Export contains no USB serial numbers, Wi-Fi network IDs, or GPS locations.</p>

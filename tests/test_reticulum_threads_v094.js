@@ -93,4 +93,4 @@ context.prefillReply(a);
 assert.equal(state.activeThread,a);
 assert(elements['reticulum-text'].focused);
 assert(!snippet.includes("'/api/reticulum/send'"),'Opening and replying do not send data');
-console.log('PASS v0.2.96 full-width Reticulum thread navigation, drafts and truthful chat');
+console.log('PASS v0.2.97 full-width Reticulum thread navigation, drafts and truthful chat');
