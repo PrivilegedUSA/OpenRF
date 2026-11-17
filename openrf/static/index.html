@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.89">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.90">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -17,21 +17,21 @@
   <script defer src="/static/route_guidance.js?v=0.2.76"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/app.js?v=0.2.77"></script>
+  <script defer src="/static/app.js?v=0.2.90"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.89"></script>
-  <script defer src="/static/reticulum.js?v=0.2.89"></script>
+  <script defer src="/static/mesh.js?v=0.2.90"></script>
+  <script defer src="/static/reticulum.js?v=0.2.90"></script>
   <script defer src="/static/camera-layers.js?v=0.2.76"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.89</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.90</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
-        <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
-        <button class="nav-btn" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
+        <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
+        <button class="nav-btn" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
         <button class="nav-btn" data-page="scanner"><span class="nav-icon" aria-hidden="true">≋</span><span class="nav-label">Analysis</span></button>
         <button class="nav-btn" data-page="spectrum"><span class="nav-icon" aria-hidden="true">▥</span><span class="nav-label">Spectrum</span></button>
         <button class="nav-btn" data-page="radio"><span class="nav-icon" aria-hidden="true">◉</span><span class="nav-label">Radio Receiver</span></button>
@@ -55,14 +55,28 @@
     </aside>
     <button id="menu-backdrop" class="menu-backdrop" type="button" aria-label="Close navigation menu" hidden></button>
     <main class="main">
-      <header class="topbar"><div class="topbar-heading"><div><div class="eyebrow">OPENRF / <span id="page-crumb">OVERVIEW</span></div><h1 id="page-title">Field overview</h1></div></div><div class="top-right"><span id="runtime-pill" class="pill">LINUX</span><span class="pill green">OFFLINE DATA</span></div><button type="button" class="messages-header-button" id="mesh-header-button" data-jump="messages" aria-label="Open messages" title="Open messages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><span class="mesh-unread-badge" id="mesh-header-unread" hidden>0</span></button><span id="mesh-global-announcer" class="visually-hidden" aria-live="polite" aria-atomic="true"></span><button type="button" id="menu-toggle" class="menu-toggle" aria-label="Open navigation menu" aria-controls="main-sidebar" aria-expanded="false"><span aria-hidden="true">☰</span></button></header>
+      <header class="topbar">
+        <div class="topbar-heading"><div><div class="eyebrow">OPENRF / <span id="page-crumb">MAP</span></div><h1 id="page-title">Survey map</h1></div></div>
+        <div class="top-right"><span id="runtime-pill" class="pill">LINUX</span><span class="pill green">OFFLINE DATA</span></div>
+        <div class="header-messages-menu" id="header-messages-menu">
+          <button type="button" class="messages-header-button" id="mesh-header-button" aria-label="Choose message inbox" aria-haspopup="true" aria-expanded="false" aria-controls="header-messages-choices" title="Choose message inbox">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><span class="mesh-unread-badge" id="mesh-header-unread" hidden>0</span>
+          </button>
+          <div class="header-messages-choices" id="header-messages-choices" role="group" aria-label="Choose message inbox" hidden>
+            <button type="button" data-page="messages">Mesh messages<span class="mesh-unread-badge" id="mesh-header-mesh-unread" hidden>0</span></button>
+            <button type="button" data-page="reticulum">Reticulum<span class="mesh-unread-badge" id="mesh-header-reticulum-unread" hidden>0</span></button>
+          </div>
+        </div>
+        <span id="mesh-global-announcer" class="visually-hidden" aria-live="polite" aria-atomic="true"></span>
+        <button type="button" id="menu-toggle" class="menu-toggle" aria-label="Open navigation menu" aria-controls="main-sidebar" aria-expanded="false"><span aria-hidden="true">☰</span></button>
+      </header>
       <div id="flash" class="flash" role="status" aria-live="polite" hidden></div>
-      <section class="page active" id="page-overview">
+      <section class="page" id="page-overview">
         <div class="hero"><div><div class="eyebrow accent">OPEN SOURCE RF FIELD PLATFORM</div><h2>Investigate the invisible.<br><em>Document what you can verify.</em></h2><p>Run locally on WSL now. Move the same backend to a Raspberry Pi later. No imaginary detections—every record retains its evidence source.</p><div class="actions"><button class="btn primary" data-jump="map">Open survey map</button><button class="btn ghost" data-jump="hardware">View sensor capabilities</button></div></div><div class="hero-graphic" aria-hidden="true"><div class="radar-ring r1"></div><div class="radar-ring r2"></div><div class="radar-ring r3"></div><div class="radar-cross h"></div><div class="radar-cross v"></div><div class="center-dot"></div></div></div>
         <div class="stat-grid"><div class="metric"><small>TOTAL OBSERVATIONS</small><strong id="metric-observations">—</strong><span>Records stored locally</span></div><div class="metric"><small>MAPPED SURVEY POINTS</small><strong id="metric-mapped">—</strong><span>Observer positions only</span></div><div class="metric"><small>INVESTIGATIONS</small><strong id="metric-sessions">—</strong><span>Manually started sessions</span></div><div class="metric"><small>SYNTHETIC RECORDS</small><strong id="metric-demo">—</strong><span>Clearly marked DEMO</span></div></div>
         <div class="two-columns"><div class="panel"><div class="panel-title"><h3>Development console</h3><span class="pill amber">FOUNDATION RELEASE</span></div><p>Map surveys, persistent sessions, Wi-Fi/BLE one-shot discovery and offline spectrum-file analysis are implemented. RTL-SDR receiver sweeps now have explicit bounded controls; usable scans require compatible Linux-visible hardware and rtl_power. No invented live readings.</p><div class="button-line"><button class="btn outline" id="load-demo">Load synthetic test records</button><button class="btn danger-outline" id="clear-demo">Remove demo records</button></div><p class="muted small">The demonstration dataset is optional and prominently labeled. It is hidden from the map unless you enable its layer.</p></div><div class="panel"><div class="panel-title"><h3>Quick export</h3><span class="pill">LOCAL</span></div><p>Save a private copy of your observations, including GPS accuracy and source information.</p><div class="button-line"><a class="btn outline" href="/api/export.csv" download>Download CSV</a><a class="btn outline" href="/api/export.geojson" download>Download GeoJSON</a></div><p class="muted small">Online vector streets require an internet connection. Offline coordinate surveys work without internet; local MBTiles raster maps can be installed separately.</p></div></div>
       </section>
-      <section class="page" id="page-map">
+      <section class="page active" id="page-map">
         <div class="section-heading map-first-heading"><div><h2>Survey map</h2></div></div>
         <div class="map-wrap"><div id="map"></div><svg id="navigation-preview-overlay" class="navigation-preview-overlay" aria-hidden="true" preserveAspectRatio="none"></svg><div id="navigation-preview-label" class="navigation-preview-label" hidden>DIRECT LINE · NOT A ROAD ROUTE</div>
         <div class="map-destination-panel is-collapsed" id="map-destination-panel">

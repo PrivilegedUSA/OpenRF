@@ -1,6 +1,15 @@
 'use strict';
 
 const $ = (id) => document.getElementById(id);
+const SELECTED_PAGE_SESSION_KEY = 'openrf.selected-page.v1';
+const VALID_PAGES = new Set(['map','overview','scanner','spectrum','radio','messages','reticulum','hamradio','discoveries','sessions','hardware']);
+function rememberedPage(){
+  try {const saved=window.sessionStorage?.getItem(SELECTED_PAGE_SESSION_KEY);return VALID_PAGES.has(saved)?saved:'map';}
+  catch (_) {return 'map';} // Private browsing may deny session storage.
+}
+function rememberPage(page){
+  try {window.sessionStorage?.setItem(SELECTED_PAGE_SESSION_KEY,page);} catch (_) { /* Map remains the fallback. */ }
+}
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
@@ -281,7 +290,17 @@ $('map-picked-begin').addEventListener('click', () => {
 $('map-picked-change').addEventListener('click', () => beginDestinationMapPick());
 $('map-picked-close').addEventListener('click', () => { $('map-picked-action').hidden = true; });
 
+function closeHeaderMessageMenu(returnFocus = false){
+  const choices=$('header-messages-choices');
+  if(choices.hidden)return;
+  choices.hidden=true;
+  $('mesh-header-button').setAttribute('aria-expanded','false');
+  if(returnFocus)$('mesh-header-button').focus();
+}
 function showPage(page, options = {}) {
+  if(!VALID_PAGES.has(page))page='map';
+  closeHeaderMessageMenu();
+  rememberPage(page);
   if(page!=='map' && state.navFollowId!==null) stopNavigationFollow();
   const wasMap = document.body.classList.contains('map-workspace');
   document.body.classList.toggle('map-workspace', page === 'map');
@@ -4100,6 +4119,20 @@ function setMessagesSubpagesOpen(open) {
 $('messages-nav-toggle').addEventListener('click', () => {
   setMessagesSubpagesOpen($('messages-nav-subpages').hidden);
 });
+$('mesh-header-button').addEventListener('click',()=>{
+  const menu=$('header-messages-choices');
+  menu.hidden=!menu.hidden;
+  $('mesh-header-button').setAttribute('aria-expanded',String(!menu.hidden));
+  if(!menu.hidden)menu.querySelector('button')?.focus();
+});
+document.addEventListener('click',event=>{
+  if(!event.target.closest('#header-messages-menu'))closeHeaderMessageMenu();
+});
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&!$('header-messages-choices').hidden){
+    event.preventDefault();closeHeaderMessageMenu(true);
+  }
+});
 document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
 document.querySelectorAll('[data-jump]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.jump)));
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
@@ -4493,9 +4526,9 @@ $('load-demo').addEventListener('click',()=>runAction(async()=>{
 }));
 $('clear-demo').addEventListener('click',()=>runAction(async()=>{const out=await api('/api/demo/clear','POST',{});flash(`Removed ${out.removed} synthetic record(s).`);await refresh();}));
 
-// Handheld/touchscreen widths open directly to the primary map workspace.
-// Desktop preserves the original overview landing page.
-if (window.matchMedia('(max-width: 900px), (max-width: 1400px) and (max-height: 850px) and (pointer: coarse)').matches) showPage('map');
+// Per-tab page state survives refresh; an entirely new tab opens to Map.
+// Keep the privacy-preserving preference scoped to this tab, not localStorage.
+showPage(rememberedPage());
 refresh().catch(e=>flash(`OpenRF data refresh failed: ${e.message}. The server may still be running.`,true));
 refreshOfflineMaps().catch(e=>{ $('offline-map-status').textContent = `Unable to list local maps: ${e.message}`; });
 refreshAreaPlans().catch(e=>{ $('area-saved-detail').textContent = `Saved area plans unavailable: ${e.message}`; });

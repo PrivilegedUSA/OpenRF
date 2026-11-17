@@ -1,11 +1,21 @@
 'use strict';
-/* v0.2.80: conversation reply targeting, stable inbox scroll and UTF-8 counter.
+/* v0.2.90: reliable per-tab inbound sequence tracking and unread badges.
    No fake nodes, background connections or transmissions; storage is opt-in. */
 (() => {
   const el=id=>document.getElementById(id);
   if(!el('mesh-panel'))return;
+  const unreadKey='openrf.mesh.unread.v1';
+  function restoredUnread(){
+    try{
+      const value=JSON.parse(window.sessionStorage?.getItem(unreadKey)||'null');
+      if(value&&Number.isSafeInteger(value.sequence)&&value.sequence>=0&&
+         Number.isSafeInteger(value.unread)&&value.unread>=0)
+        return {receiveSequence:value.sequence,unread:value.unread};
+    }catch(_){/* Blocked session storage must not prevent messaging. */}
+    return {receiveSequence:null,unread:0};
+  }
   const state={connected:false,mode:'normal',busy:false,polling:false,
-    receiveSequence:null,unread:0,reticulumUnread:0};
+    ...restoredUnread(),reticulumUnread:0};
   const viewingMessages=()=>Boolean(el('page-messages')?.classList.contains('active'));
   function renderUnread(){
     // The envelope is the total, but each sidebar child shows only its own
@@ -15,7 +25,9 @@
     for(const [id,value] of [
       ['mesh-header-unread',count],
       ['mesh-nav-unread',state.unread],
-      ['reticulum-nav-unread',reticulumUnread]
+      ['reticulum-nav-unread',reticulumUnread],
+      ['mesh-header-mesh-unread',state.unread],
+      ['mesh-header-reticulum-unread',reticulumUnread]
     ]){
       const badge=el(id);if(!badge)continue;
       badge.hidden=value===0;
@@ -31,17 +43,23 @@
       button?.setAttribute('aria-label',value?`${label}, ${value} unread`:`${label}, no unread messages`);
     }
     const header=el('mesh-header-button');
-    // When only Reticulum has new messages, open that inbox directly.
-    // If both channels have unread messages, the sidebar exposes both.
-    if(header.dataset)header.dataset.jump=state.reticulumUnread>0&&state.unread===0?'reticulum':'messages';
-    header.setAttribute('aria-label',count?`Open messages, ${count} unread`:'Open messages');
-    header.title=count?`${count} unread message${count===1?'':'s'} (Meshtastic: ${state.unread}, Reticulum: ${state.reticulumUnread||0})`:'Open messages';
+    header.setAttribute('aria-label',count?`Choose message inbox, ${count} unread`:'Choose message inbox');
+    header.title=count?`${count} unread message${count===1?'':'s'} (Meshtastic: ${state.unread}, Reticulum: ${state.reticulumUnread||0})`:'Choose message inbox';
+    persistUnread();
+  }
+  function persistUnread(){
+    try{
+      if(state.receiveSequence!==null)window.sessionStorage?.setItem('openrf.mesh.unread.v1',
+        JSON.stringify({sequence:state.receiveSequence,unread:state.unread}));
+    }catch(_){/* Session counters remain live without storage. */}
   }
   function trackInbox(result){
     // The server counts *genuine inbound events*, not sent texts or old saved
     // rows. Establish a baseline on first load so historical chat is not new.
     const sequence=result?.receive_sequence;
     if(Number.isSafeInteger(sequence)&&sequence>=0){
+      // A reconnect or server restart can reset the counter. Keep genuine
+      // unread badges until opened, but don't synthesize new messages.
       if(state.receiveSequence!==null && sequence>state.receiveSequence && !viewingMessages()){
         const newlyReceived=sequence-state.receiveSequence;
         state.unread+=newlyReceived;
@@ -274,16 +292,16 @@
     const count=event.detail?.count;
     if(Number.isSafeInteger(count)&&count>=0){state.reticulumUnread=count;renderUnread();}
   });
-  document.addEventListener('openrf:messages-shown',refresh);
+  document.addEventListener('openrf:messages-shown',()=>{
+    state.unread=0;renderUnread();refresh();
+  });
   // A read-only inbox poll continues across pages, so the header can indicate
   // real incoming texts without an open message page. No auto-connection,
   // radio scanning or transmission is initiated by this timer.
-  setInterval(()=>{
-    if(state.connected&&!state.busy)loadMessages();
-  },4000);
+  setInterval(()=>{if(!state.busy)loadMessages();},4000);
   // Background tabs may throttle polling. Refresh immediately on returning;
   // this never connects to a radio or attempts to send anything.
-  const resumeInbox=()=>{if(state.connected&&!state.busy)loadMessages();};
+  const resumeInbox=()=>{if(!state.busy)loadMessages();};
   window.addEventListener('focus',resumeInbox);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)resumeInbox();});
   renderButtons();

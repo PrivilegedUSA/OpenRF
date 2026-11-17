@@ -13,4 +13,4 @@ assert(js.includes('reachable_peers'));
 assert(js.includes('announcement_received_by_peer')===false);
 assert(js.includes('remote reception or delivery is verified'));
 assert(!js.includes('innerHTML'),'User data must be inserted with textContent only');
-console.log('PASS v0.2.89 optional direct TCP and truthful diagnostic UI');
+console.log('PASS v0.2.90 optional direct TCP and truthful diagnostic UI');

@@ -1694,3 +1694,23 @@ body:not(.map-workspace) .topbar .menu-toggle{font-size:25px}
   text-align:center;white-space:nowrap;pointer-events:none;
 }
 .sidebar .nav-parent.has-unread:not(.active) .nav-icon{color:#34c9b1}
+
+/* v0.2.90 — accessible compact inbox chooser next to the hamburger. */
+.topbar .header-messages-menu{position:relative;display:flex;align-items:center;justify-content:center;flex:0 0 42px;min-width:42px}
+.topbar .header-messages-choices{
+  position:absolute;top:calc(100% + 7px);right:0;z-index:150;
+  display:grid;gap:3px;min-width:205px;max-width:calc(100vw - 20px);
+  padding:6px;border:1px solid #35616b;border-radius:10px;
+  background:#10252f;box-shadow:0 12px 28px #020b12c9;
+}
+.topbar .header-messages-choices[hidden]{display:none!important}
+.topbar .header-messages-choices button{
+  min-height:41px;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  width:100%;padding:8px 12px;border:0;border-radius:7px;background:transparent;
+  color:#d5eee9;text-align:left;font-size:12px;font-weight:700;white-space:nowrap;
+}
+.topbar .header-messages-choices button:hover,
+.topbar .header-messages-choices button:focus-visible{background:#1a414b;color:#c8fff3}
+.topbar .header-messages-choices .mesh-unread-badge{flex:0 0 auto}
+/* The map retains its uncluttered header; Messages remains in the sidebar. */
+body.map-workspace .topbar .header-messages-menu{display:none!important}

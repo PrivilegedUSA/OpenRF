@@ -6,4 +6,4 @@ assert(rule.includes('border:0;'),'Compact header unread number must have no out
 assert(rule.includes('background:#34c9b1'),'Teal fill remains');
 assert(rule.includes('top:8px;right:4px'),'Placement on envelope unchanged');
 assert(rule.includes('min-width:13px;height:13px'),'Small size unchanged');
-console.log('PASS v0.2.89 borderless teal unread badge');
+console.log('PASS v0.2.90 borderless teal unread badge');

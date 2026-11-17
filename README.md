@@ -1,4 +1,10 @@
-# OpenRF v0.2.89 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.90 — Offline-First Navigation and RF Toolkit
+
+## v0.2.90 — Message picker, dependable unread alerts, and page navigation
+
+The header envelope on non-map pages now opens an accessible **Mesh messages / Reticulum** chooser, with separate unread totals alongside each option. Unread counts remain per inbox and are retained during refresh in this tab (using session storage when available); newly received messages are counted from the backend's inbound event sequence, not outgoing sends or historical rows. A temporary Reticulum disconnect no longer silently clears an unread badge. The Meshtastic inbox also checks its read-only local history while disconnected, catching any final messages received just before the USB link dropped. These checks never reconnect, transmit, or announce automatically.
+
+OpenRF now opens **Map** by default in a new tab at all screen sizes, puts Map above Overview in the sidebar, and restores the selected page when the same tab is refreshed. Page selection is tab-scoped, not a permanent preference. The header envelope stays hidden over the fullscreen map to keep the 5-inch layout uncluttered; Messages remains available from the sidebar. See `docs/RELEASE_0.2.90_TESTS.md`.
 
 ## v0.2.89 — Individual message alerts in the sidebar
 

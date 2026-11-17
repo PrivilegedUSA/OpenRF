@@ -691,6 +691,13 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Keep the total unread count on the header envelope, but only clear a channel's unread when visiting its own inbox. If just Reticulum has unread messages, clicking the envelope goes straight to Reticulum. Maintain small-screen wrapped text, a readable two-column landscape layout, and no sideways scroll.
 - Preserve explicit Enable/Stop, opt-in TCP listener on port 4242, dormant AutoInterface unless Reticulum is enabled, loopback-only HTTP service and unverified-delivery labels. No migrations, transmissions on load or OS firewall changes. JavaScript DOM regression added; actual Sideband/WSL UI needs operator testing.
 
+## v0.2.90 — Header inbox chooser and reliable tab navigation (2026-11-17)
+
+- Replace the direct-message envelope jump with a two-choice dropdown for Mesh messages and Reticulum, including accessible per-channel unread totals; keep map header minimal.
+- Keep genuine inbound-only unread counts through a same-tab refresh and temporary Reticulum status transitions; clear only the inbox actually opened. Continue read-only polling on the local mesh inbox after a USB disconnect, so late receipts can be reflected without reconnecting.
+- Remember the active page in tab-scoped session storage. Default entirely new tabs to Map, and show Map above Overview in the sidebar on all screen widths.
+- Add focused front-end tests for these behaviors, preserve no-auto-connect/no-transmit guarantees and existing backend storage and API contracts. Actual RF/Sideband delivery still requires physical testing.
+
 ## v0.2.89 — Independent sidebar unread counters and foreground refresh (2026-11-15)
 
 - Remove the cramped aggregate badge from the Messages parent dropdown. Place separate compact, right-aligned teal counters on its Mesh messages and Reticulum children; keep the header envelope as the total of both channels' genuine unread messages.

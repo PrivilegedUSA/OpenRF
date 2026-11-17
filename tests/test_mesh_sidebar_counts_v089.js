@@ -21,7 +21,9 @@ assert(css.includes('display:inline-flex;align-items:center;justify-content:cent
 assert(css.includes('margin-left:auto;'),'Unread must align to the right, not float above labels');
 assert(mesh.includes("['mesh-header-unread',count]")&&mesh.includes("['mesh-nav-unread',state.unread]"));
 assert(mesh.includes("['reticulum-nav-unread',reticulumUnread]"));
-assert(mesh.includes("header.dataset.jump=state.reticulumUnread>0&&state.unread===0?'reticulum':'messages'"));
+assert(!mesh.includes('header.dataset.jump='),'The envelope opens the explicit inbox chooser');
+assert(mesh.includes("['mesh-header-mesh-unread',state.unread]"));
+assert(mesh.includes("['mesh-header-reticulum-unread',reticulumUnread]"));
 
 function checkForegroundPolling(source,funcName,condition){
   const begin=source.indexOf('  const resumeInbox=');
@@ -39,21 +41,23 @@ function checkForegroundPolling(source,funcName,condition){
   assert.equal(typeof handlers.window.focus,'function');
   assert.equal(typeof handlers.document.visibilitychange,'function');
   handlers.window.focus();
-  assert.equal(ctx.calls,0,'Network stays off unless operator enabled the transport');
+  assert.equal(ctx.calls,condition==='enabled'?0:1,
+    'Mesh reads only its local inbox; Reticulum never starts automatically');
   ctx.state[condition]=true;
   handlers.window.focus();
-  assert.equal(ctx.calls,1,'Returning to app should refresh an enabled inbox');
+  const expected=condition==='enabled'?1:2;
+  assert.equal(ctx.calls,expected,'Returning to app should refresh the inbox');
   ctx.document.hidden=true;
   handlers.document.visibilitychange();
-  assert.equal(ctx.calls,1,'A hidden tab does not trigger an unnecessary fetch');
+  assert.equal(ctx.calls,expected,'A hidden tab does not trigger an unnecessary fetch');
   ctx.document.hidden=false;
   handlers.document.visibilitychange();
-  assert.equal(ctx.calls,2);
+  assert.equal(ctx.calls,expected+1);
   ctx.state.busy=true;
   handlers.window.focus();
-  assert.equal(ctx.calls,2,'A busy operation should not be interrupted by a foreground poll');
+  assert.equal(ctx.calls,expected+1,'A busy operation should not be interrupted by a foreground poll');
 }
 checkForegroundPolling(mesh,'  renderButtons();','connected');
 checkForegroundPolling(reticulum,'  updateControls();','enabled');
 assert(!mesh.includes('innerHTML')&&!reticulum.includes('innerHTML'));
-console.log('PASS v0.2.89 independent aligned sidebar unread and read-only focus refresh');
+console.log('PASS v0.2.90 independent aligned sidebar unread and read-only focus refresh');

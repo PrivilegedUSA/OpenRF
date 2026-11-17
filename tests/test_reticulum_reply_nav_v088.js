@@ -23,7 +23,8 @@ assert(css.includes('#page-reticulum .mesh-chat-grid{display:grid;grid-template-
 assert(app.includes("new Event('openrf:reticulum-shown')"));
 assert(app.includes("$('messages-nav-toggle').addEventListener('click'"));
 assert(js.includes("document.addEventListener('openrf:reticulum-shown'"));
-assert(mesh.includes("header.dataset.jump=state.reticulumUnread>0&&state.unread===0?'reticulum':'messages'"));
+assert(!mesh.includes('header.dataset.jump='),'The header now uses a two-inbox dropdown');
+assert(html.includes('id="header-messages-choices"'));
 
 function node(tag){return {tag,children:[],events:{},textContent:'',value:'',scrollTop:0,scrollHeight:0,clientHeight:100,
   classList:{},append(...items){this.children.push(...items);},replaceChildren(){this.children=[];},
@@ -68,5 +69,5 @@ assert(!snippet.includes("'/api/reticulum/send'"));
   assert(nodes['reticulum-recipient'].selected,'Clipboard-denied fallback selects the address');
   assert(notes.at(-1).includes('Clipboard unavailable'));
   assert(!js.includes('innerHTML'));
-  console.log('PASS v0.2.89 separate inboxes and explicit, safe LXMF Reply/Copy');
+  console.log('PASS v0.2.90 separate inboxes and explicit, safe LXMF Reply/Copy');
 })().catch(error=>{console.error(error);process.exitCode=1;});

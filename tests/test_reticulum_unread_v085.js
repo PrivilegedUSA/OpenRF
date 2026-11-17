@@ -70,6 +70,6 @@ reticContext.viewing=false;
 reticContext.track({receive_sequence:10});
 assert.equal(nodes['mesh-header-unread'].textContent,'1','A new inbound after leaving Messages is counted');
 reticContext.track({receive_sequence:0});
-assert.equal(nodes['mesh-header-unread'].hidden,true,'A restarted worker does not fabricate unread messages');
+assert.equal(nodes['mesh-header-unread'].textContent,'1','A restarted worker must not erase genuinely unread messages');
 assert(!reticulum.includes('innerHTML')&&!mesh.includes('innerHTML'));
-console.log('PASS v0.2.89 combined genuine unread counts and touch-safe wrapping');
+console.log('PASS v0.2.90 combined genuine unread counts and touch-safe wrapping');

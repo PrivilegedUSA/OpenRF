@@ -1,12 +1,29 @@
 'use strict';
-/* v0.2.88: Reticulum inbox replies, address copying and dedicated screen. */
+/* v0.2.90: Reticulum inbox replies and per-tab unread state across reloads. */
 (()=>{
   const el=id=>document.getElementById(id);
   if(!el('reticulum-panel'))return;
+  const unreadKey='openrf.reticulum.unread.v1';
+  function restoredUnread(){
+    try{
+      const value=JSON.parse(window.sessionStorage?.getItem(unreadKey)||'null');
+      if(value&&Number.isSafeInteger(value.sequence)&&value.sequence>=0&&
+         Number.isSafeInteger(value.unread)&&value.unread>=0)
+        return {receiveSequence:value.sequence,unread:value.unread};
+    }catch(_){/* Messaging remains functional with session storage denied. */}
+    return {receiveSequence:null,unread:0};
+  }
   const state={enabled:false,busy:false,available:false,polling:false,
-    receiveSequence:null,unread:0};
+    ...restoredUnread()};
   const viewingMessages=()=>Boolean(el('page-reticulum')?.classList.contains('active'));
+  function persistUnread(){
+    try{
+      if(state.receiveSequence!==null)window.sessionStorage?.setItem('openrf.reticulum.unread.v1',
+        JSON.stringify({sequence:state.receiveSequence,unread:state.unread}));
+    }catch(_){/* Memory-only counters remain visible. */}
+  }
   function publishUnread(){
+    persistUnread();
     document.dispatchEvent(new CustomEvent('openrf:reticulum-unread',
       {detail:{count:state.unread}}));
   }
@@ -15,7 +32,8 @@
     // validated signature. Never count queued outgoing texts or old records.
     const sequence=result?.receive_sequence;
     if(Number.isSafeInteger(sequence)&&sequence>=0){
-      if(state.receiveSequence!==null && sequence<state.receiveSequence)state.unread=0;
+      // Worker restart resets its sequence but doesn't mean earlier unread
+      // messages were actually opened; retain the badge until read.
       if(state.receiveSequence!==null && sequence>state.receiveSequence && !viewingMessages()){
         const newlyReceived=sequence-state.receiveSequence;
         state.unread+=newlyReceived;
@@ -53,14 +71,10 @@
     el('reticulum-send').disabled=!state.enabled||state.busy||count===0||count>1024||!validAddress;
   }
   function renderStatus(result){
-    const wasEnabled=state.enabled;
     state.enabled=Boolean(result.enabled);
     state.available=Boolean(result.dependencies_available);
-    if(!state.enabled){
-      state.receiveSequence=null;
-      state.unread=0;
-      publishUnread();
-    }else if(!wasEnabled)state.receiveSequence=null;
+    // A temporary status disconnect must not erase an unread notification.
+    // The first successful inbox poll will establish/reset its sequence.
     if(state.enabled)el('reticulum-tcp-enable').checked=Boolean(result.tcp_enabled);
     el('reticulum-badge').textContent=state.enabled?'LAN ENABLED':'OFF';
     el('reticulum-address').value=state.enabled&&result.address?result.address:'Not enabled';
