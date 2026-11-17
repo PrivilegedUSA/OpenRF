@@ -1,3 +1,11 @@
+## v0.2.95 — Opt-in USB RNode and cautious Reticulum forwarding (2026-11-17)
+
+- Add read-only USB serial candidates and access diagnostics to the Reticulum page and API. Neither a serial port nor a conventional Wi-Fi adapter proves RNode firmware or Wi-Fi HaLow capability; no auto-probe or RF traffic is initiated.
+- Allow an explicitly selected USB RNode to join the existing isolated Reticulum worker via a validated RNodeInterface profile (902–928 MHz operator-entered values; firmware/band/regulatory support remain unverified). An RF warning requires confirmation before starting.
+- Add a separate, default-off Reticulum transport forwarding / relay consent. Only a selected RNode permits enabling it, and its generated worker config forces transport off when that box is not selected. Existing private RNS operator config, LXMF identity, AutoInterface, optional TCP and messages stay intact.
+- Preserve the completely separate Meshtastic bridge and its firmware-owned relay behavior; add a port-conflict guard when either UI tries to claim a USB endpoint already in use by the other. This does not create a Meshtastic↔Reticulum gateway. HaLow and BATMAN-adv remain future integration stages.
+- Add Python validation, configuration-file, passive-readiness and API tests plus JavaScript UI safety/setup tests. No new mandatory dependencies, database migration, auto-connection, background RF scan or upload. Actual LoRa reception, relay operation, radio regulatory suitability, Wi-Fi HaLow and Raspberry Pi touchscreen/USB operation are not yet verified.
+
 ## v0.2.76 — Opt-in local Meshtastic history and conversations (2026-11-15)
 
 - Add opt-in private SQLite message history stored beside OpenRF's local data, not under the release or Git repository. Saving is **off by default**; disabling it erases saved message bodies. Provide a separate Clear messages action. Retain at most 1,000 saved text messages, or 100 RAM-only session messages.

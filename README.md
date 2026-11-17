@@ -1,4 +1,14 @@
-# OpenRF v0.2.94 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.95 — Offline-First Navigation and RF Toolkit
+
+## v0.2.95 — Optional RNode/LoRa and Reticulum relay groundwork
+
+Open **Messages → Reticulum → RNode / LoRa hardware & relay setup**. Select **Check USB ports (read-only)** to see Linux-visible USB serial candidates and their process permissions. A visible port **does not** establish that an RNode, SX1262, antenna or working LoRa link is present. Under WSL, USB passthrough to Linux is generally necessary.
+
+With a compatible RNode running actual RNode firmware, you can explicitly check **Add selected USB RNode when I enable Reticulum**, select a `/dev/ttyUSB*` or `/dev/ttyACM*` candidate, and configure a conservative, operator-reviewed 902–928 MHz profile: frequency, bandwidth, TX power, spreading factor and coding rate. The example values 915 MHz / 125 kHz / 7 dBm / SF8 / CR5 are **inputs, not a verified legal, supported, or interoperable operating profile**. Confirm your specific radio's supported frequency, antenna, regional transmit rules, channel agreements and duty-cycle limitations first. Press **Enable LAN messaging** and confirm the RF-start warning to start the separate Reticulum worker with this additional interface. Its startup may configure the radio and **transmit an LXMF announcement**. RNode is OFF by default. **Stop Reticulum** terminates the worker. The original AutoInterface and optional TCP listener remain available without RNode.
+
+An independent, default-OFF **Enable Reticulum transport forwarding / relay** option is available only with the selected USB RNode. It requires a second explicit confirmation and tells Reticulum to forward eligible network traffic between interfaces. This is not a guaranteed repeater/link, and is best suited to a deliberate long-running stationary node; it can increase RF airtime and battery use. Its setting only applies to the temporary generated config, never rewriting the private operator-managed Reticulum config or saved identity. One serial radio cannot simultaneously be controlled by Meshtastic and RNode software; these remain **separate, non-bridged protocols**. The OpenRF API also rejects attempts to use the same selected USB port for both while one connection is active.
+
+Wi-Fi HaLow (802.11ah) remains **not verified / future hardware work**: OpenRF does not install drivers, establish a HaLow network, configure BATMAN-adv or claim that a Linux Wi-Fi endpoint is HaLow-capable. Reticulum's existing AutoInterface can use an independently configured compatible network interface when it actually functions. This patch introduces no new required dependencies, SQLite migrations, background discovery, automatic radio connections or uploads. Live RNode/Sideband/mesh forwarding and Raspberry Pi hardware behavior remain to be tested. See [v0.2.95 test and setup guide](docs/RELEASE_0.2.95_TESTS.md).
 
 ## v0.2.94 — Dedicated Reticulum conversation threads
 

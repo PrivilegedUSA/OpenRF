@@ -27,7 +27,7 @@ from .sdr import capability_report as sdr_capability_report
 from .sdr_capture import SdrCaptureManager, CaptureError
 from .radio import RadioReceiver, RadioError
 from .mesh import MeshManager, MeshError
-from .reticulum_lan import ReticulumManager, ReticulumError
+from .reticulum_lan import ReticulumManager, ReticulumError, rnode_readiness
 from . import camera_catalog, chirp_channels, national_alpr, camera_routes
 from .sdr_survey import capture_sites_geojson
 from .routing import local_route, local_status, RouteUnavailable, RouteError
@@ -330,6 +330,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, self.server.mesh_manager.messages())
         if path == '/api/reticulum/status':
             return self._json(200, self.server.reticulum_manager.status())
+        if path == '/api/reticulum/rnode/readiness':
+            return self._json(200, rnode_readiness())
         if path == '/api/reticulum/diagnostics':
             try:
                 return self._json(200, self.server.reticulum_manager.diagnostics())
@@ -541,6 +543,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(201,{'profile':chirp_channels.import_csv(self.repo,body['name'],body['model'],body['csv'])})
             if path == '/api/mesh/connect':
                 try:
+                    reticulum = self.server.reticulum_manager.status()
+                    if (isinstance(body.get('port'), str) and reticulum['enabled'] and
+                            body['port'] == reticulum.get('rnode_port')):
+                        raise MeshError('That USB port is already assigned to the running Reticulum RNode. Stop Reticulum first.',
+                                        'mesh_port_in_use_by_reticulum', 409)
                     return self._json(200, self.server.mesh_manager.connect(body))
                 except MeshError as exc:
                     return self._error(exc.status, str(exc), exc.code)
@@ -548,6 +555,12 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     manager = self.server.reticulum_manager
                     if path == '/api/reticulum/start':
+                        selected = body.get('rnode')
+                        mesh = self.server.mesh_manager.status()
+                        if (isinstance(selected, dict) and selected.get('port') == mesh.get('port')
+                                and mesh['connected']):
+                            raise ReticulumError('That USB port is already in use by Meshtastic. Disconnect Mesh messages first.',
+                                                 'rnode_port_in_use_by_mesh', 409)
                         return self._json(200, manager.start(body))
                     if path == '/api/reticulum/stop':
                         return self._json(200, manager.stop(body))

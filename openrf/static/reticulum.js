@@ -1,5 +1,5 @@
 'use strict';
-/* v0.2.94: dedicated per-peer Reticulum threads, with explicit unread controls. */
+/* v0.2.95: opt-in RNode/LoRa and transport forwarding, no automatic RF activity. */
 (()=>{
   const el=id=>document.getElementById(id);
   if(!el('reticulum-panel'))return;
@@ -72,6 +72,14 @@
     el('reticulum-byte-count').classList.toggle('error',count>1024);
     el('reticulum-enable').disabled=state.enabled||state.busy||!state.available;
     el('reticulum-tcp-enable').disabled=state.enabled||state.busy;
+    el('reticulum-rnode-activate').disabled=state.enabled||state.busy;
+    const rnodeSelected=el('reticulum-rnode-activate').checked;
+    const rnodeSetupLocked=state.enabled||state.busy||!rnodeSelected;
+    for(const id of ['reticulum-rnode-port','reticulum-rnode-frequency','reticulum-rnode-bandwidth',
+      'reticulum-rnode-txpower','reticulum-rnode-sf','reticulum-rnode-cr'])
+      el(id).disabled=rnodeSetupLocked;
+    el('reticulum-transport-enable').disabled=rnodeSetupLocked;
+    if(!rnodeSelected)el('reticulum-transport-enable').checked=false;
     el('reticulum-disable').disabled=!state.enabled||state.busy;
     el('reticulum-announce').disabled=!state.enabled||state.busy;
     el('reticulum-send').disabled=!state.enabled||state.busy||count===0||count>1024||!validAddress;
@@ -85,12 +93,14 @@
     if(state.enabled)el('reticulum-tcp-enable').checked=Boolean(result.tcp_enabled);
     el('reticulum-badge').textContent=state.enabled?'LAN ENABLED':'OFF';
     el('reticulum-connection-brief').textContent=state.enabled
-      ?`Reticulum enabled · TCP listener ${result.tcp_enabled?'requested on port 4242':'not requested'} · connection and delivery not yet verified`
+      ?`Reticulum enabled · TCP ${result.tcp_enabled?'requested':'off'} · RNode ${result.rnode_requested?`${result.rnode_port} requested`:'off'} · forwarding ${result.transport_forwarding_requested?'requested':'off'} · delivery unverified`
       :'Connection: off · no TCP listener requested by OpenRF.';
     el('reticulum-address').value=state.enabled&&result.address?result.address:'Not enabled';
     updateControls();
     if(result.last_error)note(result.last_error,true);
-    else if(state.enabled)note(result.tcp_enabled
+    else if(state.enabled)note(result.rnode_requested
+      ?'RNode requested. Inspect actual RNS interface counters; radio startup and peer reception are not verified by this status alone.'
+      :result.tcp_enabled
       ?'Reticulum active with TCP listener requested on port 4242. Check interface details for live state; reception is unverified.'
       :'Reticulum LAN active. Address announce was requested; no remote reception or delivery is verified.');
     else if(!state.available)note('Reticulum is off. Optional Linux packages rns and lxmf are not installed.');
@@ -424,6 +434,43 @@
       await Promise.all([refreshDiagnostics(),refreshHistory()]);}
     catch(error){note(error.message,true);}
   }
+  async function refreshRNodeReadiness(){
+    const label=el('reticulum-rnode-readiness');
+    label.textContent='Reading Linux USB endpoints…';
+    try{
+      const report=await request('/api/reticulum/rnode/readiness');
+      const picker=el('reticulum-rnode-port');
+      const previous=picker.value;
+      picker.replaceChildren(new Option('No port selected',''));
+      for(const port of report.ports||[]){
+        if(!/^\/dev\/tty(?:USB|ACM)\d{1,3}$/.test(port.path||''))continue;
+        const item=new Option(`${port.path} · ${port.status==='ready_to_probe'?'accessible, firmware unknown':port.status}`,
+          port.path);
+        picker.append(item);
+      }
+      picker.value=[...picker.options].some(option=>option.value===previous)?previous:'';
+      label.textContent=`${(report.ports||[]).length} USB serial candidate(s) · RNode not verified · HaLow not verified`;
+    }catch(error){label.textContent=`USB readiness unavailable: ${error.message}`;}
+    updateControls();
+  }
+  function rnodeStartOptions(){
+    const options={tcp_enabled:el('reticulum-tcp-enable').checked};
+    if(!el('reticulum-rnode-activate').checked)return options;
+    const port=el('reticulum-rnode-port').value;
+    const frequency=Number(el('reticulum-rnode-frequency').value)*1000000;
+    const bandwidth=Number(el('reticulum-rnode-bandwidth').value)*1000;
+    const txpower=Number(el('reticulum-rnode-txpower').value);
+    const spreadingfactor=Number(el('reticulum-rnode-sf').value);
+    const codingrate=Number(el('reticulum-rnode-cr').value);
+    if(!port||![frequency,bandwidth,txpower,spreadingfactor,codingrate].every(Number.isInteger)||
+       frequency<902000000||frequency>928000000||![62500,125000,250000,500000].includes(bandwidth)||
+       txpower<0||txpower>17||spreadingfactor<7||spreadingfactor>12||codingrate<5||codingrate>8){
+      throw Error('Select an inventoried USB RNode candidate and valid 902–928 MHz radio settings.');
+    }
+    options.rnode={port,frequency,bandwidth,txpower,spreadingfactor,codingrate};
+    options.transport_enabled=el('reticulum-transport-enable').checked;
+    return options;
+  }
   async function act(path,payload){
     state.busy=true;updateControls();
     try{
@@ -433,8 +480,16 @@
     }catch(error){note(error.message,true);return null;}
     finally{state.busy=false;updateControls();}
   }
-  el('reticulum-enable').addEventListener('click',()=>act('/api/reticulum/start',
-    {tcp_enabled:el('reticulum-tcp-enable').checked}));
+  el('reticulum-enable').addEventListener('click',async()=>{
+    let options;
+    try{options=rnodeStartOptions();}
+    catch(error){note(error.message,true);return;}
+    if(options.rnode&&!window.confirm('Start Reticulum with this USB RNode? Its radio may transmit immediately (including an LXMF announcement). Confirm firmware, antenna, legal frequency/power and local channel agreement first.'))return;
+    if(options.transport_enabled&&!window.confirm('Enable Reticulum transport forwarding? This can relay other traffic and transmit additional RF packets. Proceed only for a deliberately configured node.'))return;
+    await act('/api/reticulum/start',options);
+  });
+  el('reticulum-rnode-refresh').addEventListener('click',refreshRNodeReadiness);
+  el('reticulum-rnode-activate').addEventListener('change',updateControls);
   el('reticulum-disable').addEventListener('click',async()=>{
     const result=await act('/api/reticulum/stop',{});
     if(result?.worker_stopped){await refreshInbox();note('Reticulum stopped. LAN process closed; any opt-in saved history remains available.');}
@@ -564,4 +619,5 @@
   publishUnread();
   refreshContacts().catch(error=>contactNote(error.message,true));
   refreshStatus();
+  refreshRNodeReadiness();
 })();

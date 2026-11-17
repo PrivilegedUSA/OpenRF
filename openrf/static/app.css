@@ -1804,3 +1804,13 @@ body.map-workspace.has-message-unread .topbar #mesh-header-button{display:inline
   #page-reticulum .reticulum-thread-actions{width:100%;justify-content:flex-end}
   #page-reticulum .reticulum-thread-view .mesh-messages{max-height:42dvh}
 }
+
+/* v0.2.95 — optional RNode/LoRa setup: readable on the 800x480 Pi display. */
+#page-reticulum .reticulum-rnode-setup{min-width:0;max-width:900px}
+#page-reticulum .reticulum-rnode-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:9px 0 12px}
+#page-reticulum .reticulum-rnode-fields label{display:grid;gap:5px;min-width:0;color:#c4e1e1;font-size:11px}
+#page-reticulum .reticulum-rnode-fields .field{width:100%;min-width:0;max-width:100%;font-size:12px}
+#page-reticulum .reticulum-rnode-setup .switchline{min-width:0;flex-wrap:wrap;margin:8px 0}
+#page-reticulum #reticulum-rnode-readiness{overflow-wrap:anywhere}
+@media(max-width:720px){#page-reticulum .reticulum-rnode-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:430px){#page-reticulum .reticulum-rnode-fields{grid-template-columns:minmax(0,1fr)}}

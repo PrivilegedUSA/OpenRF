@@ -16,6 +16,8 @@ import secrets
 import threading
 
 from .reticulum_history import ReticulumLocalStore, ContactExistsError, ContactMissingError
+from .hardware import enumerate_serial_ports
+from .serial_diagnostics import serial_port_diagnostics
 
 
 DESTINATION = re.compile(r'[0-9a-fA-F]{32}\Z')
@@ -40,6 +42,47 @@ TCP_SECTION = """
     listen_ip = 0.0.0.0
     listen_port = 4242
 """
+RNODE_PORT = re.compile(r'/dev/tty(?:USB|ACM)\d{1,3}\Z')
+RNODE_BANDWIDTHS = (62500, 125000, 250000, 500000)
+
+
+def rnode_readiness():
+    """Read-only RNode preparation. A tty endpoint never proves RNode firmware."""
+    ports = serial_port_diagnostics(enumerate_serial_ports())
+    return {'ports': ports, 'rnode_verified': False,
+            'rnode_status': 'CANDIDATE_PORTS_ONLY' if ports else 'NO_USB_SERIAL_PORTS',
+            'wifi_halow_status': 'NOT_VERIFIED',
+            'note': 'No USB port was opened or probed. RNode firmware, band, antenna, LoRa link, and Wi-Fi HaLow support cannot be inferred from Linux device names.',
+            'meshtastic_note': 'Meshtastic radios and Reticulum RNodes use different firmware/protocols; one USB serial port cannot be used by both programs simultaneously.'}
+
+
+def validate_rnode(value):
+    """Validate an explicit, narrow USB RNode profile; no arbitrary path/config injection."""
+    keys = {'port', 'frequency', 'bandwidth', 'txpower', 'spreadingfactor', 'codingrate'}
+    if not isinstance(value, dict) or set(value) != keys:
+        raise ReticulumError('RNode requires port, frequency, bandwidth, txpower, spreadingfactor and codingrate.',
+                             'invalid_rnode_settings', 400)
+    port = value['port']
+    if not isinstance(port, str) or not RNODE_PORT.fullmatch(port):
+        raise ReticulumError('RNode port must be an explicitly selected /dev/ttyUSB* or /dev/ttyACM* device.',
+                             'invalid_rnode_port', 400)
+    limits = {'frequency': (902000000, 928000000), 'txpower': (0, 17),
+              'spreadingfactor': (7, 12), 'codingrate': (5, 8)}
+    for field, (minimum, maximum) in limits.items():
+        if type(value[field]) is not int or not minimum <= value[field] <= maximum:
+            raise ReticulumError(f'RNode {field} must be an integer between {minimum} and {maximum}.',
+                                 'invalid_rnode_settings', 400)
+    if type(value['bandwidth']) is not int or value['bandwidth'] not in RNODE_BANDWIDTHS:
+        raise ReticulumError('RNode bandwidth must be 62500, 125000, 250000 or 500000 Hz.',
+                             'invalid_rnode_settings', 400)
+    return {key: value[key] for key in ('port', 'frequency', 'bandwidth', 'txpower', 'spreadingfactor', 'codingrate')}
+
+
+def rnode_config_section(settings):
+    """RNS-documented RNodeInterface fields from validated, non-arbitrary values."""
+    fields = validate_rnode(settings)
+    return '\n  [[OpenRF Optional USB RNode]]\n    type = RNodeInterface\n    enabled = yes\n' + ''.join(
+        f'    {key} = {value}\n' for key, value in fields.items())
 
 
 class ReticulumError(Exception):
@@ -69,14 +112,25 @@ def validate_message(body):
 
 def validate_start(body):
     """Keep LAN exposure explicit; no arbitrary listener addresses or ports."""
-    if not isinstance(body, dict) or not set(body).issubset({'tcp_enabled'}):
-        raise ReticulumError('Enable accepts only the optional tcp_enabled flag.',
+    if not isinstance(body, dict) or not set(body).issubset({'tcp_enabled', 'rnode', 'transport_enabled'}):
+        raise ReticulumError('Enable accepts only tcp_enabled, rnode and transport_enabled options.',
                              'invalid_reticulum_command', 400)
     enabled = body.get('tcp_enabled', False)
     if type(enabled) is not bool:
         raise ReticulumError('tcp_enabled must be true or false.',
                              'invalid_reticulum_command', 400)
-    return {'tcp_enabled': enabled}
+    options = {'tcp_enabled': enabled}
+    if 'rnode' in body:
+        options['rnode'] = validate_rnode(body['rnode'])
+    if 'transport_enabled' in body:
+        if type(body['transport_enabled']) is not bool:
+            raise ReticulumError('transport_enabled must be true or false.',
+                                 'invalid_reticulum_command', 400)
+        if body['transport_enabled'] and 'rnode' not in options:
+            raise ReticulumError('Reticulum transport forwarding in OpenRF requires a selected RNode.',
+                                 'invalid_reticulum_command', 400)
+        options['transport_enabled'] = body['transport_enabled']
+    return options
 
 
 def private_config(root):
@@ -97,28 +151,38 @@ def private_config(root):
     return directory
 
 
-def runtime_config(root, tcp_enabled=False):
-    """Preserve operator-edited RNS config; derive a separate TCP-only runtime copy."""
+def runtime_config(root, tcp_enabled=False, rnode=None, transport_enabled=False):
+    """Preserve operator RNS config; derive opt-in temporary transport config."""
     root = Path(root)
     original = private_config(root)
-    if not tcp_enabled:
+    if not (tcp_enabled or rnode or transport_enabled):
         return original
-    runtime = root / 'rns-tcp-runtime'
+    runtime = root / 'rns-tcp-runtime' if tcp_enabled and not (rnode or transport_enabled) else root / 'rns-optin-runtime'
     runtime.mkdir(mode=0o700, parents=True, exist_ok=True)
     runtime.chmod(0o700)
     source = (original / 'config').read_text(encoding='utf-8')
     if '[[OpenRF Optional TCP Listener]]' in source:
         raise RuntimeError('Operator config already defines the managed TCP listener.')
+    if rnode and '[[OpenRF Optional USB RNode]]' in source:
+        raise RuntimeError('Operator config already defines the managed USB RNode.')
     # Insert while still inside [interfaces], even if the operator has placed
     # other top-level sections after it. Never rewrite their original config.
     lines = source.splitlines(keepends=True)
     interfaces_at = next((i for i, line in enumerate(lines)
                           if line.strip() == '[interfaces]'), None)
     if interfaces_at is None:
-        raise RuntimeError('Operator config has no [interfaces] section for the TCP listener.')
+        raise RuntimeError('Operator config has no [interfaces] section for optional interfaces.')
     after_interfaces = next((i for i in range(interfaces_at + 1, len(lines))
                              if re.fullmatch(r'\[[^\[\]]+\]\s*', lines[i].strip())), len(lines))
-    generated = ''.join(lines[:after_interfaces]).rstrip() + '\n' + TCP_SECTION + '\n' + ''.join(lines[after_interfaces:])
+    optional_sections = (TCP_SECTION if tcp_enabled else '') + (rnode_config_section(rnode) if rnode else '')
+    generated = ''.join(lines[:after_interfaces]).rstrip() + '\n' + optional_sections + '\n' + ''.join(lines[after_interfaces:])
+    if rnode or transport_enabled:
+        setting = re.compile(r'(?im)^(\s*enable_transport\s*=\s*)(?:yes|no|true|false)\s*$')
+        if len(setting.findall(generated)) != 1:
+            raise RuntimeError('Operator RNS config needs exactly one enable_transport directive for safe RNode startup.')
+        # With OpenRF-managed RNode interfaces, only the explicit relay
+        # checkbox permits transport forwarding, regardless of base config.
+        generated = setting.sub(lambda m: m.group(1) + ('Yes' if transport_enabled else 'No'), generated)
     # This is only OpenRF's generated runtime config, never the operator file.
     temporary = runtime / 'config.new'
     fd = os.open(temporary, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
@@ -168,7 +232,9 @@ def reticulum_worker(pipe, data_root, options=None):
         import LXMF
         data_root = Path(data_root)
         tcp_enabled = bool((options or {}).get('tcp_enabled', False))
-        config_dir = runtime_config(data_root, tcp_enabled=tcp_enabled)
+        config_dir = runtime_config(data_root, tcp_enabled=tcp_enabled,
+                                    rnode=(options or {}).get('rnode'),
+                                    transport_enabled=(options or {}).get('transport_enabled', False))
         rns_instance = RNS.Reticulum(configdir=str(config_dir), loglevel=1)
         identity_file = data_root / 'identity'
         if identity_file.exists():
@@ -296,6 +362,8 @@ class ReticulumManager:
         self._address = None
         self._error = None
         self._tcp_enabled = False
+        self._rnode = None
+        self._transport_enabled = False
         self._worker_id = None
         self._store = ReticulumLocalStore(self.data_root)
 
@@ -309,12 +377,15 @@ class ReticulumManager:
             return {'enabled':running, 'dependencies_available':available,
                     'address':self._address if running else None,
                     'last_error':self._error,
-                    'transport':'RETICULUM_AUTOINTERFACE_WITH_OPTIONAL_TCP',
+                    'transport':'RETICULUM_AUTOINTERFACE_WITH_OPTIONAL_TCP_RNODE',
                     'tcp_enabled':self._tcp_enabled if running else False,
+                    'rnode_requested':bool(running and self._rnode),
+                    'rnode_port':self._rnode['port'] if running and self._rnode else None,
+                    'transport_forwarding_requested':bool(running and self._transport_enabled),
                     'tcp_port':TCP_PORT if running and self._tcp_enabled else None,
                     'delivery':'UNVERIFIED_UNTIL_LXMF_RECEIPT',
                     'network_activity_requires_operator_action':True,
-                    'note':'Network activity only starts after Enable. TCP listens on all network adapters only when explicitly selected; peer reception and delivery remain unverified.'}
+                    'note':'Network activity only starts after Enable. TCP listens on all network adapters only when selected. A selected USB RNode may transmit RF; forwarding requires a separate opt-in. Peer reception and delivery remain unverified.'}
 
     def start(self, payload):
         options = validate_start(payload)
@@ -348,6 +419,8 @@ class ReticulumManager:
                 raise ReticulumError(self._error, 'reticulum_start_failed', 503)
             self._address = result['address']
             self._tcp_enabled = options['tcp_enabled']
+            self._rnode = options.get('rnode')
+            self._transport_enabled = options.get('transport_enabled', False)
             self._error = None
             return self.status()
 
@@ -468,6 +541,8 @@ class ReticulumManager:
         self._process, self._pipe, self._address = None, None, None
         self._worker_id = None
         self._tcp_enabled = False
+        self._rnode = None
+        self._transport_enabled = False
         if process is not None:
             if process.is_alive():
                 process.terminate()
