@@ -1814,3 +1814,8 @@ body.map-workspace.has-message-unread .topbar #mesh-header-button{display:inline
 #page-reticulum #reticulum-rnode-readiness{overflow-wrap:anywhere}
 @media(max-width:720px){#page-reticulum .reticulum-rnode-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:430px){#page-reticulum .reticulum-rnode-fields{grid-template-columns:minmax(0,1fr)}}
+
+/* v0.2.96 — a separate second physical USB radio, folded unless requested. */
+#page-reticulum #reticulum-rnode-second-fields[hidden]{display:none!important}
+#page-reticulum #reticulum-rnode-second-fields{min-width:0;border-left:2px solid #2a776e;padding-left:10px;margin:10px 0}
+#page-reticulum #reticulum-traffic-summary{overflow-wrap:anywhere}

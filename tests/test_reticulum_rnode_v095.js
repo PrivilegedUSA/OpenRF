@@ -16,7 +16,7 @@ assert(html.includes('HaLow link is verified'));
 assert(css.includes('.reticulum-rnode-fields{display:grid;'));
 assert(css.includes('@media(max-width:720px)'));
 assert(js.includes("'/api/reticulum/rnode/readiness'"));
-assert(js.includes('window.confirm(\'Start Reticulum with this USB RNode?'));
+assert(js.includes('window.confirm(\'Start Reticulum with the selected USB RNode radio(s)?'));
 assert(js.includes('window.confirm(\'Enable Reticulum transport forwarding?'));
 assert(!js.includes('innerHTML'));
 
@@ -46,4 +46,4 @@ nodes['reticulum-transport-enable'].checked=true;
 assert.equal(ctx.options().transport_enabled,true);
 nodes['reticulum-rnode-frequency'].value='868';
 assert.throws(()=>ctx.options(),/902–928 MHz/);
-console.log('PASS v0.2.95 passive RNode readiness, opt-in settings and relay consent');
+console.log('PASS v0.2.96 passive RNode readiness, opt-in settings and relay consent');

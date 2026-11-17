@@ -76,4 +76,4 @@ for(const [type,source] of [['mesh',mesh],['reticulum',reticulum]]){
   afterClear.context.track({receive_sequence:54});
   assert.equal(afterClear.context.stateForTest.unread,1,`${type}: later active-page message is newly unread`);
 }
-console.log('PASS v0.2.95 active-page unread badges, explicit acknowledgement, persistence');
+console.log('PASS v0.2.96 active-page unread badges, explicit acknowledgement, persistence');

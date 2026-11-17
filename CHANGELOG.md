@@ -1,3 +1,11 @@
+## v0.2.96 — Multi-RNode setup and evidence-limited link counters (2026-11-17)
+
+- Support one or two **distinct physical USB RNodeInterface** profiles in the explicit Reticulum start operation. Legacy single-radio callers remain supported; multiple profiles require distinct validated Linux USB ports and radio parameters, and preserve original operator settings and identities.
+- Add a compact second-radio setup section, off by default and unavailable until the first is chosen; a single activation confirmation covers the chosen radios, and forwarding remains a separate confirmation. The app blocks Meshtastic port conflicts for either selected RNode.
+- Track real RNS RX/TX byte-counter increases between connection-diagnostic refreshes. Restart, missing counters, or decreasing/reset counters invalidate comparisons. Show no RF strength, delivery, path-quality or live signal claim from them.
+- No network discovery, radio probing, automatic transmit, software bridge between Reticulum and Meshtastic, RNodeMultiInterface firmware support, HaLow driver/BATMAN-adv integration, new required dependency, or database migration. Hardware tests remain necessary.
+- Add Python multi-profile/config/compatibility tests and JavaScript multi-profile and counter-delta tests, plus release instructions.
+
 ## v0.2.95 — Opt-in USB RNode and cautious Reticulum forwarding (2026-11-17)
 
 - Add read-only USB serial candidates and access diagnostics to the Reticulum page and API. Neither a serial port nor a conventional Wi-Fi adapter proves RNode firmware or Wi-Fi HaLow capability; no auto-probe or RF traffic is initiated.

@@ -545,7 +545,8 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     reticulum = self.server.reticulum_manager.status()
                     if (isinstance(body.get('port'), str) and reticulum['enabled'] and
-                            body['port'] == reticulum.get('rnode_port')):
+                            body['port'] in reticulum.get('rnode_ports',
+                                                        [reticulum.get('rnode_port')])):
                         raise MeshError('That USB port is already assigned to the running Reticulum RNode. Stop Reticulum first.',
                                         'mesh_port_in_use_by_reticulum', 409)
                     return self._json(200, self.server.mesh_manager.connect(body))
@@ -556,9 +557,11 @@ class Handler(BaseHTTPRequestHandler):
                     manager = self.server.reticulum_manager
                     if path == '/api/reticulum/start':
                         selected = body.get('rnode')
+                        selected_ports = [selected.get('port')] if isinstance(selected, dict) else []
+                        if isinstance(body.get('rnodes'), list):
+                            selected_ports.extend(item.get('port') for item in body['rnodes'] if isinstance(item, dict))
                         mesh = self.server.mesh_manager.status()
-                        if (isinstance(selected, dict) and selected.get('port') == mesh.get('port')
-                                and mesh['connected']):
+                        if mesh['connected'] and mesh.get('port') in selected_ports:
                             raise ReticulumError('That USB port is already in use by Meshtastic. Disconnect Mesh messages first.',
                                                  'rnode_port_in_use_by_mesh', 409)
                         return self._json(200, manager.start(body))

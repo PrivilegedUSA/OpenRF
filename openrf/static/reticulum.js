@@ -1,5 +1,5 @@
 'use strict';
-/* v0.2.95: opt-in RNode/LoRa and transport forwarding, no automatic RF activity. */
+/* v0.2.96: two independent RNode USB profiles and evidence-limited traffic deltas. */
 (()=>{
   const el=id=>document.getElementById(id);
   if(!el('reticulum-panel'))return;
@@ -78,6 +78,13 @@
     for(const id of ['reticulum-rnode-port','reticulum-rnode-frequency','reticulum-rnode-bandwidth',
       'reticulum-rnode-txpower','reticulum-rnode-sf','reticulum-rnode-cr'])
       el(id).disabled=rnodeSetupLocked;
+    const second=el('reticulum-rnode-second-activate');
+    second.disabled=rnodeSetupLocked;
+    if(!rnodeSelected)second.checked=false;
+    el('reticulum-rnode-second-fields').hidden=!rnodeSelected||!second.checked;
+    for(const id of ['reticulum-rnode-port-2','reticulum-rnode-frequency-2','reticulum-rnode-bandwidth-2',
+      'reticulum-rnode-txpower-2','reticulum-rnode-sf-2','reticulum-rnode-cr-2'])
+      el(id).disabled=rnodeSetupLocked||!second.checked;
     el('reticulum-transport-enable').disabled=rnodeSetupLocked;
     if(!rnodeSelected)el('reticulum-transport-enable').checked=false;
     el('reticulum-disable').disabled=!state.enabled||state.busy;
@@ -93,7 +100,7 @@
     if(state.enabled)el('reticulum-tcp-enable').checked=Boolean(result.tcp_enabled);
     el('reticulum-badge').textContent=state.enabled?'LAN ENABLED':'OFF';
     el('reticulum-connection-brief').textContent=state.enabled
-      ?`Reticulum enabled · TCP ${result.tcp_enabled?'requested':'off'} · RNode ${result.rnode_requested?`${result.rnode_port} requested`:'off'} · forwarding ${result.transport_forwarding_requested?'requested':'off'} · delivery unverified`
+      ?`Reticulum enabled · TCP ${result.tcp_enabled?'requested':'off'} · ${result.rnode_count||0} USB RNode(s) requested · forwarding ${result.transport_forwarding_requested?'requested':'off'} · delivery unverified`
       :'Connection: off · no TCP listener requested by OpenRF.';
     el('reticulum-address').value=state.enabled&&result.address?result.address:'Not enabled';
     updateControls();
@@ -377,9 +384,13 @@
       :'History saving is off. Messages stay in memory until Reticulum stops.';
   }
   const shown=value=>Number.isSafeInteger(value)&&value>=0?String(value):'unknown';
+  let previousInterfaceCounters=new Map();
   function renderDiagnostics(report){
     const container=el('reticulum-interfaces');
     container.replaceChildren();
+    const previous=previousInterfaceCounters;
+    const current=new Map();
+    let compared=0;
     const summary=document.createElement('p');summary.className='small muted';
     if(!report.active)summary.textContent='Reticulum is stopped. No live network interfaces to inspect.';
     else if(!report.available)summary.textContent=String(report.note||'RNS interface counters unavailable.');
@@ -387,7 +398,7 @@
       ?'Local Reticulum interface counters (not message receipts):'
       :'RNS returned zero interfaces; the TCP listener is not confirmed to be listening.';
     container.append(summary);
-    for(const item of report.interfaces||[]){
+    for(const [index,item] of (report.interfaces||[]).entries()){
       const entry=document.createElement('div');entry.className='reticulum-interface';
       const header=document.createElement('strong');header.textContent=String(item.name||'Unknown interface');
       const status=document.createElement('p');status.className='small';
@@ -396,7 +407,24 @@
       const traffic=document.createElement('p');traffic.className='small muted';
       traffic.textContent=`Received: ${shown(item.rx_bytes)} bytes · Sent: ${shown(item.tx_bytes)} bytes`;
       entry.append(header,status,traffic);container.append(entry);
+      const key=`${index}:${item.name}`;
+      const old=previous.get(key);
+      const rx=Number.isSafeInteger(item.rx_bytes)&&item.rx_bytes>=0?item.rx_bytes:null;
+      const tx=Number.isSafeInteger(item.tx_bytes)&&item.tx_bytes>=0?item.tx_bytes:null;
+      if(rx!==null&&tx!==null){
+        current.set(key,{rx,tx});
+        if(old&&rx>=old.rx&&tx>=old.tx){
+          const change=document.createElement('p');change.className='small muted';
+          change.textContent=`Since previous check: +${rx-old.rx} received / +${tx-old.tx} sent bytes (local counters only)`;
+          entry.append(change);compared++;
+        }
+      }
     }
+    previousInterfaceCounters=report.active&&report.available?current:new Map();
+    el('reticulum-traffic-summary').textContent=!report.active
+      ?'No live counters. Starting and stopping Reticulum resets this comparison.'
+      :compared?`Compared ${compared} interface(s) with the previous check. Counter changes show local activity only—not signal quality, RF reachability or LXMF delivery.`
+      :'No comparable previous counters. Refresh again to view real byte changes, if RNS provides counters.';
     const announced=el('reticulum-announce-detail');
     if(!report.active)announced.textContent='No live announce information. Remote reception is unverified.';
     else announced.textContent=`Announce requests this session: ${shown(report.announce_requests)} · Last request (UTC): ${String(report.last_announce_requested_at_utc||'unknown')} · Reception by another device: unverified.`;
@@ -439,16 +467,17 @@
     label.textContent='Reading Linux USB endpoints…';
     try{
       const report=await request('/api/reticulum/rnode/readiness');
-      const picker=el('reticulum-rnode-port');
-      const previous=picker.value;
-      picker.replaceChildren(new Option('No port selected',''));
-      for(const port of report.ports||[]){
-        if(!/^\/dev\/tty(?:USB|ACM)\d{1,3}$/.test(port.path||''))continue;
-        const item=new Option(`${port.path} · ${port.status==='ready_to_probe'?'accessible, firmware unknown':port.status}`,
-          port.path);
-        picker.append(item);
+      for(const [id,placeholder] of [['reticulum-rnode-port','No port selected'],
+                                     ['reticulum-rnode-port-2','No second port selected']]){
+        const picker=el(id);const previous=picker.value;
+        picker.replaceChildren(new Option(placeholder,''));
+        for(const port of report.ports||[]){
+          if(!/^\/dev\/tty(?:USB|ACM)\d{1,3}$/.test(port.path||''))continue;
+          picker.append(new Option(`${port.path} · ${port.status==='ready_to_probe'?'accessible, firmware unknown':port.status}`,
+            port.path));
+        }
+        picker.value=[...picker.options].some(option=>option.value===previous)?previous:'';
       }
-      picker.value=[...picker.options].some(option=>option.value===previous)?previous:'';
       label.textContent=`${(report.ports||[]).length} USB serial candidate(s) · RNode not verified · HaLow not verified`;
     }catch(error){label.textContent=`USB readiness unavailable: ${error.message}`;}
     updateControls();
@@ -456,18 +485,26 @@
   function rnodeStartOptions(){
     const options={tcp_enabled:el('reticulum-tcp-enable').checked};
     if(!el('reticulum-rnode-activate').checked)return options;
-    const port=el('reticulum-rnode-port').value;
-    const frequency=Number(el('reticulum-rnode-frequency').value)*1000000;
-    const bandwidth=Number(el('reticulum-rnode-bandwidth').value)*1000;
-    const txpower=Number(el('reticulum-rnode-txpower').value);
-    const spreadingfactor=Number(el('reticulum-rnode-sf').value);
-    const codingrate=Number(el('reticulum-rnode-cr').value);
-    if(!port||![frequency,bandwidth,txpower,spreadingfactor,codingrate].every(Number.isInteger)||
-       frequency<902000000||frequency>928000000||![62500,125000,250000,500000].includes(bandwidth)||
-       txpower<0||txpower>17||spreadingfactor<7||spreadingfactor>12||codingrate<5||codingrate>8){
-      throw Error('Select an inventoried USB RNode candidate and valid 902–928 MHz radio settings.');
-    }
-    options.rnode={port,frequency,bandwidth,txpower,spreadingfactor,codingrate};
+    const profile=suffix=>{
+      const port=el(`reticulum-rnode-port${suffix}`).value;
+      const frequency=Number(el(`reticulum-rnode-frequency${suffix}`).value)*1000000;
+      const bandwidth=Number(el(`reticulum-rnode-bandwidth${suffix}`).value)*1000;
+      const txpower=Number(el(`reticulum-rnode-txpower${suffix}`).value);
+      const spreadingfactor=Number(el(`reticulum-rnode-sf${suffix}`).value);
+      const codingrate=Number(el(`reticulum-rnode-cr${suffix}`).value);
+      if(!port||![frequency,bandwidth,txpower,spreadingfactor,codingrate].every(Number.isInteger)||
+         frequency<902000000||frequency>928000000||![62500,125000,250000,500000].includes(bandwidth)||
+         txpower<0||txpower>17||spreadingfactor<7||spreadingfactor>12||codingrate<5||codingrate>8){
+        throw Error('Select an inventoried USB RNode candidate and valid 902–928 MHz radio settings.');
+      }
+      return {port,frequency,bandwidth,txpower,spreadingfactor,codingrate};
+    };
+    const primary=profile('');
+    if(el('reticulum-rnode-second-activate')?.checked){
+      const second=profile('-2');
+      if(primary.port===second.port)throw Error('Choose two different physical USB ports for the two RNodes.');
+      options.rnodes=[primary,second];
+    }else options.rnode=primary;
     options.transport_enabled=el('reticulum-transport-enable').checked;
     return options;
   }
@@ -484,12 +521,13 @@
     let options;
     try{options=rnodeStartOptions();}
     catch(error){note(error.message,true);return;}
-    if(options.rnode&&!window.confirm('Start Reticulum with this USB RNode? Its radio may transmit immediately (including an LXMF announcement). Confirm firmware, antenna, legal frequency/power and local channel agreement first.'))return;
+    if((options.rnode||options.rnodes)&&!window.confirm('Start Reticulum with the selected USB RNode radio(s)? Each may transmit immediately (including an LXMF announcement). Confirm firmware, antennas, legal frequencies/powers and channel agreement first.'))return;
     if(options.transport_enabled&&!window.confirm('Enable Reticulum transport forwarding? This can relay other traffic and transmit additional RF packets. Proceed only for a deliberately configured node.'))return;
     await act('/api/reticulum/start',options);
   });
   el('reticulum-rnode-refresh').addEventListener('click',refreshRNodeReadiness);
   el('reticulum-rnode-activate').addEventListener('change',updateControls);
+  el('reticulum-rnode-second-activate').addEventListener('change',updateControls);
   el('reticulum-disable').addEventListener('click',async()=>{
     const result=await act('/api/reticulum/stop',{});
     if(result?.worker_stopped){await refreshInbox();note('Reticulum stopped. LAN process closed; any opt-in saved history remains available.');}

@@ -1,4 +1,12 @@
-# OpenRF v0.2.95 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.96 — Offline-First Navigation and RF Toolkit
+
+## v0.2.96 — Two separate RNode radios and real interface-counter comparisons
+
+The Reticulum hardware setup now allows **one or two separate USB RNode devices**. The second radio is optional and off by default. Each RNode has a different Linux USB serial port and its own operator-selected frequency, bandwidth, TX power, spreading factor and coding rate. The old single-radio setup and API remain compatible. Selecting both builds two independent `RNodeInterface` entries in OpenRF's isolated runtime configuration; it does **not** convert a single dual-transceiver board to `RNodeMultiInterface`. All radio access still requires explicit **Enable LAN messaging** and confirmation that the radios may transmit. The relay/transport option remains independently opt-in. Both ports must be distinct, and neither may be in active use by the Meshtastic bridge.
+
+The Reticulum **Connection diagnostics** section now compares interface RX/TX byte counters across deliberate refreshes. For each reported interface, it displays exact increases since the previous check when RNS provides two valid, monotonic counter readings. If the Reticulum worker stops, a counter resets, or no reading exists, it reports that no comparison is available. **These byte changes are not RF signal strength, link quality, remote reception, measured data rate, route success, or LXMF delivery receipts.** Peer counts remain local Reticulum-reported entries and are not verified nearby-radio scans.
+
+This is infrastructure groundwork for the portable Pi with modular LoRa. It does not require new packages or add automatic transmissions, uploads, new SQLite migrations, Wi-Fi HaLow drivers or BATMAN-adv setup. See [v0.2.96 tests and setup](docs/RELEASE_0.2.96_TESTS.md). Real RNode hardware and a two-device live relay still require validation.
 
 ## v0.2.95 — Optional RNode/LoRa and Reticulum relay groundwork
 
