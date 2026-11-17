@@ -60,4 +60,4 @@ function checkForegroundPolling(source,funcName,condition){
 checkForegroundPolling(mesh,'  renderButtons();','connected');
 checkForegroundPolling(reticulum,'  updateControls();','enabled');
 assert(!mesh.includes('innerHTML')&&!reticulum.includes('innerHTML'));
-console.log('PASS v0.2.97 independent aligned sidebar unread and read-only focus refresh');
+console.log('PASS v0.2.98 independent aligned sidebar unread and read-only focus refresh');

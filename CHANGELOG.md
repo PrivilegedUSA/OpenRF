@@ -759,3 +759,9 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Poll already-connected/explicitly-enabled message inboxes immediately when a backgrounded OpenRF tab regains focus or visibility. Keep existing periodic polling and in-flight guards so no auto-connect, auto-announce, unintended radio activity or redundant overlapping requests are introduced.
 - Add separate counter-layout and foreground-refresh regression tests. No backend changes or persistent data migration. Browser/Sideband behavior must still be verified in the user's actual environment.
 
+## v0.2.98 — Passive Wi-Fi HaLow (802.11ah) hardware discovery (2026-11-17)
+
+- Add Linux-only, read-only HaLow readiness endpoint and five-inch-friendly Hardware panel, with explicit refresh and an offline setup checklist plus vendor reference links. Detect known Morse Micro/Newracom sysfs network-driver names, module presence and USB product-description hints; show OS UP/carrier as unverified information, never proof of RF/IP/LXMF transport.
+- Keep the Meshtastic, RNode and Reticulum subsystems independent. Do not auto-install vendor drivers, configure regions, scan Wi-Fi, connect to APs, transmit, configure IP routes or bridge HaLow into Reticulum. No new Python/JS dependency, private data output, data migration or network startup.
+- Add deterministic Python fake-sysfs tests for missing/WSL hardware, Morse interface UP+carrier, Newracom loaded module, USB candidate privacy and GET/static endpoint; add a JavaScript passive refresh/no POST UI test. Physical HaLow hardware, Raspberry Pi OS, kernel/vendor compatibility and actual peer/forwarding remain unverified.
+

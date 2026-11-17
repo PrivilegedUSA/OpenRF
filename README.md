@@ -1,4 +1,12 @@
-# OpenRF v0.2.97 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.98 — Offline-First Navigation and RF Toolkit
+
+## v0.2.98 — Passive Wi-Fi HaLow (802.11ah) readiness
+
+Open **Hardware → Wi-Fi HaLow · 802.11ah**. The new compact panel checks Linux-visible Morse Micro (`morse`) and Newracom (`nrc`) kernel-driver hints, matching USB vendor descriptions, network-interface names, the OS-reported carrier/operational state and available optional vendor commands. **Refresh HaLow readiness** repeats a read-only local check; no association, Wi-Fi scan, driver installation, firmware download, configuration, IP bridge, route, mesh relay or RF transmission is initiated. The local `GET /api/wifi-halow/status` endpoint reports candidates conservatively, never calling them operational.
+
+USB descriptions and driver names are **only possible hardware indicators**; even an interface marked `UP` with carrier cannot establish HaLow association, IP traffic, Reticulum connectivity or radio range. A generic `wlan0`, an Ethernet connection and an arbitrary 900 MHz adapter are not considered HaLow evidence. The API does not expose SSIDs, MAC addresses, USB serial numbers, GPS coordinates, messages or contacts. WSL without passed-through hardware reports its limitation plainly. On-device Linux/Pi tests are still needed before any live functionality can be claimed.
+
+The optional checklist points to official [Morse Micro Linux drivers](https://github.com/MorseMicro/morse_driver) and [Newracom NRC7394 host software](https://github.com/newracom/nrc7394_sw_pkg). The selected hardware, Raspberry Pi kernel, firmware and board calibration files must match; any HaLow station/AP or permitted-region configuration is a future user-controlled step outside OpenRF. Reticulum AutoInterface can only use HaLow once the OS independently has a working IP network. No mandatory dependencies, database changes, hosted service or new transmitting features. See [v0.2.98 test notes](docs/RELEASE_0.2.98_TESTS.md).
 
 ## v0.2.97 — Unified, read-only mesh connection manager
 

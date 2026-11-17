@@ -29,6 +29,7 @@ from .radio import RadioReceiver, RadioError
 from .mesh import MeshManager, MeshError
 from .reticulum_lan import ReticulumManager, ReticulumError, rnode_readiness
 from .mesh_connections import connection_report
+from .wifi_halow import status_report as halow_status_report
 from . import camera_catalog, chirp_channels, national_alpr, camera_routes
 from .sdr_survey import capture_sites_geojson
 from .routing import local_route, local_status, RouteUnavailable, RouteError
@@ -401,6 +402,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/hardware/manager':
             return self._json(200, manager_report(status_report(),
                                                    last_probe=self.server.serial_last_probe))
+        if path == '/api/wifi-halow/status':
+            return self._json(200, halow_status_report())
         if path == '/api/hardware/readiness':
             return self._json(200, readiness_report(status_report(),
                 last_probe=self.server.serial_last_probe,
@@ -436,7 +439,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, raw, 'text/csv; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.csv"'})
         if path in ('/', '/index.html'):
             file = STATIC_DIR / 'index.html'
-        elif path in ('/static/app.css', '/static/app.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
             file = STATIC_DIR / Path(path).name
         else:
             return self._error(404, 'Not found')
