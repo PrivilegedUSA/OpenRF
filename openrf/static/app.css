@@ -1765,3 +1765,42 @@ body.map-workspace.has-message-unread .topbar #mesh-header-button{display:inline
 #page-reticulum .mesh-conversation-select select{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 @media(max-width:780px){#page-reticulum .reticulum-contact-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}#page-reticulum .reticulum-contact-form-actions{grid-column:1/-1}}
 @media(max-width:500px){#page-reticulum .reticulum-contact-form{grid-template-columns:minmax(0,1fr)}}
+
+/* v0.2.94 — Reticulum opens a conversation as its own full-width view.
+   Keep the composer with the thread, never in a competing half-width column. */
+#page-reticulum #reticulum-thread-browser[hidden],#page-reticulum #reticulum-thread-view[hidden],
+#page-reticulum #reticulum-thread-save[hidden],#page-reticulum #reticulum-recipient-label[hidden],
+#page-reticulum #reticulum-quick-contact[hidden]{display:none!important}
+#page-reticulum .reticulum-thread-browser{min-width:0;max-width:900px;margin-top:9px}
+#page-reticulum .reticulum-thread-list-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:7px 0 10px}
+#page-reticulum .reticulum-thread-list-heading h4{margin:0;font-size:14px;color:#d9f3ed}
+#page-reticulum .reticulum-thread-list{display:grid;gap:7px;max-height:min(62dvh,540px);overflow:auto;min-width:0}
+#page-reticulum .reticulum-thread-row{display:flex;align-items:center;gap:10px;min-width:0;width:100%;padding:11px 12px;
+  text-align:left;border:1px solid #315263;border-radius:10px;background:#0c2430;color:#e2f6f1}
+#page-reticulum .reticulum-thread-row:hover,#page-reticulum .reticulum-thread-row:focus-visible{background:#16404a;border-color:#3a817b}
+#page-reticulum .reticulum-thread-avatar{display:grid;place-items:center;flex:0 0 36px;height:36px;border-radius:50%;
+  background:#1b4a4a;color:#b1f4df;font-size:15px;font-weight:800}
+#page-reticulum .reticulum-thread-info{display:grid;gap:4px;min-width:0;flex:1}
+#page-reticulum .reticulum-thread-info strong{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#page-reticulum .reticulum-thread-preview{color:#96b6bd;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#page-reticulum .reticulum-thread-date{align-self:flex-start;flex:0 0 auto;color:#8daeb6;font-size:10px}
+#page-reticulum .reticulum-thread-view:not([hidden]){display:flex!important;flex-direction:column;gap:0;max-width:900px;width:100%;min-width:0}
+#page-reticulum .reticulum-thread-heading{display:flex;align-items:center;gap:9px;flex-wrap:wrap;min-width:0;
+  border-bottom:1px solid #345766;padding:6px 0 11px;margin-bottom:9px}
+#page-reticulum .reticulum-thread-identity{display:grid;gap:3px;min-width:0;flex:1 1 175px}
+#page-reticulum .reticulum-thread-identity strong{color:#d8fff4;font-size:13px;overflow-wrap:anywhere}
+#page-reticulum .reticulum-thread-identity small{color:#8fadb5;font-size:10px;overflow-wrap:anywhere}
+#page-reticulum .reticulum-thread-actions{display:flex;gap:5px;flex-wrap:wrap}
+#page-reticulum .reticulum-thread-view .mesh-conversation-column,#page-reticulum .reticulum-thread-view .mesh-compose-column{min-width:0;width:100%;max-width:none}
+#page-reticulum .reticulum-thread-view .mesh-messages{min-height:170px;max-height:min(45dvh,400px);margin:0;
+  padding:13px;background:#091c25}
+#page-reticulum .reticulum-thread-view .mesh-compose{margin:9px 0 0;padding:10px 0 0;border-top:1px solid #345766}
+#page-reticulum .reticulum-thread-view .mesh-compose textarea{min-height:56px;max-height:110px;resize:vertical}
+#page-reticulum .reticulum-compose-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px}
+#page-reticulum .reticulum-compose-footer .btn{min-height:38px;min-width:86px}
+@media(max-width:500px){
+  #page-reticulum .reticulum-thread-heading{gap:7px}
+  #page-reticulum .reticulum-thread-identity{flex-basis:calc(100% - 150px)}
+  #page-reticulum .reticulum-thread-actions{width:100%;justify-content:flex-end}
+  #page-reticulum .reticulum-thread-view .mesh-messages{max-height:42dvh}
+}

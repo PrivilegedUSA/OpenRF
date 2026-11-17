@@ -6,7 +6,7 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const script=fs.readFileSync('openrf/static/reticulum.js','utf8');
 const html=fs.readFileSync('openrf/static/index.html','utf8');
-assert(html.includes('aria-label="Reticulum LXMF messages, newest first"'));
+assert(html.includes('aria-label="Reticulum LXMF conversation, newest first"'));
 
 function node(tag){
   return {tag,children:[],value:'all',scrollTop:0,scrollHeight:300,clientHeight:100,
@@ -61,4 +61,4 @@ assert.equal(box.scrollTop,70,'Polling does not jump to latest while reading old
 box.scrollTop=0;
 context.renderInbox(rows);
 assert.equal(box.scrollTop,0,'Latest stays visible at top');
-console.log('PASS v0.2.93 Reticulum newest-first inbox, filters and scroll stability');
+console.log('PASS v0.2.94 Reticulum newest-first inbox, filters and scroll stability');

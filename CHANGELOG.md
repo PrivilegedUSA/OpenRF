@@ -691,6 +691,13 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Keep the total unread count on the header envelope, but only clear a channel's unread when visiting its own inbox. If just Reticulum has unread messages, clicking the envelope goes straight to Reticulum. Maintain small-screen wrapped text, a readable two-column landscape layout, and no sideways scroll.
 - Preserve explicit Enable/Stop, opt-in TCP listener on port 4242, dormant AutoInterface unless Reticulum is enabled, loopback-only HTTP service and unverified-delivery labels. No migrations, transmissions on load or OS firewall changes. JavaScript DOM regression added; actual Sideband/WSL UI needs operator testing.
 
+## v0.2.94 — Full-width Reticulum conversation threads (2026-11-17)
+
+- Replace the always-visible Reticulum dropdown/inbox/side-by-side composer with a scrollable conversation list and dedicated per-peer thread view. Sort conversations by their latest known event; include saved contacts even with no messages.
+- Open selected threads at full width on the 5-inch layout, with a single composer, Back to Conversations, copy address and Save contact actions in the header, and no repeated per-bubble Reply/Copy buttons. Keep outbound status and validated inbound signature wording unchanged.
+- Provide a New message flow for a manually entered LXMF address. Preserve unsent text separately for each thread in memory while switching peers, and transition a newly queued message into its dedicated thread. Do not persist drafts, reconnect devices, transmit on opening a thread, or infer read receipts.
+- Preserve all v0.2.93 unread badges/explicit acknowledgment and existing contacts/history APIs. Add offline DOM tests for thread navigation, ordering, scoped drafts and message controls; field touchscreen and real Sideband delivery remain unverified.
+
 ## v0.2.93 — Explicit unread acknowledgment on both message pages (2026-11-17)
 
 - Count genuine inbound Meshtastic and Reticulum messages even while their own inbox is active. Never treat opening or staying on the page as proof the operator has read them.

@@ -1,4 +1,10 @@
-# OpenRF v0.2.93 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.94 — Offline-First Navigation and RF Toolkit
+
+## v0.2.94 — Dedicated Reticulum conversation threads
+
+The Reticulum inbox now starts with a **conversation list**, including contacts and other LXMF peers with available messages. Select a person to open a separate, full-width thread with the newest messages at the top and one message composer beneath. The thread header shows the contact name and full 32-character address, with a single **Copy address** control and **Save contact** option when needed. The repeated Reply and Copy buttons have been removed from individual bubbles in this view.
+
+Use **← Conversations** to return to the list, or **+ New message** to enter an address manually. Tapping **Message** on a saved contact opens their thread directly. Unsent drafts are kept separately for each conversation in the browser's current memory (not saved to disk); switching recipients does not mix them. Outgoing LXMF texts still say queued, not delivered. The working unread counters and **Mark all as read** action remain unchanged; merely viewing a thread does not clear them. This is an in-page conversation view, not a new browser URL. See `docs/RELEASE_0.2.94_TESTS.md`.
 
 ## v0.2.93 — Persistent unread indicators while reading
 

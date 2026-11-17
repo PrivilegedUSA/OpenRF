@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.93">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.94">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -17,17 +17,17 @@
   <script defer src="/static/route_guidance.js?v=0.2.76"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/app.js?v=0.2.93"></script>
+  <script defer src="/static/app.js?v=0.2.94"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.93"></script>
-  <script defer src="/static/reticulum.js?v=0.2.93"></script>
+  <script defer src="/static/mesh.js?v=0.2.94"></script>
+  <script defer src="/static/reticulum.js?v=0.2.94"></script>
   <script defer src="/static/camera-layers.js?v=0.2.76"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.93</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.94</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -582,23 +582,33 @@
             <div id="reticulum-contacts-list" class="reticulum-contacts-list"><p class="small muted">No saved Reticulum contacts.</p></div>
             <p id="reticulum-contact-status" class="small muted" role="status" aria-live="polite"></p>
           </details>
-          <div class="mesh-chat-grid">
+          <div class="mesh-inbox-header"><h4>Reticulum messages</h4><span class="small muted" id="reticulum-storage-label">Current session · last 100</span></div>
+          <div class="button-line message-read-actions"><button type="button" class="btn mini outline" id="reticulum-mark-read" disabled>Mark all as read</button><span id="reticulum-inbox-unread" class="small muted" role="status">No unread Reticulum messages</span></div>
+          <div class="reticulum-thread-browser" id="reticulum-thread-browser">
+            <div class="reticulum-thread-list-heading"><h4>Conversations</h4><button id="reticulum-new-thread" type="button" class="btn mini primary">+ New message</button></div>
+            <div id="reticulum-thread-list" class="reticulum-thread-list" aria-label="Reticulum conversations"><p class="small muted">No conversations yet. Start a new message or save a contact.</p></div>
+          </div>
+          <div id="reticulum-thread-view" class="mesh-chat-grid reticulum-thread-view" hidden>
+            <div class="reticulum-thread-heading">
+              <button type="button" id="reticulum-thread-back" class="btn mini outline">← Conversations</button>
+              <div class="reticulum-thread-identity"><strong id="reticulum-thread-name">New message</strong><small id="reticulum-thread-address">Choose a recipient</small></div>
+              <div class="reticulum-thread-actions">
+                <button id="reticulum-thread-copy" type="button" class="btn mini outline" disabled>Copy address</button>
+                <button id="reticulum-thread-save" type="button" class="btn mini outline" hidden>Save contact</button>
+              </div>
+            </div>
             <div class="mesh-conversation-column">
-              <div class="mesh-inbox-header"><h4>Reticulum inbox</h4><span class="small muted" id="reticulum-storage-label">Current session · last 100</span></div>
-              <div class="button-line message-read-actions"><button type="button" class="btn mini outline" id="reticulum-mark-read" disabled>Mark all as read</button><span id="reticulum-inbox-unread" class="small muted" role="status">No unread Reticulum messages</span></div>
-              <label class="mesh-conversation-select" for="reticulum-conversation">Conversation
+              <label class="mesh-conversation-select visually-hidden" for="reticulum-conversation">Conversation
                 <select class="field" id="reticulum-conversation"><option value="all">All messages</option></select>
               </label>
-              <div id="reticulum-messages" class="mesh-messages" role="log" aria-label="Reticulum LXMF messages, newest first"><p class="small muted">No received or queued LXMF messages.</p></div>
+              <div id="reticulum-messages" class="mesh-messages" role="log" aria-label="Reticulum LXMF conversation, newest first"><p class="small muted">No received or queued LXMF messages.</p></div>
             </div>
             <div class="mesh-compose-column">
-              <div class="mesh-inbox-header"><h4>Send LXMF</h4><span class="small muted">Direct destination</span></div>
               <form id="reticulum-compose" class="mesh-compose">
-                <label for="reticulum-recipient">Recipient LXMF address<input id="reticulum-recipient" class="field" maxlength="32" autocomplete="off" spellcheck="false" placeholder="32-character hex address" required></label>
-                <div class="button-line reticulum-quick-contact"><button id="reticulum-save-recipient" type="button" class="btn mini outline">Save recipient as contact</button></div>
-                <label for="reticulum-text">Message<textarea id="reticulum-text" class="field" rows="3" placeholder="Short offline message…" required></textarea></label>
-                <p id="reticulum-byte-count" class="small muted">0 / 1024 UTF-8 bytes</p>
-                <div class="button-line"><button id="reticulum-send" class="btn primary" type="submit" disabled>Send over Reticulum</button></div>
+                <label id="reticulum-recipient-label" for="reticulum-recipient">Recipient LXMF address<input id="reticulum-recipient" class="field" maxlength="32" autocomplete="off" spellcheck="false" placeholder="32-character hex address" required></label>
+                <div class="button-line reticulum-quick-contact" id="reticulum-quick-contact"><button id="reticulum-save-recipient" type="button" class="btn mini outline">Save recipient as contact</button></div>
+                <label for="reticulum-text">Message<textarea id="reticulum-text" class="field" rows="3" placeholder="Write a message…" required></textarea></label>
+                <div class="reticulum-compose-footer"><span id="reticulum-byte-count" class="small muted">0 / 1024 UTF-8 bytes</span><button id="reticulum-send" class="btn primary" type="submit" disabled>Send</button></div>
               </form>
             </div>
           </div>

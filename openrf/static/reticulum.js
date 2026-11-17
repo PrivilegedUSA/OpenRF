@@ -1,5 +1,5 @@
 'use strict';
-/* v0.2.93: explicit unread acknowledgment and newest-first LXMF inbox. */
+/* v0.2.94: dedicated per-peer Reticulum threads, with explicit unread controls. */
 (()=>{
   const el=id=>document.getElementById(id);
   if(!el('reticulum-panel'))return;
@@ -14,7 +14,8 @@
     return {receiveSequence:null,unread:0};
   }
   const state={enabled:false,busy:false,available:false,polling:false,
-    contacts:[],messages:[],historyEnabled:false,editingContact:null,...restoredUnread()};
+    contacts:[],messages:[],historyEnabled:false,editingContact:null,
+    activeThread:null,drafts:Object.create(null),...restoredUnread()};
   const viewingMessages=()=>Boolean(el('page-reticulum')?.classList.contains('active'));
   function persistUnread(){
     try{
@@ -121,22 +122,117 @@
       selector.append(new Option(contactName(address),address));
     selector.value=addresses.has(old)?old:'all';
   }
+  function threadAddress(value){
+    const address=String(value||'').toLowerCase();
+    return /^[0-9a-f]{32}$/.test(address)?address:null;
+  }
+  let lastThreadListSignature='';
+  function renderThreadList(){
+    const box=el('reticulum-thread-list');
+    if(!box)return; // Legacy/script-only tests may not mount the thread UI.
+    const signature=JSON.stringify([state.contacts,state.messages]);
+    if(signature===lastThreadListSignature)return;
+    lastThreadListSignature=signature;
+    const lastByAddress=new Map();
+    state.messages.forEach((item,index)=>{
+      const address=threadAddress(item.destination);
+      if(address)lastByAddress.set(address,{message:item,index});
+    });
+    const addresses=new Set([...state.contacts.map(item=>item.address),...lastByAddress.keys()]);
+    const sorted=[...addresses].sort((a,b)=>{
+      const order=(lastByAddress.get(b)?.index??-1)-(lastByAddress.get(a)?.index??-1);
+      return order||contactName(a).localeCompare(contactName(b));
+    });
+    box.replaceChildren();
+    if(!sorted.length){
+      const empty=document.createElement('p');empty.className='small muted';
+      empty.textContent='No conversations yet. Use New message to enter an LXMF address.';box.append(empty);
+      return;
+    }
+    for(const address of sorted){
+      const known=state.contacts.find(item=>item.address===address);
+      const label=known?.alias||`${address.slice(0,8)}…`;
+      const latest=lastByAddress.get(address)?.message;
+      const button=document.createElement('button');button.type='button';
+      button.className='reticulum-thread-row';
+      button.setAttribute('aria-label',`Open Reticulum conversation with ${label}`);
+      const avatar=document.createElement('span');avatar.className='reticulum-thread-avatar';
+      avatar.textContent=label.charAt(0).toUpperCase();
+      const info=document.createElement('span');info.className='reticulum-thread-info';
+      const title=document.createElement('strong');title.textContent=label;
+      const preview=document.createElement('span');preview.className='reticulum-thread-preview';
+      preview.textContent=latest
+        ?`${latest.direction==='OUT'?'Queued: ':'Received: '}${String(latest.text||'').replace(/\s+/g,' ').slice(0,90)}`
+        :'No messages yet';
+      info.append(title,preview);
+      const when=document.createElement('span');when.className='reticulum-thread-date';
+      when.textContent=latest?friendlyMessageTime(latest.utc):'';
+      button.append(avatar,info,when);
+      button.addEventListener('click',()=>openThread(address));
+      box.append(button);
+    }
+  }
+  function saveThreadDraft(){
+    if(state.activeThread!==null)state.drafts[state.activeThread]=el('reticulum-text').value;
+  }
+  function openThread(address){
+    const selected=address===null?'new':threadAddress(address);
+    if(!selected)return;
+    saveThreadDraft();
+    state.activeThread=selected;
+    el('reticulum-thread-browser').hidden=true;
+    el('reticulum-thread-view').hidden=false;
+    const isNew=selected==='new';
+    const contact=state.contacts.find(item=>item.address===selected);
+    el('reticulum-thread-name').textContent=isNew?'New message':contact?.alias||`${selected.slice(0,8)}…`;
+    el('reticulum-thread-address').textContent=isNew?'Enter a recipient address':selected;
+    el('reticulum-thread-copy').disabled=isNew;
+    el('reticulum-thread-save').hidden=isNew||Boolean(contact);
+    el('reticulum-recipient-label').hidden=!isNew;
+    el('reticulum-quick-contact').hidden=!isNew;
+    el('reticulum-recipient').value=isNew?'':selected;
+    el('reticulum-text').value=state.drafts[selected]||'';
+    el('reticulum-conversation').value=isNew?'all':selected;
+    el('reticulum-messages').scrollTop=0;
+    renderInbox(state.messages);
+    updateControls();
+    el('reticulum-thread-view').scrollIntoView({block:'start',behavior:'smooth'});
+  }
+  function backToConversations(){
+    saveThreadDraft();state.activeThread=null;
+    el('reticulum-thread-view').hidden=true;
+    el('reticulum-thread-browser').hidden=false;
+    renderThreadList();
+    el('reticulum-thread-browser').scrollIntoView({block:'start',behavior:'smooth'});
+  }
+  let lastThreadContentSignature='';
   function renderInbox(rows){
     state.messages=Array.isArray(rows)?rows:[];
     renderConversationChoices();
-    const selected=el('reticulum-conversation')?.value||'all';
+    renderThreadList();
+    const selected=state.activeThread==='new'?'__new__':
+      state.activeThread||el('reticulum-conversation')?.value||'all';
+    if(state.activeThread&&state.activeThread!=='new'&&el('reticulum-thread-name')){
+      const contact=state.contacts.find(item=>item.address===state.activeThread);
+      el('reticulum-thread-name').textContent=contact?.alias||`${state.activeThread.slice(0,8)}…`;
+      el('reticulum-thread-save').hidden=Boolean(contact);
+    }
     // The worker inbox and saved SQLite history both arrive oldest-first.
     // Reverse a copy AFTER filtering so repeated polls and conversations
     // remain newest-first without mutating the canonical message order.
-    const visible=(selected==='all'?state.messages:
+    const visible=(selected==='__new__'?[]:selected==='all'?state.messages:
       state.messages.filter(row=>String(row.destination||'').toLowerCase()===selected)).slice().reverse();
+    const contentSignature=JSON.stringify([selected,visible,state.contacts]);
+    if(contentSignature===lastThreadContentSignature)return;
+    lastThreadContentSignature=contentSignature;
     const box=el('reticulum-messages');
     const previous=box.scrollTop;
     const oldHeight=box.scrollHeight;
     const nearTop=box.scrollTop<24;
     box.replaceChildren();
     if(!visible.length){const p=document.createElement('p');p.className='small muted';
-      p.textContent=selected==='all'?'No LXMF messages in this inbox.':'No messages for this contact.';box.append(p);return;}
+      p.textContent=selected==='all'?'No LXMF messages in this inbox.':
+        'No messages in this thread yet. Write a message below.';box.append(p);return;}
     for(const message of visible){
       const article=document.createElement('article');
       article.className=`mesh-message message-bubble ${message.direction==='IN'?'message-inbound':'message-outbound'}`;
@@ -153,7 +249,7 @@
       // A received LXMF row stores the sender hash in `destination`. Never
       // offer a reply to an outgoing row or a malformed/untrusted address.
       const sender=String(message.destination||'').trim();
-      if(message.direction==='IN' && /^[0-9a-fA-F]{32}$/.test(sender)){
+      if(!state.activeThread&&message.direction==='IN' && /^[0-9a-fA-F]{32}$/.test(sender)){
         const actions=document.createElement('div');actions.className='reticulum-message-actions';
         const reply=document.createElement('button');reply.type='button';
         reply.className='btn mini primary';reply.textContent='Reply';
@@ -174,7 +270,9 @@
   function prefillReply(sender){
     const recipient=el('reticulum-recipient');
     recipient.value=sender;
-    if(el('reticulum-conversation')){
+    if(el('reticulum-thread-view')&&threadAddress(sender)){
+      openThread(sender);
+    }else if(el('reticulum-conversation')){
       el('reticulum-conversation').value=sender.toLowerCase();
       el('reticulum-messages').scrollTop=0;
       renderInbox(state.messages);
@@ -192,6 +290,10 @@
     }catch(_){
       // Clipboard permission can be denied; leave the address selected for
       // the operator to copy manually. Never send or post it anywhere.
+      if(state.activeThread&&state.activeThread!=='new'){
+        note('Clipboard unavailable. The full LXMF address is shown in the thread header for manual copying.');
+        return;
+      }
       const recipient=el('reticulum-recipient');
       recipient.value=sender;
       updateControls();
@@ -345,8 +447,27 @@
   el('reticulum-diagnostics-panel').addEventListener('toggle',()=>{
     if(el('reticulum-diagnostics-panel').open)refreshDiagnostics();
   });
-  el('reticulum-recipient').addEventListener('input',updateControls);
+  el('reticulum-recipient').addEventListener('input',()=>{
+    updateControls();
+    if(state.activeThread==='new'){
+      el('reticulum-thread-address').textContent=el('reticulum-recipient').value.trim()||'Enter a recipient address';
+    }
+  });
   el('reticulum-text').addEventListener('input',updateControls);
+  el('reticulum-new-thread').addEventListener('click',()=>{
+    openThread(null);el('reticulum-recipient').focus();
+  });
+  el('reticulum-thread-back').addEventListener('click',backToConversations);
+  el('reticulum-thread-copy').addEventListener('click',()=>{
+    if(threadAddress(state.activeThread))copySenderAddress(state.activeThread);
+  });
+  el('reticulum-thread-save').addEventListener('click',()=>{
+    if(!threadAddress(state.activeThread))return;
+    el('reticulum-recipient').value=state.activeThread;
+    updateControls();
+    el('reticulum-save-recipient').click();
+    el('reticulum-contacts-panel').scrollIntoView({block:'nearest',behavior:'smooth'});
+  });
   el('reticulum-conversation').addEventListener('change',()=>{
     el('reticulum-messages').scrollTop=0;
     renderInbox(state.messages);
@@ -418,11 +539,14 @@
   el('reticulum-compose').addEventListener('submit',async event=>{
     event.preventDefault();
     if(!state.enabled||state.busy||el('reticulum-send').disabled)return;
+    const address=el('reticulum-recipient').value.trim().toLowerCase();
     const result=await act('/api/reticulum/send',{
-      destination:el('reticulum-recipient').value.trim(),text:el('reticulum-text').value});
+      destination:address,text:el('reticulum-text').value});
     if(!result)return;
     if(result.status==='QUEUED_WITH_LXMF_NOT_DELIVERED'){
       el('reticulum-text').value='';updateControls();
+      if(state.activeThread!==null)state.drafts[state.activeThread]='';
+      if(state.activeThread==='new')openThread(address);
       note('LXMF router accepted this message for delivery; recipient delivery is not confirmed.');
     }else if(result.status==='PATH_REQUESTED_NOT_SENT'){
       note('Route requested, but message was NOT sent. Wait for discovery, then send again.');
