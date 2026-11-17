@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.101">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.102">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -17,21 +17,22 @@
   <script defer src="/static/route_guidance.js?v=0.2.76"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/app.js?v=0.2.101"></script>
+  <script defer src="/static/app.js?v=0.2.102"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.101"></script>
-  <script defer src="/static/reticulum.js?v=0.2.101"></script>
-  <script defer src="/static/mesh_connections.js?v=0.2.101"></script>
-  <script defer src="/static/wifi_halow.js?v=0.2.101"></script>
-  <script defer src="/static/field_network.js?v=0.2.101"></script>
-  <script defer src="/static/offline_readiness.js?v=0.2.101"></script>
+  <script defer src="/static/mesh.js?v=0.2.102"></script>
+  <script defer src="/static/reticulum.js?v=0.2.102"></script>
+  <script defer src="/static/mesh_connections.js?v=0.2.102"></script>
+  <script defer src="/static/wifi_halow.js?v=0.2.102"></script>
+  <script defer src="/static/field_network.js?v=0.2.102"></script>
+  <script defer src="/static/field_hotspot.js?v=0.2.102"></script>
+  <script defer src="/static/offline_readiness.js?v=0.2.102"></script>
   <script defer src="/static/camera-layers.js?v=0.2.76"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.101</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.102</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -730,8 +731,8 @@
         <p class="small muted">Disconnect/Stop affect the local services only, and require confirmation. They do not change firmware roles or erase contacts or opted-in message history. HaLow has its own separate passive readiness panel below.</p>
       </section>
       <section class="panel field-network-panel" id="field-network-panel" aria-label="Field network and gateway planning">
-        <div class="panel-title"><h3>Field network · gateway foundation</h3><span class="pill">PLANNING ONLY · NO HOTSPOT</span></div>
-        <p class="small muted">OpenRF's planned network: ordinary phone/laptop Wi-Fi near the box, separate long-range HaLow links to other OpenRF boxes, and optional consent-gated Reticulum transport. This version inventories Linux-supported interface modes only. It does not create a hotspot, configure routing, expose the OpenRF API or claim connectivity.</p>
+        <div class="panel-title"><h3>Field network · gateway foundation</h3><span class="pill">LOCAL HOTSPOT · OPT-IN</span></div>
+        <p class="small muted">OpenRF can now request a password-protected local hotspot using a compatible, disconnected ordinary Linux Wi-Fi adapter. HaLow long-range networking and Reticulum transport remain separate. Inspecting the network is passive; hotspot activation requires your explicit action.</p>
         <div class="field-network-controls">
           <label for="field-network-mode">Explore network role</label>
           <select id="field-network-mode" class="field"><option value="two_radio_gateway">Two-radio gateway</option><option value="local_wifi_hotspot">Local Wi-Fi hotspot</option><option value="halow_access_point">HaLow access point</option><option value="halow_station">Join HaLow network</option><option value="reticulum_transport">Reticulum transport</option></select>
@@ -740,7 +741,28 @@
         <p id="field-network-status" class="small muted" role="status" aria-live="polite">Choose Inspect to see Linux-visible interfaces. No network changes occur.</p>
         <div id="field-network-mode-detail" class="field-network-rows"></div>
         <div id="field-network-interfaces" class="field-network-rows"></div>
-        <p class="small muted">For an ordinary phone to join, OpenRF will need a compatible regular Wi-Fi AP radio in addition to its HaLow adapter. AP/station combinations, encryption, DHCP/routing, power draw and regulatory settings require hardware testing before activation controls can be implemented safely.</p>
+        <div class="field-hotspot-box" aria-label="Opt-in ordinary Wi-Fi hotspot">
+          <h4>Local Wi-Fi hotspot <span class="pill">ORDINARY WI-FI · NOT HALOW</span></h4>
+          <p class="small muted">For phones and nearby devices. Uses NetworkManager with WPA2 protection, DHCP and local network sharing. <strong>A separate internet connection may also be shared by NetworkManager.</strong> OpenRF's private HTTP API stays on localhost, so joined phones cannot open its dashboard yet. Starting requires an idle AP-capable adapter; it will not disconnect your existing Wi-Fi.</p>
+          <div class="field-hotspot-form">
+            <label for="field-hotspot-interface">Linux Wi-Fi adapter</label>
+            <select id="field-hotspot-interface" class="field" disabled><option value="">Inspecting available adapters…</option></select>
+            <label for="field-hotspot-ssid">Hotspot name</label>
+            <input id="field-hotspot-ssid" class="field" type="text" value="OpenRF-Field" maxlength="32" spellcheck="false" autocomplete="off">
+            <label for="field-hotspot-passphrase">Wi-Fi password (12–63 printable characters)</label>
+            <input id="field-hotspot-passphrase" class="field" type="password" minlength="12" maxlength="63" spellcheck="false" autocomplete="new-password" placeholder="Generate or enter a strong password">
+          </div>
+          <div class="button-line field-hotspot-actions">
+            <button id="field-hotspot-generate" type="button" class="btn outline">Generate password</button>
+            <button id="field-hotspot-visibility" type="button" class="btn outline" aria-pressed="false">Show password</button>
+            <button id="field-hotspot-start" type="button" class="btn primary" disabled>Start hotspot</button>
+            <button id="field-hotspot-stop" type="button" class="btn danger-outline" disabled>Stop hotspot</button>
+            <button id="field-hotspot-refresh" type="button" class="btn outline">Refresh status</button>
+          </div>
+          <p id="field-hotspot-status" class="small muted" role="status" aria-live="polite">Open Hardware to inspect hotspot support. No network changes occur automatically.</p>
+          <p class="small muted">The Wi-Fi key is stored temporarily in the NetworkManager connection profile while the hotspot runs, then deleted by Stop. It is not saved in OpenRF's database, logs or browser storage. Closing OpenRF normally attempts to stop its hotspot. Actual hardware and operating-system permission support remain unverified.</p>
+        </div>
+        <p class="small muted">For long-range links, a separate supported HaLow radio remains necessary. AP/station combinations, range, power draw, country settings and hardware routing require physical Raspberry Pi testing.</p>
       </section>
       <section class="panel halow-panel" id="halow-panel" aria-label="Wi-Fi HaLow driver readiness">
         <div class="panel-title"><h3>Wi-Fi HaLow · 802.11ah</h3><span class="pill">READ-ONLY · NO RADIO SCAN</span></div>

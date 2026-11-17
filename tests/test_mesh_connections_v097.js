@@ -1,5 +1,5 @@
 'use strict';
-// v0.2.101: simulate passive status and consent-gated local stop controls.
+// v0.2.102: simulate passive status and consent-gated local stop controls.
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const html=fs.readFileSync('openrf/static/index.html','utf8');
 const css=fs.readFileSync('openrf/static/app.css','utf8');
@@ -11,7 +11,7 @@ for(const id of ['mesh-connections-panel','mesh-connections-status','mesh-connec
   'mesh-connection-ports','mesh-connection-interfaces','mesh-connections-refresh',
   'mesh-connections-disconnect','mesh-connections-stop-reticulum'])
   assert(html.includes(`id="${id}"`),id);
-assert(html.includes('/static/mesh_connections.js?v=0.2.101'));
+assert(html.includes('/static/mesh_connections.js?v=0.2.102'));
 assert(css.includes('.mesh-connection-overview{display:grid;'));
 assert(css.includes('@media(max-width:720px){#page-hardware .mesh-connection-overview{'));
 assert(app.includes("if (page === 'hardware') document.dispatchEvent(new Event('openrf:hardware-shown'))"));
@@ -73,5 +73,5 @@ assert(nodes['mesh-connections-stop-reticulum'].disabled);
   assert(fetches.some(([path,method])=>path==='/api/reticulum/stop'&&method==='POST'));
   assert(nodes['mesh-connections-stop-reticulum'].disabled);
   assert.match(nodes['mesh-connection-interfaces'].children[0].textContent,/Reticulum is stopped/);
-  console.log('PASS v0.2.101 passive connections and confirmation-gated stop controls');
+  console.log('PASS v0.2.102 passive connections and confirmation-gated stop controls');
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -1866,6 +1866,23 @@ body.map-workspace.has-message-unread .topbar #mesh-header-button{display:inline
   #page-hardware .field-network-controls select{flex:1 1 100%}}
 
 /* Navigation preflight stays collapsed below map, never hides or moves map UI. */
+/* v0.2.102 — keep adjacent Hardware sections from touching on 5-inch layouts. */
+#page-hardware > .mesh-connections-panel,
+#page-hardware > .field-network-panel,
+#page-hardware > .halow-panel{margin-top:16px;margin-bottom:16px}
+#page-hardware .field-hotspot-box{min-width:0;max-width:100%;padding:16px;margin:17px 0;
+  border:1px solid #315462;border-radius:10px;background:#0a202b;overflow-wrap:anywhere}
+#page-hardware .field-hotspot-box h4{margin:0 0 8px;color:#baf8e8;font-size:14px;
+  display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+#page-hardware .field-hotspot-form{display:grid;grid-template-columns:minmax(0,1fr);gap:7px;margin:14px 0}
+#page-hardware .field-hotspot-form label{font-size:12px;color:#acd7d1;margin-top:4px}
+#page-hardware .field-hotspot-form .field{min-width:0;width:100%;max-width:100%}
+#page-hardware .field-hotspot-actions{gap:8px}
+#page-hardware .field-hotspot-actions button{min-width:0;white-space:normal;text-align:center}
+@media(max-width:520px){#page-hardware .field-hotspot-box{padding:12px}
+  #page-hardware .field-hotspot-actions button{flex:1 1 46%}}
+
+/* Navigation preflight stays collapsed below map, never hides or moves map UI. */
 .map-offline-readiness,.map-offline-inner{min-width:0;max-width:100%;overflow-wrap:anywhere}
 .map-offline-inner{padding:12px}
 .map-offline-results{display:grid;gap:7px;margin:12px 0;min-width:0}

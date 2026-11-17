@@ -1,4 +1,14 @@
-# OpenRF v0.2.101 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.102 — Offline-First Navigation and RF Toolkit
+
+## v0.2.102 — Create a local Wi-Fi hotspot (explicitly)
+
+In **Hardware → Field network → Local Wi-Fi hotspot**, choose an ordinary Linux Wi-Fi adapter, enter a 1–32 character network name, then generate or enter a 12–63 character WPA password. Press **Start hotspot** and read the confirmation. If supported by Raspberry Pi OS / Linux NetworkManager, the box creates a WPA2-protected ordinary Wi-Fi access point with local DHCP; phones and laptops can join that Wi-Fi network. Press **Stop hotspot** to disconnect clients and delete the OpenRF-owned NetworkManager profile. Opening Hardware never creates or joins any network.
+
+**Safety and scope:** OpenRF refuses to use an already connected adapter, requires an OS AP-mode report, and disables automatic hotspot startup. NetworkManager's `ipv4.method shared` may share another active internet uplink; this is disclosed before enabling the AP. The **OpenRF dashboard and unauthenticated JSON API remain localhost-only**—joining the hotspot does *not* give a phone access to that UI. The hotspot is **not** Wi-Fi HaLow, a long-range mesh or a Reticulum gateway; the separate HaLow and Reticulum work remains opt-in. Real AP capability and NetworkManager permissions must be checked on the target Pi; WSL usually cannot see a Windows internal Wi-Fi radio directly.
+
+The hotspot password is only sent on an explicit local Start request. OpenRF does not save it in the database, state JSON, diagnostics or browser storage, but NetworkManager does retain credentials in its own profile until the profile is deleted. Like other NetworkManager CLI tools, this first iteration also passes the WPA password in a short-lived local process argument; avoid using it on shared untrusted Linux accounts. An orderly OpenRF shutdown tries to stop its own hotspot. An abrupt power loss may leave the owned profile behind until OpenRF is restarted and **Stop hotspot** is used. No arbitrary connection profiles are touched.
+
+The Mesh connections, Field network and HaLow Hardware cards now have consistent vertical separation, including in the ~800×480 touchscreen layout. See [v0.2.102 verification guide](docs/RELEASE_0.2.102_TESTS.md).
 
 ## v0.2.101 — Long-range field-network foundation + offline trip preflight
 

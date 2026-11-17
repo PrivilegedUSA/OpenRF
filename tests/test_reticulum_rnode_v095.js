@@ -46,4 +46,4 @@ nodes['reticulum-transport-enable'].checked=true;
 assert.equal(ctx.options().transport_enabled,true);
 nodes['reticulum-rnode-frequency'].value='868';
 assert.throws(()=>ctx.options(),/902–928 MHz/);
-console.log('PASS v0.2.101 passive RNode readiness, opt-in settings and relay consent');
+console.log('PASS v0.2.102 passive RNode readiness, opt-in settings and relay consent');

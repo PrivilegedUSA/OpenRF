@@ -32,6 +32,7 @@ from .mesh_connections import connection_report
 from .wifi_halow import status_report as halow_status_report
 from .halow_diagnostics import diagnostic_report as halow_diagnostic_report, HaLowDiagnosticError
 from .field_network import readiness_report as field_network_readiness_report
+from .field_hotspot import HotspotManager, HotspotError
 from .offline_navigation_readiness import readiness_report as offline_navigation_readiness_report
 from . import camera_catalog, chirp_channels, national_alpr, camera_routes
 from .sdr_survey import capture_sites_geojson
@@ -55,6 +56,11 @@ DEFAULT_DB = Path.home() / '.local' / 'share' / 'openrf' / 'openrf.sqlite3'
 
 class OpenRFHTTPServer(ThreadingHTTPServer):
     def server_close(self):
+        if hasattr(self, 'hotspot_manager') and self.hotspot_manager.state_file.exists():
+            try:
+                self.hotspot_manager.stop({}, internal=True)
+            except (HotspotError, OSError) as exc:
+                logging.warning('OpenRF-owned hotspot cleanup needs manual retry: %s', type(exc).__name__)
         if hasattr(self, 'national_alpr_manager'):
             self.national_alpr_manager.close()
         if hasattr(self, 'radio_receiver'):
@@ -417,6 +423,13 @@ class Handler(BaseHTTPRequestHandler):
             if urlparse(self.path).query:
                 return self._error(400, 'Field network inspection accepts no query parameters')
             return self._json(200, field_network_readiness_report())
+        if path == '/api/network/hotspot/status':
+            if urlparse(self.path).query:
+                return self._error(400, 'Hotspot status accepts no query parameters')
+            try:
+                return self._json(200, self.server.hotspot_manager.status())
+            except HotspotError as exc:
+                return self._error(exc.status, str(exc), exc.code)
         if path == '/api/wifi-halow/diagnostics':
             query = parse_qs(urlparse(self.path).query, keep_blank_values=True)
             if (set(query) != {'interface'} or len(query['interface']) != 1 or
@@ -461,7 +474,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, raw, 'text/csv; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.csv"'})
         if path in ('/', '/index.html'):
             file = STATIC_DIR / 'index.html'
-        elif path in ('/static/app.css', '/static/app.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
             file = STATIC_DIR / Path(path).name
         else:
             return self._error(404, 'Not found')
@@ -566,6 +579,14 @@ class Handler(BaseHTTPRequestHandler):
             body = self._decode_body()
             if not isinstance(body, dict):
                 raise ValueError('Expected a JSON object')
+            if path in ('/api/network/hotspot/start', '/api/network/hotspot/stop'):
+                if urlparse(self.path).query:
+                    raise ValueError('Hotspot actions accept no query parameters')
+                try:
+                    action = self.server.hotspot_manager.start if path.endswith('/start') else self.server.hotspot_manager.stop
+                    return self._json(200, action(body))
+                except HotspotError as exc:
+                    return self._error(exc.status, str(exc), exc.code)
             if path == '/api/radio/profiles/import':
                 if set(body) != {'name','model','csv'}:
                     raise ValueError('Import only a named CHIRP CSV radio profile.')
@@ -947,6 +968,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.radio_receiver = RadioReceiver()
     server.mesh_manager = MeshManager(history_path=repository.path.parent / 'mesh-history.sqlite3')
     server.reticulum_manager = ReticulumManager(repository.path.parent / 'reticulum')
+    server.hotspot_manager = HotspotManager(repository.path.parent / 'field-network')
     server.alpr_import_lock = threading.Lock()
     server.national_alpr_manager = national_alpr.UpdateManager(repository)
     return server

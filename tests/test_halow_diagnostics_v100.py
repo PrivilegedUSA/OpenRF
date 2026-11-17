@@ -1,4 +1,4 @@
-"""v0.2.101: explicit HaLow host diagnostics without packets or private IDs."""
+"""v0.2.102: explicit HaLow host diagnostics without packets or private IDs."""
 import json
 import subprocess
 import tempfile

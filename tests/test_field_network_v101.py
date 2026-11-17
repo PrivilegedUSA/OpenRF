@@ -1,4 +1,4 @@
-"""v0.2.101: dual-radio gateway foundation is only an inventory, not AP control."""
+"""v0.2.102: dual-radio gateway foundation is only an inventory, not AP control."""
 import json
 import subprocess
 import tempfile

@@ -1,5 +1,5 @@
 'use strict';
-// v0.2.101: no background iw request; OS counters cannot become RF proof.
+// v0.2.102: no background iw request; OS counters cannot become RF proof.
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm');
 const html=fs.readFileSync('openrf/static/index.html','utf8');
@@ -7,7 +7,7 @@ const css=fs.readFileSync('openrf/static/app.css','utf8');
 const script=fs.readFileSync('openrf/static/wifi_halow.js','utf8');
 for(const id of ['halow-diag-interface','halow-diag-check','halow-diag-status','halow-diag-results'])
   assert(html.includes(`id="${id}"`),id);
-assert(html.includes('/static/wifi_halow.js?v=0.2.101'));
+assert(html.includes('/static/wifi_halow.js?v=0.2.102'));
 assert(css.includes('#page-hardware .halow-diag-controls'));
 assert(!script.includes('innerHTML')&&!script.includes('method:\'POST\''));
 
@@ -65,5 +65,5 @@ const flatten=()=>nodes['halow-diag-results'].children.map(item=>(item.children|
   await nodes['halow-refresh'].listeners.click();
   assert.equal(requests[4][0],'/api/wifi-halow/status', 'Readiness is separate from link check');
   assert.equal(nodes['halow-diag-results'].children.length,0);
-  console.log('PASS v0.2.101 explicit, exact-counter Linux HaLow diagnostics and privacy');
+  console.log('PASS v0.2.102 explicit, exact-counter Linux HaLow diagnostics and privacy');
 })().catch(error=>{console.error(error);process.exitCode=1;});
