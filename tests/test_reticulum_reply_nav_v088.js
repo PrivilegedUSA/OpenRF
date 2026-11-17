@@ -35,10 +35,11 @@ const nodes={'reticulum-messages':node('div'),'reticulum-recipient':node('input'
 const copied=[],notes=[];
 const document={createElement:node};
 const context={nodes,document,navigator:{clipboard:{writeText:async address=>{copied.push(address);}}},
-  updates:0,notes};
-const snippet=js.slice(js.indexOf('  function renderInbox(rows){'),js.indexOf('  const shown='));
+  updates:0,notes,state:{contacts:[],messages:[]}};
+const snippet=js.slice(js.indexOf('  function contactName(address){'),js.indexOf('  const shown='));
 assert(snippet.includes('function prefillReply') && snippet.includes('function copySenderAddress'));
 vm.runInNewContext(`const el=id=>globalThis.nodes[id];
+  const state=globalThis.state;
   const updateControls=()=>{globalThis.updates++;};
   const note=text=>{globalThis.notes.push(text);};
   ${snippet}
@@ -69,5 +70,5 @@ assert(!snippet.includes("'/api/reticulum/send'"));
   assert(nodes['reticulum-recipient'].selected,'Clipboard-denied fallback selects the address');
   assert(notes.at(-1).includes('Clipboard unavailable'));
   assert(!js.includes('innerHTML'));
-  console.log('PASS v0.2.90 separate inboxes and explicit, safe LXMF Reply/Copy');
+  console.log('PASS v0.2.91 separate inboxes and explicit, safe LXMF Reply/Copy');
 })().catch(error=>{console.error(error);process.exitCode=1;});

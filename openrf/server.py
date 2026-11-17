@@ -340,6 +340,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200, self.server.reticulum_manager.messages())
             except ReticulumError as exc:
                 return self._error(exc.status, str(exc), exc.code)
+        if path == '/api/reticulum/contacts':
+            return self._json(200, self.server.reticulum_manager.contacts())
+        if path == '/api/reticulum/history':
+            return self._json(200, self.server.reticulum_manager.history_status())
         if path == '/api/mesh/nodes':
             return self._json(200, self.server.mesh_manager.nodes())
         if path.startswith('/api/radio/audio/') and path.endswith('.wav'):
@@ -551,6 +555,14 @@ class Handler(BaseHTTPRequestHandler):
                         return self._json(200, manager.announce(body))
                     if path == '/api/reticulum/send':
                         return self._json(202, manager.send(body))
+                    if path == '/api/reticulum/contacts':
+                        return self._json(200, manager.save_contact(body))
+                    if path == '/api/reticulum/contacts/delete':
+                        return self._json(200, manager.delete_contact(body))
+                    if path == '/api/reticulum/history':
+                        return self._json(200, manager.set_history(body))
+                    if path == '/api/reticulum/history/clear':
+                        return self._json(200, manager.clear_history(body))
                 except ReticulumError as exc:
                     return self._error(exc.status, str(exc), exc.code)
             if path == '/api/mesh/disconnect':

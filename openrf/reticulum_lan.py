@@ -12,7 +12,10 @@ import multiprocessing
 import os
 from pathlib import Path
 import re
+import secrets
 import threading
+
+from .reticulum_history import ReticulumLocalStore
 
 
 DESTINATION = re.compile(r'[0-9a-fA-F]{32}\Z')
@@ -185,10 +188,19 @@ def reticulum_worker(pipe, data_root, options=None):
         if source is None:
             raise RuntimeError('LXMF delivery destination could not be initialized.')
         inbox = deque(maxlen=100)
+        inbox_lock = threading.Lock()
         received_count = 0
+        event_sequence = 0
+
+        def append_inbox(record, *, incoming=False):
+            nonlocal received_count, event_sequence
+            with inbox_lock:
+                event_sequence += 1
+                if incoming:
+                    received_count += 1
+                inbox.append({**record, 'event_id': event_sequence})
 
         def receive(message):
-            nonlocal received_count
             if getattr(message, 'signature_validated', False) is not True:
                 return
             try:
@@ -196,9 +208,8 @@ def reticulum_worker(pipe, data_root, options=None):
                 address = message.source.hash.hex()
                 if not isinstance(content, str) or len(content.encode('utf-8'))>MESSAGE_BYTES:
                     return
-                inbox.append({'direction':'IN', 'destination':address,
-                              'text':content, 'utc':_utc(), 'status':'RECEIVED_VALID_SIGNATURE'})
-                received_count += 1
+                append_inbox({'direction':'IN', 'destination':address,
+                              'text':content, 'utc':_utc(), 'status':'RECEIVED_VALID_SIGNATURE'},incoming=True)
             except (AttributeError, UnicodeError, ValueError):
                 return
 
@@ -230,8 +241,14 @@ def reticulum_worker(pipe, data_root, options=None):
                                'announcement_received_by_peer':None})
                 pipe.send(report)
             elif action == 'messages':
-                pipe.send({'ok':True, 'messages':list(inbox), 'receive_sequence':received_count,
+                with inbox_lock:
+                    snapshot, sequence = list(inbox), received_count
+                pipe.send({'ok':True, 'messages':snapshot, 'receive_sequence':sequence,
                            'storage':'WORKER_MEMORY_AND_PRIVATE_LXMF_RUNTIME'})
+            elif action == 'clear_messages':
+                with inbox_lock:
+                    inbox.clear()
+                pipe.send({'ok':True, 'cleared':True})
             elif action == 'send':
                 payload = validate_message(command.get('message'))
                 target = bytes.fromhex(payload['destination'])
@@ -249,7 +266,7 @@ def reticulum_worker(pipe, data_root, options=None):
                 message = LXMF.LXMessage(destination, source, payload['text'], None,
                     desired_method=LXMF.LXMessage.DIRECT, include_ticket=True)
                 router.handle_outbound(message)
-                inbox.append({'direction':'OUT', 'destination':payload['destination'],
+                append_inbox({'direction':'OUT', 'destination':payload['destination'],
                               'text':payload['text'], 'utc':_utc(),
                               'status':'QUEUED_WITH_LXMF_NOT_DELIVERED'})
                 pipe.send({'ok':True, 'status':'QUEUED_WITH_LXMF_NOT_DELIVERED'})
@@ -279,6 +296,8 @@ class ReticulumManager:
         self._address = None
         self._error = None
         self._tcp_enabled = False
+        self._worker_id = None
+        self._store = ReticulumLocalStore(self.data_root)
 
     def _running(self):
         return self._process is not None and self._process.is_alive()
@@ -312,6 +331,7 @@ class ReticulumManager:
             process.start()
             child.close()
             self._process, self._pipe = process, parent
+            self._worker_id = secrets.token_hex(16)
             if not parent.poll(20):
                 self._terminate()
                 self._error = 'Reticulum startup timed out.'
@@ -349,10 +369,70 @@ class ReticulumManager:
                                      'reticulum_worker_failed', 503)
             return result
 
+    def _sync_messages(self, result):
+        if self._worker_id and self._store.history_enabled():
+            self._store.save_events(self._worker_id, result.get('messages', []))
+
     def messages(self):
-        if not self._running():
-            return {'messages':[], 'receive_sequence':0, 'storage':'INACTIVE'}
-        return self._command('messages')
+        with self._lock:
+            if self._running():
+                result = self._command('messages')
+                self._sync_messages(result)
+            else:
+                result = {'messages':[], 'receive_sequence':0, 'storage':'INACTIVE'}
+            if self._store.history_enabled():
+                return {'messages':self._store.messages(),
+                        'receive_sequence':result['receive_sequence'],
+                        'storage':'PRIVATE_LOCAL_SQLITE_OPT_IN','history_enabled':True}
+            return {**result, 'history_enabled':False}
+
+    def contacts(self):
+        with self._lock:
+            return {'contacts':self._store.contacts(), 'storage':'PRIVATE_LOCAL_SQLITE'}
+
+    def save_contact(self, payload):
+        if not isinstance(payload,dict) or set(payload)!={'destination','alias'}:
+            raise ReticulumError('Provide exactly a destination and nickname.', 'invalid_reticulum_contact',400)
+        try:
+            with self._lock:
+                return {'contact':self._store.save_contact(payload['destination'],payload['alias'])}
+        except ValueError as exc:
+            raise ReticulumError(str(exc),'invalid_reticulum_contact',400) from exc
+
+    def delete_contact(self, payload):
+        if not isinstance(payload,dict) or set(payload)!={'destination'}:
+            raise ReticulumError('Provide exactly one destination to remove.','invalid_reticulum_contact',400)
+        try:
+            with self._lock:
+                return {'deleted':self._store.delete_contact(payload['destination'])}
+        except ValueError as exc:
+            raise ReticulumError(str(exc),'invalid_reticulum_contact',400) from exc
+
+    def history_status(self):
+        with self._lock:
+            return self._store.history_status()
+
+    def set_history(self, payload):
+        if not isinstance(payload,dict) or set(payload)!={'enabled'} or type(payload['enabled']) is not bool:
+            raise ReticulumError('History setting must contain enabled: true or false.',
+                                 'invalid_reticulum_history',400)
+        with self._lock:
+            self._store.set_history(payload['enabled'])
+            # Enabling is explicit consent to preserve the already visible
+            # in-memory session as well as subsequent messages.
+            if payload['enabled'] and self._running():
+                self._sync_messages(self._command('messages'))
+            return self._store.history_status()
+
+    def clear_history(self, payload):
+        if payload != {}:
+            raise ReticulumError('Clear messages requires an empty object.',
+                                 'invalid_reticulum_history',400)
+        with self._lock:
+            removed=self._store.clear_messages()
+            if self._running():
+                self._command('clear_messages')
+            return {'removed':removed,'cleared':True}
 
     def diagnostics(self):
         if not self._running():
@@ -378,6 +458,7 @@ class ReticulumManager:
     def _terminate(self):
         process, pipe = self._process, self._pipe
         self._process, self._pipe, self._address = None, None, None
+        self._worker_id = None
         self._tcp_enabled = False
         if process is not None:
             if process.is_alive():
@@ -394,6 +475,13 @@ class ReticulumManager:
             raise ReticulumError('Disable requires an empty object.', 'invalid_reticulum_command', 400)
         with self._lock:
             if self._running() and self._pipe is not None:
+                if self._store.history_enabled():
+                    try:
+                        self._sync_messages(self._command('messages'))
+                    except Exception:
+                        # Optional history must never prevent an explicit Stop
+                        # from closing the LAN listener and child process.
+                        self._error = 'Final Reticulum history sync failed before shutdown.'
                 try:
                     self._pipe.send({'action':'stop'})
                     if self._pipe.poll(2):

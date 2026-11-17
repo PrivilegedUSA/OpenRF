@@ -1,5 +1,5 @@
 'use strict';
-/* v0.2.90: Reticulum inbox replies and per-tab unread state across reloads. */
+/* v0.2.91: local contacts, conversation filters and opt-in history. */
 (()=>{
   const el=id=>document.getElementById(id);
   if(!el('reticulum-panel'))return;
@@ -14,7 +14,7 @@
     return {receiveSequence:null,unread:0};
   }
   const state={enabled:false,busy:false,available:false,polling:false,
-    ...restoredUnread()};
+    contacts:[],messages:[],historyEnabled:false,...restoredUnread()};
   const viewingMessages=()=>Boolean(el('page-reticulum')?.classList.contains('active'));
   function persistUnread(){
     try{
@@ -69,6 +69,7 @@
     el('reticulum-disable').disabled=!state.enabled||state.busy;
     el('reticulum-announce').disabled=!state.enabled||state.busy;
     el('reticulum-send').disabled=!state.enabled||state.busy||count===0||count>1024||!validAddress;
+    el('reticulum-save-recipient').disabled=!validAddress;
   }
   function renderStatus(result){
     state.enabled=Boolean(result.enabled);
@@ -77,6 +78,9 @@
     // The first successful inbox poll will establish/reset its sequence.
     if(state.enabled)el('reticulum-tcp-enable').checked=Boolean(result.tcp_enabled);
     el('reticulum-badge').textContent=state.enabled?'LAN ENABLED':'OFF';
+    el('reticulum-connection-brief').textContent=state.enabled
+      ?`Reticulum enabled · TCP listener ${result.tcp_enabled?'requested on port 4242':'not requested'} · connection and delivery not yet verified`
+      :'Connection: off · no TCP listener requested by OpenRF.';
     el('reticulum-address').value=state.enabled&&result.address?result.address:'Not enabled';
     updateControls();
     if(result.last_error)note(result.last_error,true);
@@ -86,20 +90,47 @@
     else if(!state.available)note('Reticulum is off. Optional Linux packages rns and lxmf are not installed.');
     else note('Reticulum is off. Press Enable only when you want local-network messaging.');
   }
+  function contactName(address){
+    const value=String(address||'').toLowerCase();
+    const found=state.contacts.find(item=>item.address===value);
+    return found?`${found.alias} (${value.slice(0,7)}…)`:String(address||'unknown');
+  }
+  function renderConversationChoices(){
+    const selector=el('reticulum-conversation');
+    if(!selector)return;
+    const old=selector.value||'all';
+    const addresses=new Set(state.contacts.map(item=>item.address));
+    for(const item of state.messages){
+      const address=String(item.destination||'').toLowerCase();
+      if(/^[0-9a-f]{32}$/.test(address))addresses.add(address);
+    }
+    selector.replaceChildren(new Option('All messages','all'));
+    for(const address of Array.from(addresses).sort((a,b)=>contactName(a).localeCompare(contactName(b))))
+      selector.append(new Option(contactName(address),address));
+    selector.value=addresses.has(old)?old:'all';
+  }
   function renderInbox(rows){
+    state.messages=Array.isArray(rows)?rows:[];
+    renderConversationChoices();
+    const selected=el('reticulum-conversation')?.value||'all';
+    const visible=selected==='all'?state.messages:
+      state.messages.filter(row=>String(row.destination||'').toLowerCase()===selected);
     const box=el('reticulum-messages');
     const previous=box.scrollTop;
     const nearBottom=box.scrollHeight-box.scrollTop-box.clientHeight<24;
     box.replaceChildren();
-    if(!rows.length){const p=document.createElement('p');p.className='small muted';
-      p.textContent='No LXMF messages in this session.';box.append(p);return;}
-    for(const message of rows){
+    if(!visible.length){const p=document.createElement('p');p.className='small muted';
+      p.textContent=selected==='all'?'No LXMF messages in this inbox.':'No messages for this contact.';box.append(p);return;}
+    for(const message of visible){
       const article=document.createElement('article');article.className='mesh-message';
       const heading=document.createElement('strong');
-      heading.textContent=`${message.direction==='IN'?'Received from':'To'} ${String(message.destination||'unknown')}`;
+      heading.textContent=`${message.direction==='IN'?'Received from':'To'} ${contactName(message.destination)}`;
       const content=document.createElement('p');content.textContent=String(message.text||'');
       const detail=document.createElement('small');
-      detail.textContent=`${String(message.status||'UNVERIFIED')} · ${String(message.utc||'UTC unknown')}`;
+      const status=message.status==='RECEIVED_VALID_SIGNATURE'?'Received · valid LXMF signature':
+        message.status==='QUEUED_WITH_LXMF_NOT_DELIVERED'?'Queued with LXMF · delivery not confirmed':
+        'Status unverified';
+      detail.textContent=`${status} · ${String(message.utc||'UTC unknown')}`;
       article.append(heading,content,detail);
       // A received LXMF row stores the sender hash in `destination`. Never
       // offer a reply to an outgoing row or a malformed/untrusted address.
@@ -123,6 +154,10 @@
   function prefillReply(sender){
     const recipient=el('reticulum-recipient');
     recipient.value=sender;
+    if(el('reticulum-conversation')){
+      el('reticulum-conversation').value=sender.toLowerCase();
+      renderInbox(state.messages);
+    }
     updateControls();
     el('reticulum-text').focus();
     el('reticulum-compose').scrollIntoView({block:'nearest',behavior:'smooth'});
@@ -142,6 +177,62 @@
       recipient.focus();recipient.select();
       note('Clipboard unavailable. Sender address selected in the recipient field; copy it there.');
     }
+  }
+  function contactNote(message,error=false){
+    const node=el('reticulum-contact-status');
+    node.textContent=message;node.classList.toggle('error',error);
+  }
+  function renderContacts(){
+    el('reticulum-contact-count').textContent=`${state.contacts.length} saved`;
+    const box=el('reticulum-contacts-list');box.replaceChildren();
+    if(!state.contacts.length){
+      const empty=document.createElement('p');empty.className='small muted';
+      empty.textContent='No saved Reticulum contacts.';box.append(empty);return;
+    }
+    for(const item of state.contacts){
+      const row=document.createElement('div');row.className='reticulum-contact-entry';
+      const identity=document.createElement('div');identity.className='reticulum-contact-identity';
+      const alias=document.createElement('strong');alias.textContent=item.alias;
+      const address=document.createElement('small');address.textContent=item.address;
+      identity.append(alias,address);
+      const actions=document.createElement('div');actions.className='reticulum-contact-actions';
+      const message=document.createElement('button');message.type='button';
+      message.className='btn mini outline';message.textContent='Message';
+      message.addEventListener('click',()=>prefillReply(item.address));
+      const edit=document.createElement('button');edit.type='button';
+      edit.className='btn mini outline';edit.textContent='Edit';
+      edit.addEventListener('click',()=>{
+        el('reticulum-contact-address').value=item.address;
+        el('reticulum-contact-alias').value=item.alias;
+        el('reticulum-contact-alias').focus();
+      });
+      const remove=document.createElement('button');remove.type='button';
+      remove.className='btn mini outline';remove.textContent='Remove';
+      remove.addEventListener('click',async()=>{
+        if(!window.confirm(`Remove contact ${item.alias}? Existing messages will not be deleted.`))return;
+        try{
+          await request('/api/reticulum/contacts/delete',{destination:item.address});
+          await refreshContacts();contactNote('Contact removed. Existing messages were preserved.');
+        }catch(error){contactNote(error.message,true);}
+      });
+      actions.append(message,edit,remove);row.append(identity,actions);box.append(row);
+    }
+  }
+  async function refreshContacts(){
+    const response=await request('/api/reticulum/contacts');
+    state.contacts=Array.isArray(response.contacts)?response.contacts:[];
+    renderContacts();
+    if(viewingMessages())renderInbox(state.messages);
+    else renderConversationChoices();
+  }
+  async function refreshHistory(){
+    const report=await request('/api/reticulum/history');
+    state.historyEnabled=Boolean(report.enabled);
+    el('reticulum-save-history').checked=state.historyEnabled;
+    el('reticulum-storage-label').textContent=state.historyEnabled?'Private local history · last 1000':'Current session · last 100';
+    el('reticulum-history-count').textContent=state.historyEnabled
+      ?`${Number(report.saved_count)||0} messages saved locally. Delivery not guaranteed.`
+      :'History saving is off. Messages stay in memory until Reticulum stops.';
   }
   const shown=value=>Number.isSafeInteger(value)&&value>=0?String(value):'unknown';
   function renderDiagnostics(report){
@@ -169,23 +260,36 @@
     else announced.textContent=`Announce requests this session: ${shown(report.announce_requests)} · Last request (UTC): ${String(report.last_announce_requested_at_utc||'unknown')} · Reception by another device: unverified.`;
     const tcp=el('reticulum-tcp-instructions');
     tcp.classList.toggle('reticulum-tcp-active',Boolean(report.active&&report.tcp_requested));
+    const connection=el('reticulum-connection-brief');
+    if(!report.active)connection.textContent='Connection: off · no live Reticulum transport.';
+    else if(!report.available)connection.textContent='Reticulum enabled · interface counters unavailable; connection not verified.';
+    else{
+      const peers=(report.interfaces||[]).reduce((sum,item)=>sum+(Number.isSafeInteger(item.reachable_peers)?item.reachable_peers:0),0);
+      const clients=(report.interfaces||[]).reduce((sum,item)=>sum+(Number.isSafeInteger(item.connected_clients)?item.connected_clients:0),0);
+      connection.textContent=`Reticulum enabled · ${report.interfaces.length} reported interface(s) · ${peers} interface peer entries · ${clients} reported clients. Message delivery not confirmed.`;
+    }
   }
   async function refreshDiagnostics(){
     try{renderDiagnostics(await request('/api/reticulum/diagnostics'));}
     catch(error){el('reticulum-interfaces').textContent=`Connection diagnostics unavailable: ${error.message}`;}
   }
   async function refreshInbox(){
-    if(state.polling||!state.enabled)return;
+    if(state.polling)return;
     state.polling=true;
     try{const result=await request('/api/reticulum/messages');
       trackInbox(result);
-      if(viewingMessages())renderInbox(result.messages||[]);}
+      state.messages=Array.isArray(result.messages)?result.messages:[];
+      if(viewingMessages()){
+        renderInbox(state.messages);
+        if(state.historyEnabled)await refreshHistory();
+      }}
     catch(error){note(error.message,true);}
     finally{state.polling=false;}
   }
   async function refreshStatus(){
     try{renderStatus(await request('/api/reticulum/status'));
-      await Promise.all([refreshInbox(),refreshDiagnostics()]);}
+      await refreshInbox();
+      await Promise.all([refreshDiagnostics(),refreshHistory()]);}
     catch(error){note(error.message,true);}
   }
   async function act(path,payload){
@@ -201,7 +305,7 @@
     {tcp_enabled:el('reticulum-tcp-enable').checked}));
   el('reticulum-disable').addEventListener('click',async()=>{
     const result=await act('/api/reticulum/stop',{});
-    if(result?.worker_stopped){renderInbox([]);note('Reticulum stopped. LAN process closed.');}
+    if(result?.worker_stopped){await refreshInbox();note('Reticulum stopped. LAN process closed; any opt-in saved history remains available.');}
   });
   el('reticulum-announce').addEventListener('click',async()=>{
     if(await act('/api/reticulum/announce',{}))note('Destination announcement requested; reaching any other device is not verified.');
@@ -213,9 +317,46 @@
   });
   el('reticulum-recipient').addEventListener('input',updateControls);
   el('reticulum-text').addEventListener('input',updateControls);
+  el('reticulum-conversation').addEventListener('change',()=>renderInbox(state.messages));
+  el('reticulum-save-recipient').addEventListener('click',()=>{
+    const address=el('reticulum-recipient').value.trim();
+    if(!/^[0-9a-fA-F]{32}$/.test(address))return;
+    el('reticulum-contact-address').value=address;
+    el('reticulum-contacts-panel').open=true;
+    el('reticulum-contact-alias').focus();
+  });
+  el('reticulum-contact-form').addEventListener('submit',async event=>{
+    event.preventDefault();
+    try{
+      const result=await request('/api/reticulum/contacts',{
+        destination:el('reticulum-contact-address').value.trim(),
+        alias:el('reticulum-contact-alias').value.trim()});
+      el('reticulum-contact-form').reset();
+      await refreshContacts();contactNote(`${result.contact.alias} saved on this device.`);
+    }catch(error){contactNote(error.message,true);}
+  });
+  el('reticulum-save-history').addEventListener('change',async event=>{
+    const enabled=event.target.checked;
+    if(enabled&&!window.confirm('Save the current Reticulum session and future messages privately on this device? Message text will NOT be encrypted at rest.')){
+      event.target.checked=false;return;
+    }
+    try{
+      await request('/api/reticulum/history',{enabled});
+      await refreshHistory();await refreshInbox();
+      note(enabled?'Private local message history enabled.':'Saved Reticulum history deleted; session messages remain in memory.');
+    }catch(error){event.target.checked=!enabled;note(error.message,true);}
+  });
+  el('reticulum-clear-history').addEventListener('click',async()=>{
+    if(!window.confirm('Delete saved and current-session Reticulum messages on this device? Contacts will remain.'))return;
+    try{
+      await request('/api/reticulum/history/clear',{});
+      state.messages=[];state.unread=0;publishUnread();renderInbox([]);
+      await refreshHistory();note('Reticulum messages cleared locally. Contacts were preserved.');
+    }catch(error){note(error.message,true);}
+  });
   document.addEventListener('openrf:reticulum-shown',()=>{
     state.unread=0;publishUnread();
-    if(state.enabled)refreshInbox();
+    refreshInbox();
   });
   el('reticulum-compose').addEventListener('submit',async event=>{
     event.preventDefault();
@@ -232,7 +373,7 @@
   });
   // The passive poll runs while messaging is enabled even when another page
   // is open. It never enables Reticulum, announces, sends or starts RF scans.
-  setInterval(()=>{if(state.enabled&&!state.busy)refreshInbox();},5000);
+  setInterval(()=>{if((state.enabled||state.historyEnabled)&&!state.busy)refreshInbox();},5000);
   // Prompt read-only refresh when a backgrounded browser regains focus.
   // The existing polling guard coalesces simultaneous focus/visibility events.
   const resumeInbox=()=>{if(state.enabled&&!state.busy)refreshInbox();};
@@ -240,5 +381,6 @@
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)resumeInbox();});
   updateControls();
   publishUnread();
+  refreshContacts().catch(error=>contactNote(error.message,true));
   refreshStatus();
 })();

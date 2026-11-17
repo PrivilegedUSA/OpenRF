@@ -1714,3 +1714,24 @@ body:not(.map-workspace) .topbar .menu-toggle{font-size:25px}
 .topbar .header-messages-choices .mesh-unread-badge{flex:0 0 auto}
 /* The map retains its uncluttered header; Messages remains in the sidebar. */
 body.map-workspace .topbar .header-messages-menu{display:none!important}
+
+/* v0.2.91 — compact local Reticulum contact and privacy controls. */
+#page-reticulum .reticulum-contact-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:9px;align-items:end;margin:11px 0}
+#page-reticulum .reticulum-contact-form label{display:grid;gap:5px;min-width:0;color:#b5d6d9;font-size:11px}
+#page-reticulum .reticulum-contact-form input{min-width:0;width:100%;font-size:11px}
+#page-reticulum .reticulum-contact-form .btn{min-height:39px}
+#page-reticulum .reticulum-contacts-list{display:grid;gap:5px}
+#page-reticulum .reticulum-contact-entry{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px;border-radius:8px;border:1px solid #315263;background:#0a202a}
+#page-reticulum .reticulum-contact-identity{display:grid;gap:2px;min-width:0}
+#page-reticulum .reticulum-contact-identity strong{font-size:12px;color:#d7fff3;overflow-wrap:anywhere}
+#page-reticulum .reticulum-contact-identity small{font-size:10px;color:#8cabb5;overflow-wrap:anywhere}
+#page-reticulum .reticulum-contact-actions{display:flex;gap:5px;flex-wrap:wrap}
+#page-reticulum .reticulum-contact-actions .btn{min-height:30px;padding:6px 9px}
+#page-reticulum .reticulum-history-choice{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:#d1e8e2;font-size:12px}
+#page-reticulum .reticulum-history-choice input{accent-color:#34c9b1}
+#page-reticulum .reticulum-quick-contact{margin:4px 0 0}
+#page-reticulum .reticulum-quick-contact .btn{padding:6px 8px;white-space:normal;text-align:left}
+#page-reticulum .mesh-conversation-select{min-width:0}
+#page-reticulum .mesh-conversation-select select{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:780px){#page-reticulum .reticulum-contact-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}#page-reticulum .reticulum-contact-form .btn{grid-column:1/-1}}
+@media(max-width:500px){#page-reticulum .reticulum-contact-form{grid-template-columns:minmax(0,1fr)}}

@@ -691,6 +691,14 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Keep the total unread count on the header envelope, but only clear a channel's unread when visiting its own inbox. If just Reticulum has unread messages, clicking the envelope goes straight to Reticulum. Maintain small-screen wrapped text, a readable two-column landscape layout, and no sideways scroll.
 - Preserve explicit Enable/Stop, opt-in TCP listener on port 4242, dormant AutoInterface unless Reticulum is enabled, loopback-only HTTP service and unverified-delivery labels. No migrations, transmissions on load or OS firewall changes. JavaScript DOM regression added; actual Sideband/WSL UI needs operator testing.
 
+## v0.2.91 — Reticulum contacts, conversation filtering and private history (2026-11-17)
+
+- Add explicitly saved Reticulum contacts with short nicknames, safe local editing/removal, and an inbox filter per peer.
+- Add optional private SQLite message history, maximum 1,000 texts; only user opt-in writes message bodies, retained after Reticulum stops, with explicit clear and disabling deletion. Saved contacts remain independent of message history.
+- Give incoming validated LXMF texts and outgoing queued (not confirmed delivered) events human-readable statuses without inventing delivery receipts.
+- Improve per-interface, peer and TCP client readouts with local diagnostic counters; preserve manually controlled AutoInterface/TCP and loopback-only HTTP.
+- Add tests for private storage, de-duplication, history removal, same-origin API restrictions and UI logic; physical mesh/LXMF delivery remains user-verification work.
+
 ## v0.2.90 — Header inbox chooser and reliable tab navigation (2026-11-17)
 
 - Replace the direct-message envelope jump with a two-choice dropdown for Mesh messages and Reticulum, including accessible per-channel unread totals; keep map header minimal.

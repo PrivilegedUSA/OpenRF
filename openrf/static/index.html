@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>OpenRF — Field Console</title>
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.90">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.91">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -17,17 +17,17 @@
   <script defer src="/static/route_guidance.js?v=0.2.76"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/app.js?v=0.2.90"></script>
+  <script defer src="/static/app.js?v=0.2.91"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.90"></script>
-  <script defer src="/static/reticulum.js?v=0.2.90"></script>
+  <script defer src="/static/mesh.js?v=0.2.91"></script>
+  <script defer src="/static/reticulum.js?v=0.2.91"></script>
   <script defer src="/static/camera-layers.js?v=0.2.76"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.90</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="logo">◉</div><div><strong>OpenRF</strong><small>FIELD CONSOLE · 0.2.91</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -545,6 +545,7 @@
           <div class="panel-title"><h3>Reticulum · Wi‑Fi/LAN messages</h3><span class="pill" id="reticulum-badge">OFF</span></div>
           <p class="small muted">Experimental, separate from Meshtastic. Reticulum and LXMF are optional Linux packages. Enabling starts local-network multicast discovery, which can be visible to other devices on your LAN; stopping ends the child process. No internet account required.</p>
           <p id="reticulum-status" class="small muted" role="status" aria-live="polite">Reticulum LAN is off. No network activity has been started by OpenRF.</p>
+          <p id="reticulum-connection-brief" class="small muted">Connection: off · no TCP listener requested by OpenRF.</p>
           <div class="reticulum-tcp-settings">
             <label class="switchline"><input type="checkbox" id="reticulum-tcp-enable"><span class="reticulum-tcp-label-text">Also accept a direct Sideband TCP connection (port 4242; OFF by default)</span></label>
             <p class="small muted">Opt-in: this opens a Reticulum TCP listener on the device's network interfaces while messaging is enabled. It is <strong>not</strong> OpenRF's web API. Use only on a trusted LAN, and configure a restricted OS firewall rule before allowing other devices. Stop Reticulum to close the listener.</p>
@@ -566,21 +567,43 @@
             <div id="reticulum-interfaces" aria-live="polite"><p class="small muted">Enable Reticulum to view real network interface counters.</p></div>
             <p class="small muted" id="reticulum-announce-detail">No announce requests this session.</p>
           </details>
+          <details class="reticulum-diagnostics reticulum-contacts-panel" id="reticulum-contacts-panel">
+            <summary>Contacts · <span id="reticulum-contact-count">0 saved</span></summary>
+            <p class="small muted">Nicknames are private labels on this device, not verified identities. Save a contact only after checking the LXMF address with its owner.</p>
+            <form id="reticulum-contact-form" class="reticulum-contact-form">
+              <label for="reticulum-contact-address">LXMF address<input id="reticulum-contact-address" class="field" maxlength="32" spellcheck="false" autocomplete="off" placeholder="32-character LXMF address" required></label>
+              <label for="reticulum-contact-alias">Nickname<input id="reticulum-contact-alias" class="field" maxlength="40" autocomplete="off" placeholder="e.g. My phone" required></label>
+              <button type="submit" class="btn outline">Save contact</button>
+            </form>
+            <div id="reticulum-contacts-list" class="reticulum-contacts-list"><p class="small muted">No saved Reticulum contacts.</p></div>
+            <p id="reticulum-contact-status" class="small muted" role="status" aria-live="polite"></p>
+          </details>
           <div class="mesh-chat-grid">
             <div class="mesh-conversation-column">
-              <div class="mesh-inbox-header"><h4>Reticulum inbox</h4><span class="small muted">Current session</span></div>
+              <div class="mesh-inbox-header"><h4>Reticulum inbox</h4><span class="small muted" id="reticulum-storage-label">Current session · last 100</span></div>
+              <label class="mesh-conversation-select" for="reticulum-conversation">Conversation
+                <select class="field" id="reticulum-conversation"><option value="all">All messages</option></select>
+              </label>
               <div id="reticulum-messages" class="mesh-messages" role="log" aria-label="Reticulum LXMF messages"><p class="small muted">No received or queued LXMF messages.</p></div>
             </div>
             <div class="mesh-compose-column">
               <div class="mesh-inbox-header"><h4>Send LXMF</h4><span class="small muted">Direct destination</span></div>
               <form id="reticulum-compose" class="mesh-compose">
                 <label for="reticulum-recipient">Recipient LXMF address<input id="reticulum-recipient" class="field" maxlength="32" autocomplete="off" spellcheck="false" placeholder="32-character hex address" required></label>
+                <div class="button-line reticulum-quick-contact"><button id="reticulum-save-recipient" type="button" class="btn mini outline">Save recipient as contact</button></div>
                 <label for="reticulum-text">Message<textarea id="reticulum-text" class="field" rows="3" placeholder="Short offline message…" required></textarea></label>
                 <p id="reticulum-byte-count" class="small muted">0 / 1024 UTF-8 bytes</p>
                 <div class="button-line"><button id="reticulum-send" class="btn primary" type="submit" disabled>Send over Reticulum</button></div>
               </form>
             </div>
           </div>
+          <details class="reticulum-diagnostics reticulum-history-panel" id="reticulum-history-panel">
+            <summary>Local message history &amp; privacy</summary>
+            <label class="reticulum-history-choice"><input type="checkbox" id="reticulum-save-history"> Save Reticulum messages on this device (opt-in)</label>
+            <p id="reticulum-history-count" class="small muted">No saved history.</p>
+            <div class="button-line"><button type="button" class="btn outline" id="reticulum-clear-history">Clear messages</button></div>
+            <p class="small muted">When enabled, this saves your current session and future LXMF messages in private local SQLite (up to 1,000). The text is <strong>not encrypted at rest</strong>. Disabling history deletes saved messages; contacts remain. Clear messages removes saved and current-session messages.</p>
+          </details>
           <p class="small muted">If the recipient path isn't known, OpenRF will request it but won't claim that your message was sent. Try again after the path becomes available. LXMF queue acceptance is not delivery confirmation. No files or location data are sent.</p>
         </div>
       </section>

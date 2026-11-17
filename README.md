@@ -1,4 +1,10 @@
-# OpenRF v0.2.90 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.91 — Offline-First Navigation and RF Toolkit
+
+## v0.2.91 — Private Reticulum contacts and optional conversation history
+
+The Reticulum screen now supports saved contacts (verified-by-you nicknames for public 32-character LXMF addresses), per-peer conversation filtering, and opt-in local SQLite history. Saved history holds at most 1,000 messages, remains available after the Reticulum process stops, and lives exclusively under the private runtime data directory. History is off by default; enabling includes the current in-memory session and future messages, and turning it off removes saved texts while preserving your contacts. You can clear saved and current-session messages explicitly. **Message bodies are not encrypted at rest.**
+
+Received messages retain the server-observed LXMF signature-validation status; outgoing messages are labeled *queued with LXMF, delivery not confirmed*. A path request is still explicitly **not sent**. Connection details display RNS-reported interface/peer/client counts without treating them as receipt verification. This release does not enable a Reticulum transport or TCP listener automatically. See `docs/RELEASE_0.2.91_TESTS.md`.
 
 ## v0.2.90 — Message picker, dependable unread alerts, and page navigation
 
