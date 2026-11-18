@@ -2023,7 +2023,7 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
 #page-map .route-choice-btn span{display:block;font-size:11px;color:#bbdad9;overflow-wrap:anywhere}
 #page-map .route-choice-btn small{display:block;color:#a6f7df;font-size:11px;line-height:1.45;font-weight:700;overflow-wrap:anywhere}
 #page-map .route-choice-btn[aria-pressed="true"] span{color:#ecfffa}
-#page-map .map-route-choices{max-height:min(55dvh,260px)}
+#page-map .map-route-choices{max-height:min(72dvh,380px)}
 
 /* v0.2.113 — Start navigation stays visible even when an alternate's tradeoff
    wraps onto several lines on a small 800×480 field touchscreen. */
@@ -2034,6 +2034,18 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
 #page-map .route-choice-start{display:block;width:100%;min-height:43px;font-size:13px;font-weight:750;touch-action:manipulation}
 #page-map .route-choice-start:disabled{opacity:.55;cursor:not-allowed}
 #page-map .route-choice-settings{margin-top:7px;padding:2px 0 0}
+
+/* v0.2.114 — keep the two route cards away from Firefox's overlay scrollbar,
+   including when the browser hides it while screenshots are taken. */
+#page-map .route-choice-scroll{padding-right:7px;scrollbar-gutter:stable;scrollbar-width:thin}
+
+/* v0.2.114 — expanded Where to? uses a compact X; the descriptive label is
+   retained for screen readers without taking horizontal room from the form. */
+#page-map .map-destination-panel:not(.is-collapsed) .map-search-toggle{
+  flex:0 0 36px;width:36px;min-width:36px;height:36px;min-height:36px;
+  padding:0;line-height:1;
+}
+#page-map .map-search-close-mark{font-size:24px;font-weight:400;line-height:1}
 
 /* v0.2.113 — uniform lower-right gear, layers and map-observation sheets.
    Geometry is derived from the current map viewport, not from the gear's

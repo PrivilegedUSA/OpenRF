@@ -1,4 +1,14 @@
-# OpenRF v0.2.113 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.114 — Offline-First Navigation and RF Toolkit
+
+## v0.2.114 — Roomier route chooser without scrollbar overlap
+
+- The map's **Choose a route** popup expands farther toward the bottom of the map, stopping above the lower-left map attribution/info icon and bottom controls. In the normal two-route view, both cards, their differences and the Start navigation button should fit without requiring scrolling on an 800×480 landscape display.
+- Route cards have a small reserved gap from Firefox's transient scrollbar, even when it disappears during a screenshot. Extremely long route text can still scroll, with Start navigation always accessible below it.
+- Closing **Choose a route** with × still clears the current trip, but now automatically opens **Where to?** so you can enter the next destination. The expanded search uses a compact × button instead of the words Close search.
+- Choosing **Route preferences** from an open Where to? form now places the gear panel over it without collapsing or clearing the form. Closing the gear reveals the same destination and starting-point entries.
+- The v0.2.113 Start navigation button, ×-to-discard operation and aligned bottom-right popups are retained; the camera and road calculations are unchanged.
+
+See [v0.2.114 test notes](docs/RELEASE_0.2.114_TESTS.md).
 
 ## v0.2.113 — Start navigation directly after selecting a route
 

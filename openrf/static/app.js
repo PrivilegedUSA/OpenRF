@@ -178,7 +178,7 @@ function setMapSearchCollapsed(collapsed, restoreFocus = false) {
   mapSearchToggle.setAttribute('aria-label', isCollapsed ? 'Open destination search' : 'Close destination search');
   mapSearchToggle.innerHTML = isCollapsed
     ? '<span class="map-search-icon" aria-hidden="true">⌕</span><span class="map-search-caption">Where to?</span><span class="map-search-chevron" aria-hidden="true">▾</span>'
-    : '<span class="map-search-caption">Close search</span><span class="map-search-chevron" aria-hidden="true">×</span>';
+    : '<span class="map-search-close-mark" aria-hidden="true">×</span>';
   if (typeof updateNavOverlayLayout === 'function') updateNavOverlayLayout();
   // Clear any position computed while the tall search form was on screen.
   // Closing it must bring Directions and its choice cards back to the top.
@@ -2910,7 +2910,8 @@ function cameraPanelVisibility(open){
   $('map-camera-route-chip').setAttribute('aria-expanded',String(Boolean(open)));
   $('map-navigation-options').open=Boolean(open);
   if(open){
-    if(typeof setMapSearchCollapsed==='function')setMapSearchCollapsed(true);
+    // Route preferences are an overlay. Keep a currently open Where to? form
+    // and its unfinished start/destination entries intact underneath it.
     if(typeof activeMapTool!=='undefined' && activeMapTool)closeMapToolOverlay();
     $('map-picked-action').hidden=true;
   }
@@ -2951,8 +2952,11 @@ function positionRouteChoicePanel(){
   if(!heading.height)return;
   const top=Math.ceil(heading.bottom-area.top+12);
   panel.style.top=`${top}px`;
-  // Keep the route cards scrollable rather than pushing their actions offscreen.
-  panel.style.maxHeight=`${Math.max(100,Math.min(260,Math.floor(area.bottom-heading.bottom-24)))}px`;
+  // Let both route cards and their tradeoffs expand toward the map credits,
+  // rather than scrolling a two-choice list inside a short 260px box. Keep
+  // 46px clear at the bottom for the data/attribution info icon and controls.
+  const visibleBottom=Math.min(area.bottom,window.innerHeight);
+  panel.style.maxHeight=`${Math.max(120,Math.min(400,Math.floor(visibleBottom-(area.top+top)-46)))}px`;
 }
 function sameRoadCoordinates(first,second){
   // Defensive guard for previously cached or older API responses. The Python
@@ -3067,6 +3071,7 @@ function discardChosenRoute(){
   if(typeof cameraPanelVisibility==='function')cameraPanelVisibility(false);
   setNavigationStatus('Route cleared. Choose a new destination to get directions.');
   renderNavigationOverlay();
+  setMapSearchCollapsed(false);
 }
 $('route-choice-close').addEventListener('click',discardChosenRoute);
 $('route-choice-settings').addEventListener('click',()=>cameraPanelVisibility(true));

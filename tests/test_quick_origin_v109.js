@@ -81,4 +81,4 @@ assert.equal($('map-origin-query').value,'');
 assert.equal($('map-origin-caption').textContent,'Current location');
 assert.equal($('map-origin-editor').hidden,true);
 assert.equal(state.navPickedPoint[0],-121.45);
-console.log('PASS v0.2.113 quick From editor, mirrored origins, map start action and router check');
+console.log('PASS v0.2.114 quick From editor, mirrored origins, map start action and router check');

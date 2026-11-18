@@ -872,3 +872,10 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Align bottom-right **Navigation & field readiness** gear, **Map layers** panel and map-opened **Add observation** form to one shared popup rectangle below the Where to?/hamburger row, above the bottom buttons, and left of the right-side map controls and page scrollbar. Internal scrolling and sticky close headers keep exit controls accessible. Plus still opens the consent-safe manual observation form, and the older centered form remains on non-map pages. Opening one map panel closes the others.
 - Add regression tests for route selection/start and viewport popup geometry. No change to database schema, local GPS storage, external networks, map data, Valhalla backend or sensor drivers.
 
+## v0.2.114 — Taller route chooser with scrollbar clearance (2026-11-18)
+
+- Remove the 260px route-choice height cap at the measured Directions-heading anchor; allocate up to the lower map controls with a 46px bottom reserve for the map attribution/info button and adjacent controls. Retain a maximum and browser viewport bound, and keep scroll overflow for unusually long route notes.
+- Reserve Firefox's overlay scrollbar gutter plus 7px inner padding, making the Main and Alternate cards slightly narrower without shrinking the overall navigation pop-up. Start navigation remains pinned in the chooser footer.
+- When × discards a planned route, reopen the empty Where to? editor automatically. Replace the expanded search's redundant Close search text with an accessible compact ×. Opening/closing Route preferences from a currently expanded search no longer collapses it or changes an unfinished destination/start entry.
+- Add 800×480 geometry and navigation-search regression tests. No changes to route geometry, Valhalla, camera counts, GPS permissions, selected-route behavior, private records or unrelated map menus.
+

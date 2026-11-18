@@ -61,10 +61,12 @@ state.navSearchToken=4;state.navPicking=true;
 for(const id of ['map-destination-query','nav-dest-query','nav-dest-name','nav-dest-lat','nav-dest-lon',
   'map-origin-query','nav-start-query','nav-start-lat','nav-start-lon'])$(id).value='old trip';
 let reRendered=0;
+let reopenedSearch=0;
 Object.assign(context,{
   resetRouteForNewDestination(){state.navPreview=null;state.navRouteChoices=null;state.navCameraComparison=null;$('map-begin-guidance').disabled=true;},
   hideMapAddressMatches(){},syncMapOriginSummary(){},syncDestinationPickMode(){},syncMapPickedAction(){},
   cameraPanelVisibility(){},setNavigationStatus(){},renderNavigationOverlay(){reRendered++;},
+  setMapSearchCollapsed(collapsed){if(collapsed===false)reopenedSearch++;},
 });
 vm.runInContext(sourceBetween('function discardChosenRoute(){',"$('route-choice-close').addEventListener"),context);
 context.discardChosenRoute();
@@ -83,6 +85,7 @@ assert.equal(state.navDestinations[0].name,'Saved place','Saved places are not d
 assert.equal(state.navAvoidSaved[0].name,'Saved road','Saved avoidance rules are retained');
 assert.equal($('map-begin-guidance').disabled,true,'Discard cannot leave navigation enabled');
 assert(reRendered>0,'Map lines and pins are rerendered');
+assert.equal(reopenedSearch,1,'Discarded route reopens Where to? for a new destination');
 
 const popup={styles:{},style:{setProperty(key,value){popup.styles[key]=value}}};
 const map={getBoundingClientRect(){return {left:8,right:812,top:8,bottom:488,width:804,height:480}}};
@@ -102,4 +105,4 @@ assert(app.includes("dialog.classList.toggle('map-observation-popup',fromMap)"),
   'Only map-opened observation dialogs use the compact popover layout');
 assert(app.includes('function realignBottomMapPopups(){'),
   'All map sheets realign on resizing and scrolling');
-console.log('PASS v0.2.113 selected-route Start navigation and three aligned popups');
+console.log('PASS v0.2.114 selected-route Start navigation and three aligned popups');
