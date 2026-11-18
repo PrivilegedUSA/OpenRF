@@ -155,7 +155,8 @@ cameraHandler(fallback)();
 assert.deepEqual(rasterSpy.flights[0], {center:target.center,zoom:target.zoom});
 assert.equal(fallback.pendingLocationView,null);
 assert(src.includes('const initial = state.preferredView || {center:[-98.5,39.8], zoom:2}'), 'initial map camera must start far enough out to show the whole U.S. overview');
-assert(src.includes('const camera = state.map ?') && !src.includes('const camera = state.pendingLocationView ||'), 'fallback should retain overview until pending location flies');
+assert(src.includes('let camera=state.preferredView;') && src.includes('const center=state.map.getCenter();camera={center:[center.lng,center.lat],zoom:state.map.getZoom()};') &&
+  !src.includes('const camera = state.pendingLocationView ||'), 'fallback should preserve the current/overview camera even after partially initialized renderer failure, until pending location flies');
 assert(src.includes('const tick = now =>') && src.includes('requestAnimationFrame(tick)') && src.includes('state.rasterMap.stop();'), 'offline coordinate map should animate and allow interruption');
 console.log('v0.2.15 fuller overview, non-snapping GPS camera, reduced motion, readiness, user gesture and raster fallback tests passed.');
 

@@ -1878,6 +1878,16 @@ body.map-workspace.has-message-unread .topbar #mesh-header-button{display:inline
 #page-reticulum .reticulum-tcp-port-label .field{width:100%;min-width:0;max-width:100%}
 @media(max-width:520px){#page-reticulum .reticulum-peer-fields{grid-template-columns:minmax(0,1fr)}}
 
+/* v0.2.104 — anchor the message count to the envelope glyph, not its touch target. */
+.topbar .messages-header-button .messages-header-icon{position:relative;display:grid;place-items:center;
+  width:22px;height:22px;min-width:22px;flex:0 0 22px;line-height:0}
+.topbar .messages-header-button .messages-header-icon svg,
+body.map-workspace .topbar .messages-header-button .messages-header-icon svg{display:block;width:20px;height:20px;flex:none}
+.topbar #mesh-header-button #mesh-header-unread{position:absolute;top:-4px;right:-5px;
+  min-width:14px;height:14px;padding:0 2px;border-radius:50px;font-size:9px;line-height:14px;
+  text-align:center;box-shadow:0 0 0 2px #102832;pointer-events:none}
+body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
+
 /* v0.2.102 — keep adjacent Hardware sections from touching on 5-inch layouts. */
 #page-hardware > .mesh-connections-panel,
 #page-hardware > .field-network-panel,

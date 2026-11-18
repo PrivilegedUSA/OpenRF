@@ -801,3 +801,10 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Add `scripts/run-two-node-lab.sh`: launches two separate, loopback-only OpenRF development consoles with distinct temporary private data and ports 8871/8872; does not automatically enable Reticulum, start radios, send traffic or erase its lab data. Operator can manually start TCP listener 4242 on A and private TCP client 127.0.0.1:4242 on B, after installing optional RNS/LXMF packages.
 - Add deterministic two-node configuration, private-address input validation, HTTP isolation, unchanged-defaults, opt-in UI and link-local compatibility tests. No Reticulum/LXMF dependencies were available in this build environment; **live encrypted LXMF message delivery remains unverified**.
 
+## v0.2.104 — Local vector map recovery + message badge alignment (2026-11-18)
+
+- Check packaged Amador/Calaveras vector MBTiles and glyphs before initializing the map; retain the full-US online overview, automatically use local vectors after a real browser fix inside its known bounding box, and return to the global style for a subsequent fix outside coverage. Save manual offline/online preference locally without retaining coordinates.
+- On a failing online vector style, attempt the installed offline vector style once before the built-in raster/coordinate map. Distinguish a synchronous browser MapLibre/WebGL startup exception from missing tiles, preserve the map view when possible, and show clear diagnostics if the vector renderer cannot start. Never mislabel vector MBTiles as raster coverage.
+- Anchor the compact header unread count to the envelope glyph and restore its proportional size on 5-inch layouts, without changing genuine message count behavior.
+- Add frontend regression tests for source selection, persistence entry points, bounded recovery, renderer messaging and badge structure. No backend schema or new mandatory dependencies. Firefox/WebGL behavior on the user's graphics driver and actual map rendering on their computer remain unverified.
+

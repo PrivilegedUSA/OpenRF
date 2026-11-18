@@ -10,7 +10,7 @@ const ids=['field-hotspot-interface','field-hotspot-ssid','field-hotspot-passphr
   'field-hotspot-start','field-hotspot-stop','field-hotspot-refresh',
   'field-hotspot-generate','field-hotspot-visibility','field-hotspot-status'];
 for(const id of ids)assert(html.includes(`id="${id}"`),id);
-assert(html.includes('/static/field_hotspot.js?v=0.2.103'));
+assert(html.includes('/static/field_hotspot.js?v=0.2.104'));
 assert(css.includes('#page-hardware > .mesh-connections-panel,') &&
        css.includes('#page-hardware > .field-network-panel,') &&
        css.includes('#page-hardware > .halow-panel{margin-top:16px;margin-bottom:16px}'));
@@ -92,5 +92,5 @@ vm.runInNewContext(client,context);
   await nodes['field-hotspot-refresh'].listeners.click();
   assert.equal(nodes['field-hotspot-start'].disabled,true);
   assert.match(nodes['field-hotspot-status'].textContent,/No Linux-visible ordinary Wi-Fi adapter/);
-  console.log('PASS v0.2.103 opt-in hotspot UI, consent, spacing, password hygiene');
+  console.log('PASS v0.2.104 opt-in hotspot UI, consent, spacing, password hygiene');
 })().catch(err=>{console.error(err);process.exitCode=1;});

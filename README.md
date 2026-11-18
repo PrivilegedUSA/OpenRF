@@ -1,4 +1,12 @@
-# OpenRF v0.2.103 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.104 — Offline-First Navigation and RF Toolkit
+
+## v0.2.104 — Regional vector recovery and compact message counter
+
+The app checks its **bundled Amador/Calaveras vector map and fonts before the map starts**. Its original full-USA overview retains the online OpenRF style, while a real, permissioned browser location inside the custom offline region automatically selects the installed local vector tiles. A subsequent fix outside that region can restore global online coverage. Operators can explicitly choose **Use offline regional vectors** or **Use online vectors** under Map settings; this non-location preference survives refresh and overrides automatic selection.
+
+If the online vector style fails before loading, OpenRF now makes one bounded attempt with the bundled offline vector source before giving up on vector rendering. A synchronous MapLibre/WebGL startup exception is reported with the actual short browser error. The coordinate fallback clearly distinguishes a *valid installed vector archive* from a missing raster package, and explains that WebGL is required to draw vector tiles. Browser GPU/WebGL failures cannot be fixed merely by switching tile sources. The maps, live GPS, navigation, observations and local data remain intact.
+
+The map-header unread badge now overlaps the upper-right corner of its **envelope glyph**, not the larger tap target, and the envelope returns to a 20px glyph within a compact 42px control. Existing genuine incoming-unread counts, independent inbox links and navigation behavior are preserved. No new map download, location upload, telemetry, Python dependency or database migration. See [v0.2.104 troubleshooting and verification](docs/RELEASE_0.2.104_TESTS.md).
 
 ## v0.2.103 — Two OpenRF nodes can be configured for Reticulum TCP
 

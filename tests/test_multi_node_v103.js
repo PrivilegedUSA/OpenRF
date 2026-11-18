@@ -46,4 +46,4 @@ assert.throws(()=>ctx.options(),/numeric private IPv4/);
 nodes['reticulum-peer-port'].value='4242';
 nodes['reticulum-tcp-port'].value='22';
 assert.throws(()=>ctx.options(),/TCP listener port/);
-console.log('PASS v0.2.103 opt-in two-node TCP controls and IPv6 link-local integration');
+console.log('PASS v0.2.104 opt-in two-node TCP controls and IPv6 link-local integration');

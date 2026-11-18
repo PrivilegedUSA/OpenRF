@@ -10,8 +10,8 @@ for(const id of ['field-network-panel','field-network-refresh','field-network-mo
   'field-network-status','field-network-mode-detail','field-network-interfaces',
   'map-offline-readiness','map-offline-check','map-offline-status','map-offline-results'])
   assert(html.includes(`id="${id}"`),id);
-assert(html.includes('/static/field_network.js?v=0.2.103'));
-assert(html.includes('/static/offline_readiness.js?v=0.2.103'));
+assert(html.includes('/static/field_network.js?v=0.2.104'));
+assert(html.includes('/static/offline_readiness.js?v=0.2.104'));
 assert(css.includes('.field-network-row')&&css.includes('.map-offline-row'));
 assert(server.includes("'/api/network/field-readiness'"));
 assert(server.includes("'/api/navigation/offline-readiness'"));
@@ -62,5 +62,5 @@ const flatten=id=>nodes[id].children.map(x=>(x.children||[]).map(c=>c.textConten
   assert.match(flatten('map-offline-results'),/Local Valhalla is unavailable/);
   assert.match(flatten('map-offline-results'),/No GPS fix or chosen road route tested/);
   assert(requests.every(([,opts])=>opts.cache==='no-store'&&!opts.method));
-  console.log('PASS v0.2.103 offline-navigation preflight and field network planning');
+  console.log('PASS v0.2.104 offline-navigation preflight and field network planning');
 })().catch(err=>{console.error(err);process.exitCode=1;});

@@ -2,7 +2,15 @@
 
 const $ = (id) => document.getElementById(id);
 const SELECTED_PAGE_SESSION_KEY = 'openrf.selected-page.v1';
+const MAP_VECTOR_PREFERENCE_KEY = 'openrf.map.vector-preference.v1';
 const VALID_PAGES = new Set(['map','overview','scanner','spectrum','radio','messages','reticulum','hamradio','discoveries','sessions','hardware']);
+function rememberedVectorPreference(){
+  try {const value=window.localStorage?.getItem(MAP_VECTOR_PREFERENCE_KEY);return value==='offline'||value==='online'?value:'auto';}
+  catch (_) {return 'auto';}
+}
+function rememberVectorPreference(value){
+  try {window.localStorage?.setItem(MAP_VECTOR_PREFERENCE_KEY,value);} catch (_) { /* Private browsing is okay. */ }
+}
 function rememberedPage(){
   try {const saved=window.sessionStorage?.getItem(SELECTED_PAGE_SESSION_KEY);return VALID_PAGES.has(saved)?saved:'map';}
   catch (_) {return 'map';} // Private browsing may deny session storage.
@@ -16,6 +24,9 @@ const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
 const state = { observations: [], sessions: [], waypoints: [], sdrSites: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, hardwareManager: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navVoiceEnabled:false, navVoiceMemory:null, navVoiceFailed:false, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, navFollowCameraSuspended:false, navFollowLastPosition:null, navFollowStartedAt:0, navFollowLastValidAt:0, navFollowSignalState:'waiting',navCameraAvoidTypes:null,navCameraComparison:null,navCameraRouteEpoch:0,navCameraReport:null,navCameraPanelOpen:false,navRouteChoices:null,navChoiceSelection:"standard",navChoicePanelClosed:false,navAvoidSession:[],navAvoidSaved:[],navAvoidAnchor:null,navAvoidPicking:false,navRoadPrefsDirty:false,navFollowEpoch:0,navRerouteBusy:false,navOffrouteCount:0,navOffrouteSince:0,navRerouteLast:0,
   navDemoActive:false,navDemoPaused:false,navDemoProgress:0,navDemoTimer:null,navDemoLastTime:0,
   navDemoMarker:null,navDemoMarkerMap:null,navDemoFix:null,rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, bleScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPickPointerStart:null, navPickSwallowClickUntil:0, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapObservationId:null, mapSurveySeriesKey:null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+state.mapVectorPreference=rememberedVectorPreference();
+state.mapOfflineRecoveryTried=false;
+state.mapStartupError=null;
 state.navCameraAlertPrefs=null;state.navCameraAlertCatalog=null;
 state.navCameraAlertSeen=new Set();state.navCameraAlertVoiceSeen=new Set();state.navCameraAlertLastVoice=0;
 state.navCameraAlertLastQualifiedAt=0;
@@ -1130,14 +1141,46 @@ function exportComparisonCsv() {
 function openrfMapStyleUrl() {
   return `/api/vector/styles/${state.style === 'light' ? 'light' : 'dark'}.json${state.mapVectorOffline ? '?offline=1' : ''}`;
 }
+function regionalVectorReady(){
+  return state.vectorStatus?.ready===true && state.vectorStatus?.fonts_ready===true;
+}
+function regionalVectorContains(lon,lat){
+  const b=state.vectorStatus?.bounds;
+  return regionalVectorReady() && Array.isArray(b) && b.length===4 &&
+    [lon,lat,...b].every(Number.isFinite) && lon>=b[0] && lon<=b[2] && lat>=b[1] && lat<=b[3];
+}
+// Auto uses the full-world online map at the initial US overview, then the
+// user's installed regional map when a REAL browser fix is inside coverage.
+// A later browser fix outside the region restores worldwide coverage.
+function preferLocalVectorsAtBrowserFix(lon,lat){
+  if(state.mapVectorPreference!=='auto' || !regionalVectorReady() || state.mapOfflineRecoveryTried)return false;
+  const useLocal=regionalVectorContains(lon,lat);
+  if(state.mapVectorOffline===useLocal)return false;
+  state.mapVectorOffline=useLocal;
+  updateOpenRFVectorButtons();
+  $('map-vector-status').textContent=useLocal ?
+    'AUTO · using installed regional OpenRF vector tiles near your browser location. Outside the area, local roads are not included.' :
+    'AUTO · outside local map coverage; using worldwide online OpenRF vectors when internet is available.';
+  if(state.map){
+    state.mapReady=false;
+    try{state.map.setStyle(openrfMapStyleUrl());}
+    catch(error){
+      console.warn('Unable to change vector map source:',error);
+      state.mapStartupError=String(error?.message||error).slice(0,180);
+      switchToRasterMap(`Vector renderer could not change styles (${state.mapStartupError}).`);
+    }
+  }
+  return true;
+}
 async function refreshOpenRFVectorMapStatus() {
   try {
     state.vectorStatus=await api('/api/vector/status');
     const s=state.vectorStatus;
+    if(s.ready && s.fonts_ready && state.mapVectorPreference==='offline')state.mapVectorOffline=true;
     $('map-vector-status').textContent=s.ready && s.fonts_ready ?
-      `REGIONAL OFFLINE VECTOR READY · ${s.tile_count.toLocaleString()} local tiles · Amador / Calaveras · no tile network required. Coverage outside the region is blank.` :
+      `REGIONAL VECTOR ${state.mapVectorOffline?'ACTIVE':'READY'} · ${s.tile_count.toLocaleString()} installed tiles · Amador / Calaveras · ${state.mapVectorPreference==='auto'?'Auto-selects after a browser location fix inside coverage.':'Outside the region local roads are not available.'}` :
       `Regional offline vector unavailable: ${s.error || 'Map or glyph resources missing'}. Online OpenRF styles remain selectable.`;
-    if (!s.ready && state.mapVectorOffline) {
+    if (!(s.ready && s.fonts_ready) && state.mapVectorOffline) {
       state.mapVectorOffline=false;
       if(state.map) state.map.setStyle(openrfMapStyleUrl());
     }
@@ -1147,6 +1190,28 @@ async function refreshOpenRFVectorMapStatus() {
 function updateOpenRFVectorButtons(){
   $('map-vector-source').textContent=state.mapVectorOffline ? 'Use online vectors' : 'Use offline regional vectors';
   $('map-style').textContent=state.style==='dark' ? 'OpenRF Light' : 'OpenRF Dark';
+}
+function tryOfflineVectorRecovery(attempt){
+  if(attempt===state.mapAttempt && state.mapOfflineRecoveryTried && state.mapVectorOffline && !state.mapReady)return true;
+  if(attempt!==state.mapAttempt || !state.map || state.mapReady || state.rasterMap ||
+    state.mapVectorOffline || state.mapOfflineRecoveryTried || !regionalVectorReady() ||
+    state.mapVectorPreference==='online')return false;
+  state.mapOfflineRecoveryTried=true;
+  state.mapVectorOffline=true;
+  try{
+    state.map.setStyle(openrfMapStyleUrl());
+    updateOpenRFVectorButtons();
+    $('map-vector-status').textContent='Online vector style did not start. Trying the installed regional offline vector map before raster fallback.';
+    setTimeout(()=>{
+      if(attempt===state.mapAttempt && !state.mapReady && !state.rasterMap)
+        switchToRasterMap('The online and local vector styles could not render.');
+    },12000);
+    return true;
+  }catch(error){
+    console.warn('Regional vector recovery failed:',error);
+    state.mapStartupError=String(error?.message||error).slice(0,180);
+    return false;
+  }
 }
 function alignMapToolRail() {
   const rail = document.getElementById('map-tool-rail');
@@ -1187,7 +1252,9 @@ function installMapFeatureHoverCursors(map){
 }
 function startMap() {
   if (state.map || state.rasterMap) return;
-  if (!window.maplibregl) { const view = state.preferredView; state.preferredView = null; return startRasterMap('MapLibre is unavailable. Using the built-in raster/coordinate map.', view); }
+  state.mapStartupError=null;
+  state.mapOfflineRecoveryTried=false;
+  if (!window.maplibregl) { const view = state.preferredView; state.preferredView = null; return startRasterMap('MapLibre JavaScript did not load. The installed regional vector map needs MapLibre/WebGL. Using coordinate fallback.', view); }
   const attempt = ++state.mapAttempt;
   try {
     // Keep the overview visible while permission is requested; apply a later GPS fix via flyTo.
@@ -1247,15 +1314,18 @@ function startMap() {
       new maplibregl.Popup().setLngLat(evt.lngLat).setHTML(`<strong>Survey waypoint #${escapeHTML(w.id)}</strong><br>Browser-reported observer position, not RF detection<br>${escapeHTML(w.note || '')}`).addTo(state.map);
     });
     state.map.on('error', evt => { if (evt.error && !state.mapReady) setTimeout(() => {
-      if (attempt === state.mapAttempt && !state.mapReady && !state.rasterMap) switchToRasterMap('Vector style failed; showing raster map instead.');
+      if (attempt === state.mapAttempt && !state.mapReady && !state.rasterMap && !tryOfflineVectorRecovery(attempt))
+        switchToRasterMap('Vector style failed; showing raster map instead.');
     }, 500); });
     $('map-mode').textContent = 'Offline / raster';
     setTimeout(() => {
-      if (attempt === state.mapAttempt && !state.mapReady && !state.rasterMap) switchToRasterMap('Vector map timed out; showing raster map instead.');
+      if (attempt === state.mapAttempt && !state.mapReady && !state.rasterMap && !tryOfflineVectorRecovery(attempt))
+        switchToRasterMap('Vector map timed out; showing raster map instead.');
     }, 12000);
   } catch (error) {
     console.warn('MapLibre startup failed:', error);
-    switchToRasterMap('Vector map startup failed; using built-in raster map.');
+    state.mapStartupError=String(error?.message||error).replace(/\s+/g,' ').slice(0,180);
+    switchToRasterMap(`Vector renderer could not start (${state.mapStartupError}). This can be caused by browser WebGL/graphics support; the local vector tiles are not raster tiles.`);
   }
 }
 function locationZoom(accuracyMeters) {
@@ -1355,6 +1425,7 @@ function locateMap(manual = false) {
       status.textContent = 'Browser returned invalid coordinates. Map remains available manually.'; return;
     }
     state.browserLocation = {lat, lon, accuracy, capturedAt: Date.now()};
+    preferLocalVectorsAtBrowserFix(lon,lat);
     if (!state.navOriginManual) {
       $('nav-start-lat').value=lat.toFixed(7);
       $('nav-start-lon').value=lon.toFixed(7);
@@ -1519,7 +1590,8 @@ function updateMap() {
 function switchToRasterMap(reason) {
   ++state.mapAttempt;
   // Preserve the current overview so a pending GPS fix animates in fallback too.
-  const camera = state.map ? {center:[state.map.getCenter().lng,state.map.getCenter().lat], zoom:state.map.getZoom()} : state.preferredView;
+  let camera=state.preferredView;
+  if(state.map){try{const center=state.map.getCenter();camera={center:[center.lng,center.lat],zoom:state.map.getZoom()};}catch(_){/* Partially initialized renderer has no camera. */}}
   if (state.geoMarker) { try {state.geoMarker.remove();} catch(_) {} state.geoMarker = null; }
   if (state.map) { try { state.map.remove(); } catch(_) { /* partially initialized */ } }
   state.map = null;
@@ -1548,7 +1620,10 @@ function startRasterMap(reason, view = null) {
   const tiles = document.createElement('div'); tiles.className = 'raster-tiles';
   const pins = document.createElement('div'); pins.className = 'raster-pins';
   const notice = document.createElement('div'); notice.className = 'raster-notice';
-  notice.textContent = `${reason} ${state.offlineMap ? `Local raster package: ${state.offlineMap.name}. Tiles outside its coverage remain blank.` : 'Coordinate grid only. Install a licensed MBTiles raster package for offline streets.'}`;
+  const fallbackDetail=()=>state.offlineMap ? `Local raster package: ${state.offlineMap.name}. Tiles outside its coverage remain blank.` :
+    regionalVectorReady() ? 'The custom Amador/Calaveras vector tiles are installed, but this coordinate fallback cannot draw vector tiles. Check browser WebGL, then press Map settings → Offline / raster to retry vectors.' :
+    'Coordinate grid only. Install a licensed raster MBTiles package for offline streets.';
+  notice.textContent = `${reason} ${fallbackDetail()}`;
   const controls = document.createElement('div'); controls.className = 'raster-control';
   const plus = document.createElement('button'); plus.type = 'button'; plus.textContent = '+'; plus.title = 'Zoom in';
   const minus = document.createElement('button'); minus.type = 'button'; minus.textContent = '−'; minus.title = 'Zoom out';
@@ -1560,7 +1635,7 @@ function startRasterMap(reason, view = null) {
   let flightFrame = null;
   const raster = {center:view?.center || [-98.5,39.8], zoom:Math.max(2,Math.min(18,Math.round(view?.zoom || 2))), tileNodes:new Map(), failedTiles:new Set(),
     render() {
-      notice.textContent = `${reason} ${state.offlineMap ? `Local raster package: ${state.offlineMap.name}. Tiles outside its coverage remain blank.` : 'Coordinate grid only. Install a licensed MBTiles raster package for offline streets.'}`;
+      notice.textContent = `${reason} ${fallbackDetail()}`;
       const width = root.clientWidth, height = root.clientHeight;
       if (!width || !height) return;
       const center = worldPixel(raster.center[0], raster.center[1], raster.zoom);
@@ -4212,6 +4287,9 @@ $('map-vector-source').addEventListener('click',()=>{
     return;
   }
   state.mapVectorOffline=!state.mapVectorOffline;
+  state.mapVectorPreference=state.mapVectorOffline?'offline':'online';
+  rememberVectorPreference(state.mapVectorPreference);
+  state.mapOfflineRecoveryTried=false;
   updateOpenRFVectorButtons();updateOfflineAttribution();
   if (state.map) {
     state.mapReady=false;
@@ -4225,7 +4303,6 @@ $('map-vector-source').addEventListener('click',()=>{
     'Local regional vector source selected. Tile requests stay within OpenRF. Outside Amador/Calaveras, blank coverage is expected.' :
     'Online OpenRF vector source selected. Map tiles and font requests may use OpenFreeMap.';
 });
-refreshOpenRFVectorMapStatus().catch(()=>{});
 $('map-geolocate').addEventListener('click',()=>locateMap(true));
 $('map-geolocate-sheet').addEventListener('click',()=>locateMap(true));
 $('map-style-sheet').addEventListener('click',()=>$('map-style').click());
@@ -4527,9 +4604,15 @@ $('load-demo').addEventListener('click',()=>runAction(async()=>{
 }));
 $('clear-demo').addEventListener('click',()=>runAction(async()=>{const out=await api('/api/demo/clear','POST',{});flash(`Removed ${out.removed} synthetic record(s).`);await refresh();}));
 
-// Per-tab page state survives refresh; an entirely new tab opens to Map.
-// Keep the privacy-preserving preference scoped to this tab, not localStorage.
-showPage(rememberedPage());
+// Check the bundled local vector archive before the first map is constructed.
+// An unresponsive assets endpoint must not prevent the whole UI from opening.
+async function openInitialPage(){
+  await Promise.race([refreshOpenRFVectorMapStatus(),new Promise(resolve=>setTimeout(resolve,1800))]);
+  showPage(rememberedPage());
+}
+// Per-tab page state survives refresh; a new tab starts on Map. Vector source
+// preference is separate and persists across tabs without storing coordinates.
+openInitialPage().catch(error=>{console.warn('Vector readiness preflight:',error);showPage(rememberedPage());});
 refresh().catch(e=>flash(`OpenRF data refresh failed: ${e.message}. The server may still be running.`,true));
 refreshOfflineMaps().catch(e=>{ $('offline-map-status').textContent = `Unable to list local maps: ${e.message}`; });
 refreshAreaPlans().catch(e=>{ $('area-saved-detail').textContent = `Saved area plans unavailable: ${e.message}`; });
