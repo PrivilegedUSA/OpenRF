@@ -857,3 +857,10 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Show **0 possible encounters (1 nearby)** when source data supports it. Add direction-based explanations on the alternate card and reveal mapped lens direction in camera pin popups. Preserve user choice, normal road, distinct-alternate checks, route settings and existing sensor/privacy behavior.
 - Add backend and frontend regressions; no migration, provider change, silent camera-data download, offline vector fix, physical-camera check, or live road-trial claim.
 
+## v0.2.112 — Conservative camera-count regression fix and maximum priority (2026-11-18)
+
+- Correct v0.2.111's false-negative camera count: retain all reports near the road regardless of estimated heading. The formerly subtractive direction assessment is now annotation only (`not_direction_matched_count`) and cannot cause the normal route to say zero or suppress candidate exclusion attempts. A nearby camera can capture approaches beyond a single mapped viewing bearing; no lane or active camera state is established by map geometry.
+- Add explicit opt-in **Maximum avoidance** under the existing navigation gear, alongside Balanced. The maximum priority tries at most four differing local Valhalla exclusion sets, re-evaluates the actual road geometry, ranks by **fewest reported nearby camera points first** (then distance), and preserves the main route and user choice. No strict time/distance ceiling is used for scoring; physical route graph limits, 8 combined exclusion slots, endpoint protection, incomplete records and actual road access still limit results.
+- Retain direction annotations in the map and route details, but show total nearby locations rather than claiming inferred camera captures. The alternate-choice description identifies the relative miles, minutes and count. Opt-in priority and existing category choices persist in local browser storage.
+- Add regression tests for the reported v0.2.111 failure and aggressive-priority rankings with large detours. No Docker, imported map data, private SQLite data, live GPS or hardware changed by the release.
+

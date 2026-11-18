@@ -20,6 +20,7 @@ APPROACH_TOLERANCE_DEGREES = 80
 # response explicitly marks alerts incomplete; no live GPS location is sent.
 MAX_DISPLAY = 256
 MAX_EXCLUSIONS = 8
+MAX_CAMERA_ROUTE_ATTEMPTS = 4
 
 
 def camera_types(values):
@@ -154,7 +155,7 @@ def route_cameras(repo, route, types=None, *, radius_m=RADIUS_M):
     result = camera_catalog.list_sites(repo,bbox,limit=1200)
     nearby = []
     proximity_count = 0
-    excluded_by_direction = 0
+    not_direction_matched_count = 0
     unknown_direction_count = 0
     direction_matched_count = 0
     for entry in result['sites']:
@@ -173,9 +174,11 @@ def route_cameras(repo, route, types=None, *, radius_m=RADIUS_M):
             matched = (_direction_matches_road(lat, lon, coords, bearing, radius_m)
                        if bearing is not None else None)
             if matched is False:
-                excluded_by_direction += 1
-                continue
-            if matched is None:
+                # A camera's mapped lens direction does NOT establish which
+                # lanes/plates are captured. v0.2.111 incorrectly removed it
+                # from count and could suppress route alternatives entirely.
+                not_direction_matched_count += 1
+            elif matched is None:
                 unknown_direction_count += 1
             else:
                 direction_matched_count += 1
@@ -183,16 +186,18 @@ def route_cameras(repo, route, types=None, *, radius_m=RADIUS_M):
                            'label':entry['label'],'latitude':lat,'longitude':lon,
                            'source':entry['source'],'distance_m':round(best),
                            'direction':entry.get('direction',''),
-                           'direction_assessment':'orientation_match' if matched else 'unknown'})
+                           'direction_assessment':'orientation_match' if matched is True else
+                                'not_direction_matched' if matched is False else 'unknown'})
     nearby.sort(key=lambda x: (x['distance_m'],x['type'],x['id']))
     return {'count':len(nearby), 'nearby_count':proximity_count,
-            'excluded_by_direction':excluded_by_direction,
+            'not_direction_matched_count':not_direction_matched_count,
+            'excluded_by_direction':0,  # Deprecated: directional guessing never subtracts nearby reports.
             'unknown_direction_count':unknown_direction_count,
             'direction_matched_count':direction_matched_count,
             'sites':nearby[:MAX_DISPLAY],
             'incomplete':bool(result['truncated'] or len(nearby)>MAX_DISPLAY),
             'radius_m':radius_m,'types':sorted(chosen),
-            'notice':'Possible directional encounters: untagged camera directions are conservatively included. A known lens bearing can filter opposite-facing road approaches; this does not verify actual plate coverage, operation, lane, or complete coverage.'}
+            'notice':'All reported camera locations near the route remain counted. Lens-bearing estimates are supplemental, not proof of plate capture or a reason to discard reports. Coverage and activity are unverified.'}
 
 
 def _road_distance_m(first, second):
@@ -248,19 +253,22 @@ def materially_different_roads(main, alternate):
     return sum(_road_distance_m(a, b) >= 45 for a, b in zip(main_points, other_points)) >= 3
 
 
-def compare(repo, locations, types, *, router=local_route, options=None):
-    """Evaluate normal route and opt-in camera-exclusion alternative.
+def compare(repo, locations, types, *, router=local_route, options=None, mode='balanced'):
+    """Evaluate normal and mapped-camera exclusion routes, with an opt-in priority.
 
-    The latter is never automatically activated. Excluding roads may fail or
-    lead to a longer route; failures preserve the original route.
+    Maximum mode tries several bounded *different* exclusion sets and selects
+    the option with the fewest nearby mapped camera reports, regardless of ETA
+    or distance. Neither mode asserts actual camera coverage or safety.
     """
+    if type(mode) is not str or mode not in {'balanced', 'maximum'}:
+        raise ValueError('Camera avoidance mode must be balanced or maximum.')
     chosen = camera_types(types)
     prefs = route_preferences(options)
     standard = router(locations, **({'options':options} if options is not None else {}))
     original = route_cameras(repo,standard,sorted(chosen))
     response = {'standard': standard, 'standard_cameras': original,
                 'alternative':None,'alternative_cameras':None,
-                'exclusions_used':0,'detail':''}
+                'exclusions_used':0,'detail':'','mode':mode,'attempts':0,'preferred':'standard'}
     if len(locations)!=2:
         response['detail']='Camera-aware alternatives currently support a single destination without intermediate stops.'
         return response
@@ -271,37 +279,67 @@ def compare(repo, locations, types, *, router=local_route, options=None):
         response['detail']='All available road exclusion slots are already used by your saved and trip-only roads.'
         return response
     if not original['count']:
-        response['detail']=('No selected reports were classified as potential directional encounters, '
-                            f'although {original["nearby_count"]} camera point(s) are nearby. '
-                            'This does not prove the route has no camera coverage.' if original['nearby_count'] else
-                            'No selected camera locations were close to the calculated road. '
-                            'That does not mean the route is camera-free.')
+        response['detail']='No selected camera reports were close to this road. That does not mean the route is camera-free.'
         return response
     start=(float(locations[0]['latitude']),float(locations[0]['longitude']))
     finish=(float(locations[-1]['latitude']),float(locations[-1]['longitude']))
     def approx_m(a,b):
         lat=(a[0]+b[0])/2
         return math.hypot((a[0]-b[0])*111195,(a[1]-b[1])*111195*math.cos(math.radians(lat)))
-    exclusions=[]
-    for site in original['sites']:
-        here=(site['latitude'],site['longitude'])
-        if approx_m(here,start)<250 or approx_m(here,finish)<250: continue
-        if any(approx_m(here,(q['latitude'],q['longitude'])) < 160 for q in exclusions): continue
-        exclusions.append({'latitude':here[0],'longitude':here[1]})
-        if len(exclusions)==MAX_EXCLUSIONS-len(prefs['exclude_locations']):break
-    if not exclusions:
-        response['detail']='All mapped nearby camera locations are near the origin or destination; no safe exclusion points were selected.'
+    def exclusions_for(*reports):
+        points=[]
+        for report in reports:
+            for site in report.get('sites',[]):
+                here=(site['latitude'],site['longitude'])
+                if approx_m(here,start)<250 or approx_m(here,finish)<250:continue
+                if any(approx_m(here,(q['latitude'],q['longitude']))<160 for q in points):continue
+                points.append({'latitude':here[0],'longitude':here[1]})
+                if len(points)>=MAX_EXCLUSIONS-len(prefs['exclude_locations']):return points
+        return points
+
+    current=original
+    best=None
+    first_different=None
+    seen=set()
+    failure=''
+    for _ in range(MAX_CAMERA_ROUTE_ATTEMPTS if mode=='maximum' else 1):
+        exclusions=exclusions_for(current,original)
+        if not exclusions:break
+        signature=tuple((round(p['latitude'],6),round(p['longitude'],6)) for p in exclusions)
+        if signature in seen:break
+        seen.add(signature)
+        response['attempts']+=1
+        try:
+            extra={'options':options} if options is not None else {}
+            alternate=router(locations,exclude_locations=exclusions,**extra)
+            if not materially_different_roads(standard,alternate):
+                failure='Valhalla returned the same or nearly the same road after the exclusions.'
+                break
+            report=route_cameras(repo,alternate,sorted(chosen))
+        except (RouteError,RouteUnavailable,ValueError) as exc:
+            failure=f'Valhalla could not find another valid detour; the normal route is unchanged: {exc}'
+            break
+        candidate=(alternate,report,len(exclusions))
+        if first_different is None:first_different=candidate
+        if not report['incomplete'] and (best is None or (
+                report['count'],report['nearby_count'],alternate['distance_miles']) <
+                (best[1]['count'],best[1]['nearby_count'],best[0]['distance_miles'])):
+            best=candidate
+        if mode!='maximum' or report['count']==0 or report['incomplete']:break
+        current=report
+
+    selected=best or first_different
+    if not selected:
+        response['detail']=failure or ('All mapped nearby cameras are near the start or destination; '
+                                        'there are no usable exclusion points to try.')
         return response
-    try:
-        extra={'options':options} if options is not None else {}
-        alternate=router(locations,exclude_locations=exclusions,**extra)
-        if not materially_different_roads(standard, alternate):
-            response['detail']='Valhalla returned the same (or nearly the same) road after applying the camera exclusions. There is no meaningfully different alternate for this trip.'
-            return response
-        report=route_cameras(repo,alternate,sorted(chosen))
-    except (RouteError, RouteUnavailable, ValueError) as exc:
-        response['detail']=f'Valhalla could not calculate a camera-aware alternative. Your original route is unchanged. {exc}'
-        return response
-    response.update(alternative=alternate,alternative_cameras=report,exclusions_used=len(exclusions),
-        detail='Compare before selecting. Road exclusions are approximate; missing or outdated camera reports may remain.')
+    alternate,report,used=selected
+    improved=not report['incomplete'] and report['count']<original['count']
+    response.update(alternative=alternate,alternative_cameras=report,exclusions_used=used,
+                    preferred='alternate' if improved and mode=='maximum' else 'standard',
+                    detail=(f'{mode.capitalize()} camera priority: evaluated {response["attempts"]} exclusion request(s). '
+                            + ('Fewer mapped cameras are near this alternate. ' if improved else
+                               'No reduction in nearby mapped reports was found. ')
+                            + 'No route is guaranteed free of cameras; road access and camera data may be incomplete.'
+                            + (f' {failure}' if failure else '')))
     return response

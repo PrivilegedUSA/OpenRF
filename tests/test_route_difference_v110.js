@@ -41,16 +41,16 @@ ctx.render();
 assert.equal($('map-route-choices').hidden,false,
   'Same miles, minutes and reports do NOT hide a physically different route');
 assert.equal($('route-choice-difference').textContent,
-  'same distance · same estimated time · same number of potential camera encounters');
+  'same distance · same estimated time · same number of nearby camera reports');
 state.navRouteChoices={standard:main,alternative:{...other,distance_miles:32.8,duration_seconds:2820},
   standard_cameras:reports(6),alternative_cameras:reports(2)};
 ctx.render();
 assert.equal($('route-choice-difference').textContent,
-  '2.0 mi longer · 5 min slower · 4 fewer potential camera encounters');
-assert.equal($('route-choice-standard-details').textContent,'30.8 mi · ~42 min · 6 possible camera encounters');
-assert.equal($('route-choice-alternate-details').textContent,'32.8 mi · ~47 min · 2 possible camera encounters');
+  '2.0 mi longer · 5 min slower · 4 fewer nearby camera reports');
+assert.equal($('route-choice-standard-details').textContent,'30.8 mi · ~42 min · 6 nearby camera reports');
+assert.equal($('route-choice-alternate-details').textContent,'32.8 mi · ~47 min · 2 nearby camera reports');
 assert.equal($('route-choice-alternate').attrs['aria-pressed'],'false');
 state.navRouteChoices.alternative_cameras.incomplete=true;
 assert(ctx.diff(state.navRouteChoices).includes('partial camera data'),
   'Incomplete catalog counts are clearly qualified');
-console.log('PASS v0.2.111 duplicate routes rejected; stacked card and relative distance/time/camera counts');
+console.log('PASS v0.2.112 duplicate routes rejected; stacked card and relative distance/time/camera counts');

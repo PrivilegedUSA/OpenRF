@@ -780,10 +780,11 @@ class Handler(BaseHTTPRequestHandler):
                 except RouteError as exc:
                     return self._error(422, str(exc), 'routing_error')
             if path == '/api/navigation/camera-comparison':
-                if set(body) not in ({'locations', 'types'}, {'locations', 'types', 'options'}):
-                    raise ValueError('Only route locations, camera categories and optional preferences are accepted.')
+                if not {'locations','types'} <= set(body) or set(body)-{'locations','types','options','mode'}:
+                    raise ValueError('Only route locations, camera categories, priority mode and optional preferences are accepted.')
                 try:
-                    data = camera_routes.compare(self.repo, body['locations'], body['types'], **({'options':body['options']} if 'options' in body else {}))
+                    extra={key:body[key] for key in ('options','mode') if key in body}
+                    data = camera_routes.compare(self.repo, body['locations'], body['types'], **extra)
                     return self._json(200, data)
                 except RouteUnavailable as exc:
                     return self._error(503, str(exc), 'routing_unavailable')

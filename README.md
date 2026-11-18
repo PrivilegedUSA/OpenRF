@@ -1,4 +1,13 @@
-# OpenRF v0.2.111 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.112 — Offline-First Navigation and RF Toolkit
+
+## v0.2.112 — Restore reliable camera counts + optional maximum avoidance
+
+- **Regression fixed:** A reported camera within 120 m of the road is counted even if its mapped lens heading appears to face away. v0.2.111 mistakenly subtracted these points, which could report zero and prevent Valhalla from generating an alternate. Camera direction is now supplemental *uncertain* context only, not a reason to hide a report or withhold route comparison.
+- **Route preferences → Camera routing priority** now provides **Balanced** (previous one-alternate behavior, default) and **Maximum avoidance**. Maximum mode makes up to four bounded local Valhalla requests, each avoiding selected nearby mapped camera points, then prioritizes the candidate with the fewest nearby reports regardless of distance or estimated time. Extra checks are bounded to protect local resources and can fail when routes or data are unavailable.
+- **Route choice stays yours.** Maximum mode recommends an alternate if it actually reduces nearby reports, including when the detour is considerably longer. It doesn't silently start guidance or promise a camera-free trip. An unchanged/impossible/partially mapped route stays clearly qualified. Category selection and the new priority are stored only in the existing browser-local preference.
+- No change to offline map rendering, database schema, GPS logging, hardware scans, credentials, sensor plugins or Valhalla's local-only network endpoint.
+
+See [v0.2.112 test notes](docs/RELEASE_0.2.112_TESTS.md). The previous release's directional `0 possible encounters` may have been a false negative; **use this release's conservative nearby camera count** for comparing routes.
 
 ## v0.2.111 — Direction-aware camera route comparisons
 

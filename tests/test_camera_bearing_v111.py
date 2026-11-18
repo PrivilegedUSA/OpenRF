@@ -30,14 +30,14 @@ class CameraDirectionTests(unittest.TestCase):
         west = camera_routes.route_cameras(self.repo, self.west)
         self.assertEqual(east['count'], 1)
         self.assertEqual(east['direction_matched_count'], 1)
-        self.assertEqual(west['count'], 0)
+        self.assertEqual(west['count'], 1, 'Lens bearing must not erase a nearby camera')
         self.assertEqual(west['nearby_count'], 1)
-        self.assertEqual(west['excluded_by_direction'], 1)
-        self.assertEqual(west['sites'], [])
+        self.assertEqual(west['not_direction_matched_count'], 1)
+        self.assertEqual(west['sites'][0]['direction_assessment'], 'not_direction_matched')
 
     def test_camera_point_near_road_but_facing_away_is_not_match(self):
         self.camera('N')  # North of road, looking further north.
-        self.assertEqual(camera_routes.route_cameras(self.repo, self.east)['count'], 0)
+        self.assertEqual(camera_routes.route_cameras(self.repo, self.east)['count'], 1)
         self.assertEqual(camera_routes.route_cameras(self.repo, self.east)['nearby_count'], 1)
 
     def test_missing_or_unparseable_direction_remains_potential(self):
@@ -66,7 +66,7 @@ class CameraDirectionTests(unittest.TestCase):
     def test_directional_match_not_proof_of_coverage(self):
         self.camera('270')
         report = camera_routes.route_cameras(self.repo, self.east)
-        self.assertIn('does not verify', report['notice'])
+        self.assertIn('remain counted', report['notice'])
         self.assertEqual(report['sites'][0]['direction_assessment'], 'orientation_match')
         self.assertEqual(report['sites'][0]['direction'], '270')
 
@@ -77,9 +77,11 @@ class CameraDirectionTests(unittest.TestCase):
         result = camera_routes.compare(self.repo, locations, ['ALPR'],
                                        router=lambda _locations, **_opts: self.east)
         self.assertIsNone(result['alternative'])
-        self.assertEqual(result['standard_cameras']['count'], 0)
+        self.assertEqual(result['standard_cameras']['count'], 1)
         self.assertEqual(result['standard_cameras']['nearby_count'], 1)
-        self.assertIn('although 1 camera point(s) are nearby', result['detail'])
+        self.assertEqual(result['attempts'], 1,
+                         'The nearby camera must still cause an alternate request')
+        self.assertIn('same or nearly the same road', result['detail'])
 
 
 if __name__ == '__main__':

@@ -16,18 +16,23 @@ const alternative={...standard,distance_miles:10.71,duration_seconds:2040,
   coordinates:[[-120.75,38.45],[-120.745,38.445],[-120.74,38.46]]};
 const state={navPicking:false,navChoicePanelClosed:false,navFollowId:null,navChoiceSelection:'alternate',
   navRouteChoices:{standard,alternative,
-    standard_cameras:{count:1,nearby_count:1,excluded_by_direction:0,unknown_direction_count:0},
-    alternative_cameras:{count:0,nearby_count:1,excluded_by_direction:1,unknown_direction_count:0}}};
+    standard_cameras:{count:1,nearby_count:1,not_direction_matched_count:0,unknown_direction_count:0},
+    alternative_cameras:{count:1,nearby_count:1,not_direction_matched_count:1,unknown_direction_count:0}}};
 const context={$ ,state,mapSearchForm:{hidden:true},positionRouteChoicePanel(){}};
 vm.createContext(context);
 vm.runInContext(app.slice(begin,end)+'\nthis.render=renderRouteChoices;',context);
 context.render();
 assert.equal($('route-choice-alternate-details').textContent,
-  '10.71 mi · ~34 min · 0 possible encounters (1 nearby)');
+  '10.71 mi · ~34 min · 1 nearby camera report');
 assert.equal($('route-choice-difference').textContent,
-  '1.1 mi longer · 7 min slower · 1 fewer potential camera encounter · 1 nearby report not direction-matched');
-state.navRouteChoices.alternative_cameras={count:1,nearby_count:1,unknown_direction_count:1,excluded_by_direction:0};
+  '1.1 mi longer · 7 min slower · same number of nearby camera reports · 1 lens bearing estimate not matched (still counted)');
+state.navRouteChoices.alternative_cameras={count:1,nearby_count:1,unknown_direction_count:1,not_direction_matched_count:0};
 context.render();
 assert($('route-choice-difference').textContent.includes('1 camera direction unknown'));
-assert($('route-choice-difference').textContent.includes('same number of potential camera encounters'));
-console.log('PASS v0.2.111 alternate card explains directional estimate versus nearby reports');
+assert($('route-choice-difference').textContent.includes('same number of nearby camera reports'));
+state.navRouteChoices.mode='maximum';state.navRouteChoices.preferred='alternate';
+state.navRouteChoices.alternative_cameras={count:0,nearby_count:0,unknown_direction_count:0};
+context.render();
+assert($('route-choice-status').textContent.includes('Maximum avoidance recommends'));
+assert($('route-choice-difference').textContent.includes('1 fewer nearby camera report'));
+console.log('PASS v0.2.112 conservative nearby counts and maximum-avoidance comparison');

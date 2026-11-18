@@ -2616,7 +2616,7 @@ function updateCameraApproachAlert(route,progress,fix,turn){
   if(!found){hideCameraApproachAlert();return;}
   const site=found.site,distance=cameraApproach.distanceLabel(found.distance_m);
   cameraAlertTitle.textContent=`Mapped ${cameraApproach.typeLabel(site.type)} report · ${distance} ahead`;
-  cameraAlertDetail.textContent=`${site.state==='VERIFIED'?'Document-backed':'Reported'} location near planned road · ${site.source||'source unspecified'}. ${site.direction_assessment==='orientation_match'?'Stored lens heading suggests an approaching road, but coverage is unverified.':'Camera direction is unknown or insufficient to assess.'} Operation and lane coverage unverified.`;
+  cameraAlertDetail.textContent=`${site.state==='VERIFIED'?'Document-backed':'Reported'} location near planned road · ${site.source||'source unspecified'}. ${site.direction_assessment==='orientation_match'?'Stored lens heading suggests an approaching road.':site.direction_assessment==='not_direction_matched'?'Stored lens heading does not match the modeled approach; this does not rule out coverage.':'Camera direction is unknown or insufficient to assess.'} Operation and lane coverage unverified.`;
   cameraAlertCard.hidden=false;
   state.navCameraAlertLastQualifiedAt=Date.now();
   if(found.newAlert)state.navCameraAlertSeen.add(site.key);
@@ -2850,6 +2850,7 @@ renderRoadAvoidList();
 // Frequent avoidance choices form one continuous list: roads and all three camera types.
 const cameraSwitches=$('map-camera-route-panel').querySelector('.camera-route-types');
 $('route-avoid-settings').insertBefore(cameraSwitches,$('route-avoid-settings').querySelector('p.small.muted'));
+$('route-avoid-settings').insertBefore($('route-camera-priority-control'),$('route-avoid-settings').querySelector('p.small.muted'));
 // Keep report/compare controls available below the ordinary avoidance switches.
 $('route-avoid-settings').insertBefore($('map-camera-route-panel'),$('route-road-control'));
 
@@ -2858,15 +2859,16 @@ function cameraReportSummary(report){
   const counts=(report.sites||[]).reduce((by,site)=>(by[site.type]=(by[site.type]||0)+1,by),{});
   const breakdown=Object.entries(counts).map(([kind,n])=>`${kind.replace('_',' ')}: ${n}`).join(' · ');
   const assessed=Number.isFinite(report.nearby_count);
-  const locationDetail=assessed?` · ${report.nearby_count} nearby positions, ${report.excluded_by_direction||0} not direction-matched, ${report.unknown_direction_count||0} unknown direction`:'';
-  return `${report.count} potential camera encounter report(s)${locationDetail}${breakdown?' · '+breakdown:''}${report.incomplete?' · PARTIAL DATA':''}. Direction checks use reported lens bearings; road/lane coverage, activity and camera-map completeness are unverified.`;
+  const locationDetail=assessed?` · ${report.not_direction_matched_count||0} bearing estimates not matched, ${report.unknown_direction_count||0} unknown directions (all retained in the count)`:'';
+  return `${report.count} nearby mapped camera report(s)${locationDetail}${breakdown?' · '+breakdown:''}${report.incomplete?' · PARTIAL DATA':''}. A camera can observe other lanes or directions; the viewing-angle estimate never removes a nearby report.`;
 }
 function updateCameraRoutePreferenceDisplay(){
   const chosen=selectedRouteCameraTypes();
   const enabled=$('map-camera-route-enable').checked && chosen.length>0;
-  const label=enabled?chosen.map(x=>({ALPR:'ALPR',RED_LIGHT:'red-light',SPEED:'speed'}[x])).join(' / '):'Off';
+  const label=enabled?chosen.map(x=>({ALPR:'ALPR',RED_LIGHT:'red-light',SPEED:'speed'}[x])).join(' / ')+
+    ($('route-camera-priority').value==='maximum'?' · Maximum':''):'Off';
   $('map-search-camera-choice').textContent=label;
-  $('map-follow-camera-options').textContent=`Route prefs · ${enabled?chosen.length+' cameras':'standard'}`;
+  $('map-follow-camera-options').textContent=`Route prefs · ${enabled?chosen.length+' cameras'+($('route-camera-priority').value==='maximum'?' · max':''):'standard'}`;
   // This explicit opt-in governs only future off-route requests; it does not
   // silently replace the currently chosen Valhalla road route.
   state.navCameraAvoidTypes=enabled?[...chosen]:null;
@@ -2881,12 +2883,13 @@ try{
     $('route-avoid-tolls').checked=saved.tolls===true;
     const types=Array.isArray(saved.cameras)?saved.cameras.filter(x=>['ALPR','RED_LIGHT','SPEED'].includes(x)):[];
     for(const box of document.querySelectorAll('[data-route-camera-type]'))box.checked=types.includes(box.dataset.routeCameraType);
+    $('route-camera-priority').value=saved.priority==='maximum'?'maximum':'balanced';
   }
 }catch(_err){/* Local preferences are optional. */}
 function syncRouteCameraPrefs(){
   $('map-camera-route-enable').checked=selectedRouteCameraTypes().length>0;
   try{window.localStorage?.setItem(ROUTE_PREFS_KEY,JSON.stringify({highways:$('route-avoid-highways').checked,
-    tolls:$('route-avoid-tolls').checked,cameras:selectedRouteCameraTypes()}));}catch(_err){}
+    tolls:$('route-avoid-tolls').checked,cameras:selectedRouteCameraTypes(),priority:$('route-camera-priority').value}));}catch(_err){}
 }
 syncRouteCameraPrefs();
 
@@ -2914,8 +2917,8 @@ function showRouteCameras(report){
   const road=state.navPreview?.is_driving_route;
   const chip=$('map-camera-route-chip');chip.hidden=true;
   $('map-route-camera-summary').textContent=road?cameraReportSummary(report):'Choose camera types, then Get directions to compare local road routes.';
-  if(report)$('map-directions-summary').textContent+=` · ${report.count} possible camera encounter(s)`;
-  chip.textContent=road?`Camera routes · ${report?.count??'—'} possible encounters`:'Camera route options';
+  if(report)$('map-directions-summary').textContent+=` · ${report.count} nearby camera report(s)`;
+  chip.textContent=road?`Camera routes · ${report?.count??'—'} nearby reports`:'Camera route options';
   $('map-camera-comparison-status').textContent=road?
     'The normal route is selected. Select categories and Compare routes; no alternative is guaranteed.':
     'Choose camera types and enable consideration, then Get directions. No camera-free route is guaranteed.';
@@ -2963,20 +2966,19 @@ function routeChoiceDifferenceSummary(response){
     Number.isFinite(mainReports)&&Number.isFinite(otherReports);
   const delta=otherReports-mainReports;
   const reportsText=!validReports?'camera comparison unavailable':
-    delta===0?'same number of potential camera encounters':
-      `${Math.abs(delta)} ${delta>0?'more':'fewer'} potential camera encounter${Math.abs(delta)===1?'':'s'}`;
-  const away=Number(response.alternative_cameras?.excluded_by_direction)||0;
+    delta===0?'same number of nearby camera reports':
+      `${Math.abs(delta)} ${delta>0?'more':'fewer'} nearby camera report${Math.abs(delta)===1?'':'s'}`;
+  const away=Number(response.alternative_cameras?.not_direction_matched_count)||0;
   const unknown=Number(response.alternative_cameras?.unknown_direction_count)||0;
-  const extra=away?`${away} nearby report${away===1?'':'s'} not direction-matched`:
+  const extra=away?`${away} lens bearing estimate${away===1?'':'s'} not matched (still counted)`:
     unknown?`${unknown} camera direction${unknown===1?'':'s'} unknown`:'';
   const incomplete=response.standard_cameras?.incomplete||response.alternative_cameras?.incomplete;
   return [distanceText,timeText,reportsText,extra].filter(Boolean).join(' · ')+(incomplete?' · partial camera data':'');
 }
 function routeChoiceCameraCount(report){
   if(!report)return '? camera reports';
-  const near=Number(report.nearby_count),count=Number(report.count);
-  if(!Number.isFinite(near)||near===count)return `${count} possible camera encounter${count===1?'':'s'}`;
-  return `${count} possible encounter${count===1?'':'s'} (${near} nearby)`;
+  const count=Number(report.count);
+  return `${count} nearby camera report${count===1?'':'s'}`;
 }
 function renderRouteChoices(){
   const response=state.navRouteChoices, panel=$('map-route-choices');
@@ -2998,7 +3000,8 @@ function renderRouteChoices(){
   }
   $('route-choice-difference').textContent=routeChoiceDifferenceSummary(response);
   $('route-choice-status').textContent=ready ?
-    'Tap to choose. Teal is selected; dashed amber marks the other road. Camera view estimates are unverified, especially where direction data is missing.' :
+    (response.mode==='maximum'&&response.preferred==='alternate'?'Maximum avoidance recommends the alternate with fewer nearby reports. Review the extra distance and time, then tap to select. ':'Tap to choose. ')+
+    'Teal is selected; dashed amber marks the other road. Mapped camera coverage is incomplete.' :
     (response.detail || 'Only the main route is available with current preferences and road data.');
   positionRouteChoicePanel();
 }
@@ -3057,10 +3060,12 @@ async function compareVisibleCameraRoutes(initial,types){
   if(!types.length){status.textContent='Select at least one camera category.';return;}
   const points=[initial.origin,...(initial.stops||[]),initial.destination].map(p=>({latitude:p[1],longitude:p[0]}));
   const token=++state.navCameraRouteEpoch;
-  button.disabled=true;status.textContent='Comparing local road routes with the saved camera catalog…';
+  button.disabled=true;status.textContent=$('route-camera-priority').value==='maximum'?
+    'Maximum camera avoidance: evaluating up to four local Valhalla exclusion routes. This may take longer…':
+    'Comparing local road routes with the saved camera catalog…';
   $('map-use-camera-alternate').hidden=true;state.navCameraComparison=null;
   try{
-    const response=await api('/api/navigation/camera-comparison','POST',{locations:points,types,options:routeRequestOptions()});
+    const response=await api('/api/navigation/camera-comparison','POST',{locations:points,types,options:routeRequestOptions(),mode:$('route-camera-priority').value});
     if(token!==state.navCameraRouteEpoch || state.navPreview!==initial || selectedRouteCameraTypes().join(',')!==types.join(','))return;
     showCameraComparison(response);
   }catch(error){if(token===state.navCameraRouteEpoch && state.navPreview===initial){
@@ -3078,6 +3083,7 @@ function invalidateCameraComparison(){
   updateCameraRoutePreferenceDisplay();
 }
 for(const box of document.querySelectorAll('[data-route-camera-type]'))box.addEventListener('change',()=>{syncRouteCameraPrefs();onRoutePreferencesChanged();});
+$('route-camera-priority').addEventListener('change',()=>{syncRouteCameraPrefs();onRoutePreferencesChanged();});
 $('map-camera-route-enable').addEventListener('change',invalidateCameraComparison);
 $('map-use-camera-alternate').addEventListener('click',()=>chooseRouteChoice('alternate'));
 
