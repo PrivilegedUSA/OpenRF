@@ -815,3 +815,9 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Anchor the map-settings sheet above the lower-right gear using measured screen coordinates on open, resize and scroll. Clamp size and scroll tall contents within the panel, including in 800×480 landscape. Retain existing route preferences, layers, observations and message badges.
 - Add deterministic source-error recovery and gear-layout regression tests. No change to MBTiles assets, WebGL settings, drivers, database or network disclosure. Real Firefox/Intel GPU and local geographic tile drawing must still be verified by the operator.
 
+## v0.2.106 — Preserve vector renderer through GPS style changes (2026-11-18)
+
+- Fix an error-handler race reported on Firefox: the world map initially rendered, then an automatic GPS fly-to switched to Amador/Calaveras regional vector tiles; a single tile or source request error while `mapReady=false` scheduled a full raster/coordinate fallback after only 500 ms. Treat individual resource errors as recoverable, retain the MapLibre renderer, and show a non-blocking diagnostic.
+- Replace the old twelve-second silent-style fallback with a non-destructive warning if neither online nor installed regional vectors finish loading. A real synchronous WebGL/MapLibre constructor failure can still invoke the coordinate fallback. No map-source selection, map bounds, tile format or data was changed.
+- Add a regression test asserting that tile-error and style-timeout branches cannot tear down an otherwise healthy vector map. Preserve the landscape settings popup and all existing features. Physical Firefox rendering and GPS transition remain operator verification steps.
+

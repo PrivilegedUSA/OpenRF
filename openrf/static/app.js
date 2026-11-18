@@ -1249,10 +1249,10 @@ function tryOfflineVectorRecovery(attempt,allowLoadedStyle=false){
   try{
     state.map.setStyle(openrfMapStyleUrl());
     updateOpenRFVectorButtons();
-    $('map-vector-status').textContent='Online vector style did not start. Trying the installed regional offline vector map before raster fallback.';
+    $('map-vector-status').textContent='Online vector style did not start. Trying the installed regional offline vector map.';
     setTimeout(()=>{
       if(attempt===state.mapAttempt && !state.mapReady && !state.rasterMap)
-        switchToRasterMap('The online and local vector styles could not render.');
+        showVectorBasemapNotice('The installed regional vector style is taking longer than expected to load. Keeping MapLibre available so remaining tiles can finish; check the browser Console for a persistent source error.');
     },12000);
     return true;
   }catch(error){
@@ -1303,6 +1303,7 @@ function startMap() {
   state.mapStartupError=null;
   state.mapOfflineRecoveryTried=false;
   state.mapBasemapVisible=false;
+  state.mapSourceWarningShown=false;
   state.mapRegionalFramePending=state.mapVectorOffline && state.mapVectorPreference==='offline';
   if (!window.maplibregl) { const view = state.preferredView; state.preferredView = null; return startRasterMap('MapLibre JavaScript did not load. The installed regional vector map needs MapLibre/WebGL. Using coordinate fallback.', view); }
   const attempt = ++state.mapAttempt;
@@ -1329,6 +1330,7 @@ function startMap() {
       updateOfflineAttribution();
       state.mapReady=true;
       state.mapBasemapVisible=false;
+      state.mapSourceWarningShown=false;
       if(state.mapRegionalFramePending){state.mapRegionalFramePending=false;frameInstalledRegion();}
       installMarkerLayer();
       window.OpenRFCameras?.installVector(state.map);
@@ -1384,25 +1386,28 @@ function startMap() {
     state.map.on('error', evt => {
       if(!evt.error)return;
       console.warn('MapLibre vector source error:',evt.error);
-      if(!state.mapReady){
-        setTimeout(()=>{
-          if(attempt===state.mapAttempt && !state.mapReady && !state.rasterMap && !tryOfflineVectorRecovery(attempt))
-            switchToRasterMap('Vector style failed; showing raster map instead.');
-        },500);
-      }else if(!state.mapBasemapVisible){
-        // Keep the renderer alive to allow a transient request to recover.
-        // A 9-second source check will recover to installed regional tiles
-        // or show a visible diagnostic instead of an unexplained dark screen.
-        const source=String(evt.sourceId||evt.error?.sourceId||'');
-        const msg=String(evt.error?.message||evt.error||'');
-        if(source==='openmaptiles' || /tiles\.openfreemap\.org|\/api\/vector\/tiles\//i.test(msg))
-          showVectorBasemapNotice('Map source request failed. Waiting briefly to retry; local regional vectors will be tried automatically when available.');
+      // MapLibre may report an individual missing/aborted tile while replacing
+      // its online style with regional offline tiles during GPS flyTo. It is
+      // NOT a WebGL failure, and must never destroy the whole vector renderer.
+      const source=String(evt.sourceId||evt.error?.sourceId||'');
+      const msg=String(evt.error?.message||evt.error||'');
+      const tileIssue=source==='openmaptiles' ||
+        /tiles\.openfreemap\.org|\/api\/vector\/tiles\/|failed to fetch|abort(ed)?/i.test(msg);
+      if(!state.mapBasemapVisible && !state.mapSourceWarningShown){
+        state.mapSourceWarningShown=true;
+        showVectorBasemapNotice(tileIssue ?
+          (state.mapVectorOffline ?
+            'A regional map tile request did not complete. Keeping the vector map open while the remaining installed tiles load.' :
+            'An online map tile request did not complete. Keeping the vector map open; the installed regional map can be tried if needed.') :
+          'A vector style resource could not load. Keeping the map open while its other resources finish; check the browser Console if roads remain missing.');
       }
     });
     $('map-mode').textContent = 'Offline / raster';
     setTimeout(() => {
       if (attempt === state.mapAttempt && !state.mapReady && !state.rasterMap && !tryOfflineVectorRecovery(attempt))
-        switchToRasterMap('Vector map timed out; showing raster map instead.');
+        showVectorBasemapNotice(state.mapVectorOffline ?
+          'The installed regional vector style is still loading. A missing regional tile must not force a coordinate-grid fallback. Check the browser Console if roads remain absent.' :
+          'The online vector style has not finished loading. Check tile connectivity or choose the installed regional vector source in Map settings.');
     }, 12000);
   } catch (error) {
     console.warn('MapLibre startup failed:', error);

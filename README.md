@@ -1,4 +1,10 @@
-# OpenRF v0.2.105 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.106 — Offline-First Navigation and RF Toolkit
+
+## v0.2.106 — Keep vector maps alive during GPS zoom
+
+- A single failed/aborted MapLibre tile request during the automatic nationwide-to-regional source switch no longer triggers a coordinate-grid fallback. The source error is logged and shown as a small notice while the vector renderer stays available for remaining local tiles.
+- A 12-second style timeout now leaves the vector map running with a diagnostic; it cannot destroy a potentially recoverable offline map. Truly unavailable MapLibre/WebGL still has the explicit coordinate fallback. This targets the reported issue in which nationwide geography briefly appears, then disappears during GPS fly-to.
+- The v0.2.105 landscape settings popup and message badge are unchanged. See [v0.2.106 verification steps](docs/RELEASE_0.2.106_TESTS.md).
 
 ## v0.2.105 — Visible base-map recovery + landscape settings sheet
 
