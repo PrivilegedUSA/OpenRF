@@ -8,7 +8,7 @@ const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const css=fs.readFileSync(path.join(root,'app.css'),'utf8');
 assert(html.includes('id="wifi-results-band"') && html.includes('id="wifi-results-search"'));
 assert(html.includes('id="map-navigation-options"') && html.includes('id="map-settings-close"'));
-assert(html.includes('class="map-settings-popup"') && html.includes('aria-label="Close address search settings"'));
+assert(html.includes('class="map-settings-popup"') && html.includes('aria-label="Close navigation settings"'));
 assert.match(css, /#page-map \.map-navigation-settings\[open\][\s\S]*?right:90px;left:auto;bottom:9px/);
 assert(css.includes('right:-82px;bottom:43px'), 'popup above fixed gear');
 assert(js.includes("$('map-settings-close').addEventListener('click'"));

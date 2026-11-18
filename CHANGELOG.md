@@ -829,3 +829,10 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Bump bundled Python version and release manifest. The reported blank regional MapLibre view remains an open diagnostic task; style JSON HTTP 200 alone does not verify that offline tile/glyph resources or geographic layers render.
 - No modifications to offline map data, GPU configuration, user SQLite data or network services; real Raspberry Pi/browser rendering and connected radio links remain unverified.
 
+## v0.2.108 — Offline readiness gear and selectable trip origin (2026-11-18)
+
+- Preserve the right-rail Map settings overlay, and move the existing read-only Offline navigation readiness panel beneath the bottom-right gear with the other route and provider controls. Reparent its existing DOM node (no cloned inputs, duplicate IDs, new background checks, or new external requests), and constrain its content to the existing scrolling landscape popover.
+- Add an optional map-tap starting point picker in Plan a trip. Share the proven vector/raster screen-to-coordinate path with destination picking, but write only the manual origin fields. Show a teal start marker; keep the separate red destination pin, cancel/drag safeguards, normal map panning, and browser location as the default.
+- Resolve custom typed starting addresses through the existing opt-in/local address service for both full trip planning and the quick Get directions workflow. Recalculate after any start change; never silently reuse an old route or treat straight-line previews as drivable directions. Use a fresh browser position to return to the default.
+- The reported offline regional renderer failure is not repaired in this version. Online vector rendering has been confirmed by the operator in Firefox; actual offline tile loading, decoding and source-style errors still require browser request/Console evidence. No changes to map archives, GPS measurements, user data or wireless hardware.
+

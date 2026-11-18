@@ -1,4 +1,13 @@
-# OpenRF v0.2.107 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.108 — Offline-First Navigation and RF Toolkit
+
+## v0.2.108 — Unify readiness under the gear + choose your own starting point
+
+- The **Map settings** icon (folded map on the right side) stays where it was, including the online/offline vector source switch and OpenRF Light/Dark controls. The separate **Offline navigation readiness** card has moved from below the map into the **bottom-right navigation gear**, alongside route, camera-alert and optional MapTiler address-provider settings. Its check remains strictly user-triggered and read-only. The gear sheet scrolls above its button on an 800×480 landscape display.
+- Under **Plan a trip → Starting point**, the default remains a recent permissioned browser position, but you can now **type a custom starting address**, enter coordinates, choose a saved place, or select **Pick starting point on map**. A map tap places an explicit teal origin marker without replacing the red destination or recording a survey/GPS history point. You can use the existing **Use fresh browser location** control to return to the default.
+- Both the optional full trip form and the main **Get directions** action now resolve a typed starting address when you have explicitly selected a custom origin. An origin change invalidates previous road directions and alternatives, leaving the destination choice intact. Map-tap picking restores pan after one tap or Escape, and map control taps and drags remain excluded.
+- The prior regional **offline vector basemap rendering issue remains under investigation**. The operator confirmed that switching to **Use online vectors** restores geography in the same Firefox session; this release leaves that preference and the working map renderer alone. Local map/status reports show files exist, but not that Firefox decoded all regional tiles. Do not infer a Valhalla road route from vector tile readiness.
+
+See [v0.2.108 verification](docs/RELEASE_0.2.108_TESTS.md). No sensor drivers, private databases, installed tiles, wireless services or network binding behavior were changed.
 
 ## v0.2.107 — OpenRF identity across the actual software
 

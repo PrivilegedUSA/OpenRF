@@ -13,8 +13,8 @@ const beginEnd=source.indexOf("$('nav-pick-map').addEventListener",begin);
 assert(start>0&&end>start&&begin>0&&beginEnd>begin,'map picking functions are present');
 assert(css.includes('#map.destination-picking,#map.destination-picking:active'), 'map-specific crosshair mode');
 assert.match(css,/cursor:crosshair!important/);
-assert.match(source,/DESTINATION PLACED · DRAG PIN TO ADJUST/);
-const ids=['map','map-begin-guidance','nav-pick-map','map-pick-destination','nav-dest-lat','nav-dest-lon','map-destination-query','nav-dest-query','map-camera-route-chip','map-route-choices'];
+assert.match(source,/DESTINATION PLACED · DRAG RED PIN TO ADJUST/);
+const ids=['map','map-begin-guidance','nav-pick-map','nav-pick-start-map','map-pick-destination','nav-dest-lat','nav-dest-lon','map-destination-query','nav-dest-query','map-camera-route-chip','map-route-choices'];
 function makeHarness(type) {
   const elements=Object.fromEntries(ids.map(id=>[id,{
     value:'',attrs:{},listeners:{},

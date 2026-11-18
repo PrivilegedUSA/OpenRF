@@ -24,6 +24,8 @@ const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
 const state = { observations: [], sessions: [], waypoints: [], sdrSites: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, hardwareManager: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navVoiceEnabled:false, navVoiceMemory:null, navVoiceFailed:false, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, navFollowCameraSuspended:false, navFollowLastPosition:null, navFollowStartedAt:0, navFollowLastValidAt:0, navFollowSignalState:'waiting',navCameraAvoidTypes:null,navCameraComparison:null,navCameraRouteEpoch:0,navCameraReport:null,navCameraPanelOpen:false,navRouteChoices:null,navChoiceSelection:"standard",navChoicePanelClosed:false,navAvoidSession:[],navAvoidSaved:[],navAvoidAnchor:null,navAvoidPicking:false,navRoadPrefsDirty:false,navFollowEpoch:0,navRerouteBusy:false,navOffrouteCount:0,navOffrouteSince:0,navRerouteLast:0,
   navDemoActive:false,navDemoPaused:false,navDemoProgress:0,navDemoTimer:null,navDemoLastTime:0,
   navDemoMarker:null,navDemoMarkerMap:null,navDemoFix:null,rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, bleScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPickPointerStart:null, navPickSwallowClickUntil:0, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapObservationId:null, mapSurveySeriesKey:null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
+state.navPickKind='destination';
+state.navPickedOrigin=null;
 state.mapVectorPreference=rememberedVectorPreference();
 state.mapOfflineRecoveryTried=false;
 state.mapStartupError=null;
@@ -177,6 +179,10 @@ const mapToolGroups = {
   gps: {title: 'GPS-linked surveys', ids: ['survey-waypoint-manager','sdr-site-map-manager']},
   offline: {title: 'Offline maps', ids: ['offline-basemap-settings','map-area-manager']}
 };
+// v0.2.108: Offline navigation readiness belongs in the bottom-right gear,
+// not as a card below the map. Keep the separate right-rail Map settings tool.
+const readinessPanel = $('map-offline-readiness');
+$('map-gear-readiness-slot').append(readinessPanel);
 const mapToolOverlay = $('map-tool-overlay');
 const mapToolContent = $('map-tool-content');
 const mapToolNodes = {};
@@ -194,7 +200,7 @@ for (const [kind, group] of Object.entries(mapToolGroups)) {
   mapToolContent.append(pane);
   mapToolPanes[kind] = pane;
 }
-// Keep the live browser-location status attached to an actual overlay panel.
+// Keep the live browser-location status with the right-rail Map settings tool.
 mapToolNodes.settings[0].append($('map-location-status'));
 $('map-tools-anchor').remove(); // former scroll-to-tools target
 function closeMapToolOverlay(restoreFocus = false) {
@@ -3056,7 +3062,10 @@ async function planRoadRoute(points,{preserveCurrentOnFailure=false}={}) {
   }
 }
 async function freshNavigationOrigin() {
-  if (state.navOriginManual) return navigationInputPoint('nav-start');
+  if (state.navOriginManual){
+    const typed=$('nav-start-query').value.trim();
+    return typed ? (await resolveTypedPlace(typed)).coordinates : navigationInputPoint('nav-start');
+  }
   try { return locationForQuickPreview(); }
   catch (error) {
     if (!navigator.geolocation) throw error;
@@ -3337,6 +3346,15 @@ function wireTripAddressField(input) {
   let timer=null, requestIndex=0;
   input.addEventListener('input',()=>{
     const text=input.value.trim(), id=++requestIndex;
+    if(input.id==='nav-start-query'){
+      state.navOriginManual=Boolean(text);
+      state.navPickedOrigin=null;
+      if(state.navPreview || state.navRouteChoices)resetRouteForNewDestination();
+      $('nav-origin-status').textContent=text ?
+        'Custom starting address entered. Choose a suggestion or use coordinates; Get directions will resolve this place.' :
+        'Starting point reset to your browser location (when available).';
+      renderNavigationOverlay();
+    }
     options.hidden=true; options.replaceChildren();
     if(timer) clearTimeout(timer);
     if(text.length<3) return;
@@ -3376,12 +3394,14 @@ for(const id of ['nav-start-query','nav-dest-query']) wireTripAddressField($(id)
 // resumes after one accepted tap; MapLibre and raster fallback share the same
 // screen-to-coordinate conversion, independent of the browser GPS marker.
 function syncDestinationPickMode() {
+  const originPicking=state.navPicking && state.navPickKind==='origin';
   $('map').classList.toggle('destination-picking', state.navPicking);
   $('map').parentElement.classList.toggle('destination-pick-active', state.navPicking);
   state.map?.__openrfRefreshClickableCursor?.();
   for (const id of ['nav-pick-map','map-pick-destination']) {
-    $(id).setAttribute('aria-pressed', String(state.navPicking));
+    $(id).setAttribute('aria-pressed', String(state.navPicking && !originPicking));
   }
+  $('nav-pick-start-map').setAttribute('aria-pressed',String(originPicking));
   const map=state.map;
   if (state.navPicking && map?.dragPan) {
     // Re-entry must always disable pan, even if a stale prior pick saved
@@ -3457,8 +3477,9 @@ destinationMapSurface.addEventListener('click',event=>{
 },true);
 window.addEventListener('keydown',event=>{
   if (event.key==='Escape' && state.navPicking) {
-    event.preventDefault();state.navPicking=false;syncDestinationPickMode();
-    renderNavigationOverlay();setMapDestinationStatus('Map destination selection cancelled.');
+    const wasOrigin=state.navPickKind==='origin';
+    event.preventDefault();state.navPicking=false;state.navPickKind='destination';syncDestinationPickMode();
+    renderNavigationOverlay();setMapDestinationStatus(wasOrigin?'Starting-point selection cancelled.':'Map destination selection cancelled.');
   }
 });
 
@@ -3466,8 +3487,26 @@ function consumeNavigationPick(lon,lat) {
   if (!state.navPicking) return false;
   state.navPickPointerStart=null;
   if (!Number.isFinite(lon) || !Number.isFinite(lat) || Math.abs(lon)>180 || Math.abs(lat)>90) return false;
+  const pickingOrigin=state.navPickKind==='origin';
   if(state.navRouteChoices || state.navPreview || state.navCameraComparison) resetRouteForNewDestination();
   state.navPicking = false;
+  state.navPickKind='destination';
+  if(pickingOrigin){
+    // The start is the operator-selected point, not the blue browser GPS dot.
+    // Preserve any already selected destination while invalidating old routes.
+    state.navOriginManual=true;
+    state.navPickedOrigin=[lon,lat];
+    $('nav-start-lat').value=lat.toFixed(7);
+    $('nav-start-lon').value=lon.toFixed(7);
+    $('nav-start-query').value=`${lat.toFixed(7)}, ${lon.toFixed(7)}`;
+    $('nav-origin-status').textContent=`Map-selected starting point: ${lat.toFixed(5)}, ${lon.toFixed(5)}. Use fresh browser location to restore the default.`;
+    syncDestinationPickMode();
+    if(typeof syncMapPickedAction==='function')syncMapPickedAction();
+    setMapDestinationStatus('Starting point selected on the map. Choose a destination, then Get directions.');
+    setNavigationStatus('Starting point changed. A new road route requires local Valhalla; no location was saved.');
+    renderNavigationOverlay();
+    return true;
+  }
   state.navPickedPoint = [lon,lat];
   syncDestinationPickMode();
   $('nav-dest-lat').value = lat.toFixed(7);
@@ -3549,17 +3588,24 @@ function destinationPinSVG(x,y){
     `<circle r="28" fill="transparent" class="nav-drag-target"/>`+
     `</g>`;
 }
+function originPinSVG(x,y){
+  return `<g class="nav-origin-pin" transform="translate(${x.toFixed(2)} ${y.toFixed(2)})" pointer-events="none" aria-label="Custom starting point">`+
+    `<circle r="21" fill="#34c9b1" opacity=".15"/>`+
+    `<circle r="9" fill="#34c9b1" stroke="#ffffff" stroke-width="2.5"/>`+
+    `<circle r="3" fill="#093038"/></g>`;
+}
 function renderNavigationOverlay() {
   const overlay = $('navigation-preview-overlay');
   const label = $('navigation-preview-label');
   if (state.navPicking && !state.navPreview) {
     overlay.replaceChildren();
-    label.textContent='TAP MAP TO CHOOSE DESTINATION'; label.hidden=false;
+    label.textContent=state.navPickKind==='origin'?'TAP MAP TO CHOOSE STARTING POINT':'TAP MAP TO CHOOSE DESTINATION'; label.hidden=false;
     return;
   }
   const preview = state.navPreview;
   const picked = state.navPickedPoint;
-  if ((!preview && !picked) || (!state.mapReady && !state.rasterMap)) {
+  const pickedOrigin=state.navPickedOrigin;
+  if ((!preview && !picked && !pickedOrigin) || (!state.mapReady && !state.rasterMap)) {
     overlay.replaceChildren(); label.hidden=true; return;
   }
   const map=$('map'), width=map.clientWidth, height=map.clientHeight;
@@ -3579,16 +3625,21 @@ function renderNavigationOverlay() {
     return [NaN,NaN];
   }
   const points=preview ? (preview.type==='ROAD_ROUTE' && Array.isArray(preview.coordinates) ? preview.coordinates :
-    (preview.coordinates || [preview.origin,...(preview.stops||[]),preview.destination])) : [picked];
+    (preview.coordinates || [preview.origin,...(preview.stops||[]),preview.destination])) : [picked||pickedOrigin];
   const projected=points.map(project);
   if(!projected.length || projected.some(pair=>pair.some(n=>!Number.isFinite(n)))) {overlay.replaceChildren();return;}
   overlay.setAttribute('viewBox',`0 0 ${width} ${height}`);
   if (!preview) {
     const [x,y]=projected[0];
-    // SVG pin captures its own pointer events but the rest of the overlay
-    // remains transparent to ordinary map pan/zoom gestures.
-    overlay.innerHTML=destinationPinSVG(x,y);
-    label.textContent='DESTINATION PLACED · DRAG PIN TO ADJUST';label.hidden=false;return;
+    // The teal starting marker is informational (not draggable). Keep the
+    // original red draggable destination pin and ordinary map gestures.
+    const originXY=pickedOrigin?project(pickedOrigin):null;
+    const startMarkup=originXY&&originXY.every(Number.isFinite)?originPinSVG(...originXY):'';
+    overlay.innerHTML=startMarkup+(picked?destinationPinSVG(x,y):'');
+    label.textContent=state.navPicking ?
+      (state.navPickKind==='origin'?'TAP MAP TO REPLACE STARTING POINT':'TAP MAP TO REPLACE DESTINATION') :
+      (picked?'DESTINATION PLACED · DRAG RED PIN TO ADJUST':'STARTING POINT PLACED · CHOOSE A DESTINATION');
+    label.hidden=false;return;
   }
   const path=projected.map((xy,i)=>`${i?'L':'M'} ${xy[0].toFixed(2)} ${xy[1].toFixed(2)}`).join(' ');
   let alternateSvg='';
@@ -3610,7 +3661,7 @@ function renderNavigationOverlay() {
   overlay.innerHTML=alternateSvg+`<path class="${road?'road-route':'direct-route'}" d="${path}" />`+
     `<circle cx="${first[0].toFixed(2)}" cy="${first[1].toFixed(2)}" r="6" fill="#44dec4"/>`+
     destinationPinSVG(last[0],last[1]);
-  label.textContent=state.navPicking?'TAP MAP TO REPLACE DESTINATION':
+  label.textContent=state.navPicking?(state.navPickKind==='origin'?'TAP MAP TO REPLACE STARTING POINT':'TAP MAP TO REPLACE DESTINATION'):
     (road?'VALHALLA ROAD DIRECTIONS · START GPS FOLLOW WHEN READY':'DIRECT LINE · NOT A ROAD ROUTE');
   label.hidden=false;
 }
@@ -3705,10 +3756,13 @@ $('nav-use-location').addEventListener('click',()=>{
        status.textContent='The location fix was invalid or stale. No coordinates changed.';return;
     }
     state.navOriginManual=false;
+    state.navPickedOrigin=null;
     $('nav-start-query').value='';
     state.browserLocation={lat:latitude,lon:longitude,accuracy,capturedAt:Date.now()};
     updateBrowserLocationMarker();
     $('nav-start-lat').value=latitude.toFixed(7);$('nav-start-lon').value=longitude.toFixed(7);
+    if(state.navPreview || state.navRouteChoices)resetRouteForNewDestination();
+    renderNavigationOverlay();
     status.textContent=`Browser-reported starting point (±${Math.round(accuracy)} m; ${Math.round(Math.max(0,age))} s old). Desktop/VPN location may be approximate.`;
   },err=>{
     button.disabled=false;
@@ -3727,7 +3781,7 @@ function beginDestinationMapPick() {
   hideMapAddressMatches();
   // Idempotent: reopening this workflow (or tapping the action twice) must
   // never silently cancel map picking. Escape remains the explicit cancel.
-  if(state.navPicking){
+  if(state.navPicking && state.navPickKind!=='origin'){
     syncDestinationPickMode();
     setMapDestinationStatus('Tap a point on the map to choose a destination. Press Escape to cancel.');
     return;
@@ -3741,6 +3795,7 @@ function beginDestinationMapPick() {
   // Trip-only avoidances and the previous route remain until an actual pick.
   if(typeof cameraPanelVisibility==='function')cameraPanelVisibility(false);
   if($('map-camera-route-chip'))$('map-camera-route-chip').hidden=true;
+  state.navPickKind='destination';
   state.navPicking=true;
   showPage('map',{autoLocate:false});
   if (typeof setMapSearchCollapsed === 'function') setMapSearchCollapsed(true);
@@ -3752,11 +3807,35 @@ function beginDestinationMapPick() {
 }
 $('nav-pick-map').addEventListener('click',beginDestinationMapPick);
 $('map-pick-destination').addEventListener('click',beginDestinationMapPick);
+function beginOriginMapPick(){
+  // Origin and destination tap modes share the same one-tap coordinate
+  // conversion, drag rejection and pan restoration, but not the same field.
+  if(state.navPicking && state.navPickKind==='origin'){
+    syncDestinationPickMode();
+    setMapDestinationStatus('Tap the map to choose a starting point. Press Escape to cancel.');
+    return;
+  }
+  state.navPickPointerStart=null;
+  state.navPickSwallowClickUntil=0;
+  if(state.areaChoosing)cancelAreaChoosing();
+  state.navAvoidPicking=false;
+  if(typeof cameraPanelVisibility==='function')cameraPanelVisibility(false);
+  state.navPickKind='origin';
+  state.navPicking=true;
+  showPage('map',{autoLocate:false});
+  setMapSearchCollapsed(true);
+  if(activeMapTool)closeMapToolOverlay();
+  syncDestinationPickMode();
+  if(typeof syncMapPickedAction==='function')syncMapPickedAction();
+  renderNavigationOverlay();
+  setMapDestinationStatus('Tap the map once to choose your starting point (teal marker). This will not change the destination or save a GPS position.');
+}
+$('nav-pick-start-map').addEventListener('click',beginOriginMapPick);
 $('nav-clear-preview').addEventListener('click',()=>{
   resetRouteForNewDestination();
   if(typeof cameraPanelVisibility==='function')cameraPanelVisibility(false);
   if($('map-camera-route-chip'))$('map-camera-route-chip').hidden=true;
-  state.navPicking=false;state.navPickedPoint=null;
+  state.navPicking=false;state.navPickKind='destination';state.navPickedPoint=null;
   syncDestinationPickMode();syncMapPickedAction();
   $('nav-preview-summary').textContent='';
   $('nav-directions').replaceChildren();
@@ -4290,6 +4369,10 @@ $('map-destination-form').addEventListener('submit',async event=>{
 });
 for(const id of ['nav-start-lat','nav-start-lon']) {
   $(id).addEventListener('input',()=>{state.navOriginManual=true;
+    state.navPickedOrigin=null;
+    $('nav-start-query').value='';
+    if(state.navPreview || state.navRouteChoices)resetRouteForNewDestination();
+    renderNavigationOverlay();
     $('nav-origin-status').textContent='Custom starting point selected. Use fresh browser location to reset it.';});
 }
 function setMessagesSubpagesOpen(open) {

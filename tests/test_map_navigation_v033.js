@@ -16,7 +16,7 @@ assert(html.indexOf('id="map-navigation-options"')>html.indexOf('</form>',html.i
 assert(html.indexOf('id="map-provider-config"')>html.indexOf('id="map-navigation-options"'));
 assert(!html.includes('Online address search & provider settings'));
 assert(html.includes('class="map-navigation-options map-navigation-settings"'));
-assert(html.includes('aria-label="Address search and navigation settings"'));
+assert(html.includes('aria-label="Navigation, addresses and offline readiness"'));
 assert(html.includes('class="map-follow-details"'));
 assert(css.includes('#page-map .map-navigation-settings[open]'));
 assert(html.includes('id="map-settings-close"') && css.includes('.map-settings-popup'), 'persistent gear with separate X-close panel');
