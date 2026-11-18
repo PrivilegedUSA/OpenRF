@@ -417,6 +417,15 @@ let observationLocationFix = null;
 function openObservation(lat = '', lon = '') {
   ++observationLocationRequestId; // invalidate callbacks from any previous dialog
   observationLocationFix = null;
+  const dialog=$('observation-dialog');
+  const fromMap=$('page-map').classList.contains('active');
+  dialog.classList.toggle('map-observation-popup',fromMap);
+  if(fromMap){
+    setMapSurveyOpen(false);
+    $('map-navigation-options').open=false;
+    if(activeMapTool)closeMapToolOverlay();
+    alignBottomMapPopup(dialog);
+  }
   const form = $('observation-form');
   form.reset();
   form.elements.latitude.value = lat;
@@ -427,7 +436,7 @@ function openObservation(lat = '', lon = '') {
   $('observation-location-status').textContent = lat !== '' && lon !== ''
     ? 'Coordinates selected on map. Use my location will replace them with a fresh browser-reported observer position.'
     : 'No location selected. Use my location only when you are at the observation site, or enter coordinates manually.';
-  $('observation-dialog').showModal();
+  dialog.showModal();
 }
 function observationCoordinateEdited() {
   // A manual edit wins over a pending asynchronous geolocation callback.
@@ -992,8 +1001,10 @@ function renderMapSurveyPanel() {
   updateCaptureButtons();
 }
 function setMapSurveyOpen(open) {
+  if(open)$('map-navigation-options').open=false;
   $('map-survey-panel').hidden = !open;
   $('map-survey-toggle').setAttribute('aria-expanded', String(open));
+  if(open)alignBottomMapPopup($('map-survey-panel'));
 }
 function wifiBandLabel(record) {
   if (record.band) return record.band;
@@ -2987,6 +2998,9 @@ function renderRouteChoices(){
   const ready=Boolean(response?.standard?.is_driving_route && response?.alternative?.is_driving_route &&
     !sameRoadCoordinates(response.standard,response.alternative));
   panel.hidden=!ready || state.navPicking || state.navChoicePanelClosed || state.navFollowId!==null || !mapSearchForm.hidden || $('map-navigation-options').open || $('map-directions-review').open;
+  const startButton=$('route-choice-start');
+  startButton.disabled=!ready || state.navPreview?.type!=='ROAD_ROUTE' || state.navPreview?.is_driving_route!==true || $('map-begin-guidance').disabled;
+  startButton.setAttribute('aria-label',`Start navigation on selected ${state.navChoiceSelection==='alternate'?'alternate':'main'} route`);
   if(!ready){$('route-choice-alternate').hidden=true;return;}
   for(const [key,id,detailsId,route,report] of [
     ['standard','route-choice-standard','route-choice-standard-details',response.standard,response.standard_cameras],
@@ -3001,7 +3015,7 @@ function renderRouteChoices(){
   $('route-choice-difference').textContent=routeChoiceDifferenceSummary(response);
   $('route-choice-status').textContent=ready ?
     (response.mode==='maximum'&&response.preferred==='alternate'?'Maximum avoidance recommends the alternate with fewer nearby reports. Review the extra distance and time, then tap to select. ':'Tap to choose. ')+
-    'Teal is selected; dashed amber marks the other road. Mapped camera coverage is incomplete.' :
+    `${state.navChoiceSelection==='alternate'?'Alternate':'Main'} route selected. Teal is selected; dashed amber marks the other road. Mapped camera coverage is incomplete.` :
     (response.detail || 'Only the main route is available with current preferences and road data.');
   positionRouteChoicePanel();
 }
@@ -3021,7 +3035,40 @@ function chooseRouteChoice(key){
 }
 $('route-choice-standard').addEventListener('click',()=>chooseRouteChoice('standard'));
 $('route-choice-alternate').addEventListener('click',()=>chooseRouteChoice('alternate'));
-$('route-choice-close').addEventListener('click',()=>{state.navChoicePanelClosed=true;$('map-route-choices').hidden=true;renderNavigationOverlay();});
+function startSelectedRouteNavigation(){
+  // The selected comparison route is installed as navPreview by
+  // chooseRouteChoice(). Reuse the existing opt-in GPS-follow safety gate.
+  if(state.navFollowId!==null)return;
+  if(state.navPreview?.type!=='ROAD_ROUTE' || state.navPreview?.is_driving_route!==true || $('map-begin-guidance').disabled){
+    $('route-choice-status').textContent='A valid Valhalla road route is required. Get directions again before starting.';
+    return;
+  }
+  $('map-begin-guidance').click();
+}
+$('route-choice-start').addEventListener('click',startSelectedRouteNavigation);
+function discardChosenRoute(){
+  // X means discard the entire current trip, not merely hide the route cards.
+  // Invalidate in-flight comparisons/routes and clear every temporary pin,
+  // direction, route line and editable trip point. Saved destinations and
+  // browser-local avoidance preferences are deliberately untouched.
+  resetRouteForNewDestination();
+  state.navPickedPoint=null;
+  state.navPickedOrigin=null;
+  state.navSelectedAddress=null;
+  state.navOriginManual=false;
+  state.navSearchToken++;
+  state.navPicking=false;state.navPickKind='destination';
+  for(const id of ['map-destination-query','nav-dest-query','nav-dest-name','nav-dest-lat','nav-dest-lon',
+    'map-origin-query','nav-start-query','nav-start-lat','nav-start-lon'])$(id).value='';
+  hideMapAddressMatches();
+  syncMapOriginSummary();syncDestinationPickMode();syncMapPickedAction();
+  $('map-destination-status').hidden=true;
+  $('map-router-result').textContent='';
+  if(typeof cameraPanelVisibility==='function')cameraPanelVisibility(false);
+  setNavigationStatus('Route cleared. Choose a new destination to get directions.');
+  renderNavigationOverlay();
+}
+$('route-choice-close').addEventListener('click',discardChosenRoute);
 $('route-choice-settings').addEventListener('click',()=>cameraPanelVisibility(true));
 $('map-navigation-options').addEventListener('toggle',()=>{if(state.navRouteChoices)renderRouteChoices();});
 $('map-directions-review').addEventListener('toggle',()=>{if(state.navRouteChoices)renderRouteChoices();});
@@ -3398,25 +3445,44 @@ $('map-online-address').addEventListener('change',()=>{
 });
 
 
-// The settings gear stays in its lower-right map-control slot when open.
-// Close the floating panel with its dedicated X, never by moving the gear.
+// Place all three lower-right sheets in the same free map rectangle: beneath
+// the top Where to? / hamburger row, left of the right-hand map controls,
+// above the bottom gear/plus/layers buttons. Keep scrolling inside each sheet.
+function alignBottomMapPopup(popup){
+  const map=$('page-map').querySelector('.map-wrap');
+  const rect=map.getBoundingClientRect();
+  const width=Math.min(360,Math.max(180,rect.width-78),Math.max(180,window.innerWidth-16));
+  const left=Math.max(8,Math.min(Math.round(rect.right-56-width),Math.round(window.innerWidth-width-8)));
+  const top=Math.max(8,Math.min(Math.round(rect.top+60),Math.round(window.innerHeight-155)));
+  const bottom=Math.min(window.innerHeight-8,Math.round(rect.bottom-52));
+  const height=Math.max(100,Math.round(bottom-top));
+  popup.style.setProperty('--openrf-map-popup-left',`${left}px`);
+  popup.style.setProperty('--openrf-map-popup-top',`${top}px`);
+  popup.style.setProperty('--openrf-map-popup-width',`${width}px`);
+  popup.style.setProperty('--openrf-map-popup-height',`${height}px`);
+}
+// The gear's trigger stays fixed in the bottom-right row; only its sheet moves.
 function alignMapSettingsPopup(){
   const details=$('map-navigation-options');
   if(!details.open)return;
-  const trigger=details.querySelector('summary').getBoundingClientRect();
   const popup=details.querySelector('.map-settings-popup');
-  // The gear sits 90px from the map's right edge. Extend the popup toward
-  // that edge, matching the other two lower-right map tool sheets.
-  const right=Math.max(8,Math.round(window.innerWidth-trigger.right-82));
-  const bottom=Math.max(8,Math.round(window.innerHeight-trigger.top+8));
-  const height=Math.max(90,Math.round(trigger.top-18));
-  popup.style.setProperty('--openrf-settings-right',`${right}px`);
-  popup.style.setProperty('--openrf-settings-bottom',`${bottom}px`);
-  popup.style.setProperty('--openrf-settings-max-height',`${height}px`);
+  alignBottomMapPopup(popup);
 }
-$('map-navigation-options').addEventListener('toggle',alignMapSettingsPopup);
-window.addEventListener('resize',alignMapSettingsPopup);
-window.addEventListener('scroll',alignMapSettingsPopup,true);
+$('map-navigation-options').addEventListener('toggle',()=>{
+  if($('map-navigation-options').open){
+    setMapSurveyOpen(false);
+    if(activeMapTool)closeMapToolOverlay();
+  }
+  alignMapSettingsPopup();
+});
+function realignBottomMapPopups(){
+  alignMapSettingsPopup();
+  if(!$('map-survey-panel').hidden)alignBottomMapPopup($('map-survey-panel'));
+  if($('observation-dialog').open && $('observation-dialog').classList.contains('map-observation-popup'))
+    alignBottomMapPopup($('observation-dialog'));
+}
+window.addEventListener('resize',realignBottomMapPopups);
+window.addEventListener('scroll',realignBottomMapPopups,true);
 $('map-settings-close').addEventListener('click',()=>{
   $('map-navigation-options').open=false;
   $('map-navigation-options').querySelector('summary').focus();

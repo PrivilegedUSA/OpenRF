@@ -1,4 +1,13 @@
-# OpenRF v0.2.112 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.113 — Offline-First Navigation and RF Toolkit
+
+## v0.2.113 — Start navigation directly after selecting a route
+
+- The **Choose a route** panel now has an obvious, full-width **Start navigation** button. Tap **Main route** or **Alternate route** to select the teal preview, then tap the button to begin the existing opt-in GPS follow mode on that choice.
+- The **×** on Choose a route now **discards the entire current trip** (road lines, directions, temporary origin/destination pins and unsaved address fields). A discarded trip is not silently restarted; saved destinations and avoidance preferences stay untouched.
+- The Start navigation button remains visible at the bottom of the route chooser while route summaries scroll above it on a small landscape touchscreen. The same safety checks still require a real Valhalla driving route; it cannot begin navigation on a straight-line preview.
+- There is no change to route calculations, mapped camera counts, avoidance priorities, provider configuration, or location storage. GPS access is requested only when navigation is started.
+
+See [v0.2.113 test notes](docs/RELEASE_0.2.113_TESTS.md). The prior v0.2.112 camera-count repair and Maximum avoidance option remain in place.
 
 ## v0.2.112 — Restore reliable camera counts + optional maximum avoidance
 

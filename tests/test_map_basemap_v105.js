@@ -15,12 +15,13 @@ assert.match(js,/state\.map\.on\('idle',/);
 assert.match(css,/#page-map \.map-wrap \.map-error\.map-notice\{/);
 assert.match(css,/#page-map \.map-wrap \.map-error\.map-notice\[hidden\]\{display:none!important\}/);
 
-// Firefox and 800x480 Raspberry Pi layout keep the gear panel above its
-// button and within the viewport, regardless of nested details CSS.
-assert.match(css,/#page-map \.map-navigation-settings\[open\] \.map-settings-popup\{\s*position:fixed/);
+// Firefox and 800x480 Raspberry Pi layout keep the gear panel below the
+// hamburger, left of map controls and above the bottom action row.
+assert.match(css,/#page-map \.map-navigation-settings\[open\] \.map-settings-popup,/);
 assert.match(js,/function alignMapSettingsPopup\(\)/);
-assert.match(js,/window\.innerHeight-trigger\.top\+8/);
-assert.match(js,/window\.addEventListener\('resize',alignMapSettingsPopup\)/);
+assert.match(js,/Math\.round\(rect\.top\+60\)/);
+assert.match(js,/Math\.round\(rect\.right-56-width\)/);
+assert.match(js,/window\.addEventListener\('resize',realignBottomMapPopups\)/);
 
 const from=js.indexOf('function showVectorBasemapNotice(message){');
 const to=js.indexOf('function alignMapToolRail()',from);

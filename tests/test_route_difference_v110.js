@@ -53,4 +53,4 @@ assert.equal($('route-choice-alternate').attrs['aria-pressed'],'false');
 state.navRouteChoices.alternative_cameras.incomplete=true;
 assert(ctx.diff(state.navRouteChoices).includes('partial camera data'),
   'Incomplete catalog counts are clearly qualified');
-console.log('PASS v0.2.112 duplicate routes rejected; stacked card and relative distance/time/camera counts');
+console.log('PASS v0.2.113 duplicate routes rejected; stacked card and relative distance/time/camera counts');

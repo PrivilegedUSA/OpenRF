@@ -864,3 +864,11 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Retain direction annotations in the map and route details, but show total nearby locations rather than claiming inferred camera captures. The alternate-choice description identifies the relative miles, minutes and count. Opt-in priority and existing category choices persist in local browser storage.
 - Add regression tests for the reported v0.2.111 failure and aggressive-priority rankings with large detours. No Docker, imported map data, private SQLite data, live GPS or hardware changed by the release.
 
+## v0.2.113 — Start selected route and align bottom-right popups (2026-11-18)
+
+- Add a full-width **Start navigation** button within the route-choice sheet. Tapping Main or Alternate updates the planned route preview as before; the new button delegates to the existing opt-in GPS follow handler for the *selected* road. Disallow direct-line previews and repeated starts. Preserve main/alternate route calculations, camera counts, comparison data and Maximum avoidance preference.
+- Make the **×** on Choose a route discard the entire unsaved trip, including route comparison, directions, map lines, destination and temporary origin pins, and form fields. It invalidates in-flight route requests but does not remove saved destinations or stored avoidance preferences.
+- Keep the route cards and tradeoffs independently scrollable so the action button remains visible at 800×480. The selected route is clearly identified in status and the accessible button label.
+- Align bottom-right **Navigation & field readiness** gear, **Map layers** panel and map-opened **Add observation** form to one shared popup rectangle below the Where to?/hamburger row, above the bottom buttons, and left of the right-side map controls and page scrollbar. Internal scrolling and sticky close headers keep exit controls accessible. Plus still opens the consent-safe manual observation form, and the older centered form remains on non-map pages. Opening one map panel closes the others.
+- Add regression tests for route selection/start and viewport popup geometry. No change to database schema, local GPS storage, external networks, map data, Valhalla backend or sensor drivers.
+

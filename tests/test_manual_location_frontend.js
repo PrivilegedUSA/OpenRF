@@ -47,10 +47,11 @@ const form = {elements:{},reset(){for(const field of Object.values(this.elements
 for(const name of ['latitude','longitude','accuracy_m','location_source','fix_age_seconds']) {
   form.elements[name] = {value:''};
 }
-const dialog = {open:false,showModal(){this.open=true;},close(){this.open=false;}};
+const dialog = {open:false,classList:{toggle(){}},showModal(){this.open=true;},close(){this.open=false;}};
 const button = {disabled:false};
 const status = {textContent:''};
 const inputNodes = {
+  'page-map':{classList:{contains(){return false}}},
   'observation-form':form,'observation-dialog':dialog,
   'observation-use-location':button,'observation-location-status':status
 };

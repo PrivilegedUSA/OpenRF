@@ -17,4 +17,4 @@ assert(css.includes('.route-camera-priority select{width:100%;min-width:0;max-wi
   'Compact 800x480 popup does not force horizontal overflow');
 assert(!app.includes('excluded_by_direction||0'),
   'Old subtractive lens bearing summary must not survive');
-console.log('PASS v0.2.112 persisted opt-in maximum mode and conservative mapped-camera summary');
+console.log('PASS v0.2.113 persisted opt-in maximum mode and conservative mapped-camera summary');

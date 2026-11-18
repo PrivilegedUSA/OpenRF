@@ -2024,3 +2024,52 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
 #page-map .route-choice-btn small{display:block;color:#a6f7df;font-size:11px;line-height:1.45;font-weight:700;overflow-wrap:anywhere}
 #page-map .route-choice-btn[aria-pressed="true"] span{color:#ecfffa}
 #page-map .map-route-choices{max-height:min(55dvh,260px)}
+
+/* v0.2.113 — Start navigation stays visible even when an alternate's tradeoff
+   wraps onto several lines on a small 800×480 field touchscreen. */
+#page-map .map-route-choices:not([hidden]){display:flex;flex-direction:column;overflow:hidden;min-height:0}
+#page-map .route-choice-head{flex:0 0 auto}
+#page-map .route-choice-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin}
+#page-map .route-choice-footer{flex:0 0 auto;border-top:1px solid #35616b88;padding-top:8px;margin-top:4px}
+#page-map .route-choice-start{display:block;width:100%;min-height:43px;font-size:13px;font-weight:750;touch-action:manipulation}
+#page-map .route-choice-start:disabled{opacity:.55;cursor:not-allowed}
+#page-map .route-choice-settings{margin-top:7px;padding:2px 0 0}
+
+/* v0.2.113 — uniform lower-right gear, layers and map-observation sheets.
+   Geometry is derived from the current map viewport, not from the gear's
+   screen-bottom offset. Reserve 60px above for the header, 52px below for
+   buttons and 56px at the right for the map rail and page scrollbar. */
+#page-map .map-navigation-settings[open] .map-settings-popup,
+#page-map #map-survey-panel:not([hidden]),
+#observation-dialog.map-observation-popup{
+  position:fixed!important;
+  top:var(--openrf-map-popup-top,64px)!important;
+  left:var(--openrf-map-popup-left,12px)!important;
+  right:auto!important;
+  bottom:auto!important;
+  width:var(--openrf-map-popup-width,360px)!important;
+  height:var(--openrf-map-popup-height,350px)!important;
+  max-width:calc(100vw - 16px)!important;
+  max-height:calc(100dvh - 16px)!important;
+  margin:0!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+  scrollbar-gutter:stable;
+  border-radius:10px;
+  z-index:65;
+}
+#page-map .map-settings-popup .map-settings-heading,
+#page-map #map-survey-panel .map-sheet-head{
+  position:sticky;top:-10px;z-index:2;background:#101d27;
+  padding:7px 0 9px;border-bottom:1px solid #35616b88;
+}
+#page-map #map-survey-panel .map-sheet-head{top:-14px;background:#0c1c27}
+#observation-dialog.map-observation-popup{padding:12px;background:#11222d;color:#e3f0f1}
+#observation-dialog.map-observation-popup::backdrop{background:#020b12a6}
+#observation-dialog.map-observation-popup header{position:sticky;top:-12px;z-index:3;padding:5px 0 8px;background:#11222d;border-bottom:1px solid #35616b88}
+#observation-dialog.map-observation-popup .form-grid{grid-template-columns:minmax(0,1fr);gap:9px;margin:12px 0}
+#observation-dialog.map-observation-popup .observation-location-tools{grid-column:1}
+#observation-dialog.map-observation-popup label{min-width:0}
+#observation-dialog.map-observation-popup .dialog-buttons{position:sticky;bottom:-12px;z-index:3;padding:8px 0 4px;background:#11222d}

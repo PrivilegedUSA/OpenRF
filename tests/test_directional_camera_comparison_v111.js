@@ -35,4 +35,4 @@ state.navRouteChoices.alternative_cameras={count:0,nearby_count:0,unknown_direct
 context.render();
 assert($('route-choice-status').textContent.includes('Maximum avoidance recommends'));
 assert($('route-choice-difference').textContent.includes('1 fewer nearby camera report'));
-console.log('PASS v0.2.112 conservative nearby counts and maximum-avoidance comparison');
+console.log('PASS v0.2.113 conservative nearby counts and maximum-avoidance comparison');
