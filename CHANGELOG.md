@@ -850,3 +850,10 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Defensively suppress identical overlapping coordinates in the browser so a duplicate route is never drawn as an imperceptible dashed amber line beneath the selected teal route. Do not suppress distinct paths just because rounded ETA, mileage or camera counts match.
 - Preserve the previously working Where to? custom starting-point flow, right-rail map settings, offline navigation readiness location, online vector option, GPS privacy boundaries, sensor APIs, local data and map archives. No physical hardware, Valhalla Docker service or full browser layout was changed or verified.
 
+## v0.2.111 — Direction-aware camera comparison, with uncertainty (2026-11-18)
+
+- Distinguish all locally mapped camera coordinates within 120 m of the Valhalla road from *potential encounters* based on recorded camera facing and approaching travel geometry. Parse OSM 16-point compass bearings, 0–360 degree headings and clockwise ranges; check both camera-facing road position and oncoming travel heading with wide uncertainty tolerances. Never discount unknown, ambiguous, malformed or too-short/degenerate geometry direction data.
+- Preserve both proximity and directional totals in the route API (`count`, `nearby_count`, `excluded_by_direction`, `unknown_direction_count`, `direction_matched_count`) while still returning only potential-encounter sites for opt-in route alerts/exclusions. Retain the source-documented no-guarantee warning; zero estimates do not prove an unobserved road.
+- Show **0 possible encounters (1 nearby)** when source data supports it. Add direction-based explanations on the alternate card and reveal mapped lens direction in camera pin popups. Preserve user choice, normal road, distinct-alternate checks, route settings and existing sensor/privacy behavior.
+- Add backend and frontend regressions; no migration, provider change, silent camera-data download, offline vector fix, physical-camera check, or live road-trial claim.
+

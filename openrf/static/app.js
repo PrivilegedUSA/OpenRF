@@ -2616,7 +2616,7 @@ function updateCameraApproachAlert(route,progress,fix,turn){
   if(!found){hideCameraApproachAlert();return;}
   const site=found.site,distance=cameraApproach.distanceLabel(found.distance_m);
   cameraAlertTitle.textContent=`Mapped ${cameraApproach.typeLabel(site.type)} report · ${distance} ahead`;
-  cameraAlertDetail.textContent=`${site.state==='VERIFIED'?'Document-backed':'Reported'} location near planned road · ${site.source||'source unspecified'}. Operational status and camera direction unknown.`;
+  cameraAlertDetail.textContent=`${site.state==='VERIFIED'?'Document-backed':'Reported'} location near planned road · ${site.source||'source unspecified'}. ${site.direction_assessment==='orientation_match'?'Stored lens heading suggests an approaching road, but coverage is unverified.':'Camera direction is unknown or insufficient to assess.'} Operation and lane coverage unverified.`;
   cameraAlertCard.hidden=false;
   state.navCameraAlertLastQualifiedAt=Date.now();
   if(found.newAlert)state.navCameraAlertSeen.add(site.key);
@@ -2857,7 +2857,9 @@ function cameraReportSummary(report){
   if(!report)return 'No camera catalog report available for this road route.';
   const counts=(report.sites||[]).reduce((by,site)=>(by[site.type]=(by[site.type]||0)+1,by),{});
   const breakdown=Object.entries(counts).map(([kind,n])=>`${kind.replace('_',' ')}: ${n}`).join(' · ');
-  return `${report.count} mapped camera report(s) within ${report.radius_m} m of the road${breakdown?' · '+breakdown:''}${report.incomplete?' · PARTIAL DATA':''}. Camera maps may be incomplete; proximity does not prove a device is active or oriented toward travel.`;
+  const assessed=Number.isFinite(report.nearby_count);
+  const locationDetail=assessed?` · ${report.nearby_count} nearby positions, ${report.excluded_by_direction||0} not direction-matched, ${report.unknown_direction_count||0} unknown direction`:'';
+  return `${report.count} potential camera encounter report(s)${locationDetail}${breakdown?' · '+breakdown:''}${report.incomplete?' · PARTIAL DATA':''}. Direction checks use reported lens bearings; road/lane coverage, activity and camera-map completeness are unverified.`;
 }
 function updateCameraRoutePreferenceDisplay(){
   const chosen=selectedRouteCameraTypes();
@@ -2912,8 +2914,8 @@ function showRouteCameras(report){
   const road=state.navPreview?.is_driving_route;
   const chip=$('map-camera-route-chip');chip.hidden=true;
   $('map-route-camera-summary').textContent=road?cameraReportSummary(report):'Choose camera types, then Get directions to compare local road routes.';
-  if(report)$('map-directions-summary').textContent+=` · ${report.count} mapped camera report(s) nearby`;
-  chip.textContent=road?`Camera routes · ${report?.count??'—'} reports nearby`:'Camera route options';
+  if(report)$('map-directions-summary').textContent+=` · ${report.count} possible camera encounter(s)`;
+  chip.textContent=road?`Camera routes · ${report?.count??'—'} possible encounters`:'Camera route options';
   $('map-camera-comparison-status').textContent=road?
     'The normal route is selected. Select categories and Compare routes; no alternative is guaranteed.':
     'Choose camera types and enable consideration, then Get directions. No camera-free route is guaranteed.';
@@ -2961,10 +2963,20 @@ function routeChoiceDifferenceSummary(response){
     Number.isFinite(mainReports)&&Number.isFinite(otherReports);
   const delta=otherReports-mainReports;
   const reportsText=!validReports?'camera comparison unavailable':
-    delta===0?'same number of mapped camera reports':
-      `${Math.abs(delta)} ${delta>0?'more':'fewer'} mapped camera report${Math.abs(delta)===1?'':'s'}`;
+    delta===0?'same number of potential camera encounters':
+      `${Math.abs(delta)} ${delta>0?'more':'fewer'} potential camera encounter${Math.abs(delta)===1?'':'s'}`;
+  const away=Number(response.alternative_cameras?.excluded_by_direction)||0;
+  const unknown=Number(response.alternative_cameras?.unknown_direction_count)||0;
+  const extra=away?`${away} nearby report${away===1?'':'s'} not direction-matched`:
+    unknown?`${unknown} camera direction${unknown===1?'':'s'} unknown`:'';
   const incomplete=response.standard_cameras?.incomplete||response.alternative_cameras?.incomplete;
-  return [distanceText,timeText,reportsText].join(' · ')+(incomplete?' · partial camera data':'');
+  return [distanceText,timeText,reportsText,extra].filter(Boolean).join(' · ')+(incomplete?' · partial camera data':'');
+}
+function routeChoiceCameraCount(report){
+  if(!report)return '? camera reports';
+  const near=Number(report.nearby_count),count=Number(report.count);
+  if(!Number.isFinite(near)||near===count)return `${count} possible camera encounter${count===1?'':'s'}`;
+  return `${count} possible encounter${count===1?'':'s'} (${near} nearby)`;
 }
 function renderRouteChoices(){
   const response=state.navRouteChoices, panel=$('map-route-choices');
@@ -2982,11 +2994,11 @@ function renderRouteChoices(){
     // Structured spans preserve separate title, route details and the
     // at-a-glance comparison on a narrow 5-inch landscape touch display.
     if(!route)continue;
-    $(detailsId).textContent=`${route.distance_miles} mi · ~${Math.round(route.duration_seconds/60)} min · ${report?.count??'?'} mapped reports`;
+    $(detailsId).textContent=`${route.distance_miles} mi · ~${Math.round(route.duration_seconds/60)} min · ${routeChoiceCameraCount(report)}`;
   }
   $('route-choice-difference').textContent=routeChoiceDifferenceSummary(response);
   $('route-choice-status').textContent=ready ?
-    'Tap to choose. Teal is selected; dashed amber marks the other road. Reported camera locations do not prove active devices.' :
+    'Tap to choose. Teal is selected; dashed amber marks the other road. Camera view estimates are unverified, especially where direction data is missing.' :
     (response.detail || 'Only the main route is available with current preferences and road data.');
   positionRouteChoicePanel();
 }
@@ -3030,13 +3042,13 @@ function showCameraComparison(response){
   const a=response.alternative,b=response.standard;
   const delta=(a.distance_miles-b.distance_miles).toFixed(1);
   const minuteDiff=Math.round((a.duration_seconds-b.duration_seconds)/60);
-  status.textContent=`Normal: ${response.standard_cameras.count} nearby reports, ${b.distance_miles} mi. Alternative: ${response.alternative_cameras.count} reports, ${a.distance_miles} mi (${Number(delta)>=0?'+':''}${delta} mi), ${minuteDiff>=0?'+':''}${minuteDiff} min. ${response.detail}`;
+  status.textContent=`Normal: ${routeChoiceCameraCount(response.standard_cameras)}, ${b.distance_miles} mi. Alternative: ${routeChoiceCameraCount(response.alternative_cameras)}, ${a.distance_miles} mi (${Number(delta)>=0?'+':''}${delta} mi), ${minuteDiff>=0?'+':''}${minuteDiff} min. ${response.detail}`;
   state.navCameraComparison=response;
   state.navRouteChoices=response;state.navChoiceSelection='standard';state.navChoicePanelClosed=false;
   renderRouteChoices();renderNavigationOverlay();
   const better=response.alternative_cameras?.incomplete!==true && response.alternative_cameras?.count < response.standard_cameras?.count;
   $('map-use-camera-alternate').hidden=!better;
-  if(!better)status.textContent+=' This alternative does not reduce reliably counted reports; it remains an optional road choice, not a safer route.';
+  if(!better)status.textContent+=' This alternative does not reduce the current potential-encounter estimate; it remains an optional road choice, not a safer route.';
 }
 async function compareVisibleCameraRoutes(initial,types){
   if(!initial?.is_driving_route) return;

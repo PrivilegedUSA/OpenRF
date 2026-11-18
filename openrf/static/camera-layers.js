@@ -73,7 +73,9 @@
         const c=event.features[0].properties;
         const div=document.createElement('div');div.className='camera-popup';
         const title=document.createElement('strong');title.textContent=`${c.type} · ${c.state}`;div.append(title);
-        for(const line of [c.label,c.source,`Updated: ${c.updated_utc}`,`Reported infrastructure position only — accuracy and operational status unverified`]){
+        for(const line of [c.label,c.source,
+          c.direction?`Mapped lens heading: ${c.direction} (not field-verified)`:'Lens heading: not mapped (treated as potentially relevant in route comparisons)',
+          `Updated: ${c.updated_utc}`,`Reported infrastructure position only — accuracy and operational status unverified`]){
           const p=document.createElement('p');p.textContent=line;div.append(p);
         }
         if(c.source_url){const a=document.createElement('a');a.href=c.source_url;a.target='_blank';a.rel='noopener noreferrer';a.textContent='Open recorded source';div.append(a);}
@@ -97,10 +99,10 @@
       if(Math.abs(dx)>width/2+15||Math.abs(dy)>height/2+15)continue;
       const pin=document.createElement('button');pin.type='button';pin.className='raster-camera-pin';
       pin.style.backgroundColor=colors[c.type];pin.style.left=`${width/2+dx}px`;pin.style.top=`${height/2+dy}px`;
-      pin.title=`${c.type} · ${c.state} · ${c.label} · ${c.source}`;
+      pin.title=`${c.type} · ${c.state} · ${c.label} · ${c.source} · lens heading: ${c.direction||'unknown'}`;
       pin.setAttribute('aria-label',pin.title);pin.addEventListener('click',e=>{
         e.stopPropagation();const box=get('camera-selected');box.hidden=false;
-        box.textContent=`${c.type} · ${c.state}: ${c.label}. Source: ${c.source}. This is a reported camera location, not proof of operation.`;
+        box.textContent=`${c.type} · ${c.state}: ${c.label}. Source: ${c.source}. Mapped lens heading: ${c.direction||'unknown'}. This is a reported camera location, not proof of operation or actual viewing coverage.`;
       });fragment.append(pin);
     }
     onViewportChanged();

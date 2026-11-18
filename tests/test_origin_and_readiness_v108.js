@@ -103,5 +103,5 @@ function dispatch(type,x,y){
   assert.equal(state.navPicking,false);
   assert.equal(panEnabled,true,'Escape restores panning');
   assert(status.some(s=>s.includes('Starting point selected')));
-  console.log('PASS v0.2.110 retained Map settings, moved readiness, custom origin by map/address, destination preservation');
+  console.log('PASS v0.2.111 retained Map settings, moved readiness, custom origin by map/address, destination preservation');
 })().catch(error=>{console.error(error);process.exitCode=1});

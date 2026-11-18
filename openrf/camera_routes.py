@@ -10,6 +10,11 @@ from . import camera_catalog
 from .routing import local_route, RouteError, RouteUnavailable, route_preferences
 
 RADIUS_M = 120
+# A recorded camera bearing is the direction its lens points, not a verified
+# enforcement lane or a known field of view. These generous angular limits
+# only support a cautious *possible encounter* estimate.
+VIEW_TOLERANCE_DEGREES = 80
+APPROACH_TOLERANCE_DEGREES = 80
 # Full per-route camera catalog for client-side approach checks. Still bounded,
 # route-local and sourced from the private offline camera database. A truncated
 # response explicitly marks alerts incomplete; no live GPS location is sent.
@@ -38,6 +43,100 @@ def _meters_to_segment(lat, lon, first, second):
     return math.hypot(x0+frac*dx, y0+frac*dy)
 
 
+_COMPASS = {point: index * 22.5 for index, point in enumerate(
+    ('N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW',
+     'W', 'WNW', 'NW', 'NNW'))}
+
+
+def _angle(value):
+    value = value.strip().upper().removesuffix('°').strip()
+    if value in _COMPASS:
+        return _COMPASS[value]
+    try:
+        bearing = float(value)
+    except ValueError:
+        return None
+    return bearing % 360 if math.isfinite(bearing) and 0 <= bearing <= 360 else None
+
+
+def _view_sector(value):
+    """Interpret OSM camera:direction/direction as a lens heading or CW arc.
+
+    Unknown, relative, or malformed directions must NEVER be interpreted as a
+    reason to subtract a camera from a route's potential report count.
+    """
+    if not isinstance(value, str) or not value.strip():
+        return None
+    parts = value.strip().split('-')
+    if len(parts) not in (1, 2):
+        return None
+    angles = [_angle(part) for part in parts]
+    if any(angle is None for angle in angles):
+        return None
+    # OSM explicitly defines 0-360 as an unrestricted, full-circle arc.
+    if len(parts) == 2 and parts[0].strip() in ('0', '0°') and parts[1].strip() in ('360', '360°'):
+        return 0, 359.999
+    if len(angles) == 1:
+        return angles[0], angles[0]
+    return angles[0], angles[1]
+
+
+def _angle_distance(a, b):
+    return abs((a - b + 180) % 360 - 180)
+
+
+def _sector_contains(sector, heading, tolerance):
+    start, end = sector
+    arc = (end - start) % 360
+    if arc >= 359:
+        return True
+    return ((heading - start) % 360 <= arc or
+            _angle_distance(start, heading) <= tolerance or
+            _angle_distance(end, heading) <= tolerance)
+
+
+def _direction_matches_road(lat, lon, coords, sector, radius_m):
+    """Whether a road has a plausible *approach* within the camera's view.
+
+    Both travel direction and the road's position in front of the camera must
+    fit the reported bearing. Position-only matching is insufficient for
+    nearby roads, loops and opposite-direction travel. This does not establish
+    lens reach, actual coverage or whether the camera is operating.
+    """
+    scale_lat = 111195.0
+    scale_lon = scale_lat * math.cos(math.radians(lat))
+    useful_heading = False
+    for a, b in zip(coords, coords[1:]):
+        x0, y0 = (a[0] - lon) * scale_lon, (a[1] - lat) * scale_lat
+        x1, y1 = (b[0] - lon) * scale_lon, (b[1] - lat) * scale_lat
+        if (min(x0, x1) > radius_m or max(x0, x1) < -radius_m or
+                min(y0, y1) > radius_m or max(y0, y1) < -radius_m):
+            continue
+        dx, dy = x1 - x0, y1 - y0
+        length2 = dx * dx + dy * dy
+        if length2 < 9:  # Ignore tiny/jittering edges as a heading source.
+            continue
+        nearest = min(1.0, max(0.0, -(x0 * dx + y0 * dy) / length2))
+        if math.hypot(x0 + nearest * dx, y0 + nearest * dy) > radius_m:
+            continue
+        useful_heading = True
+        incoming = (math.degrees(math.atan2(dx, dy)) + 180) % 360
+        if not _sector_contains(sector, incoming, APPROACH_TOLERANCE_DEGREES):
+            continue
+        length = math.sqrt(length2)
+        for along_m in (-90, -45, -20, 0, 20, 45, 90):
+            fraction = min(1.0, max(0.0, nearest + along_m / length))
+            east, north = x0 + fraction * dx, y0 + fraction * dy
+            distance = math.hypot(east, north)
+            if 10 <= distance <= radius_m and _sector_contains(
+                sector, math.degrees(math.atan2(east, north)) % 360,
+                VIEW_TOLERANCE_DEGREES):
+                return True
+    # If geometry is too sparse or degenerate to establish a heading, do not
+    # discount a report just because a bearing exists in the catalog.
+    return None if not useful_heading else False
+
+
 def route_cameras(repo, route, types=None, *, radius_m=RADIUS_M):
     if route.get('type') != 'ROAD_ROUTE' or route.get('is_driving_route') is not True:
         raise ValueError('Only actual Valhalla road routes can be compared.')
@@ -54,6 +153,10 @@ def route_cameras(repo, route, types=None, *, radius_m=RADIUS_M):
     # The browser receives only the nearest matches and bounded totals.
     result = camera_catalog.list_sites(repo,bbox,limit=1200)
     nearby = []
+    proximity_count = 0
+    excluded_by_direction = 0
+    unknown_direction_count = 0
+    direction_matched_count = 0
     for entry in result['sites']:
         if entry['type'] not in chosen: continue
         lat,lon = entry['latitude'],entry['longitude']
@@ -65,14 +168,31 @@ def route_cameras(repo, route, types=None, *, radius_m=RADIUS_M):
             best = min(best,_meters_to_segment(lat,lon,a,b))
             if best < 4: break
         if best <= radius_m:
+            proximity_count += 1
+            bearing = _view_sector(entry.get('direction', ''))
+            matched = (_direction_matches_road(lat, lon, coords, bearing, radius_m)
+                       if bearing is not None else None)
+            if matched is False:
+                excluded_by_direction += 1
+                continue
+            if matched is None:
+                unknown_direction_count += 1
+            else:
+                direction_matched_count += 1
             nearby.append({'id':str(entry['id']), 'type':entry['type'],'state':entry['state'],
                            'label':entry['label'],'latitude':lat,'longitude':lon,
-                           'source':entry['source'],'distance_m':round(best)})
+                           'source':entry['source'],'distance_m':round(best),
+                           'direction':entry.get('direction',''),
+                           'direction_assessment':'orientation_match' if matched else 'unknown'})
     nearby.sort(key=lambda x: (x['distance_m'],x['type'],x['id']))
-    return {'count':len(nearby), 'sites':nearby[:MAX_DISPLAY],
+    return {'count':len(nearby), 'nearby_count':proximity_count,
+            'excluded_by_direction':excluded_by_direction,
+            'unknown_direction_count':unknown_direction_count,
+            'direction_matched_count':direction_matched_count,
+            'sites':nearby[:MAX_DISPLAY],
             'incomplete':bool(result['truncated'] or len(nearby)>MAX_DISPLAY),
             'radius_m':radius_m,'types':sorted(chosen),
-            'notice':'Reported camera positions within approximately 120 m of the drawn road. Not proof of operation, driving direction, or complete coverage.'}
+            'notice':'Possible directional encounters: untagged camera directions are conservatively included. A known lens bearing can filter opposite-facing road approaches; this does not verify actual plate coverage, operation, lane, or complete coverage.'}
 
 
 def _road_distance_m(first, second):
@@ -151,7 +271,11 @@ def compare(repo, locations, types, *, router=local_route, options=None):
         response['detail']='All available road exclusion slots are already used by your saved and trip-only roads.'
         return response
     if not original['count']:
-        response['detail']='No selected camera reports were close to the calculated route. That does not mean the route is camera-free.'
+        response['detail']=('No selected reports were classified as potential directional encounters, '
+                            f'although {original["nearby_count"]} camera point(s) are nearby. '
+                            'This does not prove the route has no camera coverage.' if original['nearby_count'] else
+                            'No selected camera locations were close to the calculated road. '
+                            'That does not mean the route is camera-free.')
         return response
     start=(float(locations[0]['latitude']),float(locations[0]['longitude']))
     finish=(float(locations[-1]['latitude']),float(locations[-1]['longitude']))

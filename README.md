@@ -1,4 +1,12 @@
-# OpenRF v0.2.110 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.111 — Offline-First Navigation and RF Toolkit
+
+## v0.2.111 — Direction-aware camera route comparisons
+
+- **Choose a route** now distinguishes a camera *point near the road* from a **potential directional encounter**. When a camera has a usable mapped lens bearing (degrees, compass point or clockwise range), OpenRF checks whether the drawn road includes an oncoming travel segment in front of it. A nearby point facing away from that route no longer automatically increases the possible-encounter number. An alternate can now show **0 possible encounters (1 nearby)** if the mapped direction supports that estimate.
+- The alternate card compares potential encounters alongside distance and minutes, explains reports excluded from the directional estimate, and states when camera directions are unknown. Clicking a camera map pin shows its recorded lens heading or **unknown**, so you can see whether the input evidence exists. Missing/malformed direction information **never** turns a nearby report into an asserted zero.
+- This is a cautious geographic estimate—not verified camera coverage, enforcement direction, detection capability, or operational status. A camera may view multiple directions or lanes; OSM direction tags and road geometry can be wrong. Source catalog imports, local user databases, the Valhalla road graph, offline map rendering, and automatic uploads are unchanged.
+
+See [v0.2.111 verification](docs/RELEASE_0.2.111_TESTS.md). An example screenshot is not enough to confirm whether the particular Pine Grove-area camera has a mapped heading; check its map popup after installing. If the heading is unknown, OpenRF conservatively keeps that nearby report in both routes.
 
 ## v0.2.110 — Distinct road alternatives and readable route tradeoffs
 
