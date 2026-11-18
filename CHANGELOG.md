@@ -836,3 +836,10 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Resolve custom typed starting addresses through the existing opt-in/local address service for both full trip planning and the quick Get directions workflow. Recalculate after any start change; never silently reuse an old route or treat straight-line previews as drivable directions. Use a fresh browser position to return to the default.
 - The reported offline regional renderer failure is not repaired in this version. Online vector rendering has been confirmed by the operator in Firefox; actual offline tile loading, decoding and source-style errors still require browser request/Console evidence. No changes to map archives, GPS measurements, user data or wireless hardware.
 
+## v0.2.109 — Main Where to? starting point and road-router diagnostics (2026-11-18)
+
+- Add a compact **From** row before the primary destination field, showing browser location by default and offering an expanded address/coordinate editor, map point picker or current-location reset. Both quick and full-trip workflows share one origin, with synchronized typed/suggested values and correctly invalidated old road routes.
+- Add **Change start** to the map-selected destination popup. When the quick origin is picked on the map, restore the main destination search with the existing destination and route-request controls intact. Maintain one-tap click/drag safeguards, teal origin pin and separate red destination pin.
+- Add a manual **Check local road router** control in the quick search. If Valhalla is unreachable on local loopback, explain that the existing Docker container must be started. No automatic Docker start, hardware changes, or third-party network calls are added.
+- Keep the existing right-hand Map settings, the bottom-right gear readiness panel, online map option, and region-limited offline map behavior unchanged. There is still no verified fix for offline regional vector rendering or a guarantee of road routing without a working local Valhalla graph.
+

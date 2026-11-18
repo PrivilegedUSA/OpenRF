@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.108">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.109">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -21,7 +21,7 @@
   <script defer src="/static/route_guidance.js?v=0.2.76"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/app.js?v=0.2.108"></script>
+  <script defer src="/static/app.js?v=0.2.109"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
   <script defer src="/static/mesh.js?v=0.2.104"></script>
   <script defer src="/static/reticulum.js?v=0.2.104"></script>
@@ -36,7 +36,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.108</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.109</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -91,10 +91,19 @@
         <div class="map-destination-panel is-collapsed" id="map-destination-panel">
         <div class="map-search-header"><strong>Destination search</strong><button type="button" id="map-search-toggle" class="map-search-toggle" aria-controls="map-destination-form" aria-expanded="false" aria-label="Open destination search"><span class="map-search-icon" aria-hidden="true">⌕</span><span class="map-search-caption">Where to?</span><span class="map-search-chevron" aria-hidden="true">▾</span></button></div>
         <form id="map-destination-form" class="map-destination-form" hidden autocomplete="off" aria-label="Find a destination and get directions">
+          <div class="map-origin-control" id="map-origin-control">
+            <div class="map-origin-summary"><span>From</span><strong id="map-origin-caption">Current location</strong><button type="button" id="map-origin-edit" aria-expanded="false" aria-controls="map-origin-editor">Change</button></div>
+            <div class="map-origin-editor" id="map-origin-editor" hidden>
+              <label for="map-origin-query">Starting address or coordinates</label>
+              <div class="map-origin-address-host"><input class="field" id="map-origin-query" type="search" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" role="combobox" aria-autocomplete="list" placeholder="Current location (default)" maxlength="140"></div>
+              <div class="map-origin-actions"><button type="button" id="map-origin-pick" aria-pressed="false">⌖ Pick start on map</button><button type="button" id="map-origin-use-location">Use current location</button></div>
+            </div>
+          </div>
           <label for="map-destination-query">Destination <span class="small muted">(street address, saved place or coordinates)</span></label>
           <div class="map-destination-row"><div class="map-address-input-wrap"><input class="field" id="map-destination-query" type="search" name="openrf_destination_lookup" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="search" enterkeyhint="search" role="combobox" aria-autocomplete="list" aria-controls="map-address-options" aria-expanded="false" placeholder="Search an address or saved place" maxlength="140" required><div id="map-address-options" class="address-suggestions" role="listbox" aria-label="Address suggestions" hidden></div></div><datalist id="map-destination-suggestions"></datalist></div><button type="button" class="map-pick-destination" id="map-pick-destination">⌖ Choose destination on map</button>
 <button type="button" class="map-camera-open" id="map-search-camera-options">⚙ Route preferences <span id="map-search-camera-choice">Off</span></button>
 <div class="map-destination-actions">            <button class="btn primary nav-start-button" type="submit" id="map-start-navigation" title="Calculate a road route with local Valhalla"><svg class="nav-start-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="m3 11 18-8-8 18-2-8-8-2Z"/></svg> Get directions</button><button class="btn nav-follow-button" type="button" id="map-begin-guidance" disabled title="Start GPS follow-view after getting real directions">Start navigation</button></div>
+          <div class="map-router-quick"><button type="button" id="map-router-check">Check local road router</button><span id="map-router-result" role="status" aria-live="polite"></span></div>
           <p id="map-destination-status" class="small muted" role="status" aria-live="polite" hidden>Starting point: browser location. Select a U.S. address suggestion before routing. Get directions with local Valhalla, then start the optional GPS follow-view. Optional spoken prompts; route recalculation requires reliable movement data and local Valhalla.</p>
         </form>
         </div>
@@ -179,7 +188,7 @@
           <aside id="map-picked-action" class="map-picked-action" hidden aria-label="Selected destination">
             <div class="map-picked-top"><strong>Destination selected</strong><button type="button" id="map-picked-close" aria-label="Hide destination actions" title="Hide destination actions">×</button></div>
             <small id="map-picked-coordinates"></small><p id="map-picked-status" role="status" aria-live="polite"></p>
-            <div class="map-picked-buttons"><button type="button" id="map-picked-route" class="btn primary">Get directions</button><button type="button" id="map-picked-begin" class="btn outline" hidden>Start navigation</button><button type="button" id="map-picked-change" class="btn outline">Change pin</button><button type="button" id="map-picked-camera-options" class="btn outline">Route preferences</button></div>
+            <div class="map-picked-buttons"><button type="button" id="map-picked-route" class="btn primary">Get directions</button><button type="button" id="map-picked-origin" class="btn outline">Change start</button><button type="button" id="map-picked-begin" class="btn outline" hidden>Start navigation</button><button type="button" id="map-picked-change" class="btn outline">Change pin</button><button type="button" id="map-picked-camera-options" class="btn outline">Route preferences</button></div>
           </aside>
 
           <button type="button" id="map-add-observation" class="map-add-observation" aria-label="Add a manual observation" title="Add a manual observation (enter a location or tap the map)">

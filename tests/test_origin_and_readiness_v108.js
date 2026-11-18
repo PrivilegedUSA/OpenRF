@@ -23,7 +23,7 @@ assert(html.includes('id="nav-start-query"')&&html.includes('id="nav-pick-start-
 const scripts=[
   part('function resetRouteForNewDestination() {','function syncMapPickedAction()'),
   part('function syncDestinationPickMode() {','// Tap once to drop a destination'),
-  part('function beginOriginMapPick(){',"$('nav-pick-start-map').addEventListener('click',beginOriginMapPick);"),
+  part('function beginOriginMapPick({returnToSearch=false}={}){',"$('nav-pick-start-map').addEventListener('click',beginOriginMapPick);"),
   part('async function freshNavigationOrigin() {','async function quickDestinationPreview('),
 ].join('\n');
 const elements=new Map(), keyHandlers={};
@@ -41,9 +41,11 @@ const state={map,mapReady:true,navPicking:false,navPickKind:'destination',navPic
   navAvoidPicking:false,navAvoidSaved:[],navAvoidSession:[],navPreview:{type:'ROAD_ROUTE'},
   navRouteChoices:{standard:{},alternative:{}},navCameraComparison:{},navFollowId:null};
 const status=[];
+const quickSearchReturns=[];
 const context={state,$,window:{addEventListener(k,fn){keyHandlers[k]=fn}},Math,Date,navigator:{},
  stopNavigationFollow(){},renderDirectionsReview(){},renderNavigationOverlay(){},renderRoadAvoidList(){},syncMapPickedAction(){},
- cameraPanelVisibility(){},showPage(){},setMapSearchCollapsed(){},setNavigationStatus(s){status.push(s)},setMapDestinationStatus(s){status.push(s)},cancelAreaChoosing(){},
+ cameraPanelVisibility(){},showPage(){},setMapSearchCollapsed(open){quickSearchReturns.push(['search',open])},
+ setMapOriginEditor(open){quickSearchReturns.push(['editor',open])},setNavigationStatus(s){status.push(s)},setMapDestinationStatus(s){status.push(s)},cancelAreaChoosing(){},
  closeMapToolOverlay(){},get activeMapTool(){return null},worldPixel(){return [0,0]},pixelWorld(){return [0,0]},
  locationForQuickPreview(){return [-120.65,38.40]},navigationInputPoint(){return [-122,37]},
  async resolveTypedPlace(query){
@@ -88,10 +90,18 @@ function dispatch(type,x,y){
   state.navOriginManual=false;
   assert.equal((await context.freshNavigationOrigin())[0],-120.65,
     'Without a custom origin, browser location remains the default');
+  context.beginOriginMapPick({returnToSearch:true});
+  dispatch('pointerdown',110,150);dispatch('pointerup',110,150);
+  assert.equal(state.navPickedPoint[0],-121.20,'Quick From picker keeps the same destination');
+  assert.equal(state.navOriginPickReturnToSearch,false,'Quick map-pick return state is cleared');
+  assert(quickSearchReturns.some(([kind,value])=>kind==='search'&&value===false),
+    'Choosing a start in the main flow reopens the destination search');
+  assert(quickSearchReturns.some(([kind,value])=>kind==='editor'&&value===false),
+    'The selected From value remains visible without covering the map');
   context.beginOriginMapPick();
   keyHandlers.keydown({key:'Escape',preventDefault(){}});
   assert.equal(state.navPicking,false);
   assert.equal(panEnabled,true,'Escape restores panning');
   assert(status.some(s=>s.includes('Starting point selected')));
-  console.log('PASS v0.2.108 retained Map settings, moved readiness, custom origin by map/address, destination preservation');
+  console.log('PASS v0.2.109 retained Map settings, moved readiness, custom origin by map/address, destination preservation');
 })().catch(error=>{console.error(error);process.exitCode=1});

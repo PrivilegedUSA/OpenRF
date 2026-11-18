@@ -18,5 +18,5 @@ assert(script.includes('audio/${encodeURIComponent(record.id)}.wav'));
 assert(!/getUserMedia|speechRecognition|\bptt\b/i.test(script));
 assert(api.includes("'/static/radio.js'"));
 assert(css.includes('/* v0.2.53: receive-only tuner. No changes to map layouts. */'));
-assert(html.includes('/static/app.css?v=0.2.108'));
+assert(html.includes('/static/app.css?v=0.2.109'));
 console.log('PASS v0.2.53 radio controls and read-only local audio wiring');

@@ -1990,3 +1990,25 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
 #page-map .nav-start-actions .btn{flex:1 1 170px;min-width:0;min-height:40px;white-space:normal;padding:8px 9px}
 #page-map .nav-start-actions #nav-pick-start-map[aria-pressed="true"]{border-color:#34c9b1;background:#15505a;color:#d9fff6}
 #page-map .navigation-preview-overlay .nav-origin-pin{pointer-events:none}
+
+/* v0.2.109 — a compact, editable From field in the primary Where to? flow.
+   The map remains visible on an 800×480 display; extra controls open on demand. */
+#page-map .map-origin-control{margin:0 0 9px;padding:6px 8px;border:1px solid #30535f;border-radius:8px;background:#0b2530;min-width:0}
+#page-map .map-origin-summary{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;min-width:0}
+#page-map .map-origin-summary span{color:#89b7bd;font-size:11px;font-weight:750}
+#page-map .map-origin-summary strong{font-size:11px;font-weight:650;color:#d8f9f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+#page-map .map-origin-control.is-custom .map-origin-summary strong{color:#7fe8d2}
+#page-map .map-origin-summary button{min-height:28px;padding:4px 8px;border:1px solid #426675;border-radius:6px;background:#173745;color:#b5fff0;font-size:11px;font-weight:700}
+#page-map .map-origin-editor[hidden]{display:none!important}
+#page-map .map-origin-editor{padding-top:9px;margin-top:7px;border-top:1px solid #3b667466;min-width:0}
+#page-map .map-origin-editor label{display:block;font-size:11px;font-weight:700;margin:0 0 4px;color:#b3dcd8}
+#page-map .map-origin-address-host{position:relative;min-width:0}
+#page-map #map-origin-query{height:37px;width:100%;min-width:0;padding:7px 9px;font-size:12px}
+#page-map .map-origin-address-host .address-suggestions{top:calc(100% + 3px);left:0;right:0;z-index:201;max-height:150px}
+#page-map .map-origin-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px}
+#page-map .map-origin-actions button{flex:1 1 140px;min-height:32px;border:1px solid #426675;background:#15333e;border-radius:7px;padding:6px 8px;color:#9ff0df;font-size:11px;font-weight:700}
+#page-map .map-origin-actions button[aria-pressed="true"]{background:#235760;border-color:#34c9b1;color:#fff}
+#page-map .map-router-quick{display:flex;align-items:flex-start;flex-wrap:wrap;gap:4px 8px;margin-top:5px;min-width:0}
+#page-map #map-router-check{border:0;background:transparent;color:#8ddacb;text-decoration:underline;text-underline-offset:2px;padding:3px 0;font-size:10px;font-weight:650}
+#page-map #map-router-result{flex:1 1 185px;font-size:10px;line-height:1.4;color:#bedbd9;min-width:0;overflow-wrap:anywhere}
+#page-map #map-router-result:empty{display:none}

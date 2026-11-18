@@ -1,4 +1,13 @@
-# OpenRF v0.2.108 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.109 — Offline-First Navigation and RF Toolkit
+
+## v0.2.109 — Choose a starting point in Where to?
+
+- The **main map's Where to? → Get directions** panel now shows **From: Current location → Change**. A compact editor accepts typed addresses, saved places or coordinates, can select **Pick start on map**, and provides **Use current location** to restore the default. The optional Plan a trip form uses the same underlying origin; edits in either place are reflected in both.
+- After using **Choose destination on map**, the destination popup now offers **Change start** without requiring the user to open Plan a trip. A map-picked custom origin returns to the quick search with the destination preserved. Changing the start invalidates old directions; it never creates a false road route or a GPS history entry.
+- The main search also includes **Check local road router**. It makes an explicit loopback readiness request and gives a concrete Docker start hint when the existing Valhalla service is unreachable. It does not start Docker, download maps or restart other services. A route still needs the running local road graph; offline visual map files are not sufficient.
+- Preserves the separate right-side Map settings, bottom-right readiness gear, working online vector selection and all v0.2.108 navigation features. The regional offline vector rendering failure is **still unresolved**.
+
+See [v0.2.109 verification](docs/RELEASE_0.2.109_TESTS.md). No sensor drivers, private databases, map archives or local Valhalla containers were modified.
 
 ## v0.2.108 — Unify readiness under the gear + choose your own starting point
 
