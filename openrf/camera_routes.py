@@ -75,6 +75,59 @@ def route_cameras(repo, route, types=None, *, radius_m=RADIUS_M):
             'notice':'Reported camera positions within approximately 120 m of the drawn road. Not proof of operation, driving direction, or complete coverage.'}
 
 
+def _road_distance_m(first, second):
+    """Bounded local-scale geometry comparison; not a travel-time estimate."""
+    mean_lat = math.radians((first[1] + second[1]) / 2)
+    return math.hypot((second[0] - first[0]) * 111195 * math.cos(mean_lat),
+                      (second[1] - first[1]) * 111195)
+
+
+def _road_samples(route, *, intervals=128):
+    """Uniform distance-along-road samples, independent of polyline density.
+
+    Valhalla may add or remove intermediate shape points without changing the
+    traveled road. Comparing only point count or reported miles/times would
+    incorrectly show a duplicate route as an alternate.
+    """
+    coords = route.get('coordinates')
+    if not isinstance(coords, list) or not 2 <= len(coords) <= 100000:
+        return None
+    if any(not isinstance(p, (list, tuple)) or len(p) != 2 or
+           any(not isinstance(v, (int, float)) or not math.isfinite(v) for v in p)
+           for p in coords):
+        return None
+    lengths = [_road_distance_m(a, b) for a, b in zip(coords, coords[1:])]
+    total = sum(lengths)
+    if total < 1:
+        return None
+    samples = []
+    edge, passed = 0, 0.0
+    for index in range(intervals + 1):
+        target = total * index / intervals
+        while edge < len(lengths) - 1 and passed + lengths[edge] < target:
+            passed += lengths[edge]
+            edge += 1
+        portion = min(1.0, max(0.0, (target - passed) / lengths[edge])) if lengths[edge] else 0.0
+        a, b = coords[edge], coords[edge + 1]
+        samples.append((a[0] + (b[0] - a[0]) * portion,
+                        a[1] + (b[1] - a[1]) * portion))
+    return samples
+
+
+def materially_different_roads(main, alternate):
+    """Only offer a second choice if its road geometry meaningfully diverges.
+
+    Require at least three of 129 corresponding distance-based samples to be
+    45 m apart. This rejects identical/re-densified paths and GPS-rounding
+    noise without relying on rounded mileage, ETA or camera counts. It is a
+    UI distinctness check, not a guarantee of route safety or accessibility.
+    """
+    main_points, other_points = _road_samples(main), _road_samples(alternate)
+    if main_points is None or other_points is None:
+        return False
+    return sum(_road_distance_m(a, b) >= 45 for a, b in zip(main_points, other_points)) >= 3
+
+
 def compare(repo, locations, types, *, router=local_route, options=None):
     """Evaluate normal route and opt-in camera-exclusion alternative.
 
@@ -118,6 +171,9 @@ def compare(repo, locations, types, *, router=local_route, options=None):
     try:
         extra={'options':options} if options is not None else {}
         alternate=router(locations,exclude_locations=exclusions,**extra)
+        if not materially_different_roads(standard, alternate):
+            response['detail']='Valhalla returned the same (or nearly the same) road after applying the camera exclusions. There is no meaningfully different alternate for this trip.'
+            return response
         report=route_cameras(repo,alternate,sorted(chosen))
     except (RouteError, RouteUnavailable, ValueError) as exc:
         response['detail']=f'Valhalla could not calculate a camera-aware alternative. Your original route is unchanged. {exc}'

@@ -843,3 +843,10 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Add a manual **Check local road router** control in the quick search. If Valhalla is unreachable on local loopback, explain that the existing Docker container must be started. No automatic Docker start, hardware changes, or third-party network calls are added.
 - Keep the existing right-hand Map settings, the bottom-right gear readiness panel, online map option, and region-limited offline map behavior unchanged. There is still no verified fix for offline regional vector rendering or a guarantee of road routing without a working local Valhalla graph.
 
+## v0.2.110 — Genuine alternatives and route-choice comparison (2026-11-18)
+
+- Reject camera-aware Valhalla alternatives whose road geometry stays substantially identical to the normal route. Use bounded distance-along-road samples so an alternative with the same physical road but different vertex density is not shown as a second choice. The main road remains selected and the service provides a clear explanation.
+- Stack two genuine route choices vertically on compact 800×480 displays. Show main/alternate miles, time and mapped camera report counts, plus a relative difference summary on the alternate (longer/shorter, slower/faster, more/fewer reported cameras). Mark incomplete catalog data rather than implying verified coverage or real-time camera operation.
+- Defensively suppress identical overlapping coordinates in the browser so a duplicate route is never drawn as an imperceptible dashed amber line beneath the selected teal route. Do not suppress distinct paths just because rounded ETA, mileage or camera counts match.
+- Preserve the previously working Where to? custom starting-point flow, right-rail map settings, offline navigation readiness location, online vector option, GPS privacy boundaries, sensor APIs, local data and map archives. No physical hardware, Valhalla Docker service or full browser layout was changed or verified.
+

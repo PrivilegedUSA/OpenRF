@@ -52,9 +52,13 @@ class RoutePreferences(unittest.TestCase):
                'coordinates':[[-120.7,38.4],[-120.68,38.4],[-120.6,38.5]],
                'origin':[-120.7,38.4],'destination':[-120.6,38.5], 'stops':[],
                'distance_miles':8,'duration_seconds':600,'maneuvers':[]}
+        alternative={**route,'coordinates':[[-120.7,38.4],[-120.70,38.48],[-120.6,38.5]],
+                     'distance_miles':8.8,'duration_seconds':720}
         class Repo:pass
         actual=[]
-        def router(_locations,**kwargs):actual.append(kwargs);return route
+        def router(_locations,**kwargs):
+            actual.append(kwargs)
+            return alternative if kwargs.get('exclude_locations') else route
         # Mock camera reports; no DB or public map required.
         old=camera_routes.route_cameras
         try:

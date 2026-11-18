@@ -2936,34 +2936,64 @@ function positionRouteChoicePanel(){
   const top=Math.ceil(heading.bottom-area.top+12);
   panel.style.top=`${top}px`;
   // Keep the route cards scrollable rather than pushing their actions offscreen.
-  panel.style.maxHeight=`${Math.max(80,Math.min(200,Math.floor(area.bottom-heading.bottom-24)))}px`;
+  panel.style.maxHeight=`${Math.max(100,Math.min(260,Math.floor(area.bottom-heading.bottom-24)))}px`;
+}
+function sameRoadCoordinates(first,second){
+  // Defensive guard for previously cached or older API responses. The Python
+  // router comparison performs the fuller distance-sampled near-duplicate
+  // check; this cheap client guard rejects literally overlapping paths.
+  const a=first?.coordinates,b=second?.coordinates;
+  if(!Array.isArray(a)||!Array.isArray(b)||a.length<2||a.length!==b.length)return false;
+  return a.every((point,i)=>Array.isArray(point)&&Array.isArray(b[i])&&
+    Math.abs(Number(point[0])-Number(b[i][0]))<0.00005&&
+    Math.abs(Number(point[1])-Number(b[i][1]))<0.00005);
+}
+function routeChoiceDifferenceSummary(response){
+  const main=response.standard,other=response.alternative;
+  const miles=Number(other.distance_miles)-Number(main.distance_miles);
+  const minutes=Math.round((Number(other.duration_seconds)-Number(main.duration_seconds))/60);
+  const distanceText=!Number.isFinite(miles)?'distance difference unknown':
+    Math.abs(miles)<0.05?'same distance':`${Math.abs(miles).toFixed(1)} mi ${miles>0?'longer':'shorter'}`;
+  const timeText=!Number.isFinite(minutes)?'time difference unknown':
+    minutes===0?'same estimated time':`${Math.abs(minutes)} min ${minutes>0?'slower':'faster'}`;
+  const mainReports=Number(response.standard_cameras?.count),otherReports=Number(response.alternative_cameras?.count);
+  const validReports=response.standard_cameras&&response.alternative_cameras&&
+    Number.isFinite(mainReports)&&Number.isFinite(otherReports);
+  const delta=otherReports-mainReports;
+  const reportsText=!validReports?'camera comparison unavailable':
+    delta===0?'same number of mapped camera reports':
+      `${Math.abs(delta)} ${delta>0?'more':'fewer'} mapped camera report${Math.abs(delta)===1?'':'s'}`;
+  const incomplete=response.standard_cameras?.incomplete||response.alternative_cameras?.incomplete;
+  return [distanceText,timeText,reportsText].join(' · ')+(incomplete?' · partial camera data':'');
 }
 function renderRouteChoices(){
   const response=state.navRouteChoices, panel=$('map-route-choices');
   // When there is only one drivable route, it is already selected; no choice
   // card should interrupt the full turn-by-turn directions.
-  const ready=Boolean(response?.standard?.is_driving_route && response?.alternative?.is_driving_route);
+  const ready=Boolean(response?.standard?.is_driving_route && response?.alternative?.is_driving_route &&
+    !sameRoadCoordinates(response.standard,response.alternative));
   panel.hidden=!ready || state.navPicking || state.navChoicePanelClosed || state.navFollowId!==null || !mapSearchForm.hidden || $('map-navigation-options').open || $('map-directions-review').open;
   if(!ready){$('route-choice-alternate').hidden=true;return;}
-  for(const [key,id,label,route,report] of [
-    ['standard','route-choice-standard','Main route',response.standard,response.standard_cameras],
-    ['alternate','route-choice-alternate','Alternate',response.alternative,response.alternative_cameras]]){
+  for(const [key,id,detailsId,route,report] of [
+    ['standard','route-choice-standard','route-choice-standard-details',response.standard,response.standard_cameras],
+    ['alternate','route-choice-alternate','route-choice-alternate-details',response.alternative,response.alternative_cameras]]){
     const button=$(id);button.hidden=!route;
     button.setAttribute('aria-pressed',String(state.navChoiceSelection===key));
-    // A camera comparison often returns only the main route. A hidden
-    // alternate button must never dereference a missing route and abort
-    // navigation rendering or leave stale overlays in place.
-    if(!route){button.textContent=label;continue;}
-    button.textContent=`${label} · ${route.distance_miles} mi · ~${Math.round(route.duration_seconds/60)} min · ${report?.count??'?'} reports`;
+    // Structured spans preserve separate title, route details and the
+    // at-a-glance comparison on a narrow 5-inch landscape touch display.
+    if(!route)continue;
+    $(detailsId).textContent=`${route.distance_miles} mi · ~${Math.round(route.duration_seconds/60)} min · ${report?.count??'?'} mapped reports`;
   }
-  $('route-choice-status').textContent=response.alternative ?
-    'Tap a card or colored road line to choose. Teal is selected; dashed amber is the other route. Camera and access reports may be incomplete.' :
+  $('route-choice-difference').textContent=routeChoiceDifferenceSummary(response);
+  $('route-choice-status').textContent=ready ?
+    'Tap to choose. Teal is selected; dashed amber marks the other road. Reported camera locations do not prove active devices.' :
     (response.detail || 'Only the main route is available with current preferences and road data.');
   positionRouteChoicePanel();
 }
 function chooseRouteChoice(key){
   const response=state.navRouteChoices,chosen=key==='alternate'?response?.alternative:response?.standard;
   if(!chosen?.is_driving_route)return;
+  if(key==='alternate'&&sameRoadCoordinates(response.standard,response.alternative))return;
   if(state.navFollowId!==null){$('route-choice-status').textContent='Stop safely before switching active road routes.';return;}
   if(state.navChoiceSelection===key)return;
   const remembered=response;
@@ -2988,6 +3018,10 @@ $('navigation-preview-overlay').addEventListener('click',event=>{
 });
 
 function showCameraComparison(response){
+  if(response.alternative && sameRoadCoordinates(response.standard,response.alternative)){
+    response={...response,alternative:null,alternative_cameras:null,
+      detail:'Valhalla returned the same road geometry for both choices. Only the main route is available.'};
+  }
   const status=$('map-camera-comparison-status');
   if(!response.alternative){
     status.textContent=response.detail||'No alternative was found; the normal road route remains selected.';
@@ -3716,7 +3750,7 @@ function renderNavigationOverlay() {
   if(choices?.alternative?.coordinates && !state.navChoicePanelClosed && state.navFollowId===null){
     const otherKey=state.navChoiceSelection==='standard'?'alternate':'standard';
     const other=choices[otherKey];
-    const different=other?.coordinates && other.coordinates!==preview.coordinates;
+    const different=other?.coordinates && !sameRoadCoordinates(other,preview);
     if(different){
       const pts=other.coordinates.map(project);
       if(pts.every(pair=>pair.every(Number.isFinite))){

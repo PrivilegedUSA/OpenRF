@@ -61,6 +61,33 @@ class RouteCameras(unittest.TestCase):
         self.assertEqual(reply['alternative']['distance_miles'],3.7)
         self.assertEqual(reply['exclusions_used'],1)
 
+    def test_identical_road_must_not_be_advertised_as_an_alternate(self):
+        self.add(38.4002,-120.68)
+        same={**self.road,'coordinates':[p[:] for p in self.coords],
+              'distance_miles':3.0,'duration_seconds':360}
+        calls=[]
+        def router(_locations,**kw):
+            calls.append(kw)
+            return same if kw.get('exclude_locations') else self.road
+        result=camera_routes.compare(self.repo,self.locations,['ALPR'],router=router)
+        self.assertEqual(len(calls),2,'Valhalla was asked for an actual alternate')
+        self.assertIsNone(result['alternative'],'duplicate road must be suppressed')
+        self.assertEqual(result['standard_cameras']['count'],1)
+        self.assertIn('same',result['detail'])
+
+    def test_same_road_with_more_shape_points_is_still_not_alternate(self):
+        original=self.road
+        densified=[]
+        for a,b in zip(self.coords,self.coords[1:]):
+            densified.append(a)
+            densified.append([(a[0]+b[0])/2,(a[1]+b[1])/2])
+        densified.append(self.coords[-1])
+        same={**original,'coordinates':densified}
+        self.assertFalse(camera_routes.materially_different_roads(original,same))
+        # Different physical roads of equal mileage/ETA are still valid options.
+        detour={**original,'coordinates':[self.coords[0],[-120.685,38.408],self.coords[-1]]}
+        self.assertTrue(camera_routes.materially_different_roads(original,detour))
+
     def test_failure_and_invalid_inputs_keep_normal_route(self):
         self.add(38.4001,-120.68)
         def router(_points,**kw):

@@ -2012,3 +2012,13 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
 #page-map #map-router-check{border:0;background:transparent;color:#8ddacb;text-decoration:underline;text-underline-offset:2px;padding:3px 0;font-size:10px;font-weight:650}
 #page-map #map-router-result{flex:1 1 185px;font-size:10px;line-height:1.4;color:#bedbd9;min-width:0;overflow-wrap:anywhere}
 #page-map #map-router-result:empty{display:none}
+
+/* v0.2.110 — stack genuine route choices with a plain-language tradeoff.
+   At 800×480 both cards stay readable without side-by-side truncation. */
+#page-map .route-choice-buttons{grid-template-columns:minmax(0,1fr);gap:7px;margin:8px 0}
+#page-map .route-choice-btn{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0;min-height:55px;padding:8px 10px;line-height:1.35}
+#page-map .route-choice-btn strong{font-size:12px;color:#eafff8;font-weight:750}
+#page-map .route-choice-btn span{display:block;font-size:11px;color:#bbdad9;overflow-wrap:anywhere}
+#page-map .route-choice-btn small{display:block;color:#a6f7df;font-size:11px;line-height:1.45;font-weight:700;overflow-wrap:anywhere}
+#page-map .route-choice-btn[aria-pressed="true"] span{color:#ecfffa}
+#page-map .map-route-choices{max-height:min(55dvh,260px)}
