@@ -1,4 +1,10 @@
-# OpenRF v0.2.104 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.105 — Offline-First Navigation and RF Toolkit
+
+## v0.2.105 — Visible base-map recovery + landscape settings sheet
+
+- Distinguish **vector style loaded** from **geographic map features actually rendered**. On a silent/empty map, show a small non-blocking explanation, then attempt installed Amador/Calaveras vector tiles when the online map is unavailable and Auto mode allows it. A regional fallback explicitly frames its limited coverage instead of remaining at an empty nationwide zoom. Explicit Online preference is honored.
+- Anchor the map's bottom-right gear popup above the button, within the screen, and scroll long preferences inside the popup at 800×480 landscape.
+- No modifications to stored GPS data, map tile archive, network interface, database schema or dependencies. Hardware/driver/browser-specific rendering remains unverified; see [v0.2.105 test instructions](docs/RELEASE_0.2.105_TESTS.md).
 
 ## v0.2.104 — Regional vector recovery and compact message counter
 

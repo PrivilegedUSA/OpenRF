@@ -1191,13 +1191,61 @@ function updateOpenRFVectorButtons(){
   $('map-vector-source').textContent=state.mapVectorOffline ? 'Use online vectors' : 'Use offline regional vectors';
   $('map-style').textContent=state.style==='dark' ? 'OpenRF Light' : 'OpenRF Dark';
 }
-function tryOfflineVectorRecovery(attempt){
+function showVectorBasemapNotice(message){
+  const box=$('map-error');
+  box.classList.add('map-notice');
+  box.replaceChildren();
+  const heading=document.createElement('strong');
+  heading.textContent='Map tiles not visible';
+  const detail=document.createElement('p');
+  detail.textContent=message;
+  box.append(heading,detail);
+  box.hidden=false;
+}
+function visibleVectorBasemapFeatures(){
+  if(!state.map || !state.mapReady)return false;
+  try{
+    const layers=(state.map.getStyle()?.layers||[])
+      .filter(layer=>layer.source==='openmaptiles' && layer.type!=='background')
+      .map(layer=>layer.id);
+    return layers.length>0 && state.map.queryRenderedFeatures(undefined,{layers}).length>0;
+  }catch(_){return false;}
+}
+function frameInstalledRegion(){
+  if(!state.map || !regionalVectorReady())return;
+  const bounds=state.vectorStatus.bounds;
+  const center=state.map.getCenter();
+  if(regionalVectorContains(center.lng,center.lat))return;
+  const gps=state.browserLocation;
+  const target=gps && regionalVectorContains(gps.lon,gps.lat) ? [gps.lon,gps.lat] :
+    [(bounds[0]+bounds[2])/2,(bounds[1]+bounds[3])/2];
+  state.map.jumpTo({center:target,zoom:8.5});
+}
+function checkVectorBasemap(attempt,styleUrl){
+  if(attempt!==state.mapAttempt || !state.map || state.rasterMap ||
+     state.mapBasemapVisible || openrfMapStyleUrl()!==styleUrl)return;
+  if(visibleVectorBasemapFeatures()){
+    state.mapBasemapVisible=true;
+    $('map-error').hidden=true;
+    return;
+  }
+  // The style.load event is not proof that the actual source tiles loaded.
+  // A failed remote source used to leave a silent, featureless background.
+  if(!state.mapVectorOffline && tryOfflineVectorRecovery(attempt,true))return;
+  showVectorBasemapNotice(state.mapVectorOffline ?
+    'The local Amador/Calaveras style opened, but no regional features rendered. Check the local vector tile files; the offline regional map is not a worldwide basemap.' :
+    'The vector renderer opened but did not display roads or geographic features. Check the online tile connection, or choose installed regional vectors in Map settings below the map.');
+}
+function tryOfflineVectorRecovery(attempt,allowLoadedStyle=false){
   if(attempt===state.mapAttempt && state.mapOfflineRecoveryTried && state.mapVectorOffline && !state.mapReady)return true;
-  if(attempt!==state.mapAttempt || !state.map || state.mapReady || state.rasterMap ||
+  if(attempt!==state.mapAttempt || !state.map || (state.mapReady && !allowLoadedStyle) || state.rasterMap ||
     state.mapVectorOffline || state.mapOfflineRecoveryTried || !regionalVectorReady() ||
     state.mapVectorPreference==='online')return false;
   state.mapOfflineRecoveryTried=true;
   state.mapVectorOffline=true;
+  state.mapReady=false;
+  state.mapBasemapVisible=false;
+  state.mapRegionalFramePending=true;
   try{
     state.map.setStyle(openrfMapStyleUrl());
     updateOpenRFVectorButtons();
@@ -1254,6 +1302,8 @@ function startMap() {
   if (state.map || state.rasterMap) return;
   state.mapStartupError=null;
   state.mapOfflineRecoveryTried=false;
+  state.mapBasemapVisible=false;
+  state.mapRegionalFramePending=state.mapVectorOffline && state.mapVectorPreference==='offline';
   if (!window.maplibregl) { const view = state.preferredView; state.preferredView = null; return startRasterMap('MapLibre JavaScript did not load. The installed regional vector map needs MapLibre/WebGL. Using coordinate fallback.', view); }
   const attempt = ++state.mapAttempt;
   try {
@@ -1275,7 +1325,25 @@ function startMap() {
       onRemove() { this._element?.remove(); this._element = null; }
     }, 'top-right');
     queueMapToolRailAlignment();
-    state.map.on('style.load', () => { updateOfflineAttribution(); state.mapReady = true; $('map-error').hidden = true; installMarkerLayer(); window.OpenRFCameras?.installVector(state.map); if(!state.map.__openrfRefreshClickableCursor)installMapFeatureHoverCursors(state.map); updateMap(); updateBrowserLocationMarker(); applyPendingLocation(); renderAreaOverlay(); renderNavigationOverlay(); applyNavigationFit(); });
+    state.map.on('style.load', () => {
+      updateOfflineAttribution();
+      state.mapReady=true;
+      state.mapBasemapVisible=false;
+      if(state.mapRegionalFramePending){state.mapRegionalFramePending=false;frameInstalledRegion();}
+      installMarkerLayer();
+      window.OpenRFCameras?.installVector(state.map);
+      if(!state.map.__openrfRefreshClickableCursor)installMapFeatureHoverCursors(state.map);
+      updateMap();updateBrowserLocationMarker();applyPendingLocation();
+      renderAreaOverlay();renderNavigationOverlay();applyNavigationFit();
+      const url=openrfMapStyleUrl();
+      setTimeout(()=>checkVectorBasemap(attempt,url),9000);
+    });
+    state.map.on('idle',()=>{
+      if(!state.mapBasemapVisible && visibleVectorBasemapFeatures()){
+        state.mapBasemapVisible=true;
+        $('map-error').hidden=true;
+      }
+    });
     state.map.on('movestart', event => { if (event.originalEvent) state.mapNavigationEpoch++; });
     // Rural Route-style behavior: a deliberate pan suspends camera following
     // without ending position acquisition. The recenter control resumes it.
@@ -1313,10 +1381,24 @@ function startMap() {
       const w = evt.features[0].properties;
       new maplibregl.Popup().setLngLat(evt.lngLat).setHTML(`<strong>Survey waypoint #${escapeHTML(w.id)}</strong><br>Browser-reported observer position, not RF detection<br>${escapeHTML(w.note || '')}`).addTo(state.map);
     });
-    state.map.on('error', evt => { if (evt.error && !state.mapReady) setTimeout(() => {
-      if (attempt === state.mapAttempt && !state.mapReady && !state.rasterMap && !tryOfflineVectorRecovery(attempt))
-        switchToRasterMap('Vector style failed; showing raster map instead.');
-    }, 500); });
+    state.map.on('error', evt => {
+      if(!evt.error)return;
+      console.warn('MapLibre vector source error:',evt.error);
+      if(!state.mapReady){
+        setTimeout(()=>{
+          if(attempt===state.mapAttempt && !state.mapReady && !state.rasterMap && !tryOfflineVectorRecovery(attempt))
+            switchToRasterMap('Vector style failed; showing raster map instead.');
+        },500);
+      }else if(!state.mapBasemapVisible){
+        // Keep the renderer alive to allow a transient request to recover.
+        // A 9-second source check will recover to installed regional tiles
+        // or show a visible diagnostic instead of an unexplained dark screen.
+        const source=String(evt.sourceId||evt.error?.sourceId||'');
+        const msg=String(evt.error?.message||evt.error||'');
+        if(source==='openmaptiles' || /tiles\.openfreemap\.org|\/api\/vector\/tiles\//i.test(msg))
+          showVectorBasemapNotice('Map source request failed. Waiting briefly to retry; local regional vectors will be tried automatically when available.');
+      }
+    });
     $('map-mode').textContent = 'Offline / raster';
     setTimeout(() => {
       if (attempt === state.mapAttempt && !state.mapReady && !state.rasterMap && !tryOfflineVectorRecovery(attempt))
@@ -3211,6 +3293,23 @@ $('map-online-address').addEventListener('change',()=>{
 
 // The settings gear stays in its lower-right map-control slot when open.
 // Close the floating panel with its dedicated X, never by moving the gear.
+function alignMapSettingsPopup(){
+  const details=$('map-navigation-options');
+  if(!details.open)return;
+  const trigger=details.querySelector('summary').getBoundingClientRect();
+  const popup=details.querySelector('.map-settings-popup');
+  // The gear sits 90px from the map's right edge. Extend the popup toward
+  // that edge, matching the other two lower-right map tool sheets.
+  const right=Math.max(8,Math.round(window.innerWidth-trigger.right-82));
+  const bottom=Math.max(8,Math.round(window.innerHeight-trigger.top+8));
+  const height=Math.max(90,Math.round(trigger.top-18));
+  popup.style.setProperty('--openrf-settings-right',`${right}px`);
+  popup.style.setProperty('--openrf-settings-bottom',`${bottom}px`);
+  popup.style.setProperty('--openrf-settings-max-height',`${height}px`);
+}
+$('map-navigation-options').addEventListener('toggle',alignMapSettingsPopup);
+window.addEventListener('resize',alignMapSettingsPopup);
+window.addEventListener('scroll',alignMapSettingsPopup,true);
 $('map-settings-close').addEventListener('click',()=>{
   $('map-navigation-options').open=false;
   $('map-navigation-options').querySelector('summary').focus();
@@ -4287,6 +4386,7 @@ $('map-vector-source').addEventListener('click',()=>{
     return;
   }
   state.mapVectorOffline=!state.mapVectorOffline;
+  state.mapRegionalFramePending=state.mapVectorOffline;
   state.mapVectorPreference=state.mapVectorOffline?'offline':'online';
   rememberVectorPreference(state.mapVectorPreference);
   state.mapOfflineRecoveryTried=false;

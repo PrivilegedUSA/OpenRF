@@ -808,3 +808,10 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Anchor the compact header unread count to the envelope glyph and restore its proportional size on 5-inch layouts, without changing genuine message count behavior.
 - Add frontend regression tests for source selection, persistence entry points, bounded recovery, renderer messaging and badge structure. No backend schema or new mandatory dependencies. Firefox/WebGL behavior on the user's graphics driver and actual map rendering on their computer remain unverified.
 
+## v0.2.105 — Visible basemap source checks + gear-panel placement (2026-11-18)
+
+- Fix a false-success condition: `style.load` was treated as complete map success even when the OpenMapTiles source delivered **no visible map features**, causing an unexplained dark map after WebGL was restored. Verify rendered basemap features after the map becomes idle; if missing after nine seconds, attempt the installed regional vector archive when eligible or show a small, nonblocking diagnostic instead of silently hiding the map error.
+- Frame installed Amador/Calaveras coverage when starting an explicitly offline map or automatically recovering from failed worldwide tiles. This intentionally changes the default national view only in those local-region cases; a working online Auto map still opens with the wider U.S. overview.
+- Anchor the map-settings sheet above the lower-right gear using measured screen coordinates on open, resize and scroll. Clamp size and scroll tall contents within the panel, including in 800×480 landscape. Retain existing route preferences, layers, observations and message badges.
+- Add deterministic source-error recovery and gear-layout regression tests. No change to MBTiles assets, WebGL settings, drivers, database or network disclosure. Real Firefox/Intel GPU and local geographic tile drawing must still be verified by the operator.
+

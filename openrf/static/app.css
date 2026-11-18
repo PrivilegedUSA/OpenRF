@@ -1936,3 +1936,29 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
 #page-reticulum .reticulum-halow-settings .switchline{min-width:0;flex-wrap:wrap;margin:12px 0 8px}
 #page-reticulum .reticulum-halow-choice{display:grid;gap:6px;max-width:480px;min-width:0;color:#c4e1e1;font-size:12px}
 #page-reticulum .reticulum-halow-choice select{min-width:0;max-width:100%;width:100%}
+
+/* v0.2.105 — a loaded style with missing map tiles is a small visible warning,
+   never a blank screen or a full-screen blocker over the map controls. */
+#page-map .map-wrap .map-error.map-notice{
+  position:absolute;inset:auto;top:74px;left:10px;right:68px;bottom:auto;
+  z-index:25;display:block;width:fit-content;max-width:min(480px,calc(100% - 80px));
+  padding:9px 11px;background:#092632ee;color:#d9f4ef;text-align:left;
+  border:1px solid #35616b;border-radius:9px;font-size:11px;line-height:1.45;
+  box-shadow:0 4px 14px #0008;pointer-events:none;
+}
+#page-map .map-wrap .map-error.map-notice[hidden]{display:none!important}
+#page-map .map-wrap .map-error.map-notice strong{display:block;margin:0 0 2px;font-size:11px;color:#94eada}
+#page-map .map-wrap .map-error.map-notice p{margin:0;font-size:11px;max-width:none}
+
+/* Bottom-right gear: the preferences sheet is pinned ABOVE its trigger in
+   viewport coordinates. It cannot fall below the map or be clipped in 800x480
+   landscape, and long settings scroll inside the sheet. */
+#page-map .map-navigation-settings[open] .map-settings-popup{
+  position:fixed;left:auto;top:auto;
+  right:var(--openrf-settings-right,10px);
+  bottom:var(--openrf-settings-bottom,54px);
+  width:min(390px,calc(100vw - 20px));
+  max-height:var(--openrf-settings-max-height,calc(100dvh - 65px));
+  overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;
+  z-index:80;
+}

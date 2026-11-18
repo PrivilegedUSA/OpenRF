@@ -20,7 +20,7 @@ assert.match(js, /preferLocalVectorsAtBrowserFix\(lon,lat\);/);
 
 function extract(from,to){const a=js.indexOf(from),b=js.indexOf(to,a);assert(a>=0&&b>a);return js.slice(a,b);}
 const functions=extract('function regionalVectorReady(){','async function refreshOpenRFVectorMapStatus()');
-const recovery=extract('function tryOfflineVectorRecovery(attempt){','function alignMapToolRail()');
+const recovery=extract('function tryOfflineVectorRecovery(attempt,allowLoadedStyle=false){','function alignMapToolRail()');
 const statusLabel={textContent:''};
 const calls=[];
 const initial={
