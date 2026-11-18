@@ -821,3 +821,11 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Replace the old twelve-second silent-style fallback with a non-destructive warning if neither online nor installed regional vectors finish loading. A real synchronous WebGL/MapLibre constructor failure can still invoke the coordinate fallback. No map-source selection, map bounds, tile format or data was changed.
 - Add a regression test asserting that tile-error and style-timeout branches cannot tear down an otherwise healthy vector map. Preserve the landscape settings popup and all existing features. Physical Firefox rendering and GPS transition remain operator verification steps.
 
+## v0.2.107 — Official application branding and camera-viewport validation (2026-11-18)
+
+- Use the exact approved OpenRF brand-kit artwork in the Linux field console: dark-background wordmark in the sidebar, 32px favicon, 180px Apple touch icon, and 192/512px app icons in a local manifest; keep the 5-inch map workspace uncluttered. The standalone original brand-kit ZIP is not bundled.
+- Whitelist and serve these six local PNG files plus the manifest from the loopback HTTP server. An old `/favicon.ico` browser request now returns the official 32px PNG with `image/png` rather than a 404.
+- Reject non-geographic/world-wrapped client map bounds before calling `/api/cameras` so the nationwide overview no longer repeatedly generates HTTP 400. Inform the user that the camera layer becomes available at a narrower viewport.
+- Bump bundled Python version and release manifest. The reported blank regional MapLibre view remains an open diagnostic task; style JSON HTTP 200 alone does not verify that offline tile/glyph resources or geographic layers render.
+- No modifications to offline map data, GPU configuration, user SQLite data or network services; real Raspberry Pi/browser rendering and connected radio links remain unverified.
+

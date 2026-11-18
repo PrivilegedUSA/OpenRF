@@ -128,6 +128,35 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host():
             return self._error(HTTPStatus.FORBIDDEN, 'Loopback-only service')
         path = urlparse(self.path).path
+        # Serve only the six approved OpenRF brand-kit images, never an
+        # arbitrary client-supplied file path or private local-data directory.
+        brand_images = {
+            '/favicon.ico': 'openrf-icon-32.png',
+            '/static/assets/openrf-icon-32.png': 'openrf-icon-32.png',
+            '/static/assets/openrf-icon-180.png': 'openrf-icon-180.png',
+            '/static/assets/openrf-icon-192.png': 'openrf-icon-192.png',
+            '/static/assets/openrf-icon-512.png': 'openrf-icon-512.png',
+            '/static/assets/openrf-wordmark-light.png': 'openrf-wordmark-light.png',
+            '/static/assets/openrf-tower-light.png': 'openrf-tower-light.png',
+        }
+        if path in brand_images:
+            image_file = STATIC_DIR / 'assets' / brand_images[path]
+            if not image_file.is_file() or image_file.is_symlink():
+                return self._error(500, 'OpenRF brand image missing')
+            try:
+                raw = image_file.read_bytes()
+            except OSError:
+                return self._error(500, 'OpenRF brand image unreadable')
+            return self._send(200, raw, 'image/png', cache_control='private, max-age=86400')
+        if path == '/manifest.webmanifest':
+            manifest_file = STATIC_DIR / 'manifest.webmanifest'
+            if not manifest_file.is_file() or manifest_file.is_symlink():
+                return self._error(500, 'OpenRF app manifest missing')
+            try:
+                raw = manifest_file.read_bytes()
+            except OSError:
+                return self._error(500, 'OpenRF app manifest unreadable')
+            return self._send(200, raw, 'application/manifest+json; charset=utf-8')
         if path in ('/static/vendor/maplibre-gl.js', '/static/vendor/maplibre-gl.css'):
             suffix = '.js' if path.endswith('.js') else '.css'
             installed = self.server.map_asset_directory / ('maplibre-gl-5.24.0' + suffix)

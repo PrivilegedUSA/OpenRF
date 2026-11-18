@@ -1,4 +1,13 @@
-# OpenRF v0.2.106 — Offline-First Navigation and RF Toolkit
+# OpenRF v0.2.107 — Offline-First Navigation and RF Toolkit
+
+## v0.2.107 — OpenRF identity across the actual software
+
+- The Linux web console now uses the **official OpenRF brand-kit wordmark** in its sidebar, replacing the placeholder circle; the 32px browser favicon, mobile touch icon and app manifest all use the original supplied icon artwork. Only the runtime assets are packaged, not another copy of the full brand kit.
+- The local Python server explicitly serves the six approved PNG images, including `/favicon.ico` as PNG content, instead of returning an HTTP 404. The main stylesheet and camera-overlay script have release-specific URLs to avoid a stale cached layout.
+- Skip invalid world-wrapped camera-layer bounds at the zoomed-out map overview (e.g. west longitude less than -180), preventing the 400 errors shown in Firefox's Network panel. The overlay resumes loading when the visible area has valid geographic bounds. No surveillance camera locations are fabricated.
+- **Still under investigation:** a successful 200 response for `/api/vector/styles/dark.json?offline=1` confirms the style document is available, **not** that local vector tiles and glyph ranges rendered. This update does not claim to repair the user's blank regional basemap. Use `/api/vector/status` and Firefox's Network and Console tabs to inspect those tile/glyph requests; see [release checks](docs/RELEASE_0.2.107_TESTS.md).
+
+The app stays bound to localhost and is not automatically exposed to Wi-Fi, HaLow or the internet. No local GPS, SQLite, radio or private investigation files were changed.
 
 ## v0.2.106 — Keep vector maps alive during GPS zoom
 

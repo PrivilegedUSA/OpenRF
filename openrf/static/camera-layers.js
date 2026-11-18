@@ -53,7 +53,11 @@
     }
     return null;
   };
-  const usable=b=>b&&b.length===4&&b.every(Number.isFinite)&&b[0]<b[2]&&b[1]<b[3];
+  // MapLibre can report world-wrapped longitudes (e.g. west=-245) at the
+  // nationwide overview. The catalog API correctly rejects such coordinates;
+  // wait for a local viewport instead of sending an invalid 400 request.
+  const usable=b=>b&&b.length===4&&b.every(Number.isFinite)&&
+    -180<=b[0]&&b[0]<b[2]&&b[2]<=180&&-90<=b[1]&&b[1]<b[3]&&b[3]<=90;
   const filtered=()=>entries.filter(c=>enabled().has(c.type));
   function installVector(map){
     if(!map || map.getSource('camera-catalog-data'))return;
@@ -104,7 +108,7 @@
   async function refresh(force=false){
     if(!enabled().size){entries=[];lastKey='';updateVector(state.map);state.rasterMap?.render();return;}
     const b=bounds();if(!usable(b)){
-      setStatus('Map bounds unavailable or cross the date line; zoom to a local area.',true);return;
+      setStatus('Camera locations become available after zooming into a valid map area.',false);return;
     }
     const rounded=b.map(n=>Number(n.toFixed(4)));
     const key=JSON.stringify(rounded);
