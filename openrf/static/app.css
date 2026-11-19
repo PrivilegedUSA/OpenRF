@@ -2025,6 +2025,38 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
 #page-map .route-choice-btn[aria-pressed="true"] span{color:#ecfffa}
 #page-map .map-route-choices{max-height:min(72dvh,380px)}
 
+/* v0.2.133 — a map-picked destination no longer needs an inner scrollbar on
+   the 800×480 field display. Keep the map tools visible to the right. */
+#page-map .map-picked-action{max-height:min(67dvh,350px)}
+#page-map .map-picked-action p{max-height:80px}
+#page-map .map-picked-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+#page-map .map-picked-buttons .btn{min-width:0;min-height:38px;white-space:normal;line-height:1.3}
+@media(max-width:550px){#page-map .map-picked-action{max-height:min(68dvh,325px)}}
+
+/* v0.2.133 — choose Drive/Walk before selecting From and Destination. */
+#page-map .map-travel-mode{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:0 0 5px}
+#page-map .map-travel-mode-button{display:flex;align-items:center;justify-content:center;gap:8px;
+  width:100%;min-height:42px;padding:6px 11px;border:1px solid #406473;border-radius:8px;
+  color:#c9dfdd;background:#172f3a;font-size:13px;font-weight:750;cursor:pointer;touch-action:manipulation}
+#page-map .map-travel-mode-button svg{display:block;width:22px;height:22px;flex:none}
+#page-map .map-travel-mode-button[aria-pressed="true"]{background:#1e5d57;border-color:#43dfbd;color:#f4fffa;box-shadow:inset 0 0 0 1px #43dfbd55}
+#page-map .map-travel-mode-button:focus-visible{outline:2px solid #a1ffe7;outline-offset:2px}
+#page-map .map-travel-mode-note{margin:0 0 10px;color:#b3cfcc;font-size:10px;line-height:1.35}
+
+/* A single valid road route opens Directions immediately. Keep Start just
+   under the saved/print actions and above turns when their list scrolls. */
+#page-map .map-directions-review > .map-directions-follow-actions{
+  display:block;position:sticky;
+  top:calc(var(--openrf-directions-summary-height,48px) + var(--openrf-directions-actions-height,54px));
+  z-index:3;background:#102b35;padding:7px 12px 9px;
+  border-bottom:1px solid #35616b88;
+}
+#page-map .map-directions-follow-actions .btn{display:block;width:100%;min-height:43px;font-size:13px;font-weight:750;touch-action:manipulation}
+#page-map .map-directions-follow-actions .btn:disabled{opacity:.55;cursor:not-allowed}
+#page-map .map-directions-actions[hidden],
+#page-map .map-directions-follow-actions[hidden],
+#page-map .map-directions-follow-actions .btn[hidden]{display:none!important}
+
 /* v0.2.113 — Start navigation stays visible even when an alternate's tradeoff
    wraps onto several lines on a small 800×480 field touchscreen. */
 #page-map .map-route-choices:not([hidden]){display:flex;flex-direction:column;overflow:hidden;min-height:0}
@@ -2164,7 +2196,8 @@ body:not(.map-workspace) .topbar{position:relative}
 @media(min-width:560px){body:not(.map-workspace) .topbar .field-clock-wrap{position:absolute;left:50%;transform:translateX(-50%);z-index:66}}
 @media(max-width:559px){#page-emergency .emergency-checkin-actions{grid-template-columns:1fr}body:not(.map-workspace) .topbar .field-clock-button{min-width:65px;padding:4px 6px}}
 .navigation-preview-overlay path.walking-route{stroke:#a3eb73;stroke-width:4;stroke-dasharray:5 4;opacity:.98}
-#page-map .map-destination-actions #map-walking-preview{grid-column:1/-1;min-height:36px;background:#183b38;color:#c8f6d0}
+#page-map .map-destination-actions .btn[hidden],
+#page-map #map-search-camera-options[hidden]{display:none!important}
 @media(max-width:700px){.emergency-ops-columns{grid-template-columns:1fr}.emergency-ops-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 #emergency-checkin-form>label:has(#emergency-checkin-note){grid-column:1/-1}
 

@@ -127,6 +127,27 @@ syncNavigation();
 const mapSearchPanel = $('map-destination-panel');
 const mapSearchToggle = $('map-search-toggle');
 const mapSearchForm = $('map-destination-form');
+// Select transport mode before entering a destination. This is UI-only
+// preference for the next route request, not a request for GPS or internet.
+state.navTravelMode='auto';
+function setMapTravelMode(mode){
+  state.navTravelMode=mode==='pedestrian'?'pedestrian':'auto';
+  const walking=state.navTravelMode==='pedestrian';
+  $('map-mode-drive').setAttribute('aria-pressed',String(!walking));
+  $('map-mode-walk').setAttribute('aria-pressed',String(walking));
+  $('map-route-action-text').textContent=walking?'Plan walking route':'Get driving directions';
+  $('map-travel-mode-note').textContent=walking?
+    'Walking · plans from local trails and paths only. No live walking GPS guidance or verified trail access.' :
+    'Driving · local road routes only. Live GPS navigation requires a valid route.';
+  $('map-start-navigation').title=walking?'Plan pedestrian paths with local Valhalla':'Calculate a road route with local Valhalla';
+  $('map-picked-route').textContent=walking?'Walking directions':'Driving directions';
+  $('map-picked-camera-options').hidden=walking;
+  $('map-search-camera-options').hidden=walking;
+  $('map-begin-guidance').hidden=walking;
+}
+$('map-mode-drive').addEventListener('click',()=>setMapTravelMode('auto'));
+$('map-mode-walk').addEventListener('click',()=>setMapTravelMode('pedestrian'));
+setMapTravelMode('auto');
 // Quick "Where to?" and the optional trip planner intentionally share one
 // starting point. No second route-origin state or background GPS requests.
 function syncMapOriginSummary(){
@@ -321,7 +342,7 @@ function resetRouteForNewDestination() {
 function syncMapPickedAction() {
   const selected = Array.isArray(state.navPickedPoint) && !state.navPicking;
   const popup = $('map-picked-action');
-  popup.hidden = !selected || Boolean(activeMapTool) || !mapSearchForm.hidden || Boolean(state.navPreview?.is_driving_route) || state.navFollowId!==null;
+  popup.hidden = !selected || Boolean(activeMapTool) || !mapSearchForm.hidden || state.navPreview?.type==='ROAD_ROUTE' || state.navFollowId!==null;
   if (!selected) return;
   const [lon,lat] = state.navPickedPoint;
   $('map-picked-coordinates').textContent = `${lat.toFixed(5)}, ${lon.toFixed(5)} · map-selected point`;
@@ -2648,19 +2669,32 @@ function updateCameraApproachAlert(route,progress,fix,turn){
 // The summary wraps at small widths. Pin the export actions to its measured
 // height rather than a fixed number that can overlap two-line summaries.
 function updateDirectionsStickyOffset(){
-  const pane=$('map-directions-review'), summary=$('map-directions-summary');
-  if(!pane || !summary)return;
+  const pane=$('map-directions-review'), summary=$('map-directions-summary'), actions=$('map-directions-actions');
+  if(!pane || !summary || !actions)return;
   const height=summary.getBoundingClientRect().height;
   if(height>0)pane.style.setProperty('--openrf-directions-summary-height',`${Math.ceil(height)}px`);
+  pane.style.setProperty('--openrf-directions-actions-height',`${Math.ceil(actions.getBoundingClientRect().height)}px`);
 }
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(updateDirectionsStickyOffset).observe($('map-directions-summary'));
+if(typeof ResizeObserver!=='undefined')new ResizeObserver(updateDirectionsStickyOffset).observe($('map-directions-actions'));
 window.addEventListener('resize',updateDirectionsStickyOffset);
 function renderDirectionsReview(route) {
   const pane=$('map-directions-review');
-  if(route?.type!=='ROAD_ROUTE'||route.is_driving_route!==true){pane.hidden=true;pane.open=false;return;}
+  if(route?.type!=='ROAD_ROUTE'){pane.hidden=true;pane.open=false;return;}
+  const walking=route.travel_mode==='pedestrian' || route.is_driving_route!==true;
   const turns=routeGuide.routeSteps(route);
-  pane.hidden=false;pane.open=false;
-  $('map-directions-summary').textContent=`Directions · ${route.distance_miles} mi · ${Math.round(route.duration_seconds/60)} min · ${turns.length} turns`;
+  pane.hidden=false;pane.open=true;
+  $('map-directions-summary').textContent=`${walking?'Walking directions':'Directions'} · ${route.distance_miles} mi · ${Math.round(route.duration_seconds/60)} min · ${turns.length} turns`;
+  $('map-directions-actions').hidden=walking;
+  $('map-directions-start').parentElement.hidden=walking;
+  $('map-directions-start').hidden=walking;
+  $('map-directions-start').disabled=walking || $('map-begin-guidance').disabled;
+  $('map-directions-intro').textContent=walking ?
+    'Offline walking-path plan from local Valhalla. Trail access, sidewalks, freeway crossings, closures and surface conditions are not verified; follow posted signs. Live walking GPS guidance is not yet available.' :
+    'Tap a turn to avoid its mapped road point for this trip or future trips. Recalculate afterward. Signs and legal access rules take priority; no live traffic feed.';
+  $('map-directions-note').textContent=walking ?
+    'Planning only. GPS walking-follow and automatic rerouting are unavailable; do not treat the line as a verified safe trail.' :
+    'Saved HTML works offline after downloading. JSON includes precise route coordinates; keep it private.';
   updateDirectionsStickyOffset();
   const list=$('map-directions-list');list.replaceChildren();
   for(const t of turns){
@@ -2670,7 +2704,7 @@ function renderDirectionsReview(route) {
     li.append(title,distance);
     const anchor=routeGuide.turnAvoidPoint(route,t);
     const isArrival=/\b(arrive|destination|you have arrived)\b/i.test(t.instruction);
-    if(anchor && !isArrival){
+    if(!walking && anchor && !isArrival){
       const toggle=document.createElement('button');toggle.type='button';toggle.className='route-step-avoid-toggle';
       toggle.textContent='Avoid this road';toggle.setAttribute('aria-expanded','false');
       toggle.setAttribute('aria-label',`Avoid road near: ${t.instruction}`);
@@ -2705,6 +2739,7 @@ function renderDirectionsReview(route) {
     list.append(li);
   }
 }
+$('map-directions-start').addEventListener('click',startSelectedRouteNavigation);
 function routeLabels(){return {origin:state.navOriginManual?$('nav-start-query').value.trim()||'Chosen start':'Browser-reported starting location',destination:$('map-destination-query').value.trim()||$('nav-dest-name').value.trim()||'Selected map point'};}
 function saveRouteSheet(filename,mime,body){
   const blob=new Blob([body],{type:mime}),url=URL.createObjectURL(blob),a=document.createElement('a');
@@ -3037,6 +3072,7 @@ function chooseRouteChoice(key){
   setNavigationRoutePreview(chosen,report);
   state.navRouteChoices=remembered;state.navCameraComparison=remembered;
   state.navChoiceSelection=key;state.navChoicePanelClosed=false;
+  $('map-directions-review').open=false; // Comparison chooser remains visible after selecting an alternate.
   renderRouteChoices();renderNavigationOverlay();
   setMapDestinationStatus(`${key==='alternate'?'Alternate':'Main'} road route selected. Start navigation when ready. Camera and road access information may be incomplete.`);
 }
@@ -3103,6 +3139,7 @@ function showCameraComparison(response){
   status.textContent=`Normal: ${routeChoiceCameraCount(response.standard_cameras)}, ${b.distance_miles} mi. Alternative: ${routeChoiceCameraCount(response.alternative_cameras)}, ${a.distance_miles} mi (${Number(delta)>=0?'+':''}${delta} mi), ${minuteDiff>=0?'+':''}${minuteDiff} min. ${response.detail}`;
   state.navCameraComparison=response;
   state.navRouteChoices=response;state.navChoiceSelection='standard';state.navChoicePanelClosed=false;
+  $('map-directions-review').open=false; // Two genuine choices need the chooser, not an expanded single-route sheet.
   renderRouteChoices();renderNavigationOverlay();
   const better=response.alternative_cameras?.incomplete!==true && response.alternative_cameras?.count < response.standard_cameras?.count;
   $('map-use-camera-alternate').hidden=!better;
@@ -3204,13 +3241,17 @@ async function planRoadRoute(points,{preserveCurrentOnFailure=false,travelMode='
       state.navPreview=null;if(typeof renderDirectionsReview==='function')renderDirectionsReview(null);state.navFitPending=false;
       $('map-begin-guidance').disabled=true;
       renderNavigationOverlay();
-      return {road:null,text:`No drivable road route for this destination: ${err.message} The installed local road graph may cover only Northern California. Add regional/nationwide Valhalla data before routing across the U.S.; no route was drawn.`};
+      return {road:null,text:travelMode==='pedestrian'?
+        `No walking route for this destination: ${err.message} The installed local Valhalla graph may not contain these paths. No walking route was drawn.`:
+        `No drivable road route for this destination: ${err.message} The installed local road graph may cover only Northern California. Add regional/nationwide Valhalla data before routing across the U.S.; no route was drawn.`};
     }
     // Short-distance geographic reference only, never driveable guidance.
     direct.coordinates=points;
     direct.stops=points.slice(1,-1);
     setNavigationRoutePreview(direct);
-    return {road:null,text:`Road routing unavailable: ${err.message} Direct-line reference only — do not drive along this line.`};
+    return {road:null,text:travelMode==='pedestrian'?
+      `Walking routing unavailable: ${err.message} Direct-line reference only — not a walkable path. Do not follow this line.`:
+      `Road routing unavailable: ${err.message} Direct-line reference only — do not drive along this line.`};
   }
 }
 async function freshNavigationOrigin() {
@@ -3904,7 +3945,7 @@ async function resolveTripField(text, fallbackPrefix) {
   if(value) return (await resolveTypedPlace(value)).coordinates;
   return navigationInputPoint(fallbackPrefix);
 }
-async function previewNavigation() {
+async function previewNavigation(travelMode='auto') {
   const originText=$('nav-start-query').value.trim();
   const origin=originText ? (await resolveTripField(originText,'nav-start')) :
     (state.navOriginManual && $('nav-start-lat').value && $('nav-start-lon').value ? navigationInputPoint('nav-start') : locationForQuickPreview());
@@ -3914,7 +3955,7 @@ async function previewNavigation() {
     stops.push((await resolveTypedPlace(field.value)).coordinates);
   }
   const destination=await resolveTripField($('nav-dest-query').value,'nav-dest');
-  const planned=await planRoadRoute([origin,...stops,destination]);
+  const planned=await planRoadRoute([origin,...stops,destination],{travelMode});
   if(planned.cancelled)return;
   $('nav-preview-summary').textContent=planned.text;
   setNavigationStatus(planned.text);
@@ -3941,7 +3982,13 @@ $('map-router-check').addEventListener('click',async()=>{
 });
 $('nav-preview-form').addEventListener('submit',async event=>{
   event.preventDefault();
-  try {await previewNavigation();} catch(err){setNavigationStatus(err.message);}
+  try {await previewNavigation('auto');} catch(err){setNavigationStatus(err.message);}
+});
+$('nav-preview-walking').addEventListener('click',async()=>{
+  const button=$('nav-preview-walking');button.disabled=true;
+  try {await previewNavigation('pedestrian');}
+  catch(error){setNavigationStatus(`Walking plan unavailable: ${error.message}`);}
+  finally{button.disabled=false;}
 });
 $('nav-add-stop').addEventListener('click',()=>{
   const parent=$('nav-stops');
@@ -4579,15 +4626,8 @@ $('map-destination-form').addEventListener('submit',async event=>{
   event.preventDefault();
   setMapDestinationStatus('Resolving destination…');
   const button=$('map-start-navigation');button.disabled=true;
-  try {await quickDestinationPreview($('map-destination-query').value);} catch(err){setMapDestinationStatus(err.message,'error');}
+  try {await quickDestinationPreview($('map-destination-query').value,state.navTravelMode);} catch(err){setMapDestinationStatus(err.message,'error');}
   finally {button.disabled=false;}
-  syncMapPickedAction();
-});
-$('map-walking-preview').addEventListener('click',async()=>{
-  const button=$('map-walking-preview');button.disabled=true;
-  try{await quickDestinationPreview($('map-destination-query').value,'pedestrian');}
-  catch(error){setMapDestinationStatus(`Walking route unavailable: ${error.message}`,'error');}
-  finally{button.disabled=false;}
   syncMapPickedAction();
 });
 for(const id of ['nav-start-lat','nav-start-lon']) {

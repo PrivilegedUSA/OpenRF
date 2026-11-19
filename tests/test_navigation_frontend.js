@@ -47,7 +47,7 @@ assert(source.includes('if (consumeNavigationPick(evt.lngLat.lng, evt.lngLat.lat
 assert(source.includes('if (consumeNavigationPick(ll[0], ll[1])) return;'));
 assert(source.includes("road.type!=='ROAD_ROUTE'") && source.includes('is_driving_route!==true'), 'only recognized Valhalla route responses can claim roads');
 assert(source.includes('Direct-line reference only'));
-assert(source.includes('previewNavigation()')&&source.includes('renderNavigationOverlay()'));
+assert(source.includes("previewNavigation('auto')")&&source.includes("previewNavigation('pedestrian')")&&source.includes('renderNavigationOverlay()'));
 assert(!source.includes("$('manual-entry').addEventListener"));
 const begin=source.indexOf('function findLocalDestination(');
 const end=source.indexOf('\nfunction locationForQuickPreview()',begin);
