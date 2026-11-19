@@ -1,3 +1,12 @@
+## OpenRF v0.2.138 — Clearer destination controls, radio menu polish, manual walking recovery (2026-11-19)
+
+- Reworked the map's **Destination selected** popup: the Driving/Walking directions button uses a full-width first row, followed by **Change start** and **Change destination** on the same line. Added breathing room between the status text and actions. Retained route preferences and the existing driving Start action where eligible, with safe wrapping at compact screen widths.
+- Added 18px separation between the **Tune a frequency** and **Linux receiver setup** cards. Renamed the sidebar's vague **Spectrum** item to **Signal Viewer** (accessible as "spectrum and waterfall"), while leaving the technical page title **Spectrum & waterfall** intact. The Radio receiver's internal link now says Open Signal Viewer.
+- Replaced the Emergency sidebar's flag with the *same warning-triangle SVG* used by the header Emergency shortcut, using a compact warm warning color without changing the button's destination or SOS semantics.
+- Continued walking navigation with an **explicit, manual "Replan walk from here"** button shown only when a fresh, accurate (±35m or better) real GPS fix is off the mapped Valhalla pedestrian line. A tap sends one loopback pedestrian route request from that measured position to the original destination; valid complete paths replace the plan and stop follow so the operator can inspect it and choose Start again. No automatic walking rerouting, fake GPS, silent recording or uploads.
+- A missing router, unsafe/direct-line response, stale/approximate GPS fix or route with intermediate stops cannot silently replace the original walking plan. Stopping navigation while the request is pending invalidates its response. Existing driving navigation, offline breadcrumb recorder, hardware reporting and user data are untouched.
+- Added two targeted regression scripts for the popup/menu/radio UI and pedestrian recovery; **383 Python tests and 105 JavaScript test scripts passed**. Real GPS/Valhalla, outdoor route access and screenshot QA remain operator checks. See `docs/RELEASE_0.2.138_TESTS.md`.
+
 ## OpenRF v0.2.137 — Start walking navigation and GPS-follow map (2026-11-19)
 
 - A complete, locally generated Valhalla **pedestrian ROAD_ROUTE** now shows its own **Start walking navigation** button directly below the Walking directions heading. The driving Start button remains hidden in Walk mode. A straight-line reference, missing pedestrian geometry or driving route cannot start walking follow.

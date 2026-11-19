@@ -164,7 +164,7 @@ function setMapTravelMode(mode){
   $('map-mode-walk').setAttribute('aria-pressed',String(walking));
   $('map-route-action-text').textContent=walking?'Plan walking route':'Get driving directions';
   $('map-travel-mode-note').textContent=walking?
-    'Walking · plans from local trails and paths only. No live walking GPS guidance or verified trail access.' :
+    'Walking · plans from local mapped paths. Optional GPS follow starts only when you tap Start walking navigation; trail access is unverified.' :
     'Driving · local road routes only. Live GPS navigation requires a valid route.';
   $('map-start-navigation').title=walking?'Plan pedestrian paths with local Valhalla':'Calculate a road route with local Valhalla';
   $('map-picked-route').textContent=walking?'Walking directions':'Driving directions';
@@ -421,7 +421,7 @@ function showPage(page, options = {}) {
   if (page === 'messages' || page === 'reticulum') setMessagesSubpagesOpen(true);
   $('messages-nav-toggle').classList.toggle('active', page === 'messages' || page === 'reticulum');
   document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === `page-${page}`));
-  const titles = {overview:'Field overview',emergency:'Emergency readiness',map:'Survey map',scanner:'Signal analysis',spectrum:'Spectrum workspace',radio:'Radio receiver',messages:'Mesh messages',reticulum:'Reticulum messages',hamradio:'Ham radio channel lists',discoveries:'Saved discoveries',sessions:'Investigations',hardware:'Hardware manager'};
+  const titles = {overview:'Field overview',emergency:'Emergency readiness',map:'Survey map',scanner:'Signal analysis',spectrum:'Spectrum & Waterfall',radio:'Radio receiver',messages:'Mesh messages',reticulum:'Reticulum messages',hamradio:'Ham radio channel lists',discoveries:'Saved discoveries',sessions:'Investigations',hardware:'Hardware manager'};
   $('page-title').textContent = titles[page] || 'OpenRF'; $('page-crumb').textContent = page.toUpperCase();
   // Page-specific headings are the one visible title on non-map workspaces.
   // The old topbar H1 is intentionally hidden; do not focus a hidden node.
@@ -3267,7 +3267,7 @@ async function planRoadRoute(points,{preserveCurrentOnFailure=false,travelMode='
       steps.map(step=>`<li>${escapeHTML(step.instruction)} <small>(${Number(step.length_miles||0).toFixed(2)} mi)</small></li>`).join('')+'</ol>' : '';
     const minutes=Math.round(road.duration_seconds/60);
     return {road, text:travelMode==='pedestrian'?
-      `Walking plan · ${road.distance_miles} mi · ~${minutes} min. Local Valhalla path data only; trail access/conditions are NOT verified. GPS walking guidance is not yet enabled.`:
+      `Walking plan · ${road.distance_miles} mi · ~${minutes} min. Local Valhalla path data only; trail access/conditions are NOT verified. Tap Start walking navigation to follow fresh GPS positions when ready.`:
       `Road plan · ${road.distance_miles} mi · ~${minutes} min (no traffic). Camera routes and Directions are on the map; start GPS follow when ready.`};
   } catch (err) {
     if(destinationEpoch !== (state.navDestinationEpoch||0))
@@ -4264,6 +4264,8 @@ function stopNavigationFollow(){
   if(state.navRouteChoices && !state.navChoicePanelClosed)renderRouteChoices();
   $('map-follow-hud').hidden=true;
   $('map-follow-hud').classList.remove('navigation-guiding');
+  const walkingReplan=$('map-walking-replan');
+  if(walkingReplan){walkingReplan.hidden=true;walkingReplan.disabled=false;}
   if(state.navPreview?.travel_mode==='pedestrian')renderDirectionsReview(state.navPreview);
   if(state.map && state.mapReady) state.map.easeTo({pitch:0,bearing:0,duration:300});
 }
@@ -4302,6 +4304,7 @@ function enforceNavigationSignalFreshness(now=Date.now()){
     'No fresh GPS fix for 15 seconds. Walking progress paused; this is still only a planned path. Check browser location permission or a local GNSS receiver. No position history saved.':
     'No new valid GPS fix for 15 seconds. Check browser location permission or the local GNSS receiver. Do not rely on live turn timing until a fresh fix returns. No position history saved.';
   $('map-follow-planned').hidden=false;
+  if($('map-walking-replan'))$('map-walking-replan').hidden=true;
   $('map-follow-camera-note').textContent='Camera position is frozen until a new GPS fix is received.';
   renderNavigationLanes(null,false);navigationSilence();
 }
@@ -4360,6 +4363,8 @@ function followWalkingPosition(pos){
   const age=Date.now()-pos.timestamp;
   const message=$('map-follow-instruction'),distanceLabel=$('map-follow-distance');
   const detail=$('map-follow-quality'),planned=$('map-follow-planned');
+  const replan=$('map-walking-replan');
+  if(replan)replan.hidden=true;
   if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180||
      !Number.isFinite(accuracy)||accuracy<0||accuracy>10000||
      !Number.isFinite(age)||age< -5000||age>15000){
@@ -4392,8 +4397,11 @@ function followWalkingPosition(pos){
       if(progress.offroute){
         message.textContent='Away from planned walking path · check your surroundings';
         distanceLabel.textContent=`About ${Math.round(progress.offset_m)} m from mapped path · no automatic rerouting`;
-        detail.textContent=`${sourceName} ±${Math.round(accuracy)} m · position differs from the Valhalla walking line. Posted access restrictions and real conditions take priority. No progress advanced or GPS history saved.`;
+        detail.textContent=`${sourceName} ±${Math.round(accuracy)} m · position differs from the Valhalla walking line. Posted access restrictions take priority. No progress advanced or GPS history saved. ${route.stops?.length?'Replanning is unavailable with intermediate stops; stop and review your full trip.':'Use Replan walk only if you explicitly want a new local path.'}`;
         planned.hidden=false;$('map-follow-hud').classList.remove('navigation-guiding');
+        // Replanning is explicitly tapped, from an accurate live fix only;
+        // never silently discard requested intermediate walking stops.
+        if(replan)replan.hidden=Boolean(route.stops?.length);
       }else{
         state.navFollowProgress=Math.max(state.navFollowProgress||0,progress.along_m);
         planned.hidden=true;$('map-follow-hud').classList.add('navigation-guiding');
@@ -4403,7 +4411,7 @@ function followWalkingPosition(pos){
         distanceLabel.textContent=nearDestination?'Confirm destination and stop navigation when ready':
           `${routeGuide.distanceText(progress.remaining_m)} remaining`+
           (progress.next_distance_m!==null&&progress.next_distance_m>25?` · next step in ${routeGuide.distanceText(progress.next_distance_m)}`:'');
-        detail.textContent=`${sourceName} ±${Math.round(accuracy)} m · ${Math.round(progress.offset_m)} m from mapped walking line · no rerouting, live trail condition or stored travel history. Check signs and access.`;
+        detail.textContent=`${sourceName} ±${Math.round(accuracy)} m · ${Math.round(progress.offset_m)} m from mapped walking line · no automatic rerouting, live trail condition or stored travel history. Check signs and access.`;
       }
     }catch(error){
       message.textContent='Walking route progress unavailable';
@@ -4420,6 +4428,60 @@ function followWalkingPosition(pos){
   }else if(state.rasterMap){
     state.rasterMap.stop();state.rasterMap.center=[lon,lat];state.rasterMap.zoom=precise?15:14;state.rasterMap.render();
   }
+}
+// Manual recovery is never triggered by a GPS callback. Preserve the original
+// route and follow session unless an explicit tap returns a complete local
+// pedestrian route from the last fresh, accurate, off-path position.
+async function replanWalkingFromFix(){
+  const button=$('map-walking-replan'),route=state.navPreview,pos=state.navFollowLastPosition;
+  if(button.disabled || state.navFollowId===null || state.navFollowMode!=='pedestrian' ||
+     route?.type!=='ROAD_ROUTE' || route.travel_mode!=='pedestrian' || route.is_driving_route!==false ||
+     route.stops?.length)return;
+  const {latitude:lat,longitude:lon,accuracy}=pos?.coords||{};
+  const age=Date.now()-pos?.timestamp;
+  if(!Number.isFinite(lat)||Math.abs(lat)>90||!Number.isFinite(lon)||Math.abs(lon)>180||
+     !Number.isFinite(accuracy)||accuracy<0||accuracy>35||!Number.isFinite(age)||age< -5000||age>15000){
+    button.hidden=true;
+    $('map-follow-quality').textContent='Manual walking replan requires a fresh GPS fix at ±35 m or better. No request sent.';
+    return;
+  }
+  let offPath=false;
+  try{offPath=routeGuide.walkingGuidance(route,lon,lat,accuracy,state.navFollowProgress||0).offroute;}
+  catch(_error){ /* A malformed planned line is not eligible for recovery. */ }
+  if(!offPath){button.hidden=true;return;}
+  const destination=route.destination;
+  if(!Array.isArray(destination)||destination.length!==2||
+     !destination.every(Number.isFinite)){button.hidden=true;return;}
+  const epoch=state.navFollowEpoch;
+  button.disabled=true;
+  $('map-follow-instruction').textContent='Requesting a new local walking path from this GPS position…';
+  try{
+    const response=await api('/api/navigation/route','POST',{
+      locations:[{latitude:lat,longitude:lon},{latitude:destination[1],longitude:destination[0]}],
+      options:{travel_mode:'pedestrian'}});
+    // A Stop, a new destination or another session supersedes this response.
+    if(epoch!==state.navFollowEpoch || state.navFollowMode!=='pedestrian' || state.navPreview!==route)return;
+    const next=response?.route;
+    if(next?.type!=='ROAD_ROUTE'||next.travel_mode!=='pedestrian'||next.is_driving_route!==false||
+       !routeGuide.hasCompleteDirections(next)||!Array.isArray(next.destination)||
+       next.destination.length!==2||!next.destination.every(Number.isFinite)||
+       routeGuide.distance(next.destination,destination)>150)
+      throw Error('No complete walking route to the same destination was returned');
+    const steps=routeGuide.routeSteps(next); // Validate all mapped segments before replacing.
+    // This intentionally stops the GPS watch before showing the replacement;
+    // the operator reviews the new path and taps Start again when ready.
+    setNavigationRoutePreview(next);
+    $('map-compare-camera-routes').disabled=true;
+    $('nav-directions').innerHTML='<h4>New planned walking turns · GPS paused</h4><ol>'+
+      steps.map(t=>`<li>${escapeHTML(t.instruction)} <small>(${t.length_miles.toFixed(2)} mi)</small></li>`).join('')+'</ol>';
+    setMapDestinationStatus('New local walking route from your last accurate GPS position. Review the path and tap Start walking navigation to follow it. Trail access is unverified.','success');
+  }catch(error){
+    if(epoch===state.navFollowEpoch&&state.navPreview===route&&state.navFollowMode==='pedestrian'){
+      $('map-follow-instruction').textContent='New walking path unavailable · original route preserved';
+      $('map-follow-distance').textContent='You can keep the original plan or stop and change destination';
+      $('map-follow-quality').textContent=`Local pedestrian replan failed: ${error.message}. No new path was assumed and GPS follow was not restarted.`;
+    }
+  }finally{button.disabled=false;}
 }
 function followPosition(pos){
   if(state.navFollowId===null || state.navDemoActive)return;
@@ -4608,6 +4670,7 @@ function startWalkingNavigation(){
   $('page-map').classList.add('navigation-walking');
   $('map-follow-hud').hidden=false;
   $('map-follow-hud').classList.remove('navigation-guiding');
+  if($('map-walking-replan'))$('map-walking-replan').hidden=true;
   $('map-follow-instruction').textContent='Waiting for live walking GPS…';
   $('map-follow-distance').textContent='Planned turns are available below; no actual position received yet';
   $('map-follow-quality').textContent='Walking follow uses only your permissioned GPS fix. Accuracy of ±35 m or better is required to advance turns. No automatic rerouting, voice, sensor recording or GPS history.';
@@ -4633,6 +4696,7 @@ function startWalkingNavigation(){
       if(epoch!==state.navFollowEpoch||state.navFollowMode!=='pedestrian')return;
       if(state.navGnssLast&&Date.now()-state.navGnssLast<5000)return;
       setNavigationSignalState('unavailable');
+      if($('map-walking-replan'))$('map-walking-replan').hidden=true;
       $('map-follow-instruction').textContent=`Walking GPS unavailable (${error.code===1?'permission denied':error.code===3?'timed out':'no position'}).`;
       $('map-follow-distance').textContent='Follow paused · planned turns remain below';
       $('map-follow-quality').textContent='Enable browser location or connect supported local gpsd hardware, then use Stop and start again. No history saved.';
@@ -4701,6 +4765,7 @@ $('map-stop-guidance').addEventListener('click',()=>{
   setMapDestinationStatus(walking?'Walking GPS follow stopped. Planned walking route remains available.':'GPS follow stopped. Road plan remains available.');
 });
 $('map-directions-walk-start').addEventListener('click',startWalkingNavigation);
+$('map-walking-replan').addEventListener('click',replanWalkingFromFix);
 // v0.2.37: Explicit, in-memory-only DEMO travel along the already confirmed
 // local Valhalla route. This is not real GPS, live navigation or an observation.
 function renderDemoRouteMarker(frame){

@@ -2120,6 +2120,28 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
   #page-map.navigation-walking .raster-control{top:245px!important}
 }
 
+/* v0.2.138 — destination actions are legible on the wide, map-first popup:
+   directions on their own row, then origin and destination side-by-side. */
+#page-map .map-picked-buttons{margin-top:12px;row-gap:8px;column-gap:7px}
+#page-map #map-picked-route{grid-column:1 / -1;min-height:43px}
+#page-map #map-picked-origin{grid-column:1}
+#page-map #map-picked-change{grid-column:2}
+#page-map :is(#map-picked-begin,#map-picked-camera-options){grid-column:1 / -1}
+#page-map #map-picked-change{overflow-wrap:anywhere}
+
+/* Space the standalone radio hardware instructions after the tuner card. */
+#page-radio .radio-setup-panel{margin-top:18px}
+
+/* Use exactly the same outlined warning-triangle SVG as the header shortcut. */
+.sidebar .nav-btn[data-page="emergency"] .nav-icon svg{display:block;width:20px;height:20px;color:#ffca70}
+
+/* A manual pedestrian recovery action only appears after fresh, accurate
+   off-path GPS. It never launches a request in the background. */
+#page-map #map-walking-replan{display:block;width:100%;min-height:42px;margin:7px 0 9px;
+  padding:9px 12px;font-size:12px;color:#c7fff1;border-color:#4aa79a}
+#page-map #map-walking-replan[hidden]{display:none!important}
+#page-map #map-walking-replan:disabled{opacity:.6;cursor:wait}
+
 /* v0.2.113 — Start navigation stays visible even when an alternate's tradeoff
    wraps onto several lines on a small 800×480 field touchscreen. */
 #page-map .map-route-choices:not([hidden]){display:flex;flex-direction:column;overflow:hidden;min-height:0}

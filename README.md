@@ -1,5 +1,10 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.138 — Walking recovery and UI refinements
+
+- The Destination selected map popup places **Walking directions** above a side-by-side **Change start / Change destination** row. Radio Receiver cards have separation, the Spectrum sidebar label is now **Signal Viewer**, and Emergency uses the header warning triangle.
+- While live pedestrian GPS follow is off a mapped path, a **Replan walk from here** control can ask local Valhalla for a new route. It never reroutes in the background or records positions; a successful replacement pauses follow for review. See [v0.2.138 verification notes](docs/RELEASE_0.2.138_TESTS.md).
+
 ## v0.2.137 — Start walking navigation
 
 - Valid local Valhalla walking routes now have an opt-in **Start walking navigation** control. Fresh, accurate real GPS positions drive map-follow and approximate current/next mapped maneuvers; the **Stop** button ends the session. Weak, stale or off-route fixes pause turn advancement.
