@@ -2039,12 +2039,12 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
   color:#c9dfdd;background:#172f3a;font-size:13px;font-weight:750;cursor:pointer;touch-action:manipulation}
 #page-map .map-travel-mode-button svg{display:block;width:22px;height:22px;flex:none}
 #page-map #map-mode-walk svg{width:16px}
-#page-map :is(#map-begin-guidance,#map-directions-start,#route-choice-start,#map-picked-begin)::before{
+#page-map :is(#map-begin-guidance,#map-directions-start,#map-directions-walk-start,#route-choice-start,#map-picked-begin)::before{
   content:"";display:inline-block;width:15px;height:15px;flex:none;background:currentColor;
   -webkit-mask:url('/static/assets/fa-location-arrow.svg') center / contain no-repeat;
   mask:url('/static/assets/fa-location-arrow.svg') center / contain no-repeat
 }
-#page-map :is(#map-begin-guidance,#map-directions-start,#route-choice-start,#map-picked-begin){align-items:center;justify-content:center;gap:7px}
+#page-map :is(#map-begin-guidance,#map-directions-start,#map-directions-walk-start,#route-choice-start,#map-picked-begin){align-items:center;justify-content:center;gap:7px}
 #page-map .map-travel-mode-button[aria-pressed="true"]{background:#1e5d57;border-color:#43dfbd;color:#f4fffa;box-shadow:inset 0 0 0 1px #43dfbd55}
 #page-map .map-travel-mode-button:focus-visible{outline:2px solid #a1ffe7;outline-offset:2px}
 #page-map .map-travel-mode-note{margin:0 0 10px;color:#b3cfcc;font-size:10px;line-height:1.35}
@@ -2080,6 +2080,45 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
 #page-map .map-directions-actions[hidden],
 #page-map .map-directions-follow-actions[hidden],
 #page-map .map-directions-follow-actions .btn[hidden]{display:none!important}
+
+/* v0.2.137 — opt-in walking follow has its own button and route HUD. Reuse the
+   map's existing GPS marker; no extra dot, fake path, or driving features. */
+#page-map .map-directions-review > .map-walking-follow-actions{
+  display:block;position:sticky;top:var(--openrf-directions-summary-height,48px);
+  z-index:4;background:#102b35;padding:8px 12px 10px;border-bottom:1px solid #35616b88
+}
+#page-map .map-walking-follow-actions[hidden]{display:none!important}
+#page-map .map-walking-follow-actions .btn{display:flex;min-height:45px;width:100%;font-size:13px;white-space:normal}
+#page-map .map-walking-follow-actions .btn:disabled{opacity:.55;cursor:not-allowed}
+#page-map.navigation-walking .map-destination-panel,
+#page-map.navigation-walking .map-navigation-settings,
+#page-map.navigation-walking .map-directions-review,
+#page-map.navigation-walking .navigation-preview-label,
+#page-map.navigation-walking .map-tool-rail,
+#page-map.navigation-walking .map-tool-overlay,
+#page-map.navigation-walking .map-picked-action,
+#page-map.navigation-walking .map-route-choices{display:none!important}
+#page-map.navigation-walking .map-follow-hud{
+  top:10px;bottom:auto;left:10px;right:auto;width:min(480px,calc(100% - 98px));
+  max-width:none;max-height:min(65dvh,410px);overflow-y:auto;z-index:32;
+  padding:10px 11px;border:1px solid #60c6a0;box-shadow:0 6px 18px #000b
+}
+#page-map.navigation-walking .map-follow-hud.navigation-guiding{border-left:4px solid #73d9a7}
+#page-map.navigation-walking #map-follow-instruction{font-size:14px;line-height:1.35}
+#page-map.navigation-walking :is(#map-voice-toggle,#map-voice-status,#map-traffic-status,
+  #map-follow-camera-options,#map-demo-panel,#map-lane-guidance,#map-camera-alert,#map-camera-alert-coverage){display:none!important}
+#page-map.navigation-walking #map-stop-guidance{min-height:42px;min-width:66px}
+#page-map.navigation-walking .map-wrap .maplibregl-ctrl-top-right,
+#page-map.navigation-walking .map-wrap .raster-controls,
+#page-map.navigation-walking #map .maplibregl-ctrl-top-right,
+#page-map.navigation-walking .raster-control{top:130px!important}
+@media(max-width:599px){
+  #page-map.navigation-walking .map-follow-hud{top:7px;max-height:min(60dvh,330px);width:calc(100% - 80px)}
+  #page-map.navigation-walking .map-wrap .maplibregl-ctrl-top-right,
+  #page-map.navigation-walking .map-wrap .raster-controls,
+  #page-map.navigation-walking #map .maplibregl-ctrl-top-right,
+  #page-map.navigation-walking .raster-control{top:245px!important}
+}
 
 /* v0.2.113 — Start navigation stays visible even when an alternate's tradeoff
    wraps onto several lines on a small 800×480 field touchscreen. */

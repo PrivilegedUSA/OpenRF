@@ -21,7 +21,7 @@ function rememberPage(page){
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
 const stamp = (s) => s ? new Date(s).toLocaleString() : 'Not available';
-const state = { observations: [], sessions: [], waypoints: [], sdrSites: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, hardwareManager: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navVoiceEnabled:false, navVoiceMemory:null, navVoiceFailed:false, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, navFollowCameraSuspended:false, navFollowLastPosition:null, navFollowStartedAt:0, navFollowLastValidAt:0, navFollowSignalState:'waiting',navCameraAvoidTypes:null,navCameraComparison:null,navCameraRouteEpoch:0,navCameraReport:null,navCameraPanelOpen:false,navRouteChoices:null,navChoiceSelection:"standard",navChoicePanelClosed:false,navAvoidSession:[],navAvoidSaved:[],navAvoidAnchor:null,navAvoidPicking:false,navRoadPrefsDirty:false,navFollowEpoch:0,navRerouteBusy:false,navOffrouteCount:0,navOffrouteSince:0,navRerouteLast:0,
+const state = { observations: [], sessions: [], waypoints: [], sdrSites: [], waypointsTruncated: false, captures: [], diagnostics: null, readiness: null, hardware: null, hardwareManager: null, map: null, mapReady: false, style: 'dark', mapVectorOffline:false, vectorStatus:null, navPinDragging:false, navPinJustDraggedAt:0, navFollowId:null, navFollowMode:null, navVoiceEnabled:false, navVoiceMemory:null, navVoiceFailed:false, navGnssTimer:null, navGnssBusy:false, navGnssLast:0, navGnssEpoch:0, navFollowLast:0, navFollowProgress:0, navFollowPriorFix:null, navFollowHeading:null, navFollowCameraSuspended:false, navFollowLastPosition:null, navFollowStartedAt:0, navFollowLastValidAt:0, navFollowSignalState:'waiting',navCameraAvoidTypes:null,navCameraComparison:null,navCameraRouteEpoch:0,navCameraReport:null,navCameraPanelOpen:false,navRouteChoices:null,navChoiceSelection:"standard",navChoicePanelClosed:false,navAvoidSession:[],navAvoidSaved:[],navAvoidAnchor:null,navAvoidPicking:false,navRoadPrefsDirty:false,navFollowEpoch:0,navRerouteBusy:false,navOffrouteCount:0,navOffrouteSince:0,navRerouteLast:0,
   navDemoActive:false,navDemoPaused:false,navDemoProgress:0,navDemoTimer:null,navDemoLastTime:0,
   navDemoMarker:null,navDemoMarkerMap:null,navDemoFix:null,rasterMap: null, mapAttempt: 0, showDemo: false, browserLocation: null, geoMarker: null, autoLocateAttempted: false, mapNavigationEpoch: 0, preferredView: null, wifiScan: null, bleScan: null, sensors: [], serialTransport: null, pendingLocationView: null, offlineMaps: [], offlineMap: null, areaPlans: [], selectedArea: null, areaChoosing: false, areaFirstCorner: null, areaDraftBounds: null, navPicking:false, navPickedPoint:null, navPickPointerStart:null, navPickSwallowClickUntil:0, navPreview:null, navFitPending:false, navPickPanRestore:null, navDestinations:[], navOriginManual:false, navAddressResults:[], navSelectedAddress:null, navSearchToken:0, mapObservationId:null, mapSurveySeriesKey:null, mapKinds: new Set(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']) };
 state.navPickKind='destination';
@@ -2723,7 +2723,7 @@ if(typeof ResizeObserver!=='undefined'){
 window.addEventListener('resize',updateDirectionsStickyOffset);
 function renderDirectionsReview(route) {
   const pane=$('map-directions-review');
-  if(route?.type!=='ROAD_ROUTE'){pane.hidden=true;pane.open=false;return;}
+  if(route?.type!=='ROAD_ROUTE'){pane.hidden=true;pane.open=false;$('map-walking-follow-actions').hidden=true;return;}
   const walking=route.travel_mode==='pedestrian' || route.is_driving_route!==true;
   const turns=routeGuide.routeSteps(route);
   pane.hidden=false;pane.open=true;
@@ -2732,11 +2732,13 @@ function renderDirectionsReview(route) {
   $('map-directions-start').parentElement.hidden=walking;
   $('map-directions-start').hidden=walking;
   $('map-directions-start').disabled=walking || $('map-begin-guidance').disabled;
+  $('map-walking-follow-actions').hidden=!walking;
+  $('map-directions-walk-start').disabled=!walking||route.travel_mode!=='pedestrian'||route.is_driving_route!==false||state.navFollowId!==null;
   $('map-directions-intro').textContent=walking ?
-    'Offline walking-path plan from local Valhalla. Trail access, sidewalks, freeway crossings, closures and surface conditions are not verified; follow posted signs. Live walking GPS guidance is not yet available.' :
+    'Walking plan from local Valhalla. Trail access, sidewalk continuity, closures and surface conditions are unverified. Start walking navigation only when you are ready to share a fresh location; follow posted signs.' :
     'Tap a turn to avoid its mapped road point for this trip or future trips. Recalculate afterward. Signs and legal access rules take priority; no live traffic feed.';
   $('map-directions-note').textContent=walking ?
-    'Planning only. GPS walking-follow and automatic rerouting are unavailable; do not treat the line as a verified safe trail.' :
+    'Walking follow shows your reported position and approximate progress, with no automatic rerouting or GPS history. The planned path is not a verified safe or public trail.' :
     'Saved HTML works offline after downloading. JSON includes precise route coordinates; keep it private.';
   updateDirectionsStickyOffset();
   const list=$('map-directions-list');list.replaceChildren();
@@ -4254,14 +4256,15 @@ function stopNavigationFollow(){
   state.navGnssTimer=null;state.navGnssBusy=false;state.navGnssLast=0;
   state.navFollowEpoch++;state.navRerouteBusy=false;state.navOffrouteCount=0;state.navOffrouteSince=0;
   if(finishingActiveTrip && state.navAvoidSession?.length){state.navAvoidSession=[];renderRoadAvoidList();}
-  state.navFollowId=null;state.navFollowPriorFix=null;state.navFollowHeading=null;state.navFollowCameraSuspended=false;state.navFollowLastPosition=null;
+  state.navFollowId=null;state.navFollowMode=null;state.navFollowPriorFix=null;state.navFollowHeading=null;state.navFollowCameraSuspended=false;state.navFollowLastPosition=null;
   state.navFollowStartedAt=0;state.navFollowLastValidAt=0;state.navFollowSignalState='waiting';
   navSignalIndicator.textContent='GPS: waiting';navSignalIndicator.dataset.gps='waiting';
   if(typeof cameraPanelVisibility==='function')cameraPanelVisibility(false);
-  $('page-map').classList.remove('navigation-driving');
+  $('page-map').classList.remove('navigation-driving','navigation-walking');
   if(state.navRouteChoices && !state.navChoicePanelClosed)renderRouteChoices();
   $('map-follow-hud').hidden=true;
   $('map-follow-hud').classList.remove('navigation-guiding');
+  if(state.navPreview?.travel_mode==='pedestrian')renderDirectionsReview(state.navPreview);
   if(state.map && state.mapReady) state.map.easeTo({pitch:0,bearing:0,duration:300});
 }
 function navigationNearestShape(coords,lon,lat){
@@ -4295,7 +4298,9 @@ function enforceNavigationSignalFreshness(now=Date.now()){
   $('map-follow-hud').classList.remove('navigation-guiding');
   $('map-follow-instruction').textContent='GPS signal lost · live guidance paused';
   $('map-follow-distance').textContent='Planned directions remain available below';
-  $('map-follow-quality').textContent='No new valid GPS fix for 15 seconds. Check browser location permission or the local GNSS receiver. Do not rely on live turn timing until a fresh fix returns. No position history saved.';
+  $('map-follow-quality').textContent=state.navFollowMode==='pedestrian'?
+    'No fresh GPS fix for 15 seconds. Walking progress paused; this is still only a planned path. Check browser location permission or a local GNSS receiver. No position history saved.':
+    'No new valid GPS fix for 15 seconds. Check browser location permission or the local GNSS receiver. Do not rely on live turn timing until a fresh fix returns. No position history saved.';
   $('map-follow-planned').hidden=false;
   $('map-follow-camera-note').textContent='Camera position is frozen until a new GPS fix is received.';
   renderNavigationLanes(null,false);navigationSilence();
@@ -4341,8 +4346,84 @@ async function tryNavigationReroute(route,lat,lon){
     }
   }finally{if(epoch===state.navFollowEpoch)state.navRerouteBusy=false;}
 }
+// Walking follow is deliberately simpler than driving navigation: the camera
+// tracks only a real permissioned fix, north-up. No simulated position, road
+// lane, camera alert, voice cue, or automatic route recalculation.
+function followWalkingPosition(pos){
+  if(state.navFollowId===null||state.navFollowMode!=='pedestrian')return;
+  const route=state.navPreview;
+  if(route?.type!=='ROAD_ROUTE'||route.travel_mode!=='pedestrian'||route.is_driving_route!==false){
+    stopNavigationFollow();return;
+  }
+  if(pos.origin!=='gpsd'&&state.navGnssLast&&Date.now()-state.navGnssLast<5000)return;
+  const {latitude:lat,longitude:lon,accuracy}=pos.coords||{};
+  const age=Date.now()-pos.timestamp;
+  const message=$('map-follow-instruction'),distanceLabel=$('map-follow-distance');
+  const detail=$('map-follow-quality'),planned=$('map-follow-planned');
+  if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180||
+     !Number.isFinite(accuracy)||accuracy<0||accuracy>10000||
+     !Number.isFinite(age)||age< -5000||age>15000){
+    message.textContent='Walking GPS fix invalid or stale · progress paused';
+    distanceLabel.textContent='Waiting for a fresh position; planned turns remain below';
+    detail.textContent='Position or reported accuracy is invalid/too old. No turn progress will be inferred. No history saved.';
+    planned.hidden=false;$('map-follow-hud').classList.remove('navigation-guiding');
+    setNavigationSignalState('unavailable');return;
+  }
+  const sourceName=pos.origin==='gpsd'?'Local gpsd GNSS':'Browser location';
+  const recovered=state.navFollowSignalState==='lost';
+  state.navFollowLastValidAt=Math.max(state.navFollowLastValidAt||0,pos.timestamp);
+  setNavigationSignalState(accuracy<=35?'precise':'approximate',accuracy,recovered);
+  state.navFollowLastPosition=pos;
+  state.browserLocation={lat,lon,accuracy,capturedAt:Date.now(),source:pos.origin==='gpsd'?'gpsd':'browser',source_device:pos.source_device||null};
+  updateBrowserLocationMarker();
+  const precise=accuracy<=35;
+  const cameraNote=$('map-follow-camera-note');
+  cameraNote.textContent=state.navFollowCameraSuspended?
+    'Map moved manually · tap crosshair to resume following your GPS position.':
+    'Map: north-up · centered on the reported position, not an estimated trail location.';
+  if(!precise){
+    message.textContent='Walking GPS accuracy too low for turn progress';
+    distanceLabel.textContent=`Reported accuracy ±${Math.round(accuracy)} m · follow paused`;
+    detail.textContent=`${sourceName} ±${Math.round(accuracy)} m, ${Math.round(Math.max(0,age)/1000)} s old. Need ±35 m or better to estimate walking turns. No history saved.`;
+    planned.hidden=false;$('map-follow-hud').classList.remove('navigation-guiding');
+  }else{
+    try{
+      const progress=routeGuide.walkingGuidance(route,lon,lat,accuracy,state.navFollowProgress||0);
+      if(progress.offroute){
+        message.textContent='Away from planned walking path · check your surroundings';
+        distanceLabel.textContent=`About ${Math.round(progress.offset_m)} m from mapped path · no automatic rerouting`;
+        detail.textContent=`${sourceName} ±${Math.round(accuracy)} m · position differs from the Valhalla walking line. Posted access restrictions and real conditions take priority. No progress advanced or GPS history saved.`;
+        planned.hidden=false;$('map-follow-hud').classList.remove('navigation-guiding');
+      }else{
+        state.navFollowProgress=Math.max(state.navFollowProgress||0,progress.along_m);
+        planned.hidden=true;$('map-follow-hud').classList.add('navigation-guiding');
+        const destinationDistance=routeGuide.distance([lon,lat],route.destination);
+        const nearDestination=progress.remaining_m<=30 && destinationDistance<=Math.max(25,accuracy*2);
+        message.textContent=nearDestination?'Near planned destination · verify actual access':progress.instruction;
+        distanceLabel.textContent=nearDestination?'Confirm destination and stop navigation when ready':
+          `${routeGuide.distanceText(progress.remaining_m)} remaining`+
+          (progress.next_distance_m!==null&&progress.next_distance_m>25?` · next step in ${routeGuide.distanceText(progress.next_distance_m)}`:'');
+        detail.textContent=`${sourceName} ±${Math.round(accuracy)} m · ${Math.round(progress.offset_m)} m from mapped walking line · no rerouting, live trail condition or stored travel history. Check signs and access.`;
+      }
+    }catch(error){
+      message.textContent='Walking route progress unavailable';
+      distanceLabel.textContent='Planned turns remain below';
+      detail.textContent=`${error.message} No route position inferred.`;
+      planned.hidden=false;$('map-follow-hud').classList.remove('navigation-guiding');
+    }
+  }
+  // A weak fix should not pull the map away from a detailed planned route.
+  if(accuracy>100||state.navFollowCameraSuspended||Date.now()-state.navFollowLast<=700)return;
+  state.navFollowLast=Date.now();
+  if(state.map&&state.mapReady){
+    state.map.easeTo({center:[lon,lat],zoom:precise?15.5:14,pitch:0,bearing:0,duration:600});
+  }else if(state.rasterMap){
+    state.rasterMap.stop();state.rasterMap.center=[lon,lat];state.rasterMap.zoom=precise?15:14;state.rasterMap.render();
+  }
+}
 function followPosition(pos){
   if(state.navFollowId===null || state.navDemoActive)return;
+  if(state.navFollowMode==='pedestrian'){followWalkingPosition(pos);return;}
   const route=state.navPreview;
   if(route?.type!=='ROAD_ROUTE'||!route.is_driving_route){stopNavigationFollow();return;}
   // During a fresh gpsd fix, do not overwrite the GNSS camera with a coarser
@@ -4509,11 +4590,65 @@ async function pollLocalNavigationGnss(){
   }catch(_err){ /* local gpsd unavailable: browser geolocation remains the fallback */ }
   finally{state.navGnssBusy=false;}
 }
+function startWalkingNavigation(){
+  const route=state.navPreview;
+  // An OSM-mapped dotted line or a direct-line fallback is never eligible.
+  if(route?.type!=='ROAD_ROUTE'||route.travel_mode!=='pedestrian'||route.is_driving_route!==false||
+     !Array.isArray(route.coordinates)||route.coordinates.length<2){
+    setMapDestinationStatus('Get an actual local Valhalla walking route before starting GPS follow. A direct line is not a walkable path.','error');return;
+  }
+  if(state.navFollowId!==null)return;
+  stopNavigationFollow();
+  state.navFollowMode='pedestrian';
+  state.navFollowProgress=0;state.navFollowLast=0;state.navFollowPriorFix=null;
+  state.navFollowStartedAt=Date.now();state.navFollowLastValidAt=0;
+  state.navFollowCameraSuspended=false;state.navFollowLastPosition=null;
+  setNavigationSignalState('waiting');
+  cameraPanelVisibility(false);renderNavigationLanes(null,false);hideCameraApproachAlert();
+  $('page-map').classList.add('navigation-walking');
+  $('map-follow-hud').hidden=false;
+  $('map-follow-hud').classList.remove('navigation-guiding');
+  $('map-follow-instruction').textContent='Waiting for live walking GPS…';
+  $('map-follow-distance').textContent='Planned turns are available below; no actual position received yet';
+  $('map-follow-quality').textContent='Walking follow uses only your permissioned GPS fix. Accuracy of ±35 m or better is required to advance turns. No automatic rerouting, voice, sensor recording or GPS history.';
+  $('map-follow-planned').textContent='Planned walking path only · check public access, terrain and closures. Live progress waits for accurate GPS.';
+  $('map-follow-planned').hidden=false;
+  $('map-follow-camera-note').textContent='Map remains where you placed it until a real GPS fix arrives.';
+  $('map-follow-source').textContent='Position source: browser; optional local gpsd checked only during this walking session.';
+  $('map-follow-turn-list').innerHTML=routeGuide.routeSteps(route).map(t=>`<li>${escapeHTML(t.instruction)}<small>${t.length_miles.toFixed(2)} mi</small></li>`).join('');
+  $('map-follow-turns').open=false;
+  // Shared in-memory GPS lifecycle and loopback gpsd polling, no server writes.
+  state.navFollowId=-1;state.navGnssLast=0;
+  const epoch=state.navFollowEpoch;
+  state.navGnssTimer=setInterval(pollLocalNavigationGnss,2500);
+  pollLocalNavigationGnss();
+  if(!navigator.geolocation?.watchPosition){
+    $('map-follow-quality').textContent='Browser geolocation is unavailable. Checking optional local gpsd only while this walking session remains active. No history saved.';
+    return;
+  }
+  try{
+    const watchId=navigator.geolocation.watchPosition(pos=>{
+      if(epoch===state.navFollowEpoch&&state.navFollowMode==='pedestrian')followPosition(pos);
+    },error=>{
+      if(epoch!==state.navFollowEpoch||state.navFollowMode!=='pedestrian')return;
+      if(state.navGnssLast&&Date.now()-state.navGnssLast<5000)return;
+      setNavigationSignalState('unavailable');
+      $('map-follow-instruction').textContent=`Walking GPS unavailable (${error.code===1?'permission denied':error.code===3?'timed out':'no position'}).`;
+      $('map-follow-distance').textContent='Follow paused · planned turns remain below';
+      $('map-follow-quality').textContent='Enable browser location or connect supported local gpsd hardware, then use Stop and start again. No history saved.';
+    },{enableHighAccuracy:true,maximumAge:0,timeout:12000});
+    if(epoch===state.navFollowEpoch)state.navFollowId=watchId;
+    else navigator.geolocation.clearWatch?.(watchId);
+  }catch(error){
+    stopNavigationFollow();setMapDestinationStatus(`Walking GPS follow could not start: ${error.message}`,'error');
+  }
+}
 $('map-begin-guidance').addEventListener('click',()=>{
   if(state.navPreview?.type!=='ROAD_ROUTE'||!state.navPreview.is_driving_route){
     setMapDestinationStatus('Get a confirmed Valhalla road route first; direct lines cannot start GPS follow.','error');return;
   }
   stopNavigationFollow();
+  state.navFollowMode='auto';
   state.navFollowLast=0;state.navFollowProgress=0;state.navFollowPriorFix=null;state.navRerouteLast=0;
   state.navFollowStartedAt=Date.now();state.navFollowLastValidAt=0;
   setNavigationSignalState('waiting');
@@ -4560,7 +4695,12 @@ $('map-begin-guidance').addEventListener('click',()=>{
   },{enableHighAccuracy:true,maximumAge:0,timeout:12000}); }
   catch(err){stopNavigationFollow();setMapDestinationStatus(`GPS follow could not start: ${err.message}`,'error');}
 });
-$('map-stop-guidance').addEventListener('click',()=>{stopNavigationFollow();setMapDestinationStatus('GPS follow stopped. Road plan remains available.');});
+$('map-stop-guidance').addEventListener('click',()=>{
+  const walking=state.navFollowMode==='pedestrian';
+  stopNavigationFollow();
+  setMapDestinationStatus(walking?'Walking GPS follow stopped. Planned walking route remains available.':'GPS follow stopped. Road plan remains available.');
+});
+$('map-directions-walk-start').addEventListener('click',startWalkingNavigation);
 // v0.2.37: Explicit, in-memory-only DEMO travel along the already confirmed
 // local Valhalla route. This is not real GPS, live navigation or an observation.
 function renderDemoRouteMarker(frame){

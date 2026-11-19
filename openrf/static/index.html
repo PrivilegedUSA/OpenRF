@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.136">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.137">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -18,24 +18,24 @@
   <script defer src="/static/sdr-history.js?v=0.2.76"></script>
   <script defer src="/static/survey_map.js?v=0.2.76"></script>
   <script defer src="/static/navigation.js?v=0.2.76"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.136"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.137"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/app.js?v=0.2.136"></script>
-  <script defer src="/static/field-breadcrumbs.js?v=0.2.136"></script>
-  <script defer src="/static/offline-trails.js?v=0.2.136"></script>
-  <script defer src="/static/emergency.js?v=0.2.136"></script>
-  <script defer src="/static/emergency-library.js?v=0.2.136"></script>
-  <script defer src="/static/emergency-sos.js?v=0.2.136"></script>
-  <script defer src="/static/emergency-handoff.js?v=0.2.136"></script>
-  <script defer src="/static/emergency-teams.js?v=0.2.136"></script>
-  <script defer src="/static/emergency-checkins.js?v=0.2.136"></script>
-  <script defer src="/static/emergency-inbox.js?v=0.2.136"></script>
-  <script defer src="/static/emergency-protocol.js?v=0.2.136"></script>
-  <script defer src="/static/emergency-dashboard.js?v=0.2.136"></script>
-  <script defer src="/static/emergency-survival.js?v=0.2.136"></script>
-  <script defer src="/static/emergency-backup.js?v=0.2.136"></script>
-  <script defer src="/static/field-calendar.js?v=0.2.136"></script>
+  <script defer src="/static/app.js?v=0.2.137"></script>
+  <script defer src="/static/field-breadcrumbs.js?v=0.2.137"></script>
+  <script defer src="/static/offline-trails.js?v=0.2.137"></script>
+  <script defer src="/static/emergency.js?v=0.2.137"></script>
+  <script defer src="/static/emergency-library.js?v=0.2.137"></script>
+  <script defer src="/static/emergency-sos.js?v=0.2.137"></script>
+  <script defer src="/static/emergency-handoff.js?v=0.2.137"></script>
+  <script defer src="/static/emergency-teams.js?v=0.2.137"></script>
+  <script defer src="/static/emergency-checkins.js?v=0.2.137"></script>
+  <script defer src="/static/emergency-inbox.js?v=0.2.137"></script>
+  <script defer src="/static/emergency-protocol.js?v=0.2.137"></script>
+  <script defer src="/static/emergency-dashboard.js?v=0.2.137"></script>
+  <script defer src="/static/emergency-survival.js?v=0.2.137"></script>
+  <script defer src="/static/emergency-backup.js?v=0.2.137"></script>
+  <script defer src="/static/field-calendar.js?v=0.2.137"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
   <script defer src="/static/mesh.js?v=0.2.104"></script>
   <script defer src="/static/reticulum.js?v=0.2.104"></script>
@@ -50,7 +50,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.136</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.137</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -342,7 +342,7 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
 </div></details>
 
 
-<details id="map-directions-review" class="map-directions-review" hidden><summary id="map-directions-summary">Directions · planned road route</summary><div id="map-directions-actions" class="map-directions-actions" role="group" aria-label="Export directions"><button type="button" class="btn outline" id="map-print-directions">Print</button><button type="button" class="btn outline" id="map-save-directions-html">Save HTML</button><button type="button" class="btn outline" id="map-save-directions-json">Save JSON</button></div><div class="map-directions-follow-actions"><button type="button" class="btn primary" id="map-directions-start" disabled>Start navigation</button></div><div class="map-directions-body"><p class="small muted" id="map-directions-intro">Tap a turn to avoid its mapped road point for this trip or future trips. Recalculate directions afterward. Signs and legal access rules take priority; no live traffic feed.</p><ol id="map-directions-list"></ol><p class="small muted" id="map-directions-note">Saved HTML works offline after downloading. JSON includes route coordinates and should be kept private.</p></div></details>
+<details id="map-directions-review" class="map-directions-review" hidden><summary id="map-directions-summary">Directions · planned road route</summary><div id="map-directions-actions" class="map-directions-actions" role="group" aria-label="Export directions"><button type="button" class="btn outline" id="map-print-directions">Print</button><button type="button" class="btn outline" id="map-save-directions-html">Save HTML</button><button type="button" class="btn outline" id="map-save-directions-json">Save JSON</button></div><div class="map-directions-follow-actions"><button type="button" class="btn primary" id="map-directions-start" disabled>Start navigation</button></div><div class="map-walking-follow-actions" id="map-walking-follow-actions" hidden><button type="button" class="btn primary" id="map-directions-walk-start" disabled>Start walking navigation</button></div><div class="map-directions-body"><p class="small muted" id="map-directions-intro">Tap a turn to avoid its mapped road point for this trip or future trips. Recalculate directions afterward. Signs and legal access rules take priority; no live traffic feed.</p><ol id="map-directions-list"></ol><p class="small muted" id="map-directions-note">Saved HTML works offline after downloading. JSON includes route coordinates and should be kept private.</p></div></details>
 <section id="map-route-choices" class="map-route-choices" hidden aria-label="Available road routes">
  <div class="route-choice-head"><strong>Choose a route</strong><button type="button" id="route-choice-close" aria-label="Hide route choices">×</button></div>
  <div class="route-choice-scroll">

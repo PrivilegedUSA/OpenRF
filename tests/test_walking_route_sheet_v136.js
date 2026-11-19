@@ -34,7 +34,7 @@ const $=id=>{
 };
 const document={createElement(tag){return {tag,textContent:'',className:'',children:[],
   append(...parts){this.children.push(...parts)},setAttribute(){},addEventListener(){}}}};
-const state={navPreview:null,navDestinationEpoch:0,navRoadPrefsDirty:false};
+const state={navPreview:null,navFollowId:null,navDestinationEpoch:0,navRoadPrefsDirty:false};
 const ctx={$,document,state,routeGuide:guide,
   api:async(path,method,data)=>{
     assert.equal(path,'/api/navigation/route');assert.equal(method,'POST');
@@ -62,7 +62,9 @@ vm.runInContext(extract('async function planRoadRoute(', 'async function freshNa
   assert.equal($('map-directions-review').open,true);
   assert.equal($('map-directions-list').items.length,2);
   assert.equal($('map-directions-actions').hidden,true,'No driving export controls for walking');
-  assert.equal($('map-directions-start').hidden,true,'Walking GPS follow remains unavailable');
+  assert.equal($('map-directions-start').hidden,true,'Walking route does not enable driving follow');
+  assert.equal($('map-walking-follow-actions').hidden,false,'Walking route exposes its own GPS follow action');
+  assert.equal($('map-directions-walk-start').disabled,false,'Valid Valhalla pedestrian route enables walking follow');
   assert.match($('nav-directions').innerHTML,/Walk north along the path/);
   const modeMarkup=html.match(/id="map-mode-drive"[\s\S]*?id="map-mode-walk"[\s\S]*?<\/button>/)?.[0]||'';
   assert.match(modeMarkup,/Font Awesome Free 6\.7\.2/);
@@ -73,6 +75,6 @@ vm.runInContext(extract('async function planRoadRoute(', 'async function freshNa
     'Get directions has only a text label');
   assert.match(css,/#map-begin-guidance/);
   assert.match(css,/fa-location-arrow\.svg/,'Font Awesome arrow moves onto navigation start controls');
-  assert.match(html,/route_guidance\.js\?v=0\.2\.136/,'updated route helper bypasses stale browser cache');
-  console.log('PASS v0.2.136 pedestrian turn list, driving-only follow guard, Font Awesome selector and start icons');
+  assert.match(html,/route_guidance\.js\?v=0\.2\.137/,'updated route helper bypasses stale browser cache');
+  console.log('PASS v0.2.137 pedestrian turn list, driving-only follow guard, Font Awesome selector and start icons');
 })().catch(error=>{console.error(error);process.exitCode=1});

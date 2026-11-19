@@ -1,4 +1,9 @@
-# OpenRF v0.2.114 — Offline-First Navigation and RF Toolkit
+# OpenRF — Offline-First Navigation and RF Toolkit
+
+## v0.2.137 — Start walking navigation
+
+- Valid local Valhalla walking routes now have an opt-in **Start walking navigation** control. Fresh, accurate real GPS positions drive map-follow and approximate current/next mapped maneuvers; the **Stop** button ends the session. Weak, stale or off-route fixes pause turn advancement.
+- This is a GPS-follow aid, not verified trail safety: no automatic walking rerouting, speaking, path access verification or GPS history recording. See [v0.2.137 test and install notes](docs/RELEASE_0.2.137_TESTS.md).
 
 ## v0.2.114 — Roomier route chooser without scrollbar overlap
 

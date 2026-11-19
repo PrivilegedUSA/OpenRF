@@ -59,8 +59,10 @@ $('map-begin-guidance').disabled=true;
 ctx.renderDirectionsReview(walking);
 assert.equal($('map-directions-review').open,true,'Walking turn list is expanded');
 assert.equal($('map-directions-actions').hidden,true,'Driving-only export controls hidden for walking');
-assert.equal($('map-directions-start').parentElement.hidden,true,'No false promise of walking GPS guidance');
-assert.match($('map-directions-intro').textContent,/Live walking GPS guidance is not yet available/);
+assert.equal($('map-directions-start').parentElement.hidden,true,'Driving GPS action is hidden in walking mode');
+assert.equal($('map-walking-follow-actions').hidden,false,'Walking has a separate opt-in GPS follow action');
+assert.equal($('map-directions-walk-start').disabled,false,'A complete pedestrian route can start walking follow');
+assert.match($('map-directions-intro').textContent,/Start walking navigation only when you are ready/);
 $('map-directions-start').on_click();
 assert.equal($('map-begin-guidance').clicks,1,'Pedestrian plan cannot start driving follow');
 
@@ -99,4 +101,4 @@ $('map-mode-drive').on_click();
 assert.equal(state.navTravelMode,'auto','Returning to drive restores mode');
 assert.equal($('map-picked-route').textContent,'Driving directions');
 assert.equal($('map-begin-guidance').hidden,false);
-console.log('PASS v0.2.136 single-route Start, expanded directions, car/walk selector, map-picked origin/destination');
+console.log('PASS v0.2.137 single-route Start, expanded directions, car/walk selector, map-picked origin/destination');

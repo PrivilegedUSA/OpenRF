@@ -33,8 +33,8 @@
     }
     return total;
   }
-  function locate(route,lon,lat,prior=0){
-    const cumulative=routeMetric(route), coords=route.coordinates;
+  function locate(route,lon,lat,prior=0,{allowWalkingPlan=false}={}){
+    const cumulative=routeMetric(route,{allowWalkingPlan}), coords=route.coordinates;
     if(!Number.isFinite(lon)||!Number.isFinite(lat)||Math.abs(lat)>90||Math.abs(lon)>180)throw Error('Invalid reported location.');
     const q=[lon,lat], factor=Math.cos(lat*RAD), scale=111195;
     const sq=(a,b)=>Math.hypot((a[0]-b[0])*factor,(a[1]-b[1]))*scale;
@@ -130,6 +130,35 @@
     const updated=Math.max(progress,match.along_m);
     const next=nextTurn(route,{...match,along_m:updated});
     return {...match,along_m:updated,offroute,next,remaining_m:Math.max(0,match.total_m-updated)};
+  }
+  // Passive, user-started walking follow. No rerouting, spoken prompts or
+  // movement inference. A route graph is not proof of legal or safe access.
+  // Keep walking validation separate from the driving-only locate() default.
+  function walkingGuidance(route,lon,lat,accuracy,prior=0){
+    if(route?.type!=='ROAD_ROUTE'||route?.travel_mode!=='pedestrian'||route?.is_driving_route!==false)
+      throw Error('A real local Valhalla walking route is required.');
+    if(!Number.isFinite(accuracy)||accuracy<0||accuracy>1000)
+      throw Error('A valid reported walking GPS accuracy is required.');
+    const match=locate(route,lon,lat,prior,{allowWalkingPlan:true});
+    const offroute=match.offset_m>Math.max(35,accuracy*2);
+    const along=Math.max(0,match.along_m);
+    const remaining=Math.max(0,match.total_m-along);
+    const turns=(route.maneuvers||[]).filter(t=>typeof t.instruction==='string' &&
+      Number.isInteger(t.shape_index)&&t.shape_index>=0&&t.shape_index<match.cumulative.length);
+    let turnIndex=0;
+    // Keep "arrive" dormant until near the actual end. The first instruction
+    // describes the path you're currently on; don't immediately skip it just
+    // because its shape_index is zero.
+    for(let i=1;i<turns.length;i++){
+      const distanceToTurn=match.cumulative[turns[i].shape_index]-along;
+      const arrival=i===turns.length-1;
+      if(distanceToTurn<=5 && (!arrival||remaining<=20))turnIndex=i;
+    }
+    const active=turns[turnIndex]||null,next=turns[turnIndex+1]||null;
+    const nextDistance=next ? Math.max(0,match.cumulative[next.shape_index]-along):null;
+    return {...match,offroute,along_m:along,remaining_m:remaining,
+      instruction:active?.instruction||'Follow the planned walking route.',
+      next_instruction:next?.instruction||null,next_distance_m:nextDistance};
   }
   function rerouteDecision(memory,fix){
     const count=Number(memory?.count)||0;
@@ -230,6 +259,6 @@
     const rows=steps.map(s=>`<li><strong>${htmlEscape(s.instruction)}</strong><span>${s.length_miles.toFixed(2)} mi</span></li>`).join('');
     return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OpenRF Directions</title><style>body{font:16px/1.5 system-ui,Arial,sans-serif;max-width:780px;margin:32px auto;padding:0 20px;color:#182129}h1{margin-bottom:4px}header{border-bottom:2px solid #35616b;margin-bottom:20px;padding-bottom:15px}ol{padding-left:28px}li{break-inside:avoid;margin:0 0 14px;padding-left:6px}li span{display:block;color:#555;font-size:13px}footer{border-top:1px solid #aaa;padding-top:12px;color:#666;font-size:12px}@media print{body{margin:0;max-width:none;padding:0}button{display:none}}</style></head><body><header><small>OPENRF · OFFLINE-CAPABLE ROUTE SHEET</small><h1>Driving directions</h1><p><b>From:</b> ${origin}<br><b>To:</b> ${destination}</p><p><b>Distance:</b> ${miles.toFixed(2)} mi · <b>Estimated time:</b> ${minutes} min (no live traffic)</p></header><main><h2>Planned turns (${steps.length})</h2><ol>${rows}</ol></main><footer>Calculated using local Valhalla / © OpenStreetMap contributors. Planning only. Review route restrictions, signage and conditions. Not live guidance. No GPS history is included.</footer></body></html>`;
   }
-  root.OpenRFRouteGuidance=Object.freeze({distance,bearing,locate,routeVisualHeading,sampleRoute,nextTurn,distanceText,guidance,rerouteDecision,routeSteps,turnAvoidPoint,hasCompleteDirections,sheet,laneGuidance,voiceCue});
+  root.OpenRFRouteGuidance=Object.freeze({distance,bearing,locate,routeVisualHeading,sampleRoute,nextTurn,distanceText,guidance,walkingGuidance,rerouteDecision,routeSteps,turnAvoidPoint,hasCompleteDirections,sheet,laneGuidance,voiceCue});
   if(typeof module!=='undefined'&&module.exports)module.exports=root.OpenRFRouteGuidance;
 })(typeof window!=='undefined'?window:globalThis);
