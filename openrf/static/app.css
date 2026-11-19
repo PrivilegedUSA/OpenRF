@@ -2198,3 +2198,56 @@ body.map-workspace .topbar .header-emergency-shortcut{pointer-events:auto;backgr
 .breadcrumb-track-actions .btn{min-height:36px;padding:6px 9px;font-size:11px}
 .breadcrumb-track .danger-outline{color:#ffb5ae}
 @media(max-width:590px){.breadcrumb-track-head{flex-direction:column;gap:4px}.breadcrumb-track-actions .btn{flex:1 1 43%}}
+
+/* v0.2.132 — Emergency check-in: one predictable vertical flow, no stranded checkbox. */
+#page-emergency #emergency-checkin-form{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;row-gap:11px;column-gap:14px}
+#page-emergency #emergency-checkin-form>label:has(#emergency-checkin-source),
+#page-emergency #emergency-checkin-form>label:has(#emergency-checkin-note),
+#page-emergency #emergency-checkin-form>.emergency-checkin-draft-choice,
+#page-emergency #emergency-checkin-form>.emergency-checkin-location-status,
+#page-emergency #emergency-checkin-form>.emergency-sos-location-controls{grid-column:1/-1}
+#page-emergency #emergency-checkin-form>.emergency-checkin-draft-choice{display:flex;align-items:center;flex-direction:row;gap:10px;
+  cursor:pointer;min-height:32px;line-height:1.4;font-size:13px;color:#e4f5f0}
+#page-emergency #emergency-checkin-form>.emergency-checkin-draft-choice input{width:19px;height:19px;flex:0 0 19px;margin:0;accent-color:#34c9b1}
+#page-emergency #emergency-checkin-form>.emergency-checkin-draft-choice span{min-width:0;overflow-wrap:anywhere}
+#page-emergency #emergency-checkin-location{margin:-2px 0 0;line-height:1.5}
+#page-emergency #emergency-checkin-form>.emergency-sos-location-controls{display:flex;align-items:center;justify-content:flex-start;gap:9px;margin:0 0 4px}
+#page-emergency #emergency-checkin-form>.emergency-sos-location-controls .btn{min-width:0}
+#page-emergency #emergency-checkin-form>button[type="submit"]{grid-column:1/-1;justify-self:start;width:min(100%,245px)}
+
+/* Radio handoff: full-width outgoing message, adjacent byte count and left-aligned actions. */
+#page-emergency #emergency-handoff-form{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:10px 14px}
+#page-emergency #emergency-handoff-form>label:has(#emergency-handoff-text),
+#page-emergency #emergency-handoff-form>#emergency-handoff-bytes,
+#page-emergency #emergency-handoff-form>.emergency-outbox-actions{grid-column:1/-1}
+#page-emergency #emergency-handoff-form>label:has(#emergency-handoff-text){margin-top:3px;gap:5px}
+#page-emergency #emergency-handoff-bytes{align-self:start;justify-self:start;margin:-7px 0 3px;line-height:1.4}
+#page-emergency #emergency-handoff-form>.emergency-outbox-actions{display:flex;justify-content:flex-start;align-items:stretch;
+  flex-wrap:wrap;gap:9px;margin:4px 0 0}
+#page-emergency #emergency-handoff-form>.emergency-outbox-actions>.btn{flex:0 1 auto;width:min(100%,260px);min-height:44px;min-width:0}
+#page-emergency .emergency-routing-actions,#page-emergency .emergency-outbox-heading{display:flex;justify-content:flex-start;align-items:center;gap:12px;
+  flex-wrap:wrap;margin:11px 0}
+#page-emergency .emergency-routing-actions>p{flex:0 1 auto;margin:0}
+#page-emergency .emergency-outbox-heading>h3{margin:0}
+#page-emergency .emergency-routing-actions>.btn,#page-emergency .emergency-outbox-heading>.btn{flex:0 0 auto;max-width:100%;min-height:40px}
+@media(max-width:590px){#page-emergency #emergency-checkin-form,#page-emergency #emergency-handoff-form{grid-template-columns:minmax(0,1fr)}
+  #page-emergency #emergency-handoff-form>.emergency-outbox-actions>.btn{flex:1 1 100%;width:100%}}
+
+/* v0.2.132 — offline GPX reference library, visibly distinct from traveled paths. */
+.offline-trail-manager{display:grid;gap:11px;padding:8px 1px 2px;min-width:0}
+.offline-trail-manager>p{margin:2px 0;line-height:1.5}
+.offline-trail-form{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+.offline-trail-form label{display:grid;gap:6px;color:#c0e3dc;font-size:12px;font-weight:650}
+.offline-trail-form .field{width:100%;min-width:0}
+.offline-trail-form>.btn{justify-self:start;max-width:100%;min-height:44px;white-space:normal}
+.offline-trail-actions,.offline-trail-entry-actions{display:flex;justify-content:flex-start;flex-wrap:wrap;gap:8px;align-items:center}
+.offline-trail-actions .btn{min-height:40px;white-space:normal}
+.offline-trail-list{display:grid;gap:12px}
+.offline-trail-entry{min-width:0;padding:12px;background:#122733;border:1px solid #355765;border-radius:10px}
+.offline-trail-entry-title{display:flex;gap:8px;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
+.offline-trail-entry-title>div{min-width:0;overflow-wrap:anywhere}
+.offline-trail-entry-title strong{color:#ead8ff}
+.offline-trail-entry-title small{display:block;margin-top:5px;color:#a5c4c4;line-height:1.4}
+.offline-trail-entry-actions .btn{min-height:36px;padding:6px 10px;white-space:normal}
+@media(max-width:580px){.offline-trail-entry-title{flex-direction:column}
+  .offline-trail-entry-actions .btn{flex:1 1 42%}}

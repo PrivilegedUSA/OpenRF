@@ -12,6 +12,44 @@ from openrf.storage import Repository
 
 
 class ApiTests(unittest.TestCase):
+    def test_local_imported_trails_and_emergency_controls(self):
+        status,html=self.call('GET','/')
+        self.assertEqual(status,200)
+        self.assertIn(b'id="offline-trail-library"',html)
+        self.assertIn(b'id="offline-trail-import-form"',html)
+        self.assertEqual(self.call('GET','/static/offline-trails.js')[0],200)
+        self.assertEqual(self.call('GET','/api/navigation/trails',headers={'Host':'example.org'})[0],403)
+        self.assertEqual(self.call('POST','/api/navigation/trails/import',{'name':'X'},
+            headers={'Origin':'http://not-local.example'})[0],403)
+        self.assertEqual(self.call('GET','/api/navigation/trails')[1]['trails'],[])
+        from tests.test_offline_trails import GPX
+        payload={'name':'Test path','attribution':'Self-created test fixture','gpx':GPX}
+        self.assertEqual(self.call('POST','/api/navigation/trails/import',
+            {**payload,'attribution':''})[0],400)
+        code,created=self.call('POST','/api/navigation/trails/import',payload)
+        self.assertEqual(code,201)
+        ident=created['trail']['id']
+        self.assertEqual(created['trail']['point_count'],4)
+        self.assertEqual(self.call('GET','/api/navigation/trails')[1]['trails'][0]['id'],ident)
+        code,record=self.call('GET',f'/api/navigation/trails/{ident}')
+        self.assertEqual(code,200)
+        self.assertEqual(len(record['segments']),2)
+        self.assertIn('unverified',record['source'].lower())
+        self.assertEqual(self.call('GET',f'/api/navigation/trails/{ident}/geojson')[1]
+            ['features'][0]['geometry']['type'],'MultiLineString')
+        self.assertTrue(self.call('DELETE',f'/api/navigation/trails/{ident}')[1]['deleted'])
+        self.assertEqual(self.call('GET',f'/api/navigation/trails/{ident}')[0],404)
+        # Check-in flow order and handoff controls; nothing auto-sends.
+        html=html.decode('utf-8')
+        first=html.index('id="emergency-checkin-note"')
+        check=html.index('id="emergency-checkin-draft"')
+        location=html.index('id="emergency-checkin-location"')
+        button=html.index('id="emergency-checkin-locate"')
+        self.assertTrue(first<check<location<button)
+        self.assertIn('class="emergency-checkin-draft-choice"',html)
+        self.assertIn('class="emergency-handoff-head emergency-outbox-heading"',html)
+        self.assertNotIn('id="inbox-nav-item"',html)
+
     def test_private_breadcrumb_routes_and_emergency_header_shortcut(self):
         status,index=self.call('GET','/')
         self.assertEqual(status,200)
@@ -395,7 +433,7 @@ class ApiTests(unittest.TestCase):
     def test_health_static_hardware_and_exports(self):
         s,data=self.call('GET','/api/health')
         self.assertEqual(s,200)
-        self.assertEqual(data['version'],'0.2.131')
+        self.assertEqual(data['version'],'0.2.132')
         for path in ('/','/static/app.css','/static/app.js','/static/history-analysis.js','/static/route_guidance.js','/static/spectrum.js','/static/spectrum-analysis.js','/static/sdr-history.js','/api/export.csv','/api/export.geojson'):
             status,_=self.call('GET',path)
             self.assertEqual(status,200,path)

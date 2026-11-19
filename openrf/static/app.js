@@ -209,7 +209,7 @@ setMapSearchCollapsed(true);
 const mapToolGroups = {
   trip: {title: 'Plan a trip', ids: ['map-trip-planner']},
   settings: {title: 'Map settings', ids: ['map-control-settings']},
-  gps: {title: 'GPS and walking trails', ids: ['map-breadcrumbs-panel','survey-waypoint-manager','sdr-site-map-manager']},
+  gps: {title: 'GPS and walking trails', ids: ['offline-trail-library','map-breadcrumbs-panel','survey-waypoint-manager','sdr-site-map-manager']},
   offline: {title: 'Offline maps', ids: ['offline-basemap-settings','map-area-manager']}
 };
 // v0.2.108: Offline navigation readiness belongs in the bottom-right gear,

@@ -11,7 +11,7 @@ assert(html.includes('id="map-breadcrumbs-panel"'));
 assert(html.includes('data-page="emergency" aria-label="Open Emergency readiness"'));
 assert(html.indexOf('id="header-emergency-shortcut"') < html.indexOf('id="header-messages-menu"'));
 assert(css.includes('body.map-workspace .topbar .header-emergency-shortcut{pointer-events:auto'));
-assert(app.includes("ids: ['map-breadcrumbs-panel','survey-waypoint-manager'"));
+assert(app.includes("'map-breadcrumbs-panel','survey-waypoint-manager'"));
 assert(script.includes("document.addEventListener('visibilitychange'"));
 assert(script.includes('maximumAge:0'));
 assert(script.includes('document.hidden'));

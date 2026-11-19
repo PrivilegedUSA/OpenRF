@@ -26,6 +26,7 @@ jobs:
         run: |
           node --check openrf/static/app.js
           node --check openrf/static/field-breadcrumbs.js
+          node --check openrf/static/offline-trails.js
           node --check openrf/static/history-analysis.js
           node --check openrf/static/navigation.js
           node --check openrf/static/route_guidance.js

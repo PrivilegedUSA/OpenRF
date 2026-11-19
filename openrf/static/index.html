@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.131">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.132">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -21,20 +21,21 @@
   <script defer src="/static/route_guidance.js?v=0.2.76"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/app.js?v=0.2.131"></script>
-  <script defer src="/static/field-breadcrumbs.js?v=0.2.131"></script>
-  <script defer src="/static/emergency.js?v=0.2.131"></script>
-  <script defer src="/static/emergency-library.js?v=0.2.131"></script>
-  <script defer src="/static/emergency-sos.js?v=0.2.131"></script>
-  <script defer src="/static/emergency-handoff.js?v=0.2.131"></script>
-  <script defer src="/static/emergency-teams.js?v=0.2.131"></script>
-  <script defer src="/static/emergency-checkins.js?v=0.2.131"></script>
-  <script defer src="/static/emergency-inbox.js?v=0.2.131"></script>
-  <script defer src="/static/emergency-protocol.js?v=0.2.131"></script>
-  <script defer src="/static/emergency-dashboard.js?v=0.2.131"></script>
-  <script defer src="/static/emergency-survival.js?v=0.2.131"></script>
-  <script defer src="/static/emergency-backup.js?v=0.2.131"></script>
-  <script defer src="/static/field-calendar.js?v=0.2.131"></script>
+  <script defer src="/static/app.js?v=0.2.132"></script>
+  <script defer src="/static/field-breadcrumbs.js?v=0.2.132"></script>
+  <script defer src="/static/offline-trails.js?v=0.2.132"></script>
+  <script defer src="/static/emergency.js?v=0.2.132"></script>
+  <script defer src="/static/emergency-library.js?v=0.2.132"></script>
+  <script defer src="/static/emergency-sos.js?v=0.2.132"></script>
+  <script defer src="/static/emergency-handoff.js?v=0.2.132"></script>
+  <script defer src="/static/emergency-teams.js?v=0.2.132"></script>
+  <script defer src="/static/emergency-checkins.js?v=0.2.132"></script>
+  <script defer src="/static/emergency-inbox.js?v=0.2.132"></script>
+  <script defer src="/static/emergency-protocol.js?v=0.2.132"></script>
+  <script defer src="/static/emergency-dashboard.js?v=0.2.132"></script>
+  <script defer src="/static/emergency-survival.js?v=0.2.132"></script>
+  <script defer src="/static/emergency-backup.js?v=0.2.132"></script>
+  <script defer src="/static/field-calendar.js?v=0.2.132"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
   <script defer src="/static/mesh.js?v=0.2.104"></script>
   <script defer src="/static/reticulum.js?v=0.2.104"></script>
@@ -49,7 +50,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.131</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.132</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -169,9 +170,9 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
             <label>Status<select id="emergency-checkin-status" class="field"><option value="SAFE">Safe</option><option value="NEED_HELP">Need assistance</option><option value="EVACUATING">Evacuating</option><option value="CHECK_IN">Checking in</option></select></label>
             <label>Source<select id="emergency-checkin-source" class="field"><option value="SELF_REPORTED">My own check-in</option><option value="MANUAL_SECONDHAND">Secondhand report, manually entered</option></select></label>
             <label>Optional note<textarea id="emergency-checkin-note" class="field" maxlength="500" rows="3"></textarea></label>
+            <label class="emergency-checkin-draft-choice" for="emergency-checkin-draft"><input type="checkbox" id="emergency-checkin-draft"><span>Also prepare an UNSENT emergency message draft</span></label>
+            <p id="emergency-checkin-location" class="muted small emergency-checkin-location-status" role="status">No location attached.</p>
             <div class="emergency-sos-location-controls"><button id="emergency-checkin-locate" type="button" class="btn ghost">Get fresh location</button><button id="emergency-checkin-clear" type="button" class="btn ghost">Remove location</button></div>
-            <p id="emergency-checkin-location" class="muted small" role="status">No location attached.</p>
-            <label><input type="checkbox" id="emergency-checkin-draft"> Also prepare an UNSENT emergency message draft</label>
             <button type="submit" class="btn primary">Save local check-in</button>
           </form>
           <p id="emergency-checkin-message" class="muted small" role="status" aria-live="polite"></p>
@@ -206,12 +207,12 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
             <label>Recipient address<input id="emergency-handoff-destination" class="field" maxlength="40" required placeholder="Meshtastic !1234abcd"></label>
             <label id="emergency-handoff-channel-label">Meshtastic channel<select id="emergency-handoff-channel" class="field"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option></select></label>
             <label>Outgoing text (edit to fit transport limit)<textarea id="emergency-handoff-text" class="field" rows="7" required></textarea></label>
-            <p id="emergency-handoff-bytes" class="muted small" role="status"></p>
+            <p id="emergency-handoff-bytes" class="muted small" role="status">0 / 180 UTF-8 bytes</p>
             <div class="emergency-outbox-actions"><button type="button" id="emergency-outbox-queue" class="btn ghost">Save to offline outbox</button><button type="submit" id="emergency-handoff-send" class="btn primary">Confirm and hand off to radio</button></div>
           </form>
-          <div class="emergency-handoff-head"><p id="emergency-handoff-status" class="muted small" role="status" aria-live="polite">No transmission attempted from this panel.</p><button type="button" id="emergency-handoff-refresh" class="btn ghost">Refresh routing status</button></div>
+          <div class="emergency-handoff-head emergency-routing-actions"><p id="emergency-handoff-status" class="muted small" role="status" aria-live="polite">No transmission attempted from this panel.</p><button type="button" id="emergency-handoff-refresh" class="btn ghost">Refresh routing status</button></div>
           <div id="emergency-handoff-attempts" class="emergency-records"></div>
-          <div class="emergency-handoff-head"><h3>Offline outbox</h3><button type="button" id="emergency-outbox-refresh" class="btn ghost">Refresh outbox and readiness</button></div>
+          <div class="emergency-handoff-head emergency-outbox-heading"><h3>Offline outbox</h3><button type="button" id="emergency-outbox-refresh" class="btn ghost">Refresh outbox and readiness</button></div>
           <p id="emergency-transport-readiness" class="muted small" role="status">Checking radio connections…</p>
           <p class="muted small">Outbox entries stay stored until you manually send or remove them. Nothing retries on a timer or when hardware reconnects.</p>
           <div id="emergency-outbox-list" class="emergency-records"></div>
@@ -491,6 +492,22 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
             <button type="button" class="btn outline" id="map-offline-check">Check offline readiness</button>
             <p class="small muted" id="map-offline-status" role="status" aria-live="polite">Not checked yet.</p>
             <div id="map-offline-results" class="map-offline-results"></div>
+          </div>
+        </details>
+        <details class="map-area-manager" id="offline-trail-library">
+          <summary>Offline walking trails <span class="small muted">(import GPX · local map reference)</span></summary>
+          <div class="offline-trail-manager">
+            <p class="small muted">Import an existing GPX walking route or trail file you have permission to use. OpenRF stores its path locally for offline map viewing; it does not download trails, contact trail providers, verify trail access, check closures or upload positions. Imported routes are <strong>not</strong> your live location or recorded breadcrumbs.</p>
+            <form id="offline-trail-import-form" class="offline-trail-form">
+              <label>GPX trail file (up to 500 kB)<input type="file" class="field" id="offline-trail-file" accept=".gpx,application/gpx+xml,application/xml,text/xml" required></label>
+              <label>Trail or route name<input type="text" class="field" id="offline-trail-name" maxlength="100" placeholder="e.g. Ridge loop" required></label>
+              <label>File source / attribution<input type="text" class="field" id="offline-trail-credit" maxlength="240" placeholder="Creator or publisher, source, usage rights" required></label>
+              <button class="btn primary" id="offline-trail-import" type="submit">Import into offline trail library</button>
+            </form>
+            <p id="offline-trail-status" class="small muted" role="status" aria-live="polite">No file imported this session.</p>
+            <div class="offline-trail-actions"><button class="btn outline" id="offline-trail-refresh" type="button">Refresh library</button><button class="btn ghost" id="offline-trail-clear-map" type="button" disabled>Clear trail preview</button></div>
+            <div id="offline-trail-list" class="offline-trail-list" aria-label="Locally imported offline walking trails"><p class="small muted">Loading local trail files…</p></div>
+            <p class="small muted">Purple = imported reference path; green/orange = your separately recorded breadcrumbs. GPX track breaks are kept separate, with no invented connections. Map view needs a loaded basemap; coordinates stay available locally even without internet. Stored geometry is in a separate local database and is <strong>not</strong> included in the emergency database backup.</p>
           </div>
         </details>
         <details class="map-area-manager" id="map-breadcrumbs-panel">

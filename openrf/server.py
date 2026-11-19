@@ -56,6 +56,7 @@ from .device_survival import report as device_survival_report
 from .emergency_backup import create as make_emergency_backup, inspect as inspect_emergency_backup, available as backup_crypto_available
 from .restore import exclusive_lock as restore_exclusive_lock
 from .breadcrumbs import BreadcrumbStore
+from .offline_trails import TrailStore
 from .reports import investigation_report, report_html
 from .survey_waypoints import waypoints_geojson
 from .sensor_connections import (connections, ScanReceiptStore, BleScanReceiptStore,
@@ -131,6 +132,8 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get('Content-Length', '0'))
         request_path = urlparse(self.path).path
         max_size = 25*1024*1024 if request_path == '/api/emergency/backup/inspect' else (300000 if request_path == '/api/radio/profiles/import' else (200000 if request_path == '/api/emergency/packs/install' else (24576 if request_path == '/api/emergency/library' else 16384)))
+        if request_path == '/api/navigation/trails/import':
+            max_size = 750000  # One explicitly chosen GPX file, capped again during parsing.
         if length < 1 or length > max_size:
             raise ValueError(f'JSON request must be 1–{max_size} bytes')
         raw = self.rfile.read(length)
@@ -157,6 +160,22 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/emergency/outbox':
             return self._json(200,{'entries':self.server.emergency_store.outbox(),
                 'note':'Local queue only; entries are NEVER sent automatically.'})
+        if path == '/api/navigation/trails':
+            return self._json(200,{'trails':self.server.trail_store.list(),
+                'note':'User-imported offline GPX geometry only; never verified, live or safe to travel.'})
+        if path.startswith('/api/navigation/trails/'):
+            parts=path.split('/')
+            if len(parts) not in (5,6) or not parts[4].isascii() or not parts[4].isdecimal() or len(parts[4])>10:
+                return self._error(400,'Invalid offline trail ID')
+            try:
+                ident=int(parts[4])
+                if len(parts)==5:
+                    return self._json(200,self.server.trail_store.get(ident))
+                if len(parts)==6 and parts[5]=='geojson':
+                    return self._json(200,self.server.trail_store.geojson(ident))
+            except ValueError as exc:
+                return self._error(404,str(exc))
+            return self._error(404,'Unknown offline trail resource')
         if path == '/api/navigation/breadcrumbs':
             return self._json(200,{'sessions':self.server.breadcrumb_store.sessions(),
                 'note':'Opt-in browser position history; not live tracking or verified trail mapping.'})
@@ -621,6 +640,8 @@ class Handler(BaseHTTPRequestHandler):
             file = STATIC_DIR / 'index.html'
         elif path in ('/static/app.css', '/static/app.js', '/static/field-breadcrumbs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
             file = STATIC_DIR / Path(path).name
+        elif path == '/static/offline-trails.js':
+            file = STATIC_DIR / 'offline-trails.js'
         else:
             return self._error(404, 'Not found')
         try:
@@ -745,6 +766,9 @@ class Handler(BaseHTTPRequestHandler):
                 if set(body)!={'key','checked'}:
                     raise ValueError('Preflight requires key and checked only')
                 return self._json(200,self.server.emergency_store.set_preflight(body['key'],body['checked']))
+            if path == '/api/navigation/trails/import':
+                return self._json(201,{'trail':self.server.trail_store.import_gpx(body),
+                    'note':'Sanitized user-supplied GPX coordinates stored separately and locally. Not a safe route.'})
             if path == '/api/navigation/breadcrumbs':
                 if set(body)!={'label'}:
                     raise ValueError('Track start requires a label only')
@@ -1324,6 +1348,11 @@ class Handler(BaseHTTPRequestHandler):
             if not segment.isascii() or not segment.isdecimal() or len(segment) > 10:
                 return self._error(400, 'Invalid destination ID')
             return self._json(200, {'deleted': self.repo.delete_destination(int(segment))})
+        if path.startswith('/api/navigation/trails/') and path.count('/')==4:
+            ident=path.rsplit('/',1)[-1]
+            if not ident.isascii() or not ident.isdecimal() or len(ident)>10:
+                return self._error(400,'Invalid offline trail ID')
+            return self._json(200,{'deleted':self.server.trail_store.delete(int(ident))})
         if path.startswith('/api/navigation/breadcrumbs/') and path.count('/')==4:
             ident=path.rsplit('/',1)[-1]
             if not ident.isascii() or not ident.isdecimal() or len(ident)>10:
@@ -1354,6 +1383,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.repository = repository
     server.emergency_store = EmergencyStore(repository.path)
     server.breadcrumb_store = BreadcrumbStore(repository.path)
+    server.trail_store = TrailStore(repository.path.parent / 'imported-trails.sqlite3')
     server.map_directory = repository.path.parent / 'maps'
     server.map_lock = threading.Lock()
     server.map_asset_directory = repository.path.parent / 'assets'
