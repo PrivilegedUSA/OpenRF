@@ -20,6 +20,9 @@ assert(css.includes('top:var(--openrf-directions-summary-height,48px);'),'Export
 assert(css.includes('#page-map .map-directions-review[open] {\n  max-height:min(67dvh,520px);\n  overflow-y:auto;'),'One scrollable directions panel');
 assert(css.includes('#page-map .map-directions-review > .map-directions-body {\n  overflow:visible;'),'No second scroll within turns');
 assert(js.includes('function updateDirectionsStickyOffset()'),'Dynamic sticky header supports wrapped summaries');
-assert(js.includes("new ResizeObserver(updateDirectionsStickyOffset).observe($('map-directions-summary'))"),'Dynamic resize updates sticky offset');
-assert(html.includes('FIELD CONSOLE · 0.2.133'),'Version updated');
+assert(js.includes('new ResizeObserver(updateDirectionsStickyOffset)') &&
+  js.includes("for(const id of ['map-directions-summary','map-directions-actions'])") &&
+  js.includes('if(node)directionsResizeObserver.observe(node);'),
+  'Dynamic resize updates sticky offset only for present header elements');
+assert(html.includes('FIELD CONSOLE · 0.2.134'),'Version updated');
 console.log('PASS v0.2.76 aligned navigation sheets, fixed exports and single scroll area');

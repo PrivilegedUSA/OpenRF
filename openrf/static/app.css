@@ -2052,6 +2052,18 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
   border-bottom:1px solid #35616b88;
 }
 #page-map .map-directions-follow-actions .btn{display:block;width:100%;min-height:43px;font-size:13px;font-weight:750;touch-action:manipulation}
+
+/* v0.2.134 — bottom-left legend on wide map layouts. The original top:12px
+   rule and later bottom:8px rule were both active, stretching the legend
+   vertically into the center of the map. Align it beside the credits icon. */
+#page-map .map-legend{
+  top:auto;
+  bottom:9px;
+  left:44px!important;
+  right:auto!important;
+  height:auto;
+  align-items:center;
+}
 #page-map .map-directions-follow-actions .btn:disabled{opacity:.55;cursor:not-allowed}
 #page-map .map-directions-actions[hidden],
 #page-map .map-directions-follow-actions[hidden],

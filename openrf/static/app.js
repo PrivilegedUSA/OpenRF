@@ -2675,8 +2675,16 @@ function updateDirectionsStickyOffset(){
   if(height>0)pane.style.setProperty('--openrf-directions-summary-height',`${Math.ceil(height)}px`);
   pane.style.setProperty('--openrf-directions-actions-height',`${Math.ceil(actions.getBoundingClientRect().height)}px`);
 }
-if(typeof ResizeObserver!=='undefined')new ResizeObserver(updateDirectionsStickyOffset).observe($('map-directions-summary'));
-if(typeof ResizeObserver!=='undefined')new ResizeObserver(updateDirectionsStickyOffset).observe($('map-directions-actions'));
+// Missing optional layout nodes must not stop the entire map app at startup.
+// In v0.2.133 the actions wrapper was missing its ID; observe(null) threw,
+// preventing showPage('map') and the map initializer from ever running.
+if(typeof ResizeObserver!=='undefined'){
+  const directionsResizeObserver=new ResizeObserver(updateDirectionsStickyOffset);
+  for(const id of ['map-directions-summary','map-directions-actions']){
+    const node=$(id);
+    if(node)directionsResizeObserver.observe(node);
+  }
+}
 window.addEventListener('resize',updateDirectionsStickyOffset);
 function renderDirectionsReview(route) {
   const pane=$('map-directions-review');

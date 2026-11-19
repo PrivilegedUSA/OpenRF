@@ -1,3 +1,10 @@
+## OpenRF v0.2.134 — Restore full-screen Map and align legend on wide layouts (2026-11-19)
+
+- Fixed a v0.2.133 startup-stopping browser error: directions resize tracking called `ResizeObserver.observe()` on a missing `map-directions-actions` element. Added the missing ID and a safe element-presence guard. This prevented the usual initial Map activation, producing duplicated Survey map headings, a normal page header instead of the full-screen workspace, and an uninitialized blank map on supported browsers.
+- Repositioned the **Survey location** and **DEMO (optional)** map legend at the bottom-left of larger map layouts, immediately beside the map credits/info icon. Fixed a conflicting top-and-bottom CSS positioning rule that stretched the legend into the middle of the map.
+- Preserved the larger-screen expanded sidebar, existing map controls, labels and attribution disclosure; the compact mobile breakpoint still hides the legend where map space is restricted.
+- Added regression tests for the startup element contract and the legend's final positioning rules. No RF scanning, navigation routing algorithms, map data or Raspberry Pi hardware behavior changed.
+
 ## OpenRF v0.2.133 — Start single driving routes; choose walking trips on the map (2026-11-19)
 
 - Fixed the single-route navigation dead end: a complete Valhalla driving route automatically expands Directions and exposes an always-visible **Start navigation** button immediately beneath Print / Save HTML / Save JSON, above the turn list. The button uses the existing opt-in, driving-only GPS-follow gate; direct-line references and walking previews cannot enable it.
