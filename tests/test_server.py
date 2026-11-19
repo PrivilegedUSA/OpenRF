@@ -11,6 +11,21 @@ from openrf.storage import Repository
 
 
 class ApiTests(unittest.TestCase):
+    def test_walking_route_api_never_claims_driving_or_camera_comparison(self):
+        sample={'type':'ROAD_ROUTE','is_driving_route':False,'travel_mode':'pedestrian',
+                'coordinates':[[-120.7,38.4],[-120.699,38.401]],'maneuvers':[],
+                'origin':[-120.7,38.4],'destination':[-120.699,38.401],
+                'distance_miles':0.1,'duration_seconds':90}
+        with patch('openrf.server.local_route',return_value=sample) as router, \
+             patch('openrf.server.camera_routes.route_cameras',side_effect=AssertionError('camera comparison must not run')):
+            status,result=self.call('POST','/api/navigation/route',{'locations':[
+                {'latitude':38.4,'longitude':-120.7},{'latitude':38.401,'longitude':-120.699}],
+                'options':{'travel_mode':'pedestrian'}})
+        self.assertEqual(status,200)
+        self.assertFalse(result['route']['is_driving_route'])
+        self.assertIsNone(result['camera_report'])
+        self.assertEqual(router.call_args.kwargs['options'],{'travel_mode':'pedestrian'})
+
     def test_clock_calendar_is_offline_and_recovery_is_cli_only(self):
         status,body=self.call('GET','/')
         self.assertEqual(status,200)
@@ -344,7 +359,7 @@ class ApiTests(unittest.TestCase):
     def test_health_static_hardware_and_exports(self):
         s,data=self.call('GET','/api/health')
         self.assertEqual(s,200)
-        self.assertEqual(data['version'],'0.2.129')
+        self.assertEqual(data['version'],'0.2.130')
         for path in ('/','/static/app.css','/static/app.js','/static/history-analysis.js','/static/route_guidance.js','/static/spectrum.js','/static/spectrum-analysis.js','/static/sdr-history.js','/api/export.csv','/api/export.geojson'):
             status,_=self.call('GET',path)
             self.assertEqual(status,200,path)

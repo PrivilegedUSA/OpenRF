@@ -1,3 +1,11 @@
+## OpenRF v0.2.130 — Emergency layout polish and offline walking route previews (2026-11-19)
+
+- Added consistent vertical spacing between Emergency page panels, refreshed form gaps/button alignment, and a dedicated responsive two-button row for check-in map pins and GeoJSON exports. The controls stack cleanly on very narrow screens; no existing actions or data behavior changed.
+- Centered the clock/calendar in non-map page headers at usable widths, retaining the existing compact right-side clock on the full-screen map.
+- Added a separate **Plan walking route** action to map destination search. When local Valhalla supports pedestrian paths in the installed OSM-derived graph, it requests `costing=pedestrian` over loopback and renders a distinct dashed walking route with planned maneuvers.
+- Walking results are clearly planning-only: no automatic GPS follow, reroute, driving lane, or camera-route comparison; trail accessibility, weather, conditions, slope and current closures remain unverified. Existing driving routing and navigation remain unchanged. Local trail graph coverage is not bundled or assumed.
+- Added strict pedestrian-mode validation and regression coverage for local route costing, rejection of driving-only preferences, independent frontend selection, and skipped camera comparisons.
+
 ## OpenRF v0.2.129 — Guarded offline restore and clock/calendar (2026-11-19)
 
 - Added a stopped-server recovery CLI (`python3 -m openrf.restore --backup PATH`) with hidden passphrase prompt, verification preview, explicit typed confirmation, SQLite sidecar/journal safety checks and an interprocess exclusive recovery lock that the running OpenRF server also holds.

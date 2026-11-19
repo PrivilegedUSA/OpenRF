@@ -3156,23 +3156,25 @@ function setNavigationRoutePreview(result,cameraReport=null) {
   setTimeout(applyNavigationFit,120);
   renderNavigationOverlay();
 }
-async function planRoadRoute(points,{preserveCurrentOnFailure=false}={}) {
+async function planRoadRoute(points,{preserveCurrentOnFailure=false,travelMode='auto'}={}) {
   const destinationEpoch=state.navDestinationEpoch||0;
-  setMapDestinationStatus('Getting directions from local Valhalla…');
+  setMapDestinationStatus(travelMode==='pedestrian'?'Requesting local walking-path route…':'Getting directions from local Valhalla…');
   try {
     const data=await api('/api/navigation/route','POST',{
-      locations:points.map(p=>({latitude:p[1],longitude:p[0]})),options:routeRequestOptions()});
+      locations:points.map(p=>({latitude:p[1],longitude:p[0]})),
+      options:travelMode==='pedestrian'?{travel_mode:'pedestrian'}:routeRequestOptions()});
     if(destinationEpoch !== (state.navDestinationEpoch||0))
       return {road:null,cancelled:true,text:'An earlier route request was discarded after the destination changed.'};
     const road=data.route;
-    if (!road || road.type!=='ROAD_ROUTE' || road.is_driving_route!==true) throw Error('No verified road route returned.');
+    if (!road || road.type!=='ROAD_ROUTE' || (travelMode==='auto' && road.is_driving_route!==true) ||
+        (travelMode==='pedestrian' && road.travel_mode!=='pedestrian')) throw Error('No matching local route returned.');
     if(preserveCurrentOnFailure && !routeGuide.hasCompleteDirections(road)) throw Error('Valhalla did not return a complete destination/turn list for this road exclusion. The original route was preserved.');
     setNavigationRoutePreview(road,data.camera_report);
     state.navRoadPrefsDirty=false;
-    $('map-compare-camera-routes').disabled=false;
+    $('map-compare-camera-routes').disabled=travelMode==='pedestrian';
     // One explicit opt-in enables automatic comparison after Get directions.
     // The normal route remains selected until the user chooses the alternative.
-    if(updateCameraRoutePreferenceDisplay()){
+    if(travelMode==='auto' && updateCameraRoutePreferenceDisplay()){
       cameraPanelVisibility(false);
       compareVisibleCameraRoutes(road,selectedRouteCameraTypes());
     } else {
@@ -3182,7 +3184,9 @@ async function planRoadRoute(points,{preserveCurrentOnFailure=false}={}) {
     $('nav-directions').innerHTML=steps.length ? '<h4>Planned turns · no active guidance</h4><ol>'+
       steps.map(step=>`<li>${escapeHTML(step.instruction)} <small>(${Number(step.length_miles||0).toFixed(2)} mi)</small></li>`).join('')+'</ol>' : '';
     const minutes=Math.round(road.duration_seconds/60);
-    return {road, text:`Road plan · ${road.distance_miles} mi · ~${minutes} min (no traffic). Camera routes and Directions are on the map; start GPS follow when ready.`};
+    return {road, text:travelMode==='pedestrian'?
+      `Walking plan · ${road.distance_miles} mi · ~${minutes} min. Local Valhalla path data only; trail access/conditions are NOT verified. GPS walking guidance is not yet enabled.`:
+      `Road plan · ${road.distance_miles} mi · ~${minutes} min (no traffic). Camera routes and Directions are on the map; start GPS follow when ready.`};
   } catch (err) {
     if(destinationEpoch !== (state.navDestinationEpoch||0))
       return {road:null,cancelled:true,text:'An earlier route request was discarded after the destination changed.'};
@@ -3233,7 +3237,7 @@ async function freshNavigationOrigin() {
   updateBrowserLocationMarker();
   return [longitude,latitude];
 }
-async function quickDestinationPreview(query) {
+async function quickDestinationPreview(query,travelMode='auto') {
   const destinationEpoch=state.navDestinationEpoch||0;
   const chosen=await resolveTypedPlace(query);
   if(destinationEpoch !== (state.navDestinationEpoch||0)) return {cancelled:true};
@@ -3248,7 +3252,7 @@ async function quickDestinationPreview(query) {
   $('nav-dest-query').value=chosen.name;
   $('nav-dest-lat').value=chosen.coordinates[1];
   $('nav-dest-lon').value=chosen.coordinates[0];
-  const planned=await planRoadRoute([origin,chosen.coordinates]);
+  const planned=await planRoadRoute([origin,chosen.coordinates],{travelMode});
   if(planned.cancelled || routeEpoch !== (state.navDestinationEpoch||0)) return {cancelled:true};
   state.navPickedPoint=chosen.coordinates.slice(); // Also draggable for resolved street addresses and completed road routes.
   syncMapPickedAction();
@@ -3853,11 +3857,12 @@ function renderNavigationOverlay() {
   }
   const last=projected[projected.length-1], first=projected[0];
   const road=preview.type==='ROAD_ROUTE' && preview.is_driving_route===true;
-  overlay.innerHTML=alternateSvg+`<path class="${road?'road-route':'direct-route'}" d="${path}" />`+
+  const walking=preview.type==='ROAD_ROUTE' && preview.travel_mode==='pedestrian';
+  overlay.innerHTML=alternateSvg+`<path class="${road?'road-route':walking?'walking-route':'direct-route'}" d="${path}" />`+
     `<circle cx="${first[0].toFixed(2)}" cy="${first[1].toFixed(2)}" r="6" fill="#44dec4"/>`+
     destinationPinSVG(last[0],last[1]);
   label.textContent=state.navPicking?(state.navPickKind==='origin'?'TAP MAP TO REPLACE STARTING POINT':'TAP MAP TO REPLACE DESTINATION'):
-    (road?'VALHALLA ROAD DIRECTIONS · START GPS FOLLOW WHEN READY':'DIRECT LINE · NOT A ROAD ROUTE');
+    (road?'VALHALLA ROAD DIRECTIONS · START GPS FOLLOW WHEN READY':walking?'VALHALLA WALKING PLAN · TRAILS UNVERIFIED':'DIRECT LINE · NOT A ROAD ROUTE');
   label.hidden=false;
 }
 async function refreshNavigationDestinations() {
@@ -4576,6 +4581,13 @@ $('map-destination-form').addEventListener('submit',async event=>{
   const button=$('map-start-navigation');button.disabled=true;
   try {await quickDestinationPreview($('map-destination-query').value);} catch(err){setMapDestinationStatus(err.message,'error');}
   finally {button.disabled=false;}
+  syncMapPickedAction();
+});
+$('map-walking-preview').addEventListener('click',async()=>{
+  const button=$('map-walking-preview');button.disabled=true;
+  try{await quickDestinationPreview($('map-destination-query').value,'pedestrian');}
+  catch(error){setMapDestinationStatus(`Walking route unavailable: ${error.message}`,'error');}
+  finally{button.disabled=false;}
   syncMapPickedAction();
 });
 for(const id of ['nav-start-lat','nav-start-lon']) {

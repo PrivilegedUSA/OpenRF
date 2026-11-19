@@ -167,9 +167,12 @@ def normalize_result(data: dict, requested: list):
 def route_preferences(value):
     """Strictly bounded route modifiers; no remote services or arbitrary URLs."""
     if value is None:
-        return {'avoid_highways': False, 'avoid_tolls': False, 'exclude_locations': []}
-    if not isinstance(value, dict) or set(value) - {'avoid_highways', 'avoid_tolls', 'exclude_locations'}:
+        return {'avoid_highways': False, 'avoid_tolls': False, 'exclude_locations': [],'travel_mode':'auto'}
+    if not isinstance(value, dict) or set(value) - {'avoid_highways', 'avoid_tolls', 'exclude_locations','travel_mode'}:
         raise RouteError('Unsupported routing preference setting.')
+    mode=value.get('travel_mode','auto')
+    if not isinstance(mode,str) or mode not in ('auto','pedestrian'):
+        raise RouteError('Travel mode must be auto or pedestrian.')
     highways = value.get('avoid_highways', False)
     tolls = value.get('avoid_tolls', False)
     if type(highways) is not bool or type(tolls) is not bool:
@@ -182,7 +185,9 @@ def route_preferences(value):
         if not isinstance(point, dict) or set(point) != {'latitude','longitude'}:
             raise RouteError('Road avoidance needs a valid mapped coordinate.')
         result.append(coordinates([point,point])[0])
-    return {'avoid_highways':highways,'avoid_tolls':tolls,'exclude_locations':result}
+    if mode=='pedestrian' and (highways or tolls or result):
+        raise RouteError('Walking routes cannot use driving-only road or toll avoidance settings.')
+    return {'avoid_highways':highways,'avoid_tolls':tolls,'exclude_locations':result,'travel_mode':mode}
 
 
 def local_route(locations: list, *, open_connection=None, port=None, exclude_locations=None, options=None):
@@ -205,7 +210,7 @@ def local_route(locations: list, *, open_connection=None, port=None, exclude_loc
             raise ValueError()
     except ValueError:
         raise RouteUnavailable('Invalid local Valhalla port. Use OPENRF_VALHALLA_PORT=8002.') from None
-    payload = {'locations': points, 'costing': 'auto', 'units': 'miles',
+    payload = {'locations': points, 'costing': prefs['travel_mode'], 'units': 'miles',
                'language': 'en-US', 'turn_lanes': True}
     if exclusions: payload['exclude_locations'] = exclusions
     if prefs['avoid_highways'] or prefs['avoid_tolls']:
@@ -223,12 +228,16 @@ def local_route(locations: list, *, open_connection=None, port=None, exclude_loc
                 raise RouteError('Routing response exceeded the size limit.')
             data = json.loads(body)
     except HTTPError as exc:
-        raise RouteError(f'Local Valhalla could not find a drivable route (HTTP {exc.code}). Check regional road tiles and endpoints.') from exc
+        raise RouteError(f'Local Valhalla could not find a {prefs["travel_mode"]} route (HTTP {exc.code}). Check local graph coverage, path tags and access rules.') from exc
     except (URLError, TimeoutError, OSError) as exc:
         raise RouteUnavailable('Local Valhalla is unavailable on 127.0.0.1. Start Valhalla with regional road tiles, or use a direct-line preview.') from exc
     except (UnicodeError, json.JSONDecodeError) as exc:
         raise RouteError('Local Valhalla returned an invalid JSON response.') from exc
     result = normalize_result(data, points)
+    result['travel_mode']=prefs['travel_mode']
+    if prefs['travel_mode']=='pedestrian':
+        result['is_driving_route']=False
+        result['warning']='OFFLINE WALKING PLAN ONLY — trail access, closures, weather, difficulty and safety NOT verified. GPS follow guidance is not supported for walking yet.'
     if exclusions:
         # Excluded-road requests have historically produced reports of turn lists
         # apparently ending halfway through an otherwise drawn route. Reject such

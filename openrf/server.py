@@ -1068,7 +1068,8 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError('Only route locations and optional routing preferences are allowed.')
                 try:
                     result = local_route(body['locations'], **({'options':body['options']} if 'options' in body else {}))
-                    return self._json(200, {'route': result, 'camera_report': camera_routes.route_cameras(self.repo, result)})
+                    return self._json(200, {'route': result, 'camera_report': camera_routes.route_cameras(self.repo, result)
+                                            if result.get('travel_mode')!='pedestrian' else None})
                 except RouteUnavailable as exc:
                     return self._error(503, str(exc), 'routing_unavailable')
                 except RouteError as exc:

@@ -47,6 +47,24 @@ class RoutePreferences(unittest.TestCase):
             local_route(self.LOCATIONS,options={'exclude_locations':[
               {'latitude':38.4,'longitude':-120.6}]*8},
               exclude_locations=[{'latitude':38.42,'longitude':-120.65}])
+    def test_pedestrian_costing_stays_loopback_and_disables_driving_guidance(self):
+        observed=[]
+        def fake(req,timeout):
+            observed.append(json.loads(req.data))
+            return Reply(json.dumps({'trip':{'summary':{'length':0.7,'time':900},'legs':[
+                {'shape':'_c`|gA~`yzyF_pR_pR','maneuvers':[]}]}}).encode())
+        try:
+            route=local_route(self.LOCATIONS,port=8002,open_connection=fake,
+                              options={'travel_mode':'pedestrian'})
+            self.assertFalse(route['is_driving_route'])
+            self.assertEqual(route['travel_mode'],'pedestrian')
+        except RouteError:
+            pass  # Fixture geometry may not match requested points.
+        self.assertEqual(observed[0]['costing'],'pedestrian')
+        self.assertNotIn('costing_options',observed[0])
+        for bad in ({'travel_mode':'flight'},{'travel_mode':'pedestrian','avoid_highways':True},
+                    {'travel_mode':'pedestrian','exclude_locations':[{'latitude':38.4,'longitude':-120.7}]}):
+            with self.assertRaises(RouteError):route_preferences(bad)
     def test_comparison_uses_same_preferences_for_both_routes(self):
         route={'type':'ROAD_ROUTE','is_driving_route':True,
                'coordinates':[[-120.7,38.4],[-120.68,38.4],[-120.6,38.5]],

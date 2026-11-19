@@ -2145,5 +2145,25 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
 .field-calendar-day{border:0;border-radius:7px;min-height:34px;background:transparent;color:#d6edf0;cursor:pointer;font-size:12px}
 .field-calendar-day.is-today{outline:1px solid #34c9b1}.field-calendar-day.is-selected{background:#2d7b73;color:#fff}
 .field-calendar-panel p{margin:12px 0;font-size:11px}
+/* v0.2.130: emergency spacing and consistent handheld controls. */
+#page-emergency>.panel{margin-bottom:18px;padding:clamp(14px,2vw,22px)}
+#page-emergency>.panel>.panel-title{margin-bottom:13px;gap:12px;flex-wrap:wrap}
+#page-emergency>.panel>p{line-height:1.55;margin:10px 0 14px}
+#page-emergency .emergency-form{margin:14px 0;align-items:stretch;gap:14px}
+#page-emergency .emergency-form>button{min-height:44px;align-self:end}
+#page-emergency .emergency-records{gap:12px;margin:14px 0}
+#page-emergency .emergency-handoff-head{justify-content:flex-start;gap:10px;margin:14px 0}
+#page-emergency .emergency-handoff-head>p{flex:1 1 220px;margin:0}
+#page-emergency .emergency-handoff-head>h3{margin-right:auto}
+#page-emergency .emergency-handoff-head>.btn{min-height:42px}
+#page-emergency .emergency-checkin-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0 14px}
+#page-emergency .emergency-checkin-actions .btn{width:100%;min-height:44px;white-space:normal;text-align:center}
+#page-emergency .emergency-outbox-actions,#page-emergency .emergency-sos-location-controls{gap:10px;margin:9px 0}
+#page-emergency .emergency-outbox-actions .btn{min-width:0}
+body:not(.map-workspace) .topbar{position:relative}
+@media(min-width:560px){body:not(.map-workspace) .topbar .field-clock-wrap{position:absolute;left:50%;transform:translateX(-50%);z-index:66}}
+@media(max-width:559px){#page-emergency .emergency-checkin-actions{grid-template-columns:1fr}body:not(.map-workspace) .topbar .field-clock-button{min-width:65px;padding:4px 6px}}
+.navigation-preview-overlay path.walking-route{stroke:#a3eb73;stroke-width:4;stroke-dasharray:5 4;opacity:.98}
+#page-map .map-destination-actions #map-walking-preview{grid-column:1/-1;min-height:36px;background:#183b38;color:#c8f6d0}
 @media(max-width:700px){.emergency-ops-columns{grid-template-columns:1fr}.emergency-ops-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 #emergency-checkin-form>label:has(#emergency-checkin-note){grid-column:1/-1}
