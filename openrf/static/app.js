@@ -3,7 +3,7 @@
 const $ = (id) => document.getElementById(id);
 const SELECTED_PAGE_SESSION_KEY = 'openrf.selected-page.v1';
 const MAP_VECTOR_PREFERENCE_KEY = 'openrf.map.vector-preference.v1';
-const VALID_PAGES = new Set(['map','overview','scanner','spectrum','radio','messages','reticulum','hamradio','discoveries','sessions','hardware']);
+const VALID_PAGES = new Set(['map','overview','emergency','scanner','spectrum','radio','messages','reticulum','hamradio','discoveries','sessions','hardware']);
 function rememberedVectorPreference(){
   try {const value=window.localStorage?.getItem(MAP_VECTOR_PREFERENCE_KEY);return value==='offline'||value==='online'?value:'auto';}
   catch (_) {return 'auto';}
@@ -28,6 +28,8 @@ state.navPickKind='destination';
 state.navPickedOrigin=null;
 state.mapVectorPreference=rememberedVectorPreference();
 state.mapOfflineRecoveryTried=false;
+window.OpenRFMapReadOnly = () => state.map;
+document.addEventListener('openrf:checkin-map-requested',()=>showPage('map'));
 state.mapStartupError=null;
 state.navCameraAlertPrefs=null;state.navCameraAlertCatalog=null;
 state.navCameraAlertSeen=new Set();state.navCameraAlertVoiceSeen=new Set();state.navCameraAlertLastVoice=0;
@@ -371,13 +373,14 @@ function showPage(page, options = {}) {
   if (page === 'messages' || page === 'reticulum') setMessagesSubpagesOpen(true);
   $('messages-nav-toggle').classList.toggle('active', page === 'messages' || page === 'reticulum');
   document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === `page-${page}`));
-  const titles = {overview:'Field overview',map:'Survey map',scanner:'Signal analysis',spectrum:'Spectrum workspace',radio:'Radio receiver',messages:'Mesh messages',reticulum:'Reticulum messages',hamradio:'Ham radio channel lists',discoveries:'Saved discoveries',sessions:'Investigations',hardware:'Hardware manager'};
+  const titles = {overview:'Field overview',emergency:'Emergency readiness',map:'Survey map',scanner:'Signal analysis',spectrum:'Spectrum workspace',radio:'Radio receiver',messages:'Mesh messages',reticulum:'Reticulum messages',hamradio:'Ham radio channel lists',discoveries:'Saved discoveries',sessions:'Investigations',hardware:'Hardware manager'};
   $('page-title').textContent = titles[page] || 'OpenRF'; $('page-crumb').textContent = page.toUpperCase();
   if (page === 'spectrum') document.dispatchEvent(new Event('openrf:spectrum-shown'));
   if (page === 'radio') document.dispatchEvent(new Event('openrf:radio-shown'));
   if (page === 'messages') document.dispatchEvent(new Event('openrf:messages-shown'));
   if (page === 'reticulum') document.dispatchEvent(new Event('openrf:reticulum-shown'));
   if (page === 'hardware') document.dispatchEvent(new Event('openrf:hardware-shown'));
+  if (page === 'emergency') document.dispatchEvent(new Event('openrf:emergency-shown'));
   if (page === 'map') { startMap(); if (options.autoLocate !== false) locateMap(false); renderMapSurveyPanel(); setTimeout(() => { state.map?.resize(); state.rasterMap?.resize(); }, 80); }
   window.scrollTo(0, 0);
 }

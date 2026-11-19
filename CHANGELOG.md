@@ -1,3 +1,41 @@
+## OpenRF v0.2.129 — Guarded offline restore and clock/calendar (2026-11-19)
+
+- Added a stopped-server recovery CLI (`python3 -m openrf.restore --backup PATH`) with hidden passphrase prompt, verification preview, explicit typed confirmation, SQLite sidecar/journal safety checks and an interprocess exclusive recovery lock that the running OpenRF server also holds.
+- Before replacing the primary SQLite database, the CLI creates and validates a restricted-permission timestamped safety copy; the verified decrypted replacement is staged on the same filesystem and atomically swapped. On post-swap verification failure, the safety copy is used for rollback. External data directories and separately stored radio histories are never replaced.
+- Web UI remains preview-only and documents the separate recovery commands; no unauthenticated HTTP restore endpoint, remote writeback or automatic restart. The CLI refuses to restore while the app holds the lock; stop OpenRF before recovery. Actual on-device recovery should be rehearsed with expendable data before field reliance.
+- Added a compact header clock and offline interactive month calendar with previous/next/today controls, selected-date description, local timezone and a warning that the device clock is unverified. No account, network time sync, GPS or calendar upload needed. No event reminders yet.
+- Added tests for recovery lock refusal, safety copy contents, explicit confirmation, post-restore records, browser calendar assets and no HTTP restore route.
+
+## OpenRF v0.2.128 — Encrypted emergency backups and restore preview (2026-11-19)
+
+- Added opt-in AES-256-GCM encrypted snapshots of the primary SQLite database using an optional `cryptography` package and PBKDF2-HMAC-SHA256 passphrase derivation (600,000 rounds, fresh random salt and nonce). No plaintext backup is written to disk, password is not stored, and a snapshot is prepared only after an explicit action.
+- Added downloadable `.orfbak` and in-memory encrypted backup verification with wrong-passphrase/tamper rejection, SQLite quick-check and limited table-count restore preview. This release **does not restore** or replace live user files.
+- Bounded snapshot creation to 16 MiB of SQLite and encrypted input to 24 MiB. Canonicalized SQLite WAL-mode snapshot image headers so decrypted snapshots can be safely inspected independently in memory.
+- Added OS-reported low-storage warning thresholds (<1 GiB available or <10% free). No automatic cleanup/deletion, cloud upload, account, backup scheduling or raw investigative data in source control.
+- Added tests covering encrypted round trips, no plaintext leakage, tamper and wrong-passphrase rejection, read-only preview, size/validation constraints and HTTP availability. No restore/migration procedure is supported yet.
+
+## OpenRF v0.2.127 — Device survival diagnostics and pre-departure readiness (2026-11-19)
+
+- Added read-only Linux power supply inventory for reported batteries and external power state. Battery percentage is shown only when the kernel reports one; WSL, unsupported UPS boards and missing drivers show UNKNOWN, and runtime estimates remain unavailable.
+- Added local disk free-space diagnostics and SQLite quick-check using a read-only connection. A quick check is not an export/backup guarantee. No power-control, low-power mode, shutdown, driver probing or battery cutoff is enabled.
+- Added a durable six-point pre-departure checklist in SQLite: battery, offline maps, actual radio peer test, GNSS, equipment and storage. Each confirmation records UTC time and is explicitly human-attested, never a live sensor verdict.
+- Added a compact, manual-refresh touchscreen panel and unit/API tests for sysfs battery interpretation, storage/database, checklist persistence, bad inputs and loopback-only access. Physical Pi/UPS tests remain pending.
+
+## OpenRF v0.2.126 — Offline emergency operations dashboard (2026-11-19)
+
+- Added a read-only, on-demand Emergency operations dashboard with latest saved status per person label, prioritized NEED_HELP reports, last-recorded age/freshness and provenance. Report timestamps are local storage times, not proof of ongoing safety.
+- Added pending inbox review count, outbox state breakdown (ready, failed, uncertain after restart, submitted but not delivered) and locally saved team-recipient totals. Radio readiness comes from existing transport manager state, not assumed peer reachability.
+- Added a compact 5-inch-friendly status strip, separate person/queue lists and explicit refresh. No automatic scans, transmissions, acknowledgments, rerouting, continuous geolocation, or peer surveillance.
+- Added pure aggregation and loopback API tests for stale and duplicate reports, uncertain send status, transport readiness, and no cross-origin/remote exposure. Live hardware verification remains pending.
+
+## OpenRF v0.2.125 — Compact emergency check-in protocol (2026-11-19)
+
+- Added strict, byte-bounded ORF1 check-in text format (180-byte Meshtastic-safe maximum) with random 12-hex-character message IDs, UTC Unix timestamp claims, status, human-readable person label and optional note encoded safely for transport.
+- Added an Emergency touchscreen composer that saves a local unsent draft, then optionally queues separate copies for each configured team recipient. Existing explicit outbox Send controls remain the only transmission mechanism; no background send, retries, or broadcasts.
+- Added protocol-aware inbox annotations for structured check-in and ACK text. Parsed sender names, timestamps and status remain unverified claims; acceptance into the family board still requires a separate human review.
+- Added a manually prepared short acknowledgment *text* action. A received ACK message does not imply cryptographic sender authentication, delivery confirmation or that a person read the message. No automatic acknowledgment or response occurs.
+- Added validation and API regression tests for round-trip encoding, malformed payloads, byte limits, local queueing and unreviewed inbox entries. Real radio interoperability remains untested.
+
 ## v0.2.101 — Field-network gateway architecture + offline trip preflight (2026-11-17)
 
 - Add an explicit read-only **Field network** panel in Hardware, distinguishing Linux-visible ordinary Wi-Fi and known HaLow interface candidates. Use bounded, sanitized `iw phy <phy> info` mode inspection to show OS-reported AP/station/mesh-point capabilities, with no SSIDs, BSSIDs, IP addresses, device serials or raw command output.
@@ -878,4 +916,81 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Reserve Firefox's overlay scrollbar gutter plus 7px inner padding, making the Main and Alternate cards slightly narrower without shrinking the overall navigation pop-up. Start navigation remains pinned in the chooser footer.
 - When × discards a planned route, reopen the empty Where to? editor automatically. Replace the expanded search's redundant Close search text with an accessible compact ×. Opening/closing Route preferences from a currently expanded search no longer collapses it or changes an unfinished destination/start entry.
 - Add 800×480 geometry and navigation-search regression tests. No changes to route geometry, Valhalla, camera counts, GPS permissions, selected-route behavior, private records or unrelated map menus.
+
+# OpenRF v0.2.115 — Offline Emergency Foundation
+
+- Added a dedicated emergency readiness page while retaining the map-first default.
+- Added private SQLite storage for emergency contacts, meeting points, checklist tasks and unsent SOS drafts.
+- Added opt-in local record creation, checklist completion, deletion and a server-backed readiness summary.
+- SOS drafts are explicitly local and unsent; no emergency delivery, live battery readings or GPS fix is implied.
+- Added local validation and API tests for emergency records and offline persistence.
+
+# OpenRF v0.2.116 — Offline Emergency Reference Library
+
+- Added private, searchable offline emergency text-reference records with user-entered source attribution; text is never fetched, uploaded or treated as verified.
+- Added a source-labelled reference viewer, search field, add and delete controls to the Emergency page, with text-only rendering to avoid HTML injection.
+- Added REST endpoints and SQLite storage for reference records and integration/unit tests.
+- Added a documented roadmap for in-app AM/FM broadcast radio band selection, tuning, presets and audio controls with optional receiver hardware; no broadcast tuner is yet connected or implemented.
+
+# OpenRF v0.2.117 — Offline knowledge pack import
+
+- Added downloadable OpenRF starter pack (three original CC0 planning worksheets), plus local JSON pack import and installation controls.
+- Added strict data-only pack validation (format, required metadata, entry counts and size limits) and transaction-based SQLite imports with duplicate re-import suppression.
+- Preserve existing local reference entries; pack text displays attribution and cannot execute HTML or scripts.
+- Added pack-validation and HTTP API tests. No external survival/medical publications have been bundled or downloaded.
+
+# OpenRF v0.2.118 — GPS-assisted local SOS composer
+
+- Added explicit opt-in browser geolocation to the emergency draft composer with reported accuracy, fix age, stale-data rejection, location removal and review before saving.
+- Added four selectable message types and local-only draft storage; no radio/network transmission or emergency-service contact is attempted.
+- Added server-side validation of browser-provided coordinates, accuracy, fix age and message length. Position is always labelled browser-reported and unverified.
+- Kept the Emergency reference packs, map-first default and existing communications interfaces unchanged.
+
+# OpenRF v0.2.119 — Explicit emergency radio handoff
+
+- Added manual selection of a saved SOS draft, editable outgoing text, destination and Meshtastic channel or Reticulum LXMF address.
+- Added explicit confirmation before calling the existing Meshtastic or Reticulum sender; no automatic SOS broadcast, retry or emergency-service contact.
+- Added locally retained handoff attempts that distinguish failed submission, Meshtastic submission, LXMF queueing and Reticulum path requests from **recipient delivery**, which remains unverified.
+- Enforced current transport byte limits and destination validation; Meshtastic broadcast (`^all`) is not allowed in this emergency panel.
+- Added tests using mocked manager responses; no physical two-node RF delivery verification.
+
+# OpenRF v0.2.120 — Evidence-limited routing acknowledgments and retry preparation
+
+- Correlate existing Meshtastic routing acknowledgments to manually submitted SOS attempts by packet ID, recipient, channel and full text; routing ACK is never labelled as read or human-received.
+- Display recorded transmission attempts with their status and a manual Refresh routing status control. Reticulum remains queue/route status only.
+- Add Prepare manual retry for failed/path-requested/routing-error attempts. It restores the previous text and destination but requires another explicit confirmation; no background resend.
+- Migrate private attempt storage without erasing older records and remove attempt details when a draft is deleted.
+- Run API and persistence tests using simulated radio managers; no physical radio delivery or Pi touchscreen verified.
+
+# OpenRF v0.2.121 — Durable emergency outbox and network recovery
+
+- Added a persistent, SQLite-backed offline emergency outbox for addressed Meshtastic or Reticulum messages, independent of radio availability at queue time.
+- Added operator-confirmed Send Now, Prepare Retry, Remove and Refresh actions; never send or retry automatically after reconnect or restart.
+- Interrupted sends recover to UNCERTAIN_AFTER_RESTART and require operator review, avoiding duplicate emergency transmissions after crashes.
+- Added a read-only transport readiness summary based on actual Meshtastic and Reticulum manager state, without assuming remote RF reachability or message delivery.
+- Preserved full messages and receiver addresses in private local storage and remove queued entries alongside their deleted source drafts. Warn if GPS coordinates in a saved draft may be stale.
+- Added queue lifecycle/API tests including no-auto-send guarantees, explicit send results and one-time claim checks. Hardware networking remains unverified.
+
+# OpenRF v0.2.122 — Family/team emergency coordination
+
+- Added private team directories with nicknames, direct Meshtastic node IDs or Reticulum identities, and optional Meshtastic channel.
+- Added grouped offline queueing: one separate addressed, persistent, manually sent outbox item per team member; no group RF broadcast or automatic transmission.
+- Validate every recipient before saving, limit teams to ten destinations, reject duplicates, and require all items to fit their transport byte limits before committing the batch.
+- Display and remove team members and use an existing saved SOS draft to queue copies for an entire team. Previously queued items are not rewritten when the directory changes.
+- Added SQLite/API tests for atomic group queueing, invalid destinations, duplicate members and no automatic sends. Real node delivery remains unverified.
+
+# OpenRF v0.2.124 — Reviewed radio check-in inbox
+
+- Added an explicit, user-initiated snapshot import of received Meshtastic and Reticulum/LXMF messages into an offline SQLite review inbox.
+- Suppress repeat imports, reject outgoing/demo messages, and accept Reticulum candidates only when the receiver reports a valid signature. None of these signals authenticates the named person or validates the message's claims.
+- Review each candidate by separately entering a person label and status, or discard it. Accepted entries become historical `RADIO_MESSAGE_REVIEWED` check-ins with retained transport, radio address and receiver timestamp.
+- Never import claimed remote GPS coordinates, automatically change family status, transmit, poll, alert, or infer real-time location. Physical radio testing is still pending.
+
+# OpenRF v0.2.123 — Family check-ins and reported-status map
+
+- Added quick Safe, Need Assistance, Evacuating and Check-in records with local persistence and clear self-report versus secondhand provenance.
+- Optional opt-in browser location for self-check-ins, with bounded coordinates/accuracy and 60-second freshness; no automatic sharing or continuous tracking.
+- Optional creation of a separate unsent emergency draft from a check-in, ready for later deliberate team outbox queueing.
+- Added local status board, historical timestamps, delete controls and opt-in MapLibre markers for the latest location-bearing self-reports. Markers are reported and historical, not verified live positions.
+- Added explicit GeoJSON API for locally saved location reports and tests for provenance, bounds, persistence, no-transmission status and map data.
 

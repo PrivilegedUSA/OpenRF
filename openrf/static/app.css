@@ -2085,3 +2085,65 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
 #observation-dialog.map-observation-popup .observation-location-tools{grid-column:1}
 #observation-dialog.map-observation-popup label{min-width:0}
 #observation-dialog.map-observation-popup .dialog-buttons{position:sticky;bottom:-12px;z-index:3;padding:8px 0 4px;background:#11222d}
+/* v0.2.115 — emergency planning; no external calls or RF transmission. */
+.emergency-notice{border-color:#bc7b35;background:#35291d;color:#f8ead2}
+.emergency-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px;align-items:end}
+.emergency-form label{display:flex;flex-direction:column;gap:6px;min-width:0}
+.emergency-form label:nth-child(3){grid-column:1/-1}
+.emergency-form textarea{width:100%;box-sizing:border-box}
+.emergency-records{display:grid;gap:10px;margin-top:14px}
+.emergency-record{border:1px solid #35616b;border-radius:10px;padding:12px;background:#152a35;overflow-wrap:anywhere}
+.emergency-record header{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+.emergency-record p{white-space:pre-wrap;margin:9px 0}
+.emergency-record .muted{font-size:12px}
+.emergency-library-add{margin-top:16px}
+.emergency-library-add summary{cursor:pointer;padding:10px 0;font-weight:700}
+.emergency-library-add .emergency-form{margin-top:10px}
+.emergency-library-add label:nth-child(4){grid-column:1/-1}
+.emergency-reference-body{white-space:pre-wrap;max-height:260px;overflow:auto;padding:10px;background:#0f222e;border-radius:8px}
+.emergency-pack-tools{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:10px 0 14px}
+.emergency-pack-tools label{display:flex;flex:1 1 180px;flex-direction:column;gap:5px;min-width:0}
+.emergency-pack-tools input{width:100%;max-width:100%;box-sizing:border-box}
+.emergency-sos-location-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.emergency-sos-location-controls button{min-height:40px}
+#emergency-sos-preview{width:100%;box-sizing:border-box;white-space:pre-wrap}
+#emergency-sos-form>label:has(#emergency-sos-preview){grid-column:1/-1}
+#emergency-sos-form>label:has(#emergency-sos-message){grid-column:1/-1}
+#emergency-handoff-form>label:has(#emergency-handoff-text){grid-column:1/-1}
+#emergency-handoff-bytes{align-self:center}
+.emergency-handoff-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.emergency-outbox-actions{display:flex;gap:8px;flex-wrap:wrap}
+.emergency-outbox-actions button{flex:1 1 160px;min-height:44px}
+#emergency-team-members .emergency-record{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+#emergency-team-select{min-width:min(100%,180px)}
+.emergency-checkin-pin{width:23px;height:23px;display:grid;place-items:center;background:#34c9b1;color:#101d27;border:2px solid white;border-radius:50%;box-shadow:0 2px 9px #0008;font-size:14px;font-weight:bold}
+#emergency-ops-panel{min-width:0}
+.emergency-ops-actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:10px 0}
+.emergency-ops-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:9px;margin:13px 0}
+.emergency-ops-stat{display:flex;flex-direction:column;gap:5px;padding:12px;border:1px solid #35616b;border-radius:9px;background:#10232e;min-width:0}
+.emergency-ops-stat strong{font-size:1.5rem;color:#34c9b1}
+.emergency-ops-stat span{font-size:12px;line-height:1.25}
+.emergency-ops-alert{border-color:#e5ab52}.emergency-ops-alert strong{color:#f5c674}
+.emergency-ops-radios{display:grid;gap:6px;margin:12px 0}
+.emergency-ops-radio{display:flex;gap:9px;justify-content:space-between;flex-wrap:wrap;border-bottom:1px solid #35616b;padding:7px 0;font-size:12px}
+.emergency-ops-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.emergency-ops-columns h4{margin:12px 0 8px}
+.emergency-ops-columns .emergency-record{overflow-wrap:anywhere}
+.emergency-survival-check{display:flex;align-items:center;gap:10px;flex-wrap:wrap;cursor:pointer}
+.emergency-survival-check input{width:19px;height:19px;accent-color:#34c9b1}
+.emergency-survival-check span{flex:1 1 210px}
+.emergency-survival-check small{flex:1 1 100%;padding-left:29px}
+.field-clock-wrap{position:relative;z-index:65;flex:0 0 auto}
+.field-clock-button{display:grid;justify-items:center;gap:1px;min-width:75px;min-height:44px;padding:5px 9px;border:1px solid #315360;border-radius:9px;background:#102b36;color:#d7f6f1;cursor:pointer}
+.field-clock-button span{font-size:13px;font-weight:800;white-space:nowrap}.field-clock-button small{font-size:10px;color:#9abbbd;white-space:nowrap}
+.field-calendar-panel{position:absolute;top:calc(100% + 7px);right:0;width:min(300px,calc(100vw - 20px));padding:13px;border:1px solid #35616b;border-radius:12px;background:#102631;box-shadow:0 12px 35px #000b;color:#d7f1f0}
+.field-calendar-panel[hidden]{display:none!important}
+.field-calendar-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}
+.field-calendar-head button{border:1px solid #35616b;background:#183947;color:#e2fffa;border-radius:7px;width:36px;height:36px;font-size:22px;cursor:pointer}
+.field-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center}
+.field-calendar-weekday{font-size:10px;color:#8daeb6;padding:4px 0}
+.field-calendar-day{border:0;border-radius:7px;min-height:34px;background:transparent;color:#d6edf0;cursor:pointer;font-size:12px}
+.field-calendar-day.is-today{outline:1px solid #34c9b1}.field-calendar-day.is-selected{background:#2d7b73;color:#fff}
+.field-calendar-panel p{margin:12px 0;font-size:11px}
+@media(max-width:700px){.emergency-ops-columns{grid-template-columns:1fr}.emergency-ops-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+#emergency-checkin-form>label:has(#emergency-checkin-note){grid-column:1/-1}

@@ -27,7 +27,9 @@ from .sdr import capability_report as sdr_capability_report
 from .sdr_capture import SdrCaptureManager, CaptureError
 from .radio import RadioReceiver, RadioError
 from .mesh import MeshManager, MeshError
+from .mesh import validate_send as validate_mesh_send
 from .reticulum_lan import ReticulumManager, ReticulumError, rnode_readiness
+from .reticulum_lan import validate_message as validate_lxmf_message
 from .mesh_connections import connection_report
 from .wifi_halow import status_report as halow_status_report
 from .halow_diagnostics import diagnostic_report as halow_diagnostic_report, HaLowDiagnosticError
@@ -45,6 +47,14 @@ from .drivers.wifi_nmcli import scan_once, WifiScanUnavailable
 from .drivers.ble_bluez import scan_once as ble_scan_once, BleScanUnavailable
 from .drivers.serial_openrf import query_port, SerialSensorError
 from .storage import Repository, to_csv, to_geojson
+from .emergency import EmergencyStore
+from .emergency_packs import STARTER_PACK
+from .emergency_sos import compose_draft
+from .emergency_protocol import compose as compose_checkin_frame, compose_ack, parse as parse_checkin_frame
+from .emergency_dashboard import build_dashboard
+from .device_survival import report as device_survival_report
+from .emergency_backup import create as make_emergency_backup, inspect as inspect_emergency_backup, available as backup_crypto_available
+from .restore import exclusive_lock as restore_exclusive_lock
 from .reports import investigation_report, report_html
 from .survey_waypoints import waypoints_geojson
 from .sensor_connections import (connections, ScanReceiptStore, BleScanReceiptStore,
@@ -71,6 +81,9 @@ class OpenRFHTTPServer(ThreadingHTTPServer):
             self.reticulum_manager.close()
         if hasattr(self, 'sdr_captures'):
             self.sdr_captures.close()
+        if hasattr(self,'recovery_lock'):
+            self.recovery_lock.__exit__(None,None,None)
+            del self.recovery_lock
         super().server_close()
 
 
@@ -115,7 +128,8 @@ class Handler(BaseHTTPRequestHandler):
         if not self.headers.get('Content-Type', '').lower().startswith('application/json'):
             raise ValueError('Content-Type must be application/json')
         length = int(self.headers.get('Content-Length', '0'))
-        max_size = 300000 if urlparse(self.path).path == '/api/radio/profiles/import' else 16384
+        request_path = urlparse(self.path).path
+        max_size = 25*1024*1024 if request_path == '/api/emergency/backup/inspect' else (300000 if request_path == '/api/radio/profiles/import' else (200000 if request_path == '/api/emergency/packs/install' else (24576 if request_path == '/api/emergency/library' else 16384)))
         if length < 1 or length > max_size:
             raise ValueError(f'JSON request must be 1–{max_size} bytes')
         raw = self.rfile.read(length)
@@ -128,6 +142,87 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host():
             return self._error(HTTPStatus.FORBIDDEN, 'Loopback-only service')
         path = urlparse(self.path).path
+        if path.startswith('/api/emergency/attempts/'):
+            ident=path.rsplit('/',1)[-1]
+            if not ident.isascii() or not ident.isdecimal() or len(ident)>10:
+                return self._error(400,'Invalid emergency draft ID')
+            try:
+                mesh_history=self.server.mesh_manager.messages()
+                self.server.emergency_store.refresh_mesh_receipts(mesh_history.get('messages',[]))
+            except (MeshError, OSError, sqlite3.Error):
+                logging.warning('Could not reconcile emergency Meshtastic routing receipts')
+            return self._json(200,{'attempts':self.server.emergency_store.send_attempts(int(ident)),
+                                   'note':'Meshtastic routing ACK is NOT recipient reading confirmation. Reticulum remains queue/route status only.'})
+        if path == '/api/emergency/outbox':
+            return self._json(200,{'entries':self.server.emergency_store.outbox(),
+                'note':'Local queue only; entries are NEVER sent automatically.'})
+        if path == '/api/emergency/teams':
+            return self._json(200,{'members':self.server.emergency_store.team_members(),
+                'note':'Saved locally; no location or message is automatically shared with a group.'})
+        if path == '/api/emergency/checkins':
+            return self._json(200,{'checkins':self.server.emergency_store.checkins(),
+                'note':'Locally saved self or secondhand reports, not authenticated live device positions.'})
+        if path == '/api/emergency/dashboard':
+            store=self.server.emergency_store
+            return self._json(200,build_dashboard(store.checkins(),store.inbox_candidates(),
+                store.outbox(),store.team_members(),self.server.mesh_manager.status(),
+                self.server.reticulum_manager.status()))
+        if path == '/api/emergency/device-readiness':
+            return self._json(200,device_survival_report(self.server.repository.path))
+        if path == '/api/emergency/backup/status':
+            return self._json(200,{'available':backup_crypto_available(),
+                'max_database_bytes':16*1024*1024,'restore_available':False,
+                'offline_restore_cli_available':True,
+                'restore_preview_command':'python3 -m openrf.restore --preview --backup /path/to/backup.orfbak',
+                'restore_command':'python3 -m openrf.restore --backup /path/to/backup.orfbak',
+                'scope':'OpenRF primary SQLite database only; not map caches, external radio histories or local files',
+                'note':'Encryption requires optional cryptography library. Stop OpenRF fully before CLI restore; a safety copy is retained. Passphrase is never saved.'})
+        if path == '/api/emergency/preflight':
+            return self._json(200,{'checks':self.server.emergency_store.preflight(),
+                'note':'Manual confirmations are local and historical; not proof of live hardware readiness.'})
+        if path == '/api/emergency/inbox':
+            candidates=self.server.emergency_store.inbox_candidates()
+            for candidate in candidates:
+                candidate['protocol']=parse_checkin_frame(candidate['body'])
+            return self._json(200,{'candidates':candidates,
+                'note':'Radio messages require review; no verified person or position.'})
+        if path == '/api/emergency/checkins.geojson':
+            features=[]
+            for row in self.server.emergency_store.checkins():
+                if row['latitude'] is None or row['longitude'] is None:
+                    continue
+                features.append({'type':'Feature','geometry':{'type':'Point',
+                    'coordinates':[row['longitude'],row['latitude']]},'properties':{
+                    'person':row['person'],'status':row['status'],'source':row['source'],
+                    'recorded_utc':row['recorded_utc'],'accuracy_m':row['accuracy_m'],
+                    'warning':'Stored reported position; NOT live or independently verified'}})
+            return self._json(200,{'type':'FeatureCollection','features':features})
+        if path == '/api/emergency/transport-readiness':
+            mesh=self.server.mesh_manager.status()
+            reticulum=self.server.reticulum_manager.status()
+            return self._json(200,{
+                'meshtastic':{'ready_for_operator_send':mesh['connected'] and mesh['mode']=='normal',
+                              'connected':mesh['connected'],'mode':mesh['mode'],
+                              'note':'USB connection is not proof of RF reachability.'},
+                'reticulum':{'ready_for_operator_send':reticulum['enabled'],
+                             'enabled':reticulum['enabled'],
+                             'note':'An enabled Reticulum process is not proof of path or recipient delivery.'},
+                'outbox_mode':'MANUAL_SEND_ONLY','automatic_retry':False})
+        if path == '/api/emergency/packs/starter':
+            raw = json.dumps(STARTER_PACK,ensure_ascii=False,indent=2).encode('utf-8')
+            return self._send(200,raw,'application/json; charset=utf-8',
+                              {'Content-Disposition':'attachment; filename="openrf-field-readiness-starter.json"'})
+        if path == '/api/emergency/library':
+            query = parse_qs(urlparse(self.path).query).get('q',[''])[0]
+            try:
+                return self._json(200, {'references':self.server.emergency_store.search_references(query),
+                                        'notice':'Locally saved user references; verify source, date and accuracy.'})
+            except ValueError as exc:
+                return self._error(400,str(exc))
+        if path == '/api/emergency/records':
+            return self._json(200, {'records': self.server.emergency_store.list(),
+                                    'transmission_available': False,
+                                    'message': 'SOS drafts are stored locally; no emergency transmission is configured.'})
         # Serve only the six approved OpenRF brand-kit images, never an
         # arbitrary client-supplied file path or private local-data directory.
         brand_images = {
@@ -503,7 +598,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, raw, 'text/csv; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.csv"'})
         if path in ('/', '/index.html'):
             file = STATIC_DIR / 'index.html'
-        elif path in ('/static/app.css', '/static/app.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
             file = STATIC_DIR / Path(path).name
         else:
             return self._error(404, 'Not found')
@@ -608,6 +703,205 @@ class Handler(BaseHTTPRequestHandler):
             body = self._decode_body()
             if not isinstance(body, dict):
                 raise ValueError('Expected a JSON object')
+            if path == '/api/emergency/packs/install':
+                return self._json(200, self.server.emergency_store.install_pack(body))
+            if path == '/api/emergency/sos/draft':
+                return self._json(201, {'record':self.server.emergency_store.add(compose_draft(body)),
+                                        'transmitted':False})
+            if path == '/api/emergency/protocol/prepare':
+                frame=compose_checkin_frame(body)
+                record=self.server.emergency_store.add({'kind':'sos_draft',
+                    'title':f'ORF1 check-in · {body["person"].strip()}',
+                    'details':frame['text']})
+                return self._json(201,{'frame':frame,'draft_id':record['id'],'sent':False,
+                    'note':'Prepared only; queue by explicit action, then send manually.'})
+            if path == '/api/emergency/protocol/ack':
+                if set(body)!={'message_id'}:
+                    raise ValueError('Provide message_id only')
+                return self._json(200,{'text':compose_ack(body['message_id']),'sent':False,
+                    'note':'Text acknowledgment draft only; no reply transmitted.'})
+            if path == '/api/emergency/preflight':
+                if set(body)!={'key','checked'}:
+                    raise ValueError('Preflight requires key and checked only')
+                return self._json(200,self.server.emergency_store.set_preflight(body['key'],body['checked']))
+            if path == '/api/emergency/backup/create':
+                if set(body)!={'passphrase'}:
+                    raise ValueError('Backup requires passphrase only')
+                encrypted=make_emergency_backup(self.server.repository.path,body['passphrase'])
+                return self._send(200,encrypted,'application/octet-stream',
+                    {'Content-Disposition':'attachment; filename="openrf-private-backup.orfbak"'})
+            if path == '/api/emergency/backup/inspect':
+                if set(body)!={'passphrase','bundle'} or not isinstance(body['bundle'],str):
+                    raise ValueError('Preview requires passphrase and encrypted bundle')
+                return self._json(200,inspect_emergency_backup(body['bundle'].encode('utf-8'),body['passphrase']))
+            if path == '/api/emergency/outbox':
+                if set(body)!={'draft_id','transport','destination','channel','text'}:
+                    raise ValueError('Invalid offline queue fields')
+                draft_id=body['draft_id']
+                if type(draft_id) is not int or not 1<=draft_id<=2_147_483_647:
+                    raise ValueError('Invalid SOS draft ID')
+                if body['transport']=='meshtastic':
+                    if body['destination']=='^all':
+                        raise ValueError('Emergency queue requires a direct recipient')
+                    try:
+                        selected=validate_mesh_send({'text':body['text'],'destination':body['destination'],'channel':body['channel']})
+                    except MeshError as exc:
+                        return self._error(exc.status,str(exc),exc.code)
+                elif body['transport']=='reticulum':
+                    if body['channel'] is not None:
+                        raise ValueError('Reticulum queue does not use a channel')
+                    try:
+                        selected=validate_lxmf_message({'text':body['text'],'destination':body['destination']})
+                    except ReticulumError as exc:
+                        return self._error(exc.status,str(exc),exc.code)
+                    selected['channel']=None
+                else:
+                    raise ValueError('Unknown emergency transport')
+                return self._json(201,{'entry':self.server.emergency_store.queue_message(draft_id,body['transport'],
+                    selected['destination'],selected['channel'],selected['text']),
+                    'sent':False,'note':'Stored locally only. Requires an explicit later send.'})
+            if path == '/api/emergency/teams':
+                if set(body)!={'group_name','alias','transport','destination','channel'}:
+                    raise ValueError('Invalid team member fields')
+                if body['transport']=='meshtastic':
+                    if body['destination']=='^all':
+                        raise ValueError('Team members must have direct radio addresses')
+                    try:
+                        selected=validate_mesh_send({'text':'Team address check',
+                            'destination':body['destination'],'channel':body['channel']})
+                    except MeshError as exc:
+                        return self._error(exc.status,str(exc),exc.code)
+                elif body['transport']=='reticulum':
+                    if body['channel'] is not None:
+                        raise ValueError('Reticulum does not use channel indices')
+                    try:
+                        selected=validate_lxmf_message({'text':'Team address check','destination':body['destination']})
+                    except ReticulumError as exc:
+                        return self._error(exc.status,str(exc),exc.code)
+                    selected['channel']=None
+                else:
+                    raise ValueError('Unsupported group transport')
+                return self._json(201,{'member':self.server.emergency_store.add_team_member(
+                    body['group_name'],body['alias'],body['transport'],selected['destination'],selected['channel'])})
+            if path == '/api/emergency/teams/queue':
+                if set(body)!={'group_name','draft_id','text'} or type(body['draft_id']) is not int or not isinstance(body['text'],str):
+                    raise ValueError('Invalid team queue fields')
+                members=sorted((m for m in self.server.emergency_store.team_members() if m['group_name']==body['group_name']),key=lambda item:item['id'])
+                deliveries=[{'member_id':member['id'],'text':body['text']} for member in members]
+                return self._json(201,self.server.emergency_store.queue_team(body['draft_id'],body['group_name'],deliveries))
+            if path == '/api/emergency/checkins':
+                return self._json(201,{'checkin':self.server.emergency_store.add_checkin(body),
+                                       'shared':False,'sent':False})
+            if path == '/api/emergency/inbox/scan':
+                if body:
+                    raise ValueError('Inbox scan requires an empty object')
+                mesh=self.server.mesh_manager.messages()
+                reticulum=self.server.reticulum_manager.messages()
+                count=self.server.emergency_store.import_radio_candidates('meshtastic',mesh.get('messages',[]))
+                count+=self.server.emergency_store.import_radio_candidates('reticulum',reticulum.get('messages',[]))
+                return self._json(200,{'new_candidates':count,'sent':False,'automatic_monitoring':False})
+            if path.startswith('/api/emergency/inbox/'):
+                parts=path.split('/')
+                if len(parts)!=6 or not parts[4].isascii() or not parts[4].isdecimal() or len(parts[4])>10:
+                    raise ValueError('Invalid inbox entry')
+                return self._json(200,self.server.emergency_store.review_radio_candidate(int(parts[4]),parts[5],body))
+            if path.startswith('/api/emergency/outbox/'):
+                segments=path.split('/')
+                if len(segments)!=6 or not segments[4].isascii() or not segments[4].isdecimal() or len(segments[4])>10:
+                    raise ValueError('Invalid outbox request')
+                entry_id=int(segments[4]);action=segments[5]
+                if body:
+                    raise ValueError('Outbox action requires an empty object')
+                if action=='prepare-retry':
+                    changed=self.server.emergency_store.prepare_queued_retry(entry_id)
+                    return self._json(200 if changed else 409,{'ready':changed,'sent':False})
+                if action!='send':
+                    return self._error(404,'Unknown outbox action')
+                entry=self.server.emergency_store.claim_queued(entry_id)
+                if entry is None:
+                    return self._error(409,'Outbox item is not ready. No transmission attempted.')
+                status='SEND_FAILED_NOT_DELIVERED'
+                result={}
+                try:
+                    if entry['transport']=='meshtastic':
+                        result=self.server.mesh_manager.send({'text':entry['outbound_text'],
+                            'destination':entry['destination'],'channel':entry['channel']})
+                        status='SUBMITTED_TO_RADIO_NOT_DELIVERED' if result.get('submitted_to_radio') else status
+                    else:
+                        result=self.server.reticulum_manager.send({'text':entry['outbound_text'],
+                            'destination':entry['destination']})
+                        value=result.get('status')
+                        if value in ('QUEUED_WITH_LXMF_NOT_DELIVERED','PATH_REQUESTED_NOT_SENT','NO_RECALLED_IDENTITY_NOT_SENT'):
+                            status=value
+                except (MeshError,ReticulumError) as exc:
+                    logging.info('Explicit emergency queued send failed: %s',exc.code)
+                except Exception:
+                    logging.exception('Unexpected emergency queued send failure')
+                self.server.emergency_store.finish_queued(entry_id,status)
+                attempt=self.server.emergency_store.record_send_attempt(entry['draft_id'],entry['transport'],
+                    entry['destination'],status,text=entry['outbound_text'],channel=entry['channel'],
+                    packet_id=result.get('packet_id') if entry['transport']=='meshtastic' else None)
+                return self._json(202,{'outbox_id':entry_id,'attempt':attempt,'delivered_to_person':False,
+                    'note':'Submission/queueing does not prove recipient delivery.'})
+            if path == '/api/emergency/sos/handoff':
+                if set(body) != {'draft_id','transport','destination','channel','text'}:
+                    raise ValueError('Invalid emergency handoff fields')
+                draft_id=body['draft_id']
+                if type(draft_id) is not int or draft_id<1 or draft_id>2_147_483_647:
+                    raise ValueError('Invalid SOS draft ID')
+                if not self.server.emergency_store.get_sos_draft(draft_id):
+                    return self._error(404,'Unsent SOS draft not found')
+                transport=body['transport']
+                destination=body['destination']
+                if not isinstance(destination,str):
+                    raise ValueError('Invalid recipient')
+                if transport == 'meshtastic':
+                    if destination == '^all':
+                        raise ValueError('Emergency handoff requires a specific Meshtastic node, not broadcast')
+                    try:
+                        validated=validate_mesh_send({'text':body['text'],'destination':destination,'channel':body['channel']})
+                    except MeshError as exc:
+                        return self._error(exc.status,str(exc),exc.code)
+                    try:
+                        result=self.server.mesh_manager.send(validated)
+                    except MeshError as exc:
+                        self.server.emergency_store.record_send_attempt(draft_id,transport,destination,'SEND_FAILED_NOT_DELIVERED',
+                                                                        text=validated['text'],channel=validated['channel'])
+                        return self._error(exc.status,str(exc),exc.code)
+                    status='SUBMITTED_TO_RADIO_NOT_DELIVERED' if result.get('submitted_to_radio') else 'SEND_FAILED_NOT_DELIVERED'
+                elif transport == 'reticulum':
+                    if body['channel'] is not None:
+                        raise ValueError('Reticulum handoff does not use a Meshtastic channel')
+                    try:
+                        validated=validate_lxmf_message({'text':body['text'],'destination':destination})
+                    except ReticulumError as exc:
+                        return self._error(exc.status,str(exc),exc.code)
+                    try:
+                        result=self.server.reticulum_manager.send(validated)
+                    except ReticulumError as exc:
+                        self.server.emergency_store.record_send_attempt(draft_id,transport,destination,'SEND_FAILED_NOT_DELIVERED',
+                                                                        text=validated['text'])
+                        return self._error(exc.status,str(exc),exc.code)
+                    status=result.get('status')
+                    if status not in ('QUEUED_WITH_LXMF_NOT_DELIVERED','PATH_REQUESTED_NOT_SENT','NO_RECALLED_IDENTITY_NOT_SENT'):
+                        status='SEND_FAILED_NOT_DELIVERED'
+                else:
+                    raise ValueError('Choose Meshtastic or Reticulum')
+                attempt=self.server.emergency_store.record_send_attempt(draft_id,transport,destination,status,
+                    text=validated['text'],channel=validated['channel'] if transport=='meshtastic' else None,
+                    packet_id=result.get('packet_id') if transport=='meshtastic' else None)
+                return self._json(202,{'attempt':attempt,'delivered_to_person':False,
+                                       'note':'Radio submission or LXMF queueing is NOT a confirmed human receipt.'})
+            if path == '/api/emergency/library':
+                return self._json(201, {'reference':self.server.emergency_store.add_reference(body)})
+            if path == '/api/emergency/records':
+                return self._json(201, {'record': self.server.emergency_store.add(body)})
+            if path.startswith('/api/emergency/checklists/'):
+                ident = path.rsplit('/', 1)[-1]
+                if not ident.isascii() or not ident.isdecimal() or len(ident) > 10 or set(body) != {'completed'}:
+                    raise ValueError('Invalid checklist update')
+                updated = self.server.emergency_store.complete(int(ident), body['completed'])
+                return self._json(200 if updated else 404, {'updated': updated})
             if path in ('/api/network/hotspot/start', '/api/network/hotspot/stop'):
                 if urlparse(self.path).query:
                     raise ValueError('Hotspot actions accept no query parameters')
@@ -925,6 +1219,32 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host() or not self._allowed_origin():
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
+        if path.startswith('/api/emergency/outbox/'):
+            ident=path.rsplit('/',1)[-1]
+            if not ident.isascii() or not ident.isdecimal() or len(ident)>10:
+                return self._error(400,'Invalid outbox ID')
+            removed=self.server.emergency_store.delete_queued(int(ident))
+            return self._json(200 if removed else 409,{'deleted':removed})
+        if path.startswith('/api/emergency/teams/'):
+            ident=path.rsplit('/',1)[-1]
+            if not ident.isascii() or not ident.isdecimal() or len(ident)>10:
+                return self._error(400,'Invalid team member ID')
+            return self._json(200,{'deleted':self.server.emergency_store.delete_team_member(int(ident))})
+        if path.startswith('/api/emergency/checkins/'):
+            ident=path.rsplit('/',1)[-1]
+            if not ident.isascii() or not ident.isdecimal() or len(ident)>10:
+                return self._error(400,'Invalid check-in ID')
+            return self._json(200,{'deleted':self.server.emergency_store.delete_checkin(int(ident))})
+        if path.startswith('/api/emergency/library/'):
+            ident = path.rsplit('/',1)[-1]
+            if not ident.isascii() or not ident.isdecimal() or len(ident) > 10:
+                return self._error(400,'Invalid reference ID')
+            return self._json(200,{'deleted':self.server.emergency_store.delete_reference(int(ident))})
+        if path.startswith('/api/emergency/records/'):
+            ident = path.rsplit('/', 1)[-1]
+            if not ident.isascii() or not ident.isdecimal() or len(ident) > 10:
+                return self._error(400, 'Invalid emergency record ID')
+            return self._json(200, {'deleted': self.server.emergency_store.delete(int(ident))})
         if path.startswith('/api/cameras/') and path.count('/')==3:
             ident=path.rsplit('/',1)[1]
             if not ident.isascii() or not ident.isdecimal() or len(ident)>10:
@@ -981,7 +1301,14 @@ class Handler(BaseHTTPRequestHandler):
 
 def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServer:
     server = OpenRFHTTPServer(('127.0.0.1', port), Handler)
+    server.recovery_lock=restore_exclusive_lock(repository.path)
+    try:
+        server.recovery_lock.__enter__()
+    except Exception:
+        server.server_close()
+        raise
     server.repository = repository
+    server.emergency_store = EmergencyStore(repository.path)
     server.map_directory = repository.path.parent / 'maps'
     server.map_lock = threading.Lock()
     server.map_asset_directory = repository.path.parent / 'assets'

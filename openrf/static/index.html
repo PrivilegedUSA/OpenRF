@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.114">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.129">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -21,7 +21,19 @@
   <script defer src="/static/route_guidance.js?v=0.2.76"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/app.js?v=0.2.114"></script>
+  <script defer src="/static/app.js?v=0.2.129"></script>
+  <script defer src="/static/emergency.js?v=0.2.129"></script>
+  <script defer src="/static/emergency-library.js?v=0.2.129"></script>
+  <script defer src="/static/emergency-sos.js?v=0.2.129"></script>
+  <script defer src="/static/emergency-handoff.js?v=0.2.129"></script>
+  <script defer src="/static/emergency-teams.js?v=0.2.129"></script>
+  <script defer src="/static/emergency-checkins.js?v=0.2.129"></script>
+  <script defer src="/static/emergency-inbox.js?v=0.2.129"></script>
+  <script defer src="/static/emergency-protocol.js?v=0.2.129"></script>
+  <script defer src="/static/emergency-dashboard.js?v=0.2.129"></script>
+  <script defer src="/static/emergency-survival.js?v=0.2.129"></script>
+  <script defer src="/static/emergency-backup.js?v=0.2.129"></script>
+  <script defer src="/static/field-calendar.js?v=0.2.129"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
   <script defer src="/static/mesh.js?v=0.2.104"></script>
   <script defer src="/static/reticulum.js?v=0.2.104"></script>
@@ -36,11 +48,12 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.114</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.129</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
         <button class="nav-btn" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
+        <button class="nav-btn" data-page="emergency"><span class="nav-icon" aria-hidden="true">⚑</span><span class="nav-label">Emergency</span></button>
         <button class="nav-btn" data-page="scanner"><span class="nav-icon" aria-hidden="true">≋</span><span class="nav-label">Analysis</span></button>
         <button class="nav-btn" data-page="spectrum"><span class="nav-icon" aria-hidden="true">▥</span><span class="nav-label">Spectrum</span></button>
         <button class="nav-btn" data-page="radio"><span class="nav-icon" aria-hidden="true">◉</span><span class="nav-label">Radio Receiver</span></button>
@@ -67,6 +80,15 @@
       <header class="topbar">
         <div class="topbar-heading"><div><div class="eyebrow">OPENRF / <span id="page-crumb">MAP</span></div><h1 id="page-title">Survey map</h1></div></div>
         <div class="top-right"><span id="runtime-pill" class="pill">LINUX</span><span class="pill green">OFFLINE DATA</span></div>
+        <div class="field-clock-wrap">
+          <button type="button" id="field-clock-button" class="field-clock-button" aria-label="Open offline clock and calendar" aria-expanded="false" aria-controls="field-calendar-panel"><span id="field-clock-time">--:--</span><small id="field-clock-date">Local time</small></button>
+          <div id="field-calendar-panel" class="field-calendar-panel" hidden>
+            <div class="field-calendar-head"><button id="field-calendar-prev" type="button" aria-label="Previous month">‹</button><strong id="field-calendar-month"></strong><button id="field-calendar-next" type="button" aria-label="Next month">›</button></div>
+            <div id="field-calendar-grid" class="field-calendar-grid" role="grid" aria-label="Offline calendar"></div>
+            <p id="field-calendar-details" class="muted small" role="status"></p>
+            <button type="button" class="btn ghost" id="field-calendar-today">Today</button>
+          </div>
+        </div>
         <div class="header-messages-menu" id="header-messages-menu">
           <button type="button" class="messages-header-button" id="mesh-header-button" aria-label="Choose message inbox" aria-haspopup="true" aria-expanded="false" aria-controls="header-messages-choices" title="Choose message inbox">
             <span class="messages-header-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><span class="mesh-unread-badge" id="mesh-header-unread" hidden>0</span></span>
@@ -80,6 +102,163 @@
         <button type="button" id="menu-toggle" class="menu-toggle" aria-label="Open navigation menu" aria-controls="main-sidebar" aria-expanded="false"><span aria-hidden="true">☰</span></button>
       </header>
       <div id="flash" class="flash" role="status" aria-live="polite" hidden></div>
+      <section class="page" id="page-emergency" aria-label="Offline emergency planning">
+        <div class="section-heading"><div><h2>Emergency readiness</h2><p>Private, offline planning tools. No SOS has been sent and no emergency delivery service is connected.</p></div><span class="pill">LOCAL ONLY</span></div>
+        <div class="panel emergency-notice"><strong>In immediate danger?</strong><p>Use official emergency channels (such as 911 in the US) when available. An OpenRF SOS draft does not contact rescuers.</p></div>
+        <div class="panel" id="emergency-backup-panel"><div class="panel-title"><h3>Encrypted emergency data backup</h3><span class="pill">MANUAL · PRIVATE</span></div>
+          <p class="muted small">Export the main OpenRF SQLite database as a password-encrypted file. This includes sensitive saved investigations and check-ins; keep the file private. It does not include offline maps, recorded SDR files or separately stored radio histories. Your passphrase is never saved or transmitted off this local device.</p>
+          <form id="emergency-backup-form" class="emergency-form">
+            <label>Backup passphrase (12+ characters)<input id="emergency-backup-passphrase" class="field" type="password" minlength="12" maxlength="256" autocomplete="new-password" required></label>
+            <label>Repeat passphrase<input id="emergency-backup-confirm" class="field" type="password" minlength="12" maxlength="256" autocomplete="new-password" required></label>
+            <button id="emergency-backup-download" class="btn primary" type="submit">Create &amp; download encrypted backup</button>
+          </form>
+          <p id="emergency-backup-info" class="muted small" role="status" aria-live="polite"></p>
+          <details><summary>Verify an existing backup (preview only)</summary>
+            <form id="emergency-backup-verify-form" class="emergency-form">
+              <label>Select .orfbak file<input id="emergency-backup-file" class="field" type="file" accept=".orfbak,application/json" required></label>
+              <label>Backup passphrase<input id="emergency-backup-verify-passphrase" class="field" type="password" minlength="12" maxlength="256" autocomplete="off" required></label>
+              <button class="btn ghost" type="submit">Verify &amp; preview contents</button>
+            </form>
+            <p id="emergency-backup-preview" class="muted small" role="status" aria-live="polite"></p>
+          </details>
+          <details><summary>Offline restore instructions (stop OpenRF first)</summary>
+            <p class="muted small">The web app can only preview a backup. To recover the database, stop every OpenRF process with Ctrl+C. In Ubuntu/WSL, run the commands below using the actual downloaded backup file path. The command prompts for your passphrase without echoing it; the restore also requires you to type RESTORE OPENRF. It keeps a timestamped safety copy of the prior database.</p>
+            <pre class="hardware-pre">cd /mnt/c/projects/OpenRF
+python3 -m openrf.restore --preview --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-private-backup.orfbak
+python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-private-backup.orfbak</pre>
+            <p class="muted small">Replace YOUR_USER and the path. This restores the primary database only; maps and other stored files remain unchanged. Restart OpenRF after recovery and check your records. Never restore while the server is running.</p>
+          </details>
+        </div>
+        <div class="panel" id="emergency-survival-panel"><div class="panel-title"><h3>Device survival &amp; departure checks</h3><span class="pill">READ-ONLY POWER</span></div>
+          <p class="muted small">Check Linux-reported battery/power, available disk space and local database health. Unsupported readings are marked unknown; OpenRF does not yet control sleep, shutdown or battery protection.</p>
+          <button id="emergency-survival-refresh" type="button" class="btn ghost">Inspect device health</button>
+          <p id="emergency-survival-status" class="muted small" role="status" aria-live="polite"></p>
+          <div id="emergency-survival-readings" class="emergency-ops-stats"></div>
+          <h4>Pre-departure checklist</h4><p class="muted small">Your own confirmations, never automated test results. Recheck before every trip; dates remain visible.</p>
+          <div id="emergency-survival-checks" class="emergency-records"></div>
+        </div>
+        <div class="panel" id="emergency-ops-panel"><div class="panel-title"><h3>Emergency operations dashboard</h3><span class="pill">LOCAL SNAPSHOT</span></div>
+          <p class="muted small">One-screen summary of saved family reports, pending message reviews, queued transmissions and local radio readiness. None of this verifies anyone's current safety or location.</p>
+          <div class="emergency-ops-actions"><button type="button" id="emergency-ops-refresh" class="btn primary">Refresh dashboard</button><span id="emergency-ops-time" class="muted small"></span></div>
+          <p id="emergency-ops-message" class="muted small" role="status" aria-live="polite"></p>
+          <div id="emergency-ops-stats" class="emergency-ops-stats"></div>
+          <div id="emergency-ops-radios" class="emergency-ops-radios"></div>
+          <div class="emergency-ops-columns"><div><h4>Latest saved reports</h4><div id="emergency-ops-people" class="emergency-records"></div></div>
+            <div><h4>Message queue</h4><div id="emergency-ops-outbox" class="emergency-records"></div></div></div>
+          <p class="muted small">All dates are from saved local records. "Recent" means recorded within six hours on this device, not that someone is currently safe. Incoming radio claims require review.</p>
+        </div>
+        <div class="panel"><div class="panel-title"><h3>Readiness</h3><span class="pill">NOT A LIVE RADIO TEST</span></div><p id="emergency-readiness" class="muted small" role="status">Checking local records…</p><button type="button" id="emergency-refresh" class="btn ghost">Refresh status</button></div>
+        <div class="panel"><div class="panel-title"><h3>GPS-assisted emergency message</h3><span class="pill">PREPARE · DO NOT SEND</span></div>
+          <p class="muted small">Draft a message and optionally attach a fresh browser-reported location. Permission is requested only when you select Get location. Your position is never transmitted automatically.</p>
+          <form id="emergency-sos-form" class="emergency-form">
+            <label>Message type<select class="field" id="emergency-sos-template"><option value="NEED_HELP">Need assistance</option><option value="SAFE">I'm safe</option><option value="EVACUATING">Evacuating</option><option value="CHECK_IN">Check-in</option></select></label>
+            <label>Recipient label (optional)<input class="field" id="emergency-sos-recipient" maxlength="100" placeholder="e.g. Family group"></label>
+            <label>Additional message<textarea class="field" id="emergency-sos-message" rows="3" maxlength="600" placeholder="Situation, supplies needed, planned destination…"></textarea></label>
+            <div class="emergency-sos-location-controls"><button type="button" class="btn ghost" id="emergency-sos-locate">Get current location</button><button type="button" class="btn ghost" id="emergency-sos-clear">Remove location</button></div>
+            <p id="emergency-sos-location" class="muted small" role="status">No browser location attached.</p>
+            <label>Preview (not transmitted)<textarea class="field" id="emergency-sos-preview" rows="7" readonly></textarea></label>
+            <button type="submit" class="btn primary">Save UNSENT SOS draft</button>
+          </form><p id="emergency-sos-status" class="muted small" role="status" aria-live="polite"></p>
+        </div>
+        <div class="panel"><div class="panel-title"><h3>Family check-ins &amp; status board</h3><span class="pill">REPORTED · NOT LIVE</span></div>
+          <p class="muted small">Record your status or a clearly identified secondhand report. Browser location is optional, permission-based and attached only to your own status. No location is shared or transmitted automatically.</p>
+          <form id="emergency-checkin-form" class="emergency-form">
+            <label>Person/device label<input id="emergency-checkin-person" class="field" maxlength="80" required placeholder="e.g. Brandon"></label>
+            <label>Status<select id="emergency-checkin-status" class="field"><option value="SAFE">Safe</option><option value="NEED_HELP">Need assistance</option><option value="EVACUATING">Evacuating</option><option value="CHECK_IN">Checking in</option></select></label>
+            <label>Source<select id="emergency-checkin-source" class="field"><option value="SELF_REPORTED">My own check-in</option><option value="MANUAL_SECONDHAND">Secondhand report, manually entered</option></select></label>
+            <label>Optional note<textarea id="emergency-checkin-note" class="field" maxlength="500" rows="3"></textarea></label>
+            <div class="emergency-sos-location-controls"><button id="emergency-checkin-locate" type="button" class="btn ghost">Get fresh location</button><button id="emergency-checkin-clear" type="button" class="btn ghost">Remove location</button></div>
+            <p id="emergency-checkin-location" class="muted small" role="status">No location attached.</p>
+            <label><input type="checkbox" id="emergency-checkin-draft"> Also prepare an UNSENT emergency message draft</label>
+            <button type="submit" class="btn primary">Save local check-in</button>
+          </form>
+          <div class="emergency-handoff-head"><p id="emergency-checkin-message" class="muted small" role="status" aria-live="polite"></p><button id="emergency-checkin-map" class="btn ghost" type="button">Show reported pins on map</button><button id="emergency-checkin-export" class="btn ghost" type="button">Export location reports</button></div>
+          <p class="muted small">Old check-ins remain historical; they do not update automatically. Map pins are reports, not verified real-time locations.</p>
+          <div id="emergency-checkin-board" class="emergency-records"></div>
+        </div>
+        <div class="panel"><div class="panel-title"><h3>Compact emergency radio check-in</h3><span class="pill">ORF1 · LOCAL PREPARE</span></div>
+          <p class="muted small">Prepare a short structured message for Meshtastic or Reticulum. Save a local unsent draft, explicitly queue to your team, then send each item manually.</p>
+          <form id="emergency-protocol-form" class="emergency-form">
+            <label>Your name/device label<input id="emergency-protocol-person" class="field" maxlength="60" required placeholder="e.g. Brandon"></label>
+            <label>Status<select id="emergency-protocol-status" class="field"><option value="CHECK_IN">Checking in</option><option value="SAFE">Safe</option><option value="NEED_HELP">Need assistance</option><option value="EVACUATING">Evacuating</option></select></label>
+            <label>Short note (optional)<textarea id="emergency-protocol-note" class="field" rows="2" maxlength="160"></textarea></label>
+            <button type="submit" class="btn primary">Prepare structured check-in</button>
+          </form>
+          <p id="emergency-protocol-info" class="muted small" role="status" aria-live="polite"></p>
+          <label>Prepared radio text<textarea id="emergency-protocol-preview" class="field" rows="3" readonly></textarea></label>
+          <label>Queue to saved team (optional)<select id="emergency-protocol-team" class="field"><option value="">Select team after preparing</option></select></label>
+          <button id="emergency-protocol-queue" type="button" class="btn ghost" disabled>Queue separate messages locally (no send)</button>
+        </div>
+        <div class="panel"><div class="panel-title"><h3>Radio check-in review inbox</h3><span class="pill">REVIEW BEFORE ACCEPT</span></div>
+          <p class="muted small">Manually import current Meshtastic and Reticulum/LXMF received-message history. Incoming text is never trusted as identity, distress verification or a verified location. No automatic polling, send, forwarding, or GPS import.</p>
+          <button id="emergency-inbox-scan" type="button" class="btn ghost">Scan received radio messages</button>
+          <p id="emergency-inbox-info" class="muted small" role="status" aria-live="polite"></p>
+          <div id="emergency-inbox-board" class="emergency-records"></div>
+        </div>
+        <div class="panel"><div class="panel-title"><h3>Emergency radio handoff</h3><span class="pill">MANUAL · EXPLICIT SEND</span></div>
+          <p class="muted small">Choose an existing SOS draft and a known recipient. A connected radio is required. Submitting to a radio or LXMF router does not prove anyone received the message. No automatic retry or broadcast.</p>
+          <form id="emergency-handoff-form" class="emergency-form">
+            <label>Saved SOS draft<select id="emergency-handoff-draft" class="field" required><option value="">Select a saved draft</option></select></label>
+            <label>Transport<select id="emergency-handoff-transport" class="field"><option value="meshtastic">Meshtastic</option><option value="reticulum">Reticulum LXMF</option></select></label>
+            <label>Recipient address<input id="emergency-handoff-destination" class="field" maxlength="40" required placeholder="Meshtastic !1234abcd"></label>
+            <label id="emergency-handoff-channel-label">Meshtastic channel<select id="emergency-handoff-channel" class="field"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option></select></label>
+            <label>Outgoing text (edit to fit transport limit)<textarea id="emergency-handoff-text" class="field" rows="7" required></textarea></label>
+            <p id="emergency-handoff-bytes" class="muted small" role="status"></p>
+            <div class="emergency-outbox-actions"><button type="button" id="emergency-outbox-queue" class="btn ghost">Save to offline outbox</button><button type="submit" id="emergency-handoff-send" class="btn primary">Confirm and hand off to radio</button></div>
+          </form>
+          <div class="emergency-handoff-head"><p id="emergency-handoff-status" class="muted small" role="status" aria-live="polite">No transmission attempted from this panel.</p><button type="button" id="emergency-handoff-refresh" class="btn ghost">Refresh routing status</button></div>
+          <div id="emergency-handoff-attempts" class="emergency-records"></div>
+          <div class="emergency-handoff-head"><h3>Offline outbox</h3><button type="button" id="emergency-outbox-refresh" class="btn ghost">Refresh outbox and readiness</button></div>
+          <p id="emergency-transport-readiness" class="muted small" role="status">Checking radio connections…</p>
+          <p class="muted small">Outbox entries stay stored until you manually send or remove them. Nothing retries on a timer or when hardware reconnects.</p>
+          <div id="emergency-outbox-list" class="emergency-records"></div>
+        </div>
+        <div class="panel"><div class="panel-title"><h3>Family &amp; team directory</h3><span class="pill">LOCAL · NO AUTOMATIC SEND</span></div>
+          <p class="muted small">Save up to ten direct recipients per team. Queue a copy of the selected draft for each member, then choose when to send each message. This does not create a network group or send to everyone automatically.</p>
+          <form id="emergency-team-form" class="emergency-form">
+            <label>Team name<input id="emergency-team-name" class="field" maxlength="60" required placeholder="e.g. Family"></label>
+            <label>Person/device nickname<input id="emergency-team-alias" class="field" maxlength="80" required placeholder="e.g. Home node"></label>
+            <label>Network<select id="emergency-team-transport" class="field"><option value="meshtastic">Meshtastic</option><option value="reticulum">Reticulum</option></select></label>
+            <label>Direct recipient address<input id="emergency-team-destination" class="field" maxlength="40" required placeholder="!1234abcd"></label>
+            <label id="emergency-team-channel-label">Meshtastic channel<select id="emergency-team-channel" class="field"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option></select></label>
+            <button type="submit" class="btn primary">Save team member</button>
+          </form>
+          <p id="emergency-team-status" class="muted small" role="status" aria-live="polite"></p>
+          <div id="emergency-team-members" class="emergency-records"></div>
+          <div class="emergency-handoff-head"><label>Queue for saved team<select id="emergency-team-select" class="field"><option value="">Choose team</option></select></label><button type="button" id="emergency-team-queue" class="btn ghost">Queue copies for team</button></div>
+          <p class="muted small">Uses the SOS draft and outgoing text currently selected in Emergency radio handoff. Every copy must fit its recipient's network limit. No message is transmitted by this action.</p>
+        </div>
+        <div class="panel"><div class="panel-title"><h3>Emergency notes and plans</h3><span class="pill">PRIVATE SQLITE</span></div>
+          <form id="emergency-form" class="emergency-form">
+            <label>Record type<select class="field" id="emergency-kind"><option value="contact">Emergency contact</option><option value="meeting_point">Meeting point</option><option value="checklist">Preparedness checklist</option><option value="sos_draft">Unsent SOS draft</option></select></label>
+            <label>Title<input class="field" id="emergency-title" maxlength="120" required placeholder="e.g. Family meeting point"></label>
+            <label>Details<textarea class="field" id="emergency-details" maxlength="1200" rows="3" placeholder="Contact details, location description, or message text"></textarea></label>
+            <button class="btn primary" type="submit">Save locally</button>
+          </form><p class="muted small">Saved details stay on this device unless you explicitly export or share them. Avoid sensitive secrets in shared exports.</p>
+          <p id="emergency-status" class="muted small" role="status" aria-live="polite"></p><div id="emergency-records" class="emergency-records"></div>
+        </div>
+        <div class="panel"><div class="panel-title"><h3>Offline reference library</h3><span class="pill">NO INTERNET REQUIRED</span></div>
+          <p class="muted small">Save trusted reference text for offline searching. Sources and dates matter: locally saved notes are not verified medical or emergency instructions.</p>
+          <div class="emergency-pack-tools">
+            <button type="button" id="emergency-pack-starter" class="btn primary">Install starter pack</button>
+            <a class="btn ghost" href="/api/emergency/packs/starter" download="openrf-field-readiness-starter.json">Download starter pack</a>
+            <label>Import offline pack (.json)<input class="field" type="file" id="emergency-pack-file" accept=".json,application/json"></label>
+          </div>
+          <p class="muted small">Starter pack: three original OpenRF planning worksheets (CC0-1.0). Imported packs are plain text and are not independently fact-checked.</p>
+          <label>Search saved references<input class="field" id="emergency-library-search" type="search" maxlength="120" placeholder="Search title, source, or text"></label>
+          <p id="emergency-library-status" class="muted small" role="status" aria-live="polite"></p>
+          <div id="emergency-library-results" class="emergency-records"></div>
+          <details class="emergency-library-add"><summary>Add a reference for offline use</summary>
+            <form id="emergency-library-form" class="emergency-form">
+              <label>Title<input class="field" id="emergency-library-title" maxlength="120" required></label>
+              <label>Category<input class="field" id="emergency-library-category" maxlength="60" required placeholder="e.g. Local emergency plan"></label>
+              <label>Source and publication date<input class="field" id="emergency-library-source" maxlength="240" required placeholder="Publisher, document name, date"></label>
+              <label>Reference text<textarea class="field" id="emergency-library-content" maxlength="12000" rows="6" required placeholder="Paste text you have permission to save"></textarea></label>
+              <button class="btn primary" type="submit">Save offline reference</button>
+            </form>
+          </details>
+        </div>
+      </section>
       <section class="page" id="page-overview">
         <div class="hero"><div><div class="eyebrow accent">OPEN SOURCE RF FIELD PLATFORM</div><h2>Investigate the invisible.<br><em>Document what you can verify.</em></h2><p>Run locally on WSL now. Move the same backend to a Raspberry Pi later. No imaginary detections—every record retains its evidence source.</p><div class="actions"><button class="btn primary" data-jump="map">Open survey map</button><button class="btn ghost" data-jump="hardware">View sensor capabilities</button></div></div><div class="hero-graphic" aria-hidden="true"><div class="radar-ring r1"></div><div class="radar-ring r2"></div><div class="radar-ring r3"></div><div class="radar-cross h"></div><div class="radar-cross v"></div><div class="center-dot"></div></div></div>
         <div class="stat-grid"><div class="metric"><small>TOTAL OBSERVATIONS</small><strong id="metric-observations">—</strong><span>Records stored locally</span></div><div class="metric"><small>MAPPED SURVEY POINTS</small><strong id="metric-mapped">—</strong><span>Observer positions only</span></div><div class="metric"><small>INVESTIGATIONS</small><strong id="metric-sessions">—</strong><span>Manually started sessions</span></div><div class="metric"><small>SYNTHETIC RECORDS</small><strong id="metric-demo">—</strong><span>Clearly marked DEMO</span></div></div>
