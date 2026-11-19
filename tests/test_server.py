@@ -2,6 +2,7 @@ import json
 import tempfile
 import threading
 import unittest
+from datetime import datetime, timezone
 from unittest.mock import patch
 from http.client import HTTPConnection
 from pathlib import Path
@@ -11,6 +12,41 @@ from openrf.storage import Repository
 
 
 class ApiTests(unittest.TestCase):
+    def test_private_breadcrumb_routes_and_emergency_header_shortcut(self):
+        status,index=self.call('GET','/')
+        self.assertEqual(status,200)
+        self.assertIn(b'id="map-breadcrumbs-panel"',index)
+        self.assertIn(b'id="header-emergency-shortcut"',index)
+        self.assertLess(index.find(b'id="header-emergency-shortcut"'),index.find(b'id="header-messages-menu"'))
+        self.assertEqual(self.call('GET','/static/field-breadcrumbs.js')[0],200)
+        self.assertEqual(self.call('GET','/api/navigation/breadcrumbs',headers={'Host':'example.com'})[0],403)
+        self.assertEqual(self.call('POST','/api/navigation/breadcrumbs',{'label':'Test'},
+            headers={'Origin':'https://other.example'})[0],403)
+        before=self.call('GET','/api/navigation/breadcrumbs')[1]['sessions']
+        self.assertEqual(self.call('POST','/api/navigation/breadcrumbs',{'label':''})[0],400)
+        self.assertEqual(self.call('GET','/api/navigation/breadcrumbs')[1]['sessions'],before)
+        code,created=self.call('POST','/api/navigation/breadcrumbs',{'label':'API walk'})
+        self.assertEqual(code,201)
+        ident=created['session']['id']
+        self.assertFalse(created['automatic_start'])
+        self.assertEqual(self.call('DELETE',f'/api/navigation/breadcrumbs/{ident}')[1]['deleted'],False)
+        test_fix={'latitude':38.1234,'longitude':-120.5678,'accuracy_m':9,
+            'fix_age_seconds':1,'observed_utc':datetime.now(timezone.utc).isoformat(),
+            'source_device':'BROWSER_GEOLOCATION'}
+        self.assertEqual(self.call('POST',f'/api/navigation/breadcrumbs/{ident}/points',
+            {**test_fix,'accuracy_m':1000})[0],400)
+        self.assertEqual(self.call('POST',f'/api/navigation/breadcrumbs/{ident}/points',test_fix)[0],201)
+        self.assertEqual(self.call('GET',f'/api/navigation/breadcrumbs/{ident}')[1]['point_count'],1)
+        self.assertEqual(self.call('GET',f'/api/navigation/breadcrumbs/{ident}/geojson')[1]
+            ['features'][0]['geometry']['coordinates'],[[-120.5678,38.1234]])
+        code,gpx=self.call('GET',f'/api/navigation/breadcrumbs/{ident}/gpx')
+        self.assertEqual(code,200)
+        self.assertIn(b'Browser geolocation history',gpx)
+        self.assertEqual(self.call('POST',f'/api/navigation/breadcrumbs/{ident}/stop',{})[1]['stopped'],True)
+        self.assertEqual(self.call('POST',f'/api/navigation/breadcrumbs/{ident}/points',test_fix)[0],400)
+        self.assertTrue(self.call('DELETE',f'/api/navigation/breadcrumbs/{ident}')[1]['deleted'])
+        self.assertEqual(self.call('GET',f'/api/navigation/breadcrumbs/{ident}')[0],404)
+
     def test_walking_route_api_never_claims_driving_or_camera_comparison(self):
         sample={'type':'ROAD_ROUTE','is_driving_route':False,'travel_mode':'pedestrian',
                 'coordinates':[[-120.7,38.4],[-120.699,38.401]],'maneuvers':[],
@@ -359,7 +395,7 @@ class ApiTests(unittest.TestCase):
     def test_health_static_hardware_and_exports(self):
         s,data=self.call('GET','/api/health')
         self.assertEqual(s,200)
-        self.assertEqual(data['version'],'0.2.130')
+        self.assertEqual(data['version'],'0.2.131')
         for path in ('/','/static/app.css','/static/app.js','/static/history-analysis.js','/static/route_guidance.js','/static/spectrum.js','/static/spectrum-analysis.js','/static/sdr-history.js','/api/export.csv','/api/export.geojson'):
             status,_=self.call('GET',path)
             self.assertEqual(status,200,path)

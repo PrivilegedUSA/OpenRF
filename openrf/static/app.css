@@ -2167,3 +2167,34 @@ body:not(.map-workspace) .topbar{position:relative}
 #page-map .map-destination-actions #map-walking-preview{grid-column:1/-1;min-height:36px;background:#183b38;color:#c8f6d0}
 @media(max-width:700px){.emergency-ops-columns{grid-template-columns:1fr}.emergency-ops-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 #emergency-checkin-form>label:has(#emergency-checkin-note){grid-column:1/-1}
+
+/* v0.2.131 — always-available Emergency shortcut; navigation only, never an SOS action. */
+.topbar .header-emergency-shortcut{display:grid;place-items:center;align-self:center;
+  flex:0 0 42px;width:42px;height:42px;min-width:42px;padding:0;margin:0;
+  border:0;border-radius:9px;background:transparent;color:#f2bf72;cursor:pointer}
+.topbar .header-emergency-shortcut svg{display:block;width:22px;height:22px}
+.topbar .header-emergency-shortcut:hover,.topbar .header-emergency-shortcut:focus-visible{background:#47351f;color:#ffe0a0;outline-offset:2px}
+.topbar .header-emergency-shortcut:active{transform:scale(.97)}
+body.map-workspace .topbar .header-emergency-shortcut{pointer-events:auto;background:#0c2833e8;color:#f4c178}
+@media(max-width:560px){.topbar .header-emergency-shortcut{flex-basis:38px;width:38px;min-width:38px;height:40px}}
+
+/* v0.2.131 — touch-friendly walking breadcrumb controls in the GPS map pane. */
+.breadcrumb-manager{display:grid;gap:10px;padding:8px 1px 2px;min-width:0}
+.breadcrumb-manager p{margin:2px 0;line-height:1.48}
+.breadcrumb-manager>label{font-size:12px;color:#c0e3dc;font-weight:650}
+.breadcrumb-manager .field{width:100%;min-width:0}
+.breadcrumb-manager h4{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:10px 0 0;color:#e1f6f0}
+.breadcrumb-action-row,.breadcrumb-track-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.breadcrumb-action-row .btn,.breadcrumb-track-actions .btn{min-height:40px;white-space:normal;flex:1 1 auto}
+.breadcrumb-current{padding:10px 12px;border-left:3px solid #f6c46e;border-radius:7px;background:#233228;color:#fff1c6;font-size:12px}
+.breadcrumb-current[hidden]{display:none!important}
+.breadcrumb-list{display:grid;gap:12px}
+.breadcrumb-track{min-width:0;padding:12px;border:1px solid #335b63;border-radius:9px;background:#102933}
+.breadcrumb-track-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:9px}
+.breadcrumb-track-title{min-width:0;overflow-wrap:anywhere}
+.breadcrumb-track-head small{display:block;margin-top:5px;color:#a2c3c0;line-height:1.4}
+.breadcrumb-track-state{color:#ffd28d;font-size:10px;letter-spacing:.04em;font-weight:750}
+.breadcrumb-track-actions{gap:6px}
+.breadcrumb-track-actions .btn{min-height:36px;padding:6px 9px;font-size:11px}
+.breadcrumb-track .danger-outline{color:#ffb5ae}
+@media(max-width:590px){.breadcrumb-track-head{flex-direction:column;gap:4px}.breadcrumb-track-actions .btn{flex:1 1 43%}}

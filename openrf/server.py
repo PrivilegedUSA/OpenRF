@@ -55,6 +55,7 @@ from .emergency_dashboard import build_dashboard
 from .device_survival import report as device_survival_report
 from .emergency_backup import create as make_emergency_backup, inspect as inspect_emergency_backup, available as backup_crypto_available
 from .restore import exclusive_lock as restore_exclusive_lock
+from .breadcrumbs import BreadcrumbStore
 from .reports import investigation_report, report_html
 from .survey_waypoints import waypoints_geojson
 from .sensor_connections import (connections, ScanReceiptStore, BleScanReceiptStore,
@@ -156,6 +157,26 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/emergency/outbox':
             return self._json(200,{'entries':self.server.emergency_store.outbox(),
                 'note':'Local queue only; entries are NEVER sent automatically.'})
+        if path == '/api/navigation/breadcrumbs':
+            return self._json(200,{'sessions':self.server.breadcrumb_store.sessions(),
+                'note':'Opt-in browser position history; not live tracking or verified trail mapping.'})
+        if path.startswith('/api/navigation/breadcrumbs/'):
+            parts=path.split('/')
+            if len(parts) not in (5,6) or not parts[4].isascii() or not parts[4].isdecimal() or len(parts[4])>10:
+                return self._error(400,'Invalid track ID')
+            try:
+                ident=int(parts[4])
+                if len(parts)==6 and parts[5]=='geojson':
+                    return self._json(200,self.server.breadcrumb_store.geojson(ident))
+                if len(parts)==6 and parts[5]=='gpx':
+                    raw=self.server.breadcrumb_store.gpx(ident).encode('utf-8')
+                    return self._send(200,raw,'application/gpx+xml; charset=utf-8',
+                        {'Content-Disposition':f'attachment; filename="openrf-breadcrumb-{ident}.gpx"'})
+                if len(parts)==5:
+                    return self._json(200,self.server.breadcrumb_store.geometry(ident))
+            except ValueError as exc:
+                return self._error(404,str(exc))
+            return self._error(404,'Unknown track resource')
         if path == '/api/emergency/teams':
             return self._json(200,{'members':self.server.emergency_store.team_members(),
                 'note':'Saved locally; no location or message is automatically shared with a group.'})
@@ -598,7 +619,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, raw, 'text/csv; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.csv"'})
         if path in ('/', '/index.html'):
             file = STATIC_DIR / 'index.html'
-        elif path in ('/static/app.css', '/static/app.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/field-breadcrumbs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
             file = STATIC_DIR / Path(path).name
         else:
             return self._error(404, 'Not found')
@@ -724,6 +745,23 @@ class Handler(BaseHTTPRequestHandler):
                 if set(body)!={'key','checked'}:
                     raise ValueError('Preflight requires key and checked only')
                 return self._json(200,self.server.emergency_store.set_preflight(body['key'],body['checked']))
+            if path == '/api/navigation/breadcrumbs':
+                if set(body)!={'label'}:
+                    raise ValueError('Track start requires a label only')
+                return self._json(201,{'session':self.server.breadcrumb_store.start(body['label']),
+                    'recording':'BROWSER_GEOLOCATION_ONLY','automatic_start':False})
+            if path.startswith('/api/navigation/breadcrumbs/'):
+                parts=path.split('/')
+                if len(parts)!=6 or not parts[4].isascii() or not parts[4].isdecimal() or len(parts[4])>10:
+                    raise ValueError('Invalid track action')
+                ident=int(parts[4])
+                if parts[5]=='points':
+                    return self._json(201,self.server.breadcrumb_store.append(ident,body))
+                if parts[5]=='stop':
+                    if body:
+                        raise ValueError('Stop requires an empty object')
+                    return self._json(200,{'stopped':self.server.breadcrumb_store.stop(ident)})
+                return self._error(404,'Unknown track action')
             if path == '/api/emergency/backup/create':
                 if set(body)!={'passphrase'}:
                     raise ValueError('Backup requires passphrase only')
@@ -1286,6 +1324,11 @@ class Handler(BaseHTTPRequestHandler):
             if not segment.isascii() or not segment.isdecimal() or len(segment) > 10:
                 return self._error(400, 'Invalid destination ID')
             return self._json(200, {'deleted': self.repo.delete_destination(int(segment))})
+        if path.startswith('/api/navigation/breadcrumbs/') and path.count('/')==4:
+            ident=path.rsplit('/',1)[-1]
+            if not ident.isascii() or not ident.isdecimal() or len(ident)>10:
+                return self._error(400,'Invalid track ID')
+            return self._json(200,{'deleted':self.server.breadcrumb_store.delete(int(ident))})
         if path.startswith('/api/survey/waypoints/') and path.count('/') == 4:
             segment = path.rsplit('/', 1)[1]
             if not segment.isascii() or not segment.isdecimal() or len(segment) > 10:
@@ -1310,6 +1353,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
         raise
     server.repository = repository
     server.emergency_store = EmergencyStore(repository.path)
+    server.breadcrumb_store = BreadcrumbStore(repository.path)
     server.map_directory = repository.path.parent / 'maps'
     server.map_lock = threading.Lock()
     server.map_asset_directory = repository.path.parent / 'assets'
