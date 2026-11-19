@@ -79,11 +79,20 @@ class ApiTests(unittest.TestCase):
             ['features'][0]['geometry']['coordinates'],[[-120.5678,38.1234]])
         code,gpx=self.call('GET',f'/api/navigation/breadcrumbs/{ident}/gpx')
         self.assertEqual(code,200)
-        self.assertIn(b'Browser geolocation history',gpx)
+        self.assertIn(b'Walking browser geolocation history',gpx)
         self.assertEqual(self.call('POST',f'/api/navigation/breadcrumbs/{ident}/stop',{})[1]['stopped'],True)
         self.assertEqual(self.call('POST',f'/api/navigation/breadcrumbs/{ident}/points',test_fix)[0],400)
         self.assertTrue(self.call('DELETE',f'/api/navigation/breadcrumbs/{ident}')[1]['deleted'])
         self.assertEqual(self.call('GET',f'/api/navigation/breadcrumbs/{ident}')[0],404)
+        self.assertEqual(self.call('POST','/api/navigation/breadcrumbs',{'label':'Bad','travel_mode':'cycle'})[0],400)
+        self.assertEqual(self.call('POST','/api/navigation/breadcrumbs',{'label':'Bad','travel_mode':None})[0],400)
+        code,drive=self.call('POST','/api/navigation/breadcrumbs',{'label':'Test drive','travel_mode':'auto'})
+        self.assertEqual(code,201)
+        drive_id=drive['session']['id']
+        self.assertEqual(drive['session']['travel_mode'],'auto')
+        self.assertEqual(self.call('GET',f'/api/navigation/breadcrumbs/{drive_id}')[1]['session']['travel_mode'],'auto')
+        self.assertIn(b'Driving browser geolocation history',self.call('GET',f'/api/navigation/breadcrumbs/{drive_id}/gpx')[1])
+        self.assertEqual(self.call('POST',f'/api/navigation/breadcrumbs/{drive_id}/stop',{})[0],200)
 
     def test_walking_route_api_never_claims_driving_or_camera_comparison(self):
         sample={'type':'ROAD_ROUTE','is_driving_route':False,'travel_mode':'pedestrian',
@@ -433,7 +442,7 @@ class ApiTests(unittest.TestCase):
     def test_health_static_hardware_and_exports(self):
         s,data=self.call('GET','/api/health')
         self.assertEqual(s,200)
-        self.assertEqual(data['version'],'0.2.138')
+        self.assertEqual(data['version'],'0.2.139')
         for path in ('/','/static/app.css','/static/app.js','/static/history-analysis.js','/static/route_guidance.js','/static/spectrum.js','/static/spectrum-analysis.js','/static/sdr-history.js','/api/export.csv','/api/export.geojson'):
             status,_=self.call('GET',path)
             self.assertEqual(status,200,path)

@@ -11,7 +11,7 @@ assert(html.includes('id="map-breadcrumbs-panel"'));
 assert(html.includes('data-page="emergency" aria-label="Open Emergency readiness"'));
 assert(html.indexOf('id="header-emergency-shortcut"') < html.indexOf('id="header-messages-menu"'));
 assert(css.includes('body.map-workspace .topbar .header-emergency-shortcut{pointer-events:auto'));
-assert(app.includes("'map-breadcrumbs-panel','survey-waypoint-manager'"));
+assert(app.includes("'map-breadcrumbs-panel','offline-trail-library'"));
 assert(script.includes("document.addEventListener('visibilitychange'"));
 assert(script.includes('maximumAge:0'));
 assert(script.includes('document.hidden'));
@@ -44,8 +44,8 @@ async function fetch(url,opts={}){
   if(url==='/api/navigation/breadcrumbs'&&method==='GET') data={sessions:sessions.map(s=>({
     ...s,point_count:points.filter(p=>p.session_id===s.id).length}))};
   else if(url==='/api/navigation/breadcrumbs'&&method==='POST'){
-    const label=JSON.parse(opts.body).label;
-    const track={id:++lastId,label,state:'RECORDING',started_utc:now()};
+    const {label,travel_mode}=JSON.parse(opts.body);
+    const track={id:++lastId,label,travel_mode,state:'RECORDING',started_utc:now()};
     sessions.push(track);data={session:{...track,point_count:0}};status=201;
   } else if (parts.length===6&&parts[5]==='points'&&method==='POST') {
     const pos=JSON.parse(opts.body);points.push({...pos,session_id:id});data={saved:true,point_count:points.length};status=201;

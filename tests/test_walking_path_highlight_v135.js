@@ -44,4 +44,4 @@ assert.equal(note.hidden,true,'Drive hides path explanation');
 assert.deepEqual(visibility.slice(-2).map(v=>v.value),['none','none']);
 assert(js.includes("state.map.on('style.load', () => {\n      updateOfflineAttribution();\n      state.mapReady=true;\n      syncWalkingPathOverlay();"),
   'layers reappear after vector style reload');
-console.log('PASS v0.2.138 OSM mapped footpath highlights are mode-specific and reversible');
+console.log('PASS v0.2.139 OSM mapped footpath highlights are mode-specific and reversible');

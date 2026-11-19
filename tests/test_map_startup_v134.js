@@ -14,4 +14,4 @@ assert(js.includes('if(node)directionsResizeObserver.observe(node);'),
 assert(!/\.observe\(\$\('map-directions-actions'\)\)/.test(js),
   'never pass potentially null lookup to ResizeObserver.observe');
 assert(js.includes('showPage(rememberedPage());'), 'initial page selection preserved');
-console.log('PASS v0.2.138 map startup contract and guarded resize observer');
+console.log('PASS v0.2.139 map startup contract and guarded resize observer');

@@ -16,7 +16,7 @@ assert(html.indexOf('id="emergency-checkin-draft"')<html.indexOf('id="emergency-
 assert(html.indexOf('id="emergency-checkin-location"')<html.indexOf('id="emergency-checkin-locate"'));
 assert(css.includes('#page-emergency #emergency-handoff-form>.emergency-outbox-actions{display:flex;justify-content:flex-start'));
 assert(css.includes('#page-emergency #emergency-handoff-form>#emergency-handoff-bytes'));
-assert(app.includes("ids: ['offline-trail-library','map-breadcrumbs-panel'"));
+assert(app.includes("ids: ['map-breadcrumbs-panel','offline-trail-library'"));
 assert(!html.includes('id="inbox-nav-item"'),'Do not ship half-unified inbox');
 assert(!html.includes('data-page="inbox"'),'Unified messaging must wait for one inbox, outbox and reply flow');
 

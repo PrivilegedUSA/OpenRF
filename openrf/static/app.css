@@ -2133,7 +2133,7 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
 #page-radio .radio-setup-panel{margin-top:18px}
 
 /* Use exactly the same outlined warning-triangle SVG as the header shortcut. */
-.sidebar .nav-btn[data-page="emergency"] .nav-icon svg{display:block;width:20px;height:20px;color:#ffca70}
+.sidebar .nav-btn[data-page="emergency"] .nav-icon svg{display:block;width:20px;height:20px;color:inherit}
 
 /* A manual pedestrian recovery action only appears after fresh, accurate
    off-path GPS. It never launches a request in the background. */
@@ -2141,6 +2141,41 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
   padding:9px 12px;font-size:12px;color:#c7fff1;border-color:#4aa79a}
 #page-map #map-walking-replan[hidden]{display:none!important}
 #page-map #map-walking-replan:disabled{opacity:.6;cursor:wait}
+
+/* v0.2.139 — use a single full-width Analysis column at every viewport. */
+#page-scanner > .two-columns{grid-template-columns:minmax(0,1fr);gap:16px}
+
+/* v0.2.139 — navigation follow accidentally masked the map workspaces and
+   lower-right gear. They are still independent, user-operated controls. Keep
+   the destination and route-review sheets hidden while following, but leave
+   the rail, map tools and settings usable in both travel modes. */
+#page-map.navigation-walking .map-tool-rail,
+#page-map.navigation-driving .map-tool-rail{display:grid!important}
+#page-map.navigation-walking .map-navigation-settings,
+#page-map.navigation-driving .map-navigation-settings{display:block!important}
+#page-map.navigation-walking .map-tool-overlay:not([hidden]),
+#page-map.navigation-driving .map-tool-overlay:not([hidden]){display:flex!important}
+#page-map.navigation-walking .map-picked-action:not([hidden]),
+#page-map.navigation-driving .map-picked-action:not([hidden]){display:block!important}
+/* Breathing room within the native control stack: compass, then recenter;
+   the JS-aligned four-button workspace rail begins 12px below recenter. */
+#page-map #map .maplibregl-ctrl-top-right .openrf-recenter-control{margin-top:7px!important}
+#page-map .raster-control .raster-recenter{margin-top:7px}
+
+/* Walking recording is a separate, opt-in local location-history operation. */
+#page-map .map-nav-record{margin:8px 0 6px;padding:8px 9px;background:#102f36;
+  border:1px solid #366967;border-radius:8px}
+#page-map .map-nav-record[hidden]{display:none!important}
+#page-map .map-nav-record-header{font-weight:700;font-size:11px;color:#aef3e3}
+#page-map .map-nav-record .map-nav-record-actions{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+#page-map .map-nav-record-actions .btn{flex:1 1 auto;min-height:39px;white-space:normal;font-size:11px}
+#page-map .map-nav-record-actions .btn[hidden]{display:none!important}
+#page-map #map-nav-record-status{display:block;font-size:10px;line-height:1.4;color:#c4d9d9}
+#page-map .map-nav-record .btn:disabled{opacity:.6;cursor:wait}
+.breadcrumb-howto{padding:9px 11px;background:#12323a;border:1px solid #35656b;border-radius:8px}
+.breadcrumb-howto strong{font-size:12px;color:#c8fff0}
+.breadcrumb-howto ol{margin:7px 0 0;padding-left:19px;display:grid;gap:6px}
+.breadcrumb-howto li{font-size:12px;line-height:1.45;color:#c0d8dd}
 
 /* v0.2.113 — Start navigation stays visible even when an alternate's tradeoff
    wraps onto several lines on a small 800×480 field touchscreen. */

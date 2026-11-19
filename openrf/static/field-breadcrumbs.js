@@ -1,4 +1,4 @@
-/* OpenRF 0.2.131 — opt-in browser walking tracks, never automatic GPS collection. */
+/* OpenRF 0.2.139 — opt-in browser walking/driving tracks; never automatic GPS collection. */
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
@@ -6,13 +6,21 @@
   const el = $('map-breadcrumbs-panel');
   if (!el) return;
   let sessions = [], recordingId = null, watchId = null, busy = false;
+  let recordingMode = null;
   let uploadBusy = false, selectedId = null, selectedGeometry = null, reversing = false;
   let currentMap = null;
   const empty = {type:'FeatureCollection',features:[]};
-  const status = message => { $('breadcrumb-status').textContent = message; };
+  let latestStatus='No position watch running.';
+  const status = message => {latestStatus=message;$('breadcrumb-status').textContent = message;};
   const escapeHTML = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const meters = value => value < 1000 ? `${Math.round(value)} m` : `${(value/1000).toFixed(2)} km`;
   const dateString = value => { try { return new Date(value).toLocaleString(); } catch { return value; } };
+  const modeName = mode => mode === 'auto' ? 'Driving' : 'Walking';
+  const snapshot = () => ({recording:recordingId !== null,busy,mode:recordingMode,message:latestStatus});
+  function publishState() {
+    if(typeof window.dispatchEvent === 'function' && typeof CustomEvent === 'function')
+      window.dispatchEvent(new CustomEvent('openrf:breadcrumbs-state',{detail:snapshot()}));
+  }
 
   async function api(url, method = 'GET', body) {
     const response = await fetch(url, {method, cache:'no-store',
@@ -48,7 +56,9 @@
     $('breadcrumb-start').disabled = busy || Boolean(active) || recordingId !== null;
     $('breadcrumb-stop').disabled = busy || (!active && recordingId === null);
     $('breadcrumb-label').disabled = busy || recordingId !== null;
+    if($('breadcrumb-mode'))$('breadcrumb-mode').disabled = busy || recordingId !== null;
     $('breadcrumb-clear-map').disabled = selectedId === null;
+    publishState();
   }
 
   function renderList() {
@@ -62,11 +72,12 @@
       const selected = selectedId === track.id;
       return `<article class="breadcrumb-track"><div class="breadcrumb-track-head">
           <div class="breadcrumb-track-title"><strong>${escapeHTML(track.label)}</strong>
-          <small>${escapeHTML(dateString(track.started_utc))} · ${track.point_count} recorded point${track.point_count===1?'':'s'} · BROWSER LOCATION</small></div>
+          <small>${modeName(track.travel_mode)} · ${escapeHTML(dateString(track.started_utc))} · ${track.point_count} recorded point${track.point_count===1?'':'s'} · BROWSER LOCATION</small></div>
           <span class="breadcrumb-track-state">${escapeHTML(track.state)}</span></div>
           <div class="breadcrumb-track-actions" data-breadcrumb-id="${track.id}">
           <button type="button" class="btn outline" data-track="view" ${track.point_count ? '' : 'disabled'}>${selected&&!reversing?'Showing':'View trail'}</button>
-          <button type="button" class="btn outline" data-track="backtrack" ${track.point_count>1?'':'disabled'}>${selected&&reversing?'Backtrack shown':'Backtrack preview'}</button>
+          <button type="button" class="btn outline" data-track="backtrack" ${track.point_count>1?'':'disabled'}>${selected&&reversing?'Reverse preview shown':'Reverse track preview'}</button>
+          <button type="button" class="btn outline" data-track="return" ${track.point_count && !isRecording?'':'disabled'}>Route to recorded start</button>
           <button type="button" class="btn ghost" data-track="geojson" ${track.point_count?'':'disabled'}>GeoJSON</button>
           <button type="button" class="btn ghost" data-track="gpx" ${track.point_count?'':'disabled'}>GPX</button>
           ${isRecording ? '<button type="button" class="btn danger-outline" data-track="stop">Stop</button>':
@@ -98,6 +109,7 @@
     try {
       await api(`${endpoint}/${id}/stop`, 'POST', {});
       recordingId = null;
+      recordingMode = null;
       $('breadcrumb-current').hidden = true;
       status(`Stopped track #${id}. Location watch is off. Trail saved locally.`);
       await refreshTracks();
@@ -127,9 +139,12 @@
     finally { uploadBusy = false; }
   }
 
-  async function startRecording() {
+  async function startRecording(modeArg,guard=()=>true) {
     if (busy || recordingId !== null) return;
     if (!navigator.geolocation) { status('Browser geolocation is unavailable. No track created.'); return; }
+    const mode = typeof modeArg === 'string' ? modeArg : ($('breadcrumb-mode')?.value || 'pedestrian');
+    if(!['pedestrian','auto'].includes(mode)){status('Choose Walking or Driving before recording.');return;}
+    if($('breadcrumb-mode'))$('breadcrumb-mode').value=mode;
     const label = $('breadcrumb-label').value.trim();
     if (!label || label.length > 80) { status('Enter a track name (1–80 characters).'); return; }
     busy = true; updateButtons();
@@ -138,15 +153,20 @@
       const firstFix = await new Promise((resolve,reject) => navigator.geolocation.getCurrentPosition(resolve,reject,
         {enableHighAccuracy:true,maximumAge:0,timeout:16000}));
       const first = validPosition(firstFix);
-      if (document.hidden) throw Error('Browser tab is hidden; recording canceled');
-      const started = await api(endpoint,'POST',{label});
+      if (document.hidden || !guard()) throw Error('Recording canceled; navigation stopped or tab hidden');
+      const started = await api(endpoint,'POST',{label,travel_mode:mode});
       const id = started.session.id;
-      try { await api(`${endpoint}/${id}/points`,'POST',first); }
+      try {
+        if (!guard() || document.hidden) throw Error('Recording canceled while opening track');
+        await api(`${endpoint}/${id}/points`,'POST',first);
+        if (!guard() || document.hidden) throw Error('Recording canceled before position watch');
+      }
       catch(error) {
         await api(`${endpoint}/${id}/stop`,'POST',{}).catch(() => {});
         throw error;
       }
       recordingId = id;
+      recordingMode = mode;
       selectedId = id; reversing = false;
       $('breadcrumb-current').hidden = false;
       $('breadcrumb-current').textContent = `Recording track #${id} · 1 stored fix · browser accuracy ±${Math.round(first.accuracy_m)} m`;
@@ -155,7 +175,7 @@
         status('Tab became hidden; newly created track was stopped after its first fix.');
         return;
       }
-      status(`Recording started with a fresh browser location. Keep this tab visible. Stop recording to finish.`);
+      status(`${modeName(mode)} recording started with a fresh browser location. Keep this tab visible. Stop recording to finish.`);
       try {
         watchId = navigator.geolocation.watchPosition(receivePosition, error => {
           status(`Location watch: ${errorMessage(error)}. No inaccurate point saved.`);
@@ -228,8 +248,8 @@
       map.flyTo({center:[data.points[0].longitude,data.points[0].latitude],zoom:14});
     }
     if (fit) status(reverse ?
-      `Backtrack visual preview: orange = last recorded point, green = original start. ${meters(data.distance_m)} recorded. This is NOT safe trail guidance.` :
-      `Showing browser-recorded trail #${id} · ${meters(data.distance_m)}; orange = start, green = last fix. Not a verified trail.`);
+      `Reverse track preview: orange = last recorded point, green = original start. ${meters(data.distance_m)} recorded. Historical points only—not safe guidance.` :
+      `Showing ${modeName(data.session.travel_mode).toLowerCase()} track #${id} · ${meters(data.distance_m)}; orange = start, green = last fix. Not a verified route.`);
   }
 
   function clearMap() {
@@ -237,11 +257,11 @@
     const map=window.OpenRFMapReadOnly?.();
     if (map?.getSource?.('openrf-breadcrumb-data')) map.getSource('openrf-breadcrumb-data').setData(empty);
     renderList();
-    status('Saved trail remains private. Removed its preview from the map; no GPS watch changed.');
+    status('Saved track remains private. Removed its preview from the map; no GPS watch changed.');
   }
 
   async function geojsonDownload(id) {
-    if (!confirm('Download a GeoJSON file containing precise location history? Anyone with the file may see where you walked.')) return;
+    if (!confirm('Download a GeoJSON file containing precise location history? Anyone with the file may see where you traveled.')) return;
     const data=await api(`${endpoint}/${id}/geojson`);
     const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/geo+json'}));
     const link=document.createElement('a');link.href=url;link.download=`openrf-breadcrumb-${id}.geojson`;
@@ -257,8 +277,17 @@
     button.disabled=true;
     try {
       if (action==='view'||action==='backtrack') await showTrack(id,action==='backtrack');
+      if (action==='return') {
+        const data=await api(`${endpoint}/${id}`);
+        if (data.session?.state==='RECORDING' || !data.points?.length) throw Error('Stop recording and save at least one point before routing homeward');
+        if(typeof window.OpenRFPlanReturnToStart!=='function') throw Error('Map router not ready');
+        const start=data.points[0];
+        status('Requesting a NEW local route from a fresh current location to the recorded start. This might not retrace your exact historical path…');
+        const result=await window.OpenRFPlanReturnToStart([start.longitude,start.latitude],data.session.travel_mode||'pedestrian');
+        status(result);
+      }
       if (action==='stop') await stopRecording(id);
-      if (action==='delete' && confirm('Permanently delete this private walking track and all its precise location points?')) {
+      if (action==='delete' && confirm('Permanently delete this private track and all its precise location points?')) {
         const deleted=await api(`${endpoint}/${id}`,'DELETE');
         if (!deleted.deleted) throw Error('Track cannot be deleted while still recording');
         if (selectedId===id) clearMap();
@@ -273,7 +302,8 @@
     finally { button.disabled=false; }
   }
 
-  $('breadcrumb-start').addEventListener('click',startRecording);
+  window.OpenRFBreadcrumbs = Object.freeze({start:(mode,guard)=>startRecording(mode,guard||(()=>true)),stop:()=>stopRecording(),snapshot});
+  $('breadcrumb-start').addEventListener('click',()=>startRecording());
   $('breadcrumb-stop').addEventListener('click',()=>void stopRecording());
   $('breadcrumb-refresh').addEventListener('click',()=>refreshTracks().catch(error=>status(`Could not load tracks: ${errorMessage(error)}`)));
   $('breadcrumb-clear-map').addEventListener('click',clearMap);

@@ -1,4 +1,4 @@
-"""Opt-in, local-only browser-position breadcrumbs; never inferred trails or navigation."""
+"""Opt-in private walking/driving browser-position tracks; never inferred safe routes."""
 from __future__ import annotations
 
 import math
@@ -32,7 +32,13 @@ class BreadcrumbStore:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 label TEXT NOT NULL, state TEXT NOT NULL,
                 started_utc TEXT NOT NULL, stopped_utc TEXT,
-                source_device TEXT NOT NULL DEFAULT 'BROWSER_GEOLOCATION')''')
+                source_device TEXT NOT NULL DEFAULT 'BROWSER_GEOLOCATION',
+                travel_mode TEXT NOT NULL DEFAULT 'pedestrian')''')
+            # Preserve existing v0.2.131 walking tracks on upgrades. Old rows
+            # default to pedestrian; no location points are copied or rewritten.
+            cols={row['name'] for row in db.execute('PRAGMA table_info(breadcrumb_sessions)')}
+            if 'travel_mode' not in cols:
+                db.execute("ALTER TABLE breadcrumb_sessions ADD COLUMN travel_mode TEXT NOT NULL DEFAULT 'pedestrian'")
             db.execute('''CREATE TABLE IF NOT EXISTS breadcrumb_points (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 session_id INTEGER NOT NULL, received_utc TEXT NOT NULL,
@@ -54,18 +60,21 @@ class BreadcrumbStore:
                 FROM breadcrumb_sessions s LEFT JOIN breadcrumb_points p ON p.session_id=s.id
                 GROUP BY s.id ORDER BY s.id DESC LIMIT 100''')]
 
-    def start(self,label):
+    def start(self,label,travel_mode='pedestrian'):
         if not isinstance(label,str) or not 1<=len(label.strip())<=80:
             raise ValueError('Track name must be 1–80 characters')
+        if travel_mode not in ('pedestrian','auto') or type(travel_mode) is not str:
+            raise ValueError('Track mode must be pedestrian or auto')
         stamp=_utc()
         with self.lock,self._connect() as db:
             if db.execute("SELECT 1 FROM breadcrumb_sessions WHERE state='RECORDING' LIMIT 1").fetchone():
                 raise ValueError('A breadcrumb recording session is already active')
             if db.execute('SELECT COUNT(*) FROM breadcrumb_sessions').fetchone()[0]>=MAX_SESSIONS:
                 raise ValueError('Track limit reached; export and delete an old track before recording')
-            cursor=db.execute('INSERT INTO breadcrumb_sessions(label,state,started_utc) VALUES (?,?,?)',
-                              (label.strip(),'RECORDING',stamp))
-            return {'id':cursor.lastrowid,'label':label.strip(),'state':'RECORDING','started_utc':stamp,'point_count':0}
+            cursor=db.execute('INSERT INTO breadcrumb_sessions(label,state,started_utc,travel_mode) VALUES (?,?,?,?)',
+                              (label.strip(),'RECORDING',stamp,travel_mode))
+            return {'id':cursor.lastrowid,'label':label.strip(),'state':'RECORDING','started_utc':stamp,
+                    'point_count':0,'travel_mode':travel_mode}
 
     def append(self,ident,payload):
         if type(ident) is not int or ident<=0 or not isinstance(payload,dict) or set(payload)!={
@@ -135,13 +144,14 @@ class BreadcrumbStore:
                    for a,b in zip(points,points[1:]))
         return {'session':dict(session),'points':points,'distance_m':round(length),
                 'point_count':len(points),'source':'BROWSER_REPORTED_UNVERIFIED',
-                'warning':'Historical reported positions only. Path is not a surveyed, safe or navigable trail.'}
+                'warning':'Historical reported positions only. Track is not a verified safe or navigable route.'}
 
     def geojson(self,ident):
         data=self.geometry(ident)
         return {'type':'FeatureCollection','features':[{'type':'Feature',
             'geometry':{'type':'LineString','coordinates':[[p['longitude'],p['latitude']] for p in data['points']]},
             'properties':{'label':data['session']['label'],'state':data['session']['state'],
+                'travel_mode':data['session']['travel_mode'],
                 'source':'BROWSER_REPORTED_UNVERIFIED','point_count':data['point_count'],
                 'distance_m':data['distance_m'],'warning':data['warning']}}]}
 
@@ -149,6 +159,7 @@ class BreadcrumbStore:
         """Interoperable, explicitly exported GPX with browser-position provenance."""
         data=self.geometry(ident)
         label=escape(data['session']['label'])
+        mode='Driving' if data['session']['travel_mode']=='auto' else 'Walking'
         # Do not present browser-reported accuracy as genuine GNSS DOP.
         points=''.join(
             f'<trkpt lat="{p["latitude"]:.8f}" lon="{p["longitude"]:.8f}">'
@@ -160,5 +171,5 @@ class BreadcrumbStore:
                 f'<gpx version="1.1" creator="OpenRF" '
                 f'xmlns="http://www.topografix.com/GPX/1/1" xmlns:openrf="urn:openrf:breadcrumb:1">'
                 f'<metadata><desc>Browser-reported unverified locations; not a surveyed safe trail.</desc></metadata>'
-                f'<trk><name>{label}</name><type>Browser geolocation history</type>'
+                f'<trk><name>{label}</name><type>{mode} browser geolocation history</type>'
                 f'<trkseg>{points}</trkseg></trk></gpx>')

@@ -27,6 +27,40 @@ class BreadcrumbTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_driving_tracks_and_mode_validation(self):
+        with self.assertRaisesRegex(ValueError,'mode'):
+            self.store.start('Bad mode','cycle')
+        with self.assertRaisesRegex(ValueError,'mode'):
+            self.store.start('Bad mode',None)
+        drive=self.store.start('Evening drive','auto')
+        self.assertEqual(drive['travel_mode'],'auto')
+        self.store.append(drive['id'],fix())
+        self.assertEqual(self.store.sessions()[0]['travel_mode'],'auto')
+        self.assertEqual(self.store.geometry(drive['id'])['session']['travel_mode'],'auto')
+        self.assertEqual(self.store.geojson(drive['id'])['features'][0]['properties']['travel_mode'],'auto')
+        self.assertIn('Driving browser geolocation history',self.store.gpx(drive['id']))
+        self.assertTrue(self.store.stop(drive['id']))
+
+    def test_existing_walking_database_adds_mode_without_losing_points(self):
+        self.database.unlink()
+        with sqlite3.connect(self.database) as conn:
+            conn.execute('''CREATE TABLE breadcrumb_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,label TEXT NOT NULL,state TEXT NOT NULL,
+                started_utc TEXT NOT NULL,stopped_utc TEXT,
+                source_device TEXT NOT NULL DEFAULT 'BROWSER_GEOLOCATION')''')
+            conn.execute('''INSERT INTO breadcrumb_sessions(label,state,started_utc)
+                            VALUES ('Old walk','STOPPED','2026-01-01T00:00:00+00:00')''')
+            conn.execute('''CREATE TABLE breadcrumb_points (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,session_id INTEGER NOT NULL,received_utc TEXT NOT NULL,
+                observed_utc TEXT NOT NULL,latitude REAL NOT NULL,longitude REAL NOT NULL,
+                accuracy_m REAL NOT NULL,fix_age_seconds REAL NOT NULL)''')
+            conn.execute('''INSERT INTO breadcrumb_points(session_id,received_utc,observed_utc,
+                latitude,longitude,accuracy_m,fix_age_seconds) VALUES
+                (1,'2026-01-01T00:00:00+00:00','2026-01-01T00:00:00+00:00',38.1,-120.5,5,1)''')
+        reloaded=BreadcrumbStore(self.database)
+        self.assertEqual(reloaded.sessions()[0]['travel_mode'],'pedestrian')
+        self.assertEqual(reloaded.geometry(1)['point_count'],1)
+
     def test_start_stop_delete_is_explicit_and_persistent(self):
         self.assertEqual(self.store.sessions(),[])
         session=self.store.start('Evening walk')

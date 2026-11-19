@@ -1,5 +1,12 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.139 — Private walk/drive tracks and map controls
+
+- The map's right-hand four-button rail and lower-right settings gear remain visible during GPS walking and driving follow, including at the planned **1280×800 seven-inch** landscape size. Compass/recenter/tool spacing is more consistent. Emergency's sidebar icon matches other sidebar icons; Analysis cards stack full-width.
+- Under **Map → right-side GPS pin → Walking & driving tracks / backtrack**, choose a travel mode, name the trip, and manually **Start recording**. Stop to save; tab hiding stops the browser-only GPS watch. If following a Valhalla route, a separate optional **Record this walk/drive** button appears on the guidance panel.
+- For a saved track, **Reverse track preview** draws the recorded points in reverse. **Route to recorded start** requests a fresh browser location and a *new* local Valhalla route for the saved travel mode. It may use different roads or paths, and requires explicit Start navigation afterward; no historic line is assumed drivable or walkable. GPS data remain local unless intentionally exported.
+- See [v0.2.139 verification and installation notes](docs/RELEASE_0.2.139_TESTS.md). Background/locked-screen recording, precise hardware-GNSS logging, exact reverse-track turn guidance and live outdoor route safety remain unsupported.
+
 ## v0.2.138 — Walking recovery and UI refinements
 
 - The Destination selected map popup places **Walking directions** above a side-by-side **Change start / Change destination** row. Radio Receiver cards have separation, the Spectrum sidebar label is now **Signal Viewer**, and Emergency uses the header warning triangle.

@@ -780,9 +780,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(201,{'trail':self.server.trail_store.import_gpx(body),
                     'note':'Sanitized user-supplied GPX coordinates stored separately and locally. Not a safe route.'})
             if path == '/api/navigation/breadcrumbs':
-                if set(body)!={'label'}:
-                    raise ValueError('Track start requires a label only')
-                return self._json(201,{'session':self.server.breadcrumb_store.start(body['label']),
+                if set(body) not in ({'label'},{'label','travel_mode'}):
+                    raise ValueError('Track start requires label and optional travel_mode only')
+                return self._json(201,{'session':self.server.breadcrumb_store.start(body['label'],body.get('travel_mode','pedestrian')),
                     'recording':'BROWSER_GEOLOCATION_ONLY','automatic_start':False})
             if path.startswith('/api/navigation/breadcrumbs/'):
                 parts=path.split('/')

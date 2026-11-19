@@ -26,4 +26,4 @@ assert(css.includes('body.map-workspace .topbar{position:fixed'),
 assert(app.includes('const wasNavigationOpen=navigationOpen;') &&
   app.includes("document.querySelector(`#page-${page} .section-heading h2`)"),
   'Keyboard drawer navigation focuses visible page title, not hidden topbar title');
-console.log('PASS v0.2.138 single title on all pages and uncluttered non-map clock alignment');
+console.log('PASS v0.2.139 single title on all pages and uncluttered non-map clock alignment');

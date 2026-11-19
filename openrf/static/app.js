@@ -258,7 +258,7 @@ setMapSearchCollapsed(true);
 const mapToolGroups = {
   trip: {title: 'Plan a trip', ids: ['map-trip-planner']},
   settings: {title: 'Map settings', ids: ['map-control-settings']},
-  gps: {title: 'GPS and walking trails', ids: ['offline-trail-library','map-breadcrumbs-panel','survey-waypoint-manager','sdr-site-map-manager']},
+  gps: {title: 'GPS and walking trails', ids: ['map-breadcrumbs-panel','offline-trail-library','survey-waypoint-manager','sdr-site-map-manager']},
   offline: {title: 'Offline maps', ids: ['offline-basemap-settings','map-area-manager']}
 };
 // v0.2.108: Offline navigation readiness belongs in the bottom-right gear,
@@ -1383,7 +1383,9 @@ function alignMapToolRail() {
   const bounds = wrap.getBoundingClientRect();
   const button = recenter.getBoundingClientRect();
   if (!bounds.width || !bounds.height || !button.width || !button.height) return;
-  const top = Math.round(button.bottom - bounds.top + 8);
+  // A short visual break between the native map controls and the four tool
+  // workspaces, tuned for the 1280×800 seven-inch field layout.
+  const top = Math.round(button.bottom - bounds.top + 12);
   rail.style.top = `${top}px`;
   rail.style.right = `${Math.max(8, Math.round(bounds.right - button.right))}px`;
   // The bottom-right add/layers buttons remain accessible, even on 5-inch
@@ -3299,6 +3301,35 @@ async function planRoadRoute(points,{preserveCurrentOnFailure=false,travelMode='
       `Road routing unavailable: ${err.message} Direct-line reference only — do not drive along this line.`};
   }
 }
+// Explicit return-to-start planning from a saved, historical browser track.
+// This asks Valhalla for a NEW route; it does not infer traversability from
+// the breadcrumb line or silently start GPS follow/recording.
+if(typeof window!=='undefined')window.OpenRFPlanReturnToStart=async function(startCoordinates,travelMode){
+  const mode=travelMode==='auto'?'auto':travelMode==='pedestrian'?'pedestrian':null;
+  if(!mode || !Array.isArray(startCoordinates) || startCoordinates.length!==2 ||
+    !Number.isFinite(startCoordinates[0]) || !Number.isFinite(startCoordinates[1]) ||
+    Math.abs(startCoordinates[0])>180 || Math.abs(startCoordinates[1])>90)
+    throw Error('Invalid recorded start or travel mode');
+  if(!navigator.geolocation?.getCurrentPosition)
+    throw Error('A fresh browser GPS fix is required; it is unavailable on this device');
+  const epoch=state.navDestinationEpoch||0;
+  const pos=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,
+    {enableHighAccuracy:true,maximumAge:0,timeout:16000}));
+  const {latitude,longitude,accuracy}=pos.coords||{};
+  const age=(Date.now()-pos.timestamp)/1000;
+  if(![latitude,longitude,accuracy,age].every(Number.isFinite) || Math.abs(latitude)>90 ||
+    Math.abs(longitude)>180 || accuracy<0 || accuracy>100 || age< -5 || age>15)
+    throw Error('A fresh, sufficiently accurate GPS fix (within 15s and ±100m) is needed to route to start');
+  if(epoch!==(state.navDestinationEpoch||0))throw Error('Destination changed while getting your current GPS fix; please retry');
+  setMapTravelMode(mode);
+  const result=await planRoadRoute([[longitude,latitude],startCoordinates],{travelMode:mode});
+  if(result.cancelled)throw Error('Destination changed during routing; please retry');
+  if(!result.road)throw Error(`${result.text} No navigable return route was found.`);
+  closeMapToolOverlay();
+  const message=`NEW ${mode==='auto'?'driving':'walking'} route to your recorded start. It may differ from your recorded track. ${mode==='auto'?'Tap Start navigation':'Tap Start walking navigation'} to follow actual GPS when ready; check current access and conditions.`;
+  setMapDestinationStatus(message);
+  return message;
+};
 async function freshNavigationOrigin() {
   if (state.navOriginManual){
     const typed=$('nav-start-query').value.trim();
@@ -4232,8 +4263,51 @@ function renderNavigationLanes(turn,eligible){
 // v0.2.32: opt-in GPS follow view. A route plan is mandatory; this does not
 // guarantee live traffic, lane availability, or reliable GPS turn timing.
 // Watch positions are held only in memory and never uploaded/saved by OpenRF.
+function refreshNavigationTrackRecorder(){
+  const panel=$('map-nav-record-panel');
+  if(!panel)return;
+  const active=state.navFollowId!==null && (state.navFollowMode==='auto'||state.navFollowMode==='pedestrian');
+  panel.hidden=!active;
+  if(!active)return;
+  const api=window.OpenRFBreadcrumbs;
+  const track=api?.snapshot?.()||{recording:false,busy:false,mode:null};
+  if(!track.recording)state.navTrackLinked=false;
+  const mode=state.navFollowMode;
+  const start=$('map-nav-record-start'),stop=$('map-nav-record-stop'),info=$('map-nav-record-status');
+  start.textContent=mode==='auto'?'Record this drive':'Record this walk';
+  start.hidden=Boolean(track.recording);
+  start.disabled=track.busy || !api || Boolean(track.recording);
+  stop.hidden=!track.recording || !state.navTrackLinked;
+  stop.disabled=track.busy;
+  info.textContent=track.recording ?
+    (state.navTrackLinked ? `${mode==='auto'?'Driving':'Walking'} track recording on this device. Keep tab visible; Stop & save when finished.` :
+      'Separate GPS-tools recording is active. Stop it from GPS tools; navigating does not own that track.') :
+    (/(?:Recording not started|Browser geolocation is unavailable|Choose Walking|Enter a track name)/.test(track.message||'') ?
+      track.message : 'Optional private GPS history. Navigation alone never saves your movement. Tap Record to begin only with your permission.');
+}
+window.addEventListener('openrf:breadcrumbs-state',refreshNavigationTrackRecorder);
+$('map-nav-record-start')?.addEventListener('click',async()=>{
+  const mode=state.navFollowMode,epoch=state.navFollowEpoch;
+  if(state.navFollowId===null || !['auto','pedestrian'].includes(mode))return;
+  if(!window.OpenRFBreadcrumbs?.start)return;
+  if(!confirm('Start privately recording your precise browser GPS locations? Tracks stay on this device, stop when the tab is hidden, and may reveal your movements if exported.'))return;
+  const guard=()=>state.navFollowEpoch===epoch && state.navFollowId!==null && state.navFollowMode===mode;
+  await window.OpenRFBreadcrumbs.start(mode,guard);
+  if(guard() && window.OpenRFBreadcrumbs.snapshot().recording)state.navTrackLinked=true;
+  if(typeof refreshNavigationTrackRecorder==='function')refreshNavigationTrackRecorder();
+});
+$('map-nav-record-stop')?.addEventListener('click',async()=>{
+  if(!state.navTrackLinked)return;
+  await window.OpenRFBreadcrumbs?.stop?.();
+  state.navTrackLinked=false;
+  if(typeof refreshNavigationTrackRecorder==='function')refreshNavigationTrackRecorder();
+});
 function stopNavigationFollow(){
   const finishingActiveTrip=state.navFollowId!==null;
+  if(state.navTrackLinked){
+    state.navTrackLinked=false;
+    void window.OpenRFBreadcrumbs?.stop?.();
+  }
   resetNavigationVoice();renderNavigationLanes(null,false);
   state.navCameraAlertSeen?.clear?.();state.navCameraAlertVoiceSeen?.clear?.();state.navCameraAlertLastVoice=0;
   state.navCameraAlertLastQualifiedAt=0;
@@ -4263,6 +4337,7 @@ function stopNavigationFollow(){
   $('page-map').classList.remove('navigation-driving','navigation-walking');
   if(state.navRouteChoices && !state.navChoicePanelClosed)renderRouteChoices();
   $('map-follow-hud').hidden=true;
+  if(typeof refreshNavigationTrackRecorder==='function')refreshNavigationTrackRecorder();
   $('map-follow-hud').classList.remove('navigation-guiding');
   const walkingReplan=$('map-walking-replan');
   if(walkingReplan){walkingReplan.hidden=true;walkingReplan.disabled=false;}
@@ -4682,6 +4757,7 @@ function startWalkingNavigation(){
   $('map-follow-turns').open=false;
   // Shared in-memory GPS lifecycle and loopback gpsd polling, no server writes.
   state.navFollowId=-1;state.navGnssLast=0;
+  if(typeof refreshNavigationTrackRecorder==='function')refreshNavigationTrackRecorder();
   const epoch=state.navFollowEpoch;
   state.navGnssTimer=setInterval(pollLocalNavigationGnss,2500);
   pollLocalNavigationGnss();
@@ -4743,6 +4819,7 @@ $('map-begin-guidance').addEventListener('click',()=>{
   // Some browsers may invoke a mocked callback synchronously; set a sentinel
   // before the actual watch ID is assigned.
   state.navFollowId=-1;
+  if(typeof refreshNavigationTrackRecorder==='function')refreshNavigationTrackRecorder();
   state.navGnssLast=0;
   // Poll only after the user explicitly starts navigation. gpsd is optional.
   state.navGnssTimer=setInterval(pollLocalNavigationGnss,2500);
