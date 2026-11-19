@@ -1,5 +1,5 @@
 'use strict';
-/* v0.2.101: operator-triggered trip readiness check, no location or routing. */
+/* v0.2.135: operator-triggered trip readiness check, no location or routing. */
 (()=>{
   const el=id=>document.getElementById(id);
   if(!el('map-offline-readiness'))return;
@@ -7,7 +7,7 @@
   const create=(tag,css,text)=>{const node=document.createElement(tag);node.className=css;node.textContent=text;return node;};
   async function inspect(){
     if(busy)return;busy=true;el('map-offline-check').disabled=true;
-    el('map-offline-status').textContent='Checking localhost road router and offline map packages; no GPS or online request…';
+    el('map-offline-status').textContent='Checking local routing service, offline maps and GPX references; no GPS or internet request…';
     try{
       const response=await fetch('/api/navigation/offline-readiness',{cache:'no-store'});
       if(!response.ok)throw Error(`Local readiness request failed (${response.status})`);
@@ -27,7 +27,12 @@
         'Regional visual map and fonts are present (coverage is limited).':
         'Complete regional vector package/fonts not found.');
       row('Offline raster maps',`${Number.isSafeInteger(data.local_raster_package_count)&&data.local_raster_package_count>=0?data.local_raster_package_count:'Unknown'} local package(s). Visual tiles are separate from the road graph.`);
-      row('GPS / route coverage','No GPS fix or chosen road route tested. Start navigation separately with location consent and a real Valhalla route.');
+      row('Walking router',data.pedestrian_router_reachable?
+        'Local Valhalla responds, but a walkable path is NOT confirmed until a real pedestrian route succeeds.':
+        'Local Valhalla is unavailable; pedestrian directions cannot be confirmed.');
+      row('Imported GPX references',`${Number.isSafeInteger(data.imported_gpx_reference_count)&&data.imported_gpx_reference_count>=0?data.imported_gpx_reference_count:'Unknown'} locally stored path(s). These are map references, not a routable trail network.`);
+      row('Walking safety / follow','Pedestrian graph coverage, trail access, closures, and GPS accuracy are NOT checked. Walking GPS-follow is not yet implemented.');
+      row('Driving / GPS','No chosen driving route or GPS fix tested. Plan the actual route separately; location consent is required for GPS navigation.');
       el('map-offline-status').textContent=`Checked at ${data.observed_at_utc}. Internet was not contacted. ${data.routing_service_detail||''}`;
     }catch(error){
       el('map-offline-results').replaceChildren();

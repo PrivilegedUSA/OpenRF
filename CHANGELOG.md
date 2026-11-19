@@ -1,3 +1,10 @@
+## OpenRF v0.2.135 — Offline walking preflight transparency (2026-11-19)
+
+- Enhanced the opt-in local navigation preflight panel with separate driving and pedestrian-router status, locally imported GPX reference count, and explicit warnings that Valhalla reachability alone cannot establish pedestrian graph coverage.
+- Differentiated map tiles, GPX geometry, pedestrian graphs, real route checks and GPS-follow capability; imported GPX trails are not walkable network graphs or proof of access/safety, and walking GPS-follow remains unimplemented.
+- Uses only local read-only status and the existing private imported-trail store; no location access, internet calls, route initiation, background tracking, data migration or hardware control.
+- Added defensive validation and unit/API/UI regression checks. Existing driving routes and map-first screen layout are unchanged.
+
 ## OpenRF v0.2.134 — Restore full-screen Map and align legend on wide layouts (2026-11-19)
 
 - Fixed a v0.2.133 startup-stopping browser error: directions resize tracking called `ResizeObserver.observe()` on a missing `map-directions-actions` element. Added the missing ID and a safe element-presence guard. This prevented the usual initial Map activation, producing duplicated Survey map headings, a normal page header instead of the full-screen workspace, and an uninitialized blank map on supported browsers.

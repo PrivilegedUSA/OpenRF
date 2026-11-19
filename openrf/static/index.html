@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.134">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.135">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -21,21 +21,21 @@
   <script defer src="/static/route_guidance.js?v=0.2.76"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/app.js?v=0.2.134"></script>
-  <script defer src="/static/field-breadcrumbs.js?v=0.2.134"></script>
-  <script defer src="/static/offline-trails.js?v=0.2.134"></script>
-  <script defer src="/static/emergency.js?v=0.2.134"></script>
-  <script defer src="/static/emergency-library.js?v=0.2.134"></script>
-  <script defer src="/static/emergency-sos.js?v=0.2.134"></script>
-  <script defer src="/static/emergency-handoff.js?v=0.2.134"></script>
-  <script defer src="/static/emergency-teams.js?v=0.2.134"></script>
-  <script defer src="/static/emergency-checkins.js?v=0.2.134"></script>
-  <script defer src="/static/emergency-inbox.js?v=0.2.134"></script>
-  <script defer src="/static/emergency-protocol.js?v=0.2.134"></script>
-  <script defer src="/static/emergency-dashboard.js?v=0.2.134"></script>
-  <script defer src="/static/emergency-survival.js?v=0.2.134"></script>
-  <script defer src="/static/emergency-backup.js?v=0.2.134"></script>
-  <script defer src="/static/field-calendar.js?v=0.2.134"></script>
+  <script defer src="/static/app.js?v=0.2.135"></script>
+  <script defer src="/static/field-breadcrumbs.js?v=0.2.135"></script>
+  <script defer src="/static/offline-trails.js?v=0.2.135"></script>
+  <script defer src="/static/emergency.js?v=0.2.135"></script>
+  <script defer src="/static/emergency-library.js?v=0.2.135"></script>
+  <script defer src="/static/emergency-sos.js?v=0.2.135"></script>
+  <script defer src="/static/emergency-handoff.js?v=0.2.135"></script>
+  <script defer src="/static/emergency-teams.js?v=0.2.135"></script>
+  <script defer src="/static/emergency-checkins.js?v=0.2.135"></script>
+  <script defer src="/static/emergency-inbox.js?v=0.2.135"></script>
+  <script defer src="/static/emergency-protocol.js?v=0.2.135"></script>
+  <script defer src="/static/emergency-dashboard.js?v=0.2.135"></script>
+  <script defer src="/static/emergency-survival.js?v=0.2.135"></script>
+  <script defer src="/static/emergency-backup.js?v=0.2.135"></script>
+  <script defer src="/static/field-calendar.js?v=0.2.135"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
   <script defer src="/static/mesh.js?v=0.2.104"></script>
   <script defer src="/static/reticulum.js?v=0.2.104"></script>
@@ -50,7 +50,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.134</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.135</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -491,9 +491,9 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
         </details>
         <details class="map-area-manager map-control-settings" id="map-control-settings"><summary>Map settings <span class="small muted">(style, location and survey options)</span></summary><div class="button-line"><label class="switchline"><input id="show-demo-map" type="checkbox"> Show demo</label><button class="btn outline" id="map-geolocate">My browser location</button><button class="btn outline" id="map-style">OpenRF Light</button><button class="btn outline" id="map-vector-source">Use offline regional vectors</button><button class="btn outline" id="map-mode">Offline / raster</button></div><p id="map-vector-status" class="muted small" role="status" aria-live="polite">Checking regional OpenRF vector maps…</p><button type="button" class="btn outline" id="map-open-address-setup">Address search setup</button></details>
         <details class="map-area-manager map-offline-readiness" id="map-offline-readiness">
-          <summary>Offline navigation readiness <span class="small muted">(road routing · map tiles · GPS limitations)</span></summary>
+          <summary>Offline navigation readiness <span class="small muted">(drive / walk · maps · GPX)</span></summary>
           <div class="map-offline-inner">
-            <p class="small muted">Check the local road router and installed visual map packages before leaving coverage. This does not start navigation, request your location, or contact online services. A real route still requires coverage between your actual start and destination.</p>
+            <p class="small muted">Check local driving/walking router availability, installed visual maps and imported GPX references before leaving coverage. No location request, online connection or route is initiated. Actual pedestrian paths require a successful local walking route; imported GPX does not prove public access or safety.</p>
             <button type="button" class="btn outline" id="map-offline-check">Check offline readiness</button>
             <p class="small muted" id="map-offline-status" role="status" aria-live="polite">Not checked yet.</p>
             <div id="map-offline-results" class="map-offline-results"></div>

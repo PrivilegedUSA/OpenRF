@@ -454,7 +454,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._error(400, 'Offline navigation preflight accepts no query parameters')
             return self._json(200, offline_navigation_readiness_report(
                 route_status=local_status(), vector_status=vector_maps.status(),
-                raster_maps=available_maps(self.server.map_directory)))
+                raster_maps=available_maps(self.server.map_directory),
+                imported_trail_count=len(self.server.trail_store.list())))
         if path == '/api/navigation/geocoding/status':
             return self._json(200, geocoder_status())
         if path == '/api/navigation/geocode':
