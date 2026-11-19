@@ -16,8 +16,13 @@
     const x=Math.cos(lat1)*Math.sin(lat2)-Math.sin(lat1)*Math.cos(lat2)*Math.cos(dl);
     return (Math.atan2(y,x)/RAD+360)%360;
   }
-  function routeMetric(route){
-    if (!route || route.type!=='ROAD_ROUTE' || route.is_driving_route!==true || !Array.isArray(route.coordinates) || route.coordinates.length<2)
+  function routeMetric(route,{allowWalkingPlan=false}={}){
+    // Turn-by-turn *plans* may be pedestrian. Every caller that measures a
+    // moving position, simulates a drive or starts follow-view must still
+    // require a verified driving route (the default).
+    const driving=route?.is_driving_route===true && route?.travel_mode!=='pedestrian';
+    const walking=allowWalkingPlan && route?.is_driving_route===false && route?.travel_mode==='pedestrian';
+    if (!route || route.type!=='ROAD_ROUTE' || (!driving && !walking) || !Array.isArray(route.coordinates) || route.coordinates.length<2)
       throw Error('A verified road route is required.');
     if(route.coordinates.length>100000)throw Error('Road route is too large.');
     const total=[0];
@@ -196,7 +201,7 @@
     return null;
   }
   function routeSteps(route){
-    routeMetric(route);
+    routeMetric(route,{allowWalkingPlan:true});
     return (route.maneuvers||[]).filter(m=>typeof m.instruction==='string').slice(0,250).map((m,i)=>({number:i+1,
       instruction:String(m.instruction).slice(0,400),shape_index:Number.isInteger(m.shape_index)?m.shape_index:null,length_miles:Number.isFinite(m.length_miles)?Math.max(0,m.length_miles):0,leg:Number(m.leg)||1}));
   }

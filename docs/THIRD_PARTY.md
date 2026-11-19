@@ -5,6 +5,7 @@
 - OpenFreeMap street/dark styles and tiles: https://openfreemap.org/ (OpenStreetMap-derived geographic data; attribution displayed in the map).
 - Map data © OpenStreetMap contributors under ODbL, via OpenFreeMap for online vectors. Operator-supplied raster MBTiles must carry their own licensing and attribution; OpenRF does not provide offline map data. Verify redistribution/offline rights before using third-party archives.
 - Python standard library: Python Software Foundation License.
+- Font Awesome Free v6.7.2 Classic Solid icons **car-side**, **person-walking** and **location-arrow**, copyright 2024 Fonticons, Inc.; SVG icons under **CC BY 4.0** (https://fontawesome.com/license/free). Two icons are embedded in the destination mode buttons and the local location-arrow SVG is shipped with the app. Attribution comments are retained. No remote icon font, CDN dependency or Pro assets are required.
 - Archived Android libraries carry their own licensing requirements (see `legacy/android-v0.1.6/docs/THIRD_PARTY.md`).
 
 The standalone application's final open-source license has **not** yet been chosen.

@@ -112,7 +112,7 @@ console.log('v0.2.26 Valhalla trip UI, optional address autocomplete, map theme,
 
 // v0.2.26: full-width destination, explicit opt-in address search, and clear route action.
 assert(html.includes('id="map-start-navigation"') && html.includes('Start navigation'), 'start button remains labeled and accessible');
-assert(html.includes('class="nav-start-icon"') && html.includes('id="map-online-address"'), 'button has paper-plane icon and explicit public search checkbox');
+assert(!html.includes('class="nav-start-icon"') && css.includes('fa-location-arrow.svg') && html.includes('id="map-online-address"'), 'directions button is text-only, while navigation start has the arrow; explicit public search preserved');
 const destinationForm=html.slice(html.indexOf('id="map-destination-form"'),html.indexOf('</form>',html.indexOf('id="map-destination-form"')));
 assert(destinationForm.indexOf('map-address-input-wrap') < destinationForm.indexOf('map-destination-actions'), 'destination input occupies full width, action appears afterward');
 assert(!destinationForm.includes('<button class="btn primary" type="submit">Route</button>'), 'old Route button removed');

@@ -130,6 +130,33 @@ const mapSearchForm = $('map-destination-form');
 // Select transport mode before entering a destination. This is UI-only
 // preference for the next route request, not a request for GPS or internet.
 state.navTravelMode='auto';
+// Only highlight OSM ways that are ACTUALLY in the selected vector tile set.
+// This adds no route geometry, GPS collection, external request or claim of
+// public access. Installed regional tiles may have sparse trail coverage.
+function syncWalkingPathOverlay(){
+  const walking=state.navTravelMode==='pedestrian';
+  const note=$('map-walking-layer-note');
+  if(note)note.hidden=!walking;
+  const map=state.map;
+  if(!map || !state.mapReady)return;
+  try{
+    if(!map.getSource('openmaptiles'))return;
+    const overlays=[
+      {id:'openrf-walking-paths',classes:['path','footway','bridleway'],color:state.style==='dark'?'#86f5d4':'#137963',width:2.6},
+      {id:'openrf-walking-tracks',classes:['track'],color:state.style==='dark'?'#ffcb78':'#92620c',width:2.0}
+    ];
+    for(const layer of overlays){
+      if(!map.getLayer(layer.id))map.addLayer({
+        id:layer.id,type:'line',source:'openmaptiles','source-layer':'transportation',minzoom:11,
+        filter:['in',['get','class'],['literal',layer.classes]],
+        layout:{'line-cap':'round','line-join':'round',visibility:walking?'visible':'none'},
+        paint:{'line-color':layer.color,'line-width':['interpolate',['linear'],['zoom'],11,1.3,16,layer.width],
+          'line-dasharray':[2.5,2],'line-opacity':0.92}
+      });
+      else map.setLayoutProperty(layer.id,'visibility',walking?'visible':'none');
+    }
+  }catch(error){console.warn('Mapped walking path overlay unavailable:',error);}
+}
 function setMapTravelMode(mode){
   state.navTravelMode=mode==='pedestrian'?'pedestrian':'auto';
   const walking=state.navTravelMode==='pedestrian';
@@ -144,6 +171,7 @@ function setMapTravelMode(mode){
   $('map-picked-camera-options').hidden=walking;
   $('map-search-camera-options').hidden=walking;
   $('map-begin-guidance').hidden=walking;
+  syncWalkingPathOverlay();
 }
 $('map-mode-drive').addEventListener('click',()=>setMapTravelMode('auto'));
 $('map-mode-walk').addEventListener('click',()=>setMapTravelMode('pedestrian'));
@@ -385,10 +413,9 @@ function showPage(page, options = {}) {
   // Do not collapse an open search when another action selects the same page.
   if (page === 'map' && !wasMap) setMapSearchCollapsed(true);
   if (page !== 'map' && activeMapTool) closeMapToolOverlay();
+  const wasNavigationOpen=navigationOpen;
   if (navigationOpen) {
     setNavigationOpen(false, false);
-    $('page-title').setAttribute('tabindex', '-1');
-    $('page-title').focus({preventScroll: true});
   }
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.toggle('active', el.dataset.page === page));
   if (page === 'messages' || page === 'reticulum') setMessagesSubpagesOpen(true);
@@ -396,6 +423,13 @@ function showPage(page, options = {}) {
   document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === `page-${page}`));
   const titles = {overview:'Field overview',emergency:'Emergency readiness',map:'Survey map',scanner:'Signal analysis',spectrum:'Spectrum workspace',radio:'Radio receiver',messages:'Mesh messages',reticulum:'Reticulum messages',hamradio:'Ham radio channel lists',discoveries:'Saved discoveries',sessions:'Investigations',hardware:'Hardware manager'};
   $('page-title').textContent = titles[page] || 'OpenRF'; $('page-crumb').textContent = page.toUpperCase();
+  // Page-specific headings are the one visible title on non-map workspaces.
+  // The old topbar H1 is intentionally hidden; do not focus a hidden node.
+  if (wasNavigationOpen) {
+    const heading=page==='map' ? $('map-search-toggle') :
+      (document.querySelector(`#page-${page} .section-heading h2`) || document.querySelector(`#page-${page} h2`));
+    if(heading){heading.setAttribute('tabindex','-1');heading.focus({preventScroll:true});}
+  }
   if (page === 'spectrum') document.dispatchEvent(new Event('openrf:spectrum-shown'));
   if (page === 'radio') document.dispatchEvent(new Event('openrf:radio-shown'));
   if (page === 'messages') document.dispatchEvent(new Event('openrf:messages-shown'));
@@ -1408,6 +1442,7 @@ function startMap() {
     state.map.on('style.load', () => {
       updateOfflineAttribution();
       state.mapReady=true;
+      syncWalkingPathOverlay();
       state.mapBasemapVisible=false;
       state.mapSourceWarningShown=false;
       if(state.mapRegionalFramePending){state.mapRegionalFramePending=false;frameInstalledRegion();}

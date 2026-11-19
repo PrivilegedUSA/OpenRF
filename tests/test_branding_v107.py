@@ -71,6 +71,13 @@ class BrandingHttpTests(unittest.TestCase):
         self.assertEqual(status, 404)
         self.assertIn('application/json', mime)
 
+    def test_offline_navigation_icon_is_allowlisted_svg(self):
+        status, mime, raw = self.request('/static/assets/fa-location-arrow.svg')
+        self.assertEqual((status, mime), (200, 'image/svg+xml; charset=utf-8'))
+        self.assertIn(b'<svg ', raw)
+        self.assertIn(b'Font Awesome Free 6.7.2', raw)
+        self.assertNotIn(b'<script', raw)
+
 
 if __name__ == '__main__':
     unittest.main()

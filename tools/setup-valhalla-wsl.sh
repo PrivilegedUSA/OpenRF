@@ -13,7 +13,7 @@ usage() {
   cat <<'HELP'
 OpenRF offline road ROUTING (Valhalla), not visible basemap tiles.
   bash tools/setup-valhalla-wsl.sh --status                 Local profiles and active service
-  bash tools/setup-valhalla-wsl.sh --doctor                 Docker/graph/HTTP + Sacramento-to-Auburn reference route
+  bash tools/setup-valhalla-wsl.sh --doctor                 Local road + pedestrian sample-route checks (no GPS)
   bash tools/setup-valhalla-wsl.sh --plan --region west     Sizes and disk/memory checks; no download
   bash tools/setup-valhalla-wsl.sh --install --region norcal       Small existing default
   bash tools/setup-valhalla-wsl.sh --install --region california   All California
@@ -143,6 +143,32 @@ except (ValueError, TypeError, AttributeError):
     else
       echo 'Test route response was received but Python was unavailable for validation.'
     fi
+    echo 'Checking an example pedestrian path near Sacramento Capitol (public reference points, not your GPS).'
+    walking_body=$(curl --silent --show-error --max-time 12 \
+      -H 'Content-Type: application/json' -X POST \
+      --data '{"locations":[{"lat":38.57844,"lon":-121.49555},{"lat":38.57846,"lon":-121.49224}],"costing":"pedestrian"}' \
+      'http://127.0.0.1:8002/route' 2>/dev/null) || walking_body=''
+    if [[ -z "$walking_body" ]]; then
+      echo 'Pedestrian sample: no response; the local service or graph may be unavailable.'
+    elif command -v python3 >/dev/null 2>&1; then
+      printf '%s' "$walking_body" | python3 -c '
+import json, math, sys
+try:
+    data = json.load(sys.stdin)
+    trip = data.get("trip") or {}
+    summary = trip.get("summary") or {}
+    length = summary.get("length")
+    if isinstance(trip.get("legs"), list) and trip["legs"] and isinstance(length, (int, float)) and math.isfinite(length) and length >= 0:
+        print("Pedestrian sample: OK; a real walking route exists for the fixed downtown example ONLY.")
+    else:
+        print("Pedestrian sample: unavailable;", str(data.get("error") or data.get("status_message") or data.get("error_code") or "no pedestrian route")[:220])
+except (ValueError, TypeError, AttributeError):
+    print("Pedestrian sample: unexpected local response; inspect --logs.")
+'
+    else
+      echo 'Pedestrian sample reply received; Python is needed to validate it.'
+    fi
+    echo 'Neither sample verifies other routes, mountain trails, permissions, closures, or a GNSS fix.'
     exit 0 ;;
   --plan)
     echo "Routing area: $LABEL"
@@ -151,6 +177,8 @@ except (ValueError, TypeError, AttributeError):
     echo "Recommended free build disk: at least ${MIN_FREE_GIB} GiB (estimate, not a guarantee)"
     echo "Recommended total RAM for graph build: at least ${MIN_MEMORY_GIB} GiB (estimate, not a guarantee)"
     echo 'After building, source PBF and generated Valhalla graph both consume storage.'
+    echo 'The same OSM-derived Valhalla graph can serve pedestrian routing where walkable paths are mapped; separate walking PBF is not required.'
+    echo 'A built graph does not prove particular hikes are routable. Use --doctor and then plan your real walking route.'
     echo 'First build can require hours and may fail if WSL/Docker memory is limited.'
     echo "Existing source: $([[ -s "$TARGET_DIR/$PBF" ]] && echo yes || echo no)"
     echo "Existing graph archive: $([[ -s "$TARGET_DIR/valhalla_tiles.tar" ]] && echo yes || echo no)"

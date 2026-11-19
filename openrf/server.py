@@ -283,6 +283,16 @@ class Handler(BaseHTTPRequestHandler):
             except OSError:
                 return self._error(500, 'OpenRF brand image unreadable')
             return self._send(200, raw, 'image/png', cache_control='private, max-age=86400')
+        if path == '/static/assets/fa-location-arrow.svg':
+            # Single audited CC BY 4.0 offline icon; never serve arbitrary paths.
+            icon_file = STATIC_DIR / 'assets' / 'fa-location-arrow.svg'
+            if not icon_file.is_file() or icon_file.is_symlink():
+                return self._error(500, 'Navigation icon missing')
+            try:
+                raw = icon_file.read_bytes()
+            except OSError:
+                return self._error(500, 'Navigation icon unreadable')
+            return self._send(200, raw, 'image/svg+xml; charset=utf-8', cache_control='private, max-age=86400')
         if path == '/manifest.webmanifest':
             manifest_file = STATIC_DIR / 'manifest.webmanifest'
             if not manifest_file.is_file() or manifest_file.is_symlink():
@@ -454,8 +464,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._error(400, 'Offline navigation preflight accepts no query parameters')
             return self._json(200, offline_navigation_readiness_report(
                 route_status=local_status(), vector_status=vector_maps.status(),
-                raster_maps=available_maps(self.server.map_directory),
-                imported_trail_count=len(self.server.trail_store.list())))
+                raster_maps=available_maps(self.server.map_directory)))
         if path == '/api/navigation/geocoding/status':
             return self._json(200, geocoder_status())
         if path == '/api/navigation/geocode':

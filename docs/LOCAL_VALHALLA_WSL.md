@@ -14,6 +14,7 @@ bash tools/setup-valhalla-wsl.sh --status
 bash tools/setup-valhalla-wsl.sh --plan --region california
 bash tools/setup-valhalla-wsl.sh --plan --region west
 bash tools/setup-valhalla-wsl.sh --plan --region us
+bash tools/setup-valhalla-wsl.sh --doctor
 # Example when ready (downloads source and starts a Valhalla graph build):
 bash tools/setup-valhalla-wsl.sh --install --region california
 bash tools/setup-valhalla-wsl.sh --logs
@@ -21,6 +22,14 @@ bash tools/setup-valhalla-wsl.sh --status
 ```
 
 Requires WSL2, Docker Desktop with Ubuntu integration enabled (or a working Linux daemon), `curl`, adequate disk/RAM, and internet for the initial graph source. To verify routes, select an origin and destination inside the selected coverage. Service status alone is not proof that all tiles are usable. `--stop` and `--start` stop/start the existing private container without deleting its files.
+
+### Walking and hiking graph checks (v0.2.135)
+
+The OSM-derived graph built by Valhalla normally contains pedestrian-accessible ways as well as roads; OpenRF does **not** need a second overlapping PBF just to try walking routes. The selected region still must contain the actual trail/footway tags and connected ways. Valhalla's official graph-building documentation covers pedestrian edges: https://valhalla.github.io/valhalla/mjolnir/getting_started_guide/.
+
+`--doctor` performs two opt-in read-only requests to your **local** Valhalla server: its existing Sacramento–Auburn driving example and a short downtown Sacramento pedestrian example. Neither request uses your location, starts GPS, downloads a map or changes the graph. A successful pedestrian sample confirms only that one fixed city route, **not** that hiking trails in the Sierra are available, safe, or open to the public. In Map → Where to? select **Walk** and plan your actual route to verify that specific origin and destination. Direct-line references are not walkable paths. Local routing still needs Valhalla running at 127.0.0.1:8002.
+
+At zoom 11 and above, Walk mode also highlights **existing** OSM mapped paths (dashed teal) and tracks (dashed amber) on available vector tiles. No new path geometry is generated; offline raster mode cannot supply this highlighting and the installed regional vector dataset covers only its source area. Highlighting is independent of pedestrian routability and does not prove legal access or trail conditions.
 
 ## Address suggestions are separate
 

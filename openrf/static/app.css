@@ -524,7 +524,6 @@
 .map-online-address input{accent-color:#35cbb2;flex:none}
 .map-online-address small{font-size:10px;color:#8caab8}
 .map-destination-actions .nav-start-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:8px 12px;white-space:nowrap;font-size:12px;flex:0 0 auto}
-.nav-start-icon{width:16px;height:16px;transform:rotate(-15deg);flex:none}
 #map-destination-status.map-route-error{color:#ffd0a0;font-weight:600}
 #map-destination-status.map-route-success{color:#8eebd4}
 @media(max-width:620px){.map-destination-row{flex-wrap:nowrap}.map-destination-row .map-address-input-wrap{flex:0 0 100%}.map-destination-actions{gap:7px}.map-online-address{flex-basis:180px}.map-destination-actions .nav-start-button{flex:0 0 auto}}
@@ -2039,9 +2038,22 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
   width:100%;min-height:42px;padding:6px 11px;border:1px solid #406473;border-radius:8px;
   color:#c9dfdd;background:#172f3a;font-size:13px;font-weight:750;cursor:pointer;touch-action:manipulation}
 #page-map .map-travel-mode-button svg{display:block;width:22px;height:22px;flex:none}
+#page-map #map-mode-walk svg{width:16px}
+#page-map :is(#map-begin-guidance,#map-directions-start,#route-choice-start,#map-picked-begin)::before{
+  content:"";display:inline-block;width:15px;height:15px;flex:none;background:currentColor;
+  -webkit-mask:url('/static/assets/fa-location-arrow.svg') center / contain no-repeat;
+  mask:url('/static/assets/fa-location-arrow.svg') center / contain no-repeat
+}
+#page-map :is(#map-begin-guidance,#map-directions-start,#route-choice-start,#map-picked-begin){align-items:center;justify-content:center;gap:7px}
 #page-map .map-travel-mode-button[aria-pressed="true"]{background:#1e5d57;border-color:#43dfbd;color:#f4fffa;box-shadow:inset 0 0 0 1px #43dfbd55}
 #page-map .map-travel-mode-button:focus-visible{outline:2px solid #a1ffe7;outline-offset:2px}
 #page-map .map-travel-mode-note{margin:0 0 10px;color:#b3cfcc;font-size:10px;line-height:1.35}
+
+/* v0.2.135 — keep the optional mapped-path explanation compact in the 5-inch
+   destination sheet; it is not a walking navigation or safety guarantee. */
+#page-map .map-walking-layer-note{margin:0 0 10px;padding:7px 9px;border-left:2px solid #61cbb5;
+  border-radius:3px;background:#112f35;color:#b5d7d3;font-size:10px;line-height:1.4}
+#page-map .map-walking-layer-note[hidden]{display:none!important}
 
 /* A single valid road route opens Directions immediately. Keep Start just
    under the saved/print actions and above turns when their list scrolls. */
@@ -2222,6 +2234,27 @@ body:not(.map-workspace) .topbar{position:relative}
 .topbar .header-emergency-shortcut:active{transform:scale(.97)}
 body.map-workspace .topbar .header-emergency-shortcut{pointer-events:auto;background:#0c2833e8;color:#f4c178}
 @media(max-width:560px){.topbar .header-emergency-shortcut{flex-basis:38px;width:38px;min-width:38px;height:40px}}
+
+/* v0.2.136 — one visible heading per non-map workspace. The individual page
+   heading carries its description/actions; the shared top row carries only
+   runtime status, the clock and quick-access controls. Keep map overlay as-is.
+   Do not absolutely center the clock over the status badges. */
+body:not(.map-workspace) .topbar{
+  display:flex;align-items:center;justify-content:flex-end;gap:10px;
+  min-height:64px;padding:12px 0;margin-bottom:16px
+}
+body:not(.map-workspace) .topbar-heading{display:none}
+body:not(.map-workspace) .topbar .top-right{display:flex;align-items:center;min-width:0;margin-right:auto}
+body:not(.map-workspace) .topbar .field-clock-wrap{
+  position:relative;left:auto;right:auto;transform:none;margin-left:0;z-index:66
+}
+body:not(.map-workspace) .topbar .header-emergency-shortcut,
+body:not(.map-workspace) .topbar .header-messages-menu,
+body:not(.map-workspace) .topbar .menu-toggle{flex-shrink:0}
+@media(max-width:800px){
+  body:not(.map-workspace) .topbar .top-right{display:none}
+  body:not(.map-workspace) .topbar{gap:7px;min-height:58px;margin-bottom:13px}
+}
 
 /* v0.2.131 — touch-friendly walking breadcrumb controls in the GPS map pane. */
 .breadcrumb-manager{display:grid;gap:10px;padding:8px 1px 2px;min-width:0}

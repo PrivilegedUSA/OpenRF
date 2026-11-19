@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.135">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.136">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -18,24 +18,24 @@
   <script defer src="/static/sdr-history.js?v=0.2.76"></script>
   <script defer src="/static/survey_map.js?v=0.2.76"></script>
   <script defer src="/static/navigation.js?v=0.2.76"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.76"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.136"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/app.js?v=0.2.135"></script>
-  <script defer src="/static/field-breadcrumbs.js?v=0.2.135"></script>
-  <script defer src="/static/offline-trails.js?v=0.2.135"></script>
-  <script defer src="/static/emergency.js?v=0.2.135"></script>
-  <script defer src="/static/emergency-library.js?v=0.2.135"></script>
-  <script defer src="/static/emergency-sos.js?v=0.2.135"></script>
-  <script defer src="/static/emergency-handoff.js?v=0.2.135"></script>
-  <script defer src="/static/emergency-teams.js?v=0.2.135"></script>
-  <script defer src="/static/emergency-checkins.js?v=0.2.135"></script>
-  <script defer src="/static/emergency-inbox.js?v=0.2.135"></script>
-  <script defer src="/static/emergency-protocol.js?v=0.2.135"></script>
-  <script defer src="/static/emergency-dashboard.js?v=0.2.135"></script>
-  <script defer src="/static/emergency-survival.js?v=0.2.135"></script>
-  <script defer src="/static/emergency-backup.js?v=0.2.135"></script>
-  <script defer src="/static/field-calendar.js?v=0.2.135"></script>
+  <script defer src="/static/app.js?v=0.2.136"></script>
+  <script defer src="/static/field-breadcrumbs.js?v=0.2.136"></script>
+  <script defer src="/static/offline-trails.js?v=0.2.136"></script>
+  <script defer src="/static/emergency.js?v=0.2.136"></script>
+  <script defer src="/static/emergency-library.js?v=0.2.136"></script>
+  <script defer src="/static/emergency-sos.js?v=0.2.136"></script>
+  <script defer src="/static/emergency-handoff.js?v=0.2.136"></script>
+  <script defer src="/static/emergency-teams.js?v=0.2.136"></script>
+  <script defer src="/static/emergency-checkins.js?v=0.2.136"></script>
+  <script defer src="/static/emergency-inbox.js?v=0.2.136"></script>
+  <script defer src="/static/emergency-protocol.js?v=0.2.136"></script>
+  <script defer src="/static/emergency-dashboard.js?v=0.2.136"></script>
+  <script defer src="/static/emergency-survival.js?v=0.2.136"></script>
+  <script defer src="/static/emergency-backup.js?v=0.2.136"></script>
+  <script defer src="/static/field-calendar.js?v=0.2.136"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
   <script defer src="/static/mesh.js?v=0.2.104"></script>
   <script defer src="/static/reticulum.js?v=0.2.104"></script>
@@ -50,7 +50,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.135</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.136</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -275,10 +275,11 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
         <div class="map-search-header"><strong>Destination search</strong><button type="button" id="map-search-toggle" class="map-search-toggle" aria-controls="map-destination-form" aria-expanded="false" aria-label="Open destination search"><span class="map-search-icon" aria-hidden="true">⌕</span><span class="map-search-caption">Where to?</span><span class="map-search-chevron" aria-hidden="true">▾</span></button></div>
         <form id="map-destination-form" class="map-destination-form" hidden autocomplete="off" aria-label="Find a destination and get directions">
           <div class="map-travel-mode" role="group" aria-label="Choose route travel mode">
-            <button type="button" id="map-mode-drive" class="map-travel-mode-button" aria-pressed="true" title="Driving directions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17H3v-5l2-5h14l2 5v5h-2"/><path d="M5 17h14l-1-5H6l-1 5Z"/><circle cx="7.5" cy="17" r="1.5"/><circle cx="16.5" cy="17" r="1.5"/><path d="M7 7V5h10v2"/></svg><span>Drive</span></button>
-            <button type="button" id="map-mode-walk" class="map-travel-mode-button" aria-pressed="false" title="Walking route planning"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13" cy="4" r="2"/><path d="m11 8-2 4 3 2-2 6m1-12 3 2 2 4m-7-2-4 2m7 0 4 6"/></svg><span>Walk</span></button>
+            <button type="button" id="map-mode-drive" class="map-travel-mode-button" aria-pressed="true" title="Driving directions"><svg viewBox="0 0 640 512" fill="currentColor" aria-hidden="true"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0) Copyright 2024 Fonticons, Inc. --><path d="M171.3 96L224 96l0 96-112.7 0 30.4-75.9C146.5 104 158.2 96 171.3 96zM272 192l0-96 81.2 0c9.7 0 18.9 4.4 25 12l67.2 84L272 192zm256.2 1L428.2 68c-18.2-22.8-45.8-36-75-36L171.3 32c-39.3 0-74.6 23.9-89.1 60.3L40.6 196.4C16.8 205.8 0 228.9 0 256L0 368c0 17.7 14.3 32 32 32l33.3 0c7.6 45.4 47.1 80 94.7 80s87.1-34.6 94.7-80l130.7 0c7.6 45.4 47.1 80 94.7 80s87.1-34.6 94.7-80l33.3 0c17.7 0 32-14.3 32-32l0-48c0-65.2-48.8-119-111.8-127zM434.7 368a48 48 0 1 1 90.5 32 48 48 0 1 1 -90.5-32zM160 336a48 48 0 1 1 0 96 48 48 0 1 1 0-96z"/></svg><span>Drive</span></button>
+            <button type="button" id="map-mode-walk" class="map-travel-mode-button" aria-pressed="false" title="Walking route planning"><svg viewBox="0 0 320 512" fill="currentColor" aria-hidden="true"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0) Copyright 2024 Fonticons, Inc. --><path d="M160 48a48 48 0 1 1 96 0 48 48 0 1 1 -96 0zM126.5 199.3c-1 .4-1.9 .8-2.9 1.2l-8 3.5c-16.4 7.3-29 21.2-34.7 38.2l-2.6 7.8c-5.6 16.8-23.7 25.8-40.5 20.2s-25.8-23.7-20.2-40.5l2.6-7.8c11.4-34.1 36.6-61.9 69.4-76.5l8-3.5c20.8-9.2 43.3-14 66.1-14c44.6 0 84.8 26.8 101.9 67.9L281 232.7l21.4 10.7c15.8 7.9 22.2 27.1 14.3 42.9s-27.1 22.2-42.9 14.3L247 287.3c-10.3-5.2-18.4-13.8-22.8-24.5l-9.6-23-19.3 65.5 49.5 54c5.4 5.9 9.2 13 11.2 20.8l23 92.1c4.3 17.1-6.1 34.5-23.3 38.8s-34.5-6.1-38.8-23.3l-22-88.1-70.7-77.1c-14.8-16.1-20.3-38.6-14.7-59.7l16.9-63.5zM68.7 398l25-62.4c2.1 3 4.5 5.8 7 8.6l40.7 44.4-14.5 36.2c-2.4 6-6 11.5-10.6 16.1L54.6 502.6c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L68.7 398z"/></svg><span>Walk</span></button>
           </div>
           <p class="map-travel-mode-note" id="map-travel-mode-note">Driving · local road routes only. Live GPS navigation requires a valid route.</p>
+          <p class="map-walking-layer-note" id="map-walking-layer-note" hidden>Dashed teal paths and amber tracks are OSM-mapped references only. They do not prove public access, safe conditions, or that a walking route exists. Zoom in to see them on a vector map.</p>
           <div class="map-origin-control" id="map-origin-control">
             <div class="map-origin-summary"><span>From</span><strong id="map-origin-caption">Current location</strong><button type="button" id="map-origin-edit" aria-expanded="false" aria-controls="map-origin-editor">Change</button></div>
             <div class="map-origin-editor" id="map-origin-editor" hidden>
@@ -290,7 +291,7 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
           <label for="map-destination-query">Destination <span class="small muted">(street address, saved place or coordinates)</span></label>
           <div class="map-destination-row"><div class="map-address-input-wrap"><input class="field" id="map-destination-query" type="search" name="openrf_destination_lookup" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="search" enterkeyhint="search" role="combobox" aria-autocomplete="list" aria-controls="map-address-options" aria-expanded="false" placeholder="Search an address or saved place" maxlength="140" required><div id="map-address-options" class="address-suggestions" role="listbox" aria-label="Address suggestions" hidden></div></div><datalist id="map-destination-suggestions"></datalist></div><button type="button" class="map-pick-destination" id="map-pick-destination">⌖ Choose destination on map</button>
 <button type="button" class="map-camera-open" id="map-search-camera-options">⚙ Route preferences <span id="map-search-camera-choice">Off</span></button>
-<div class="map-destination-actions">            <button class="btn primary nav-start-button" type="submit" id="map-start-navigation" title="Calculate a road route with local Valhalla"><svg class="nav-start-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="m3 11 18-8-8 18-2-8-8-2Z"/></svg> <span id="map-route-action-text">Get driving directions</span></button><button class="btn nav-follow-button" type="button" id="map-begin-guidance" disabled title="Start GPS follow-view after getting real directions">Start navigation</button></div>
+<div class="map-destination-actions">            <button class="btn primary nav-start-button" type="submit" id="map-start-navigation" title="Calculate a road route with local Valhalla"><span id="map-route-action-text">Get driving directions</span></button><button class="btn nav-follow-button" type="button" id="map-begin-guidance" disabled title="Start GPS follow-view after getting real directions">Start navigation</button></div>
           <div class="map-router-quick"><button type="button" id="map-router-check">Check local road router</button><span id="map-router-result" role="status" aria-live="polite"></span></div>
           <p id="map-destination-status" class="small muted" role="status" aria-live="polite" hidden>Starting point: browser location. Select a U.S. address suggestion before routing. Get directions with local Valhalla, then start the optional GPS follow-view. Optional spoken prompts; route recalculation requires reliable movement data and local Valhalla.</p>
         </form>
@@ -491,9 +492,9 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
         </details>
         <details class="map-area-manager map-control-settings" id="map-control-settings"><summary>Map settings <span class="small muted">(style, location and survey options)</span></summary><div class="button-line"><label class="switchline"><input id="show-demo-map" type="checkbox"> Show demo</label><button class="btn outline" id="map-geolocate">My browser location</button><button class="btn outline" id="map-style">OpenRF Light</button><button class="btn outline" id="map-vector-source">Use offline regional vectors</button><button class="btn outline" id="map-mode">Offline / raster</button></div><p id="map-vector-status" class="muted small" role="status" aria-live="polite">Checking regional OpenRF vector maps…</p><button type="button" class="btn outline" id="map-open-address-setup">Address search setup</button></details>
         <details class="map-area-manager map-offline-readiness" id="map-offline-readiness">
-          <summary>Offline navigation readiness <span class="small muted">(drive / walk · maps · GPX)</span></summary>
+          <summary>Offline navigation readiness <span class="small muted">(road routing · map tiles · GPS limitations)</span></summary>
           <div class="map-offline-inner">
-            <p class="small muted">Check local driving/walking router availability, installed visual maps and imported GPX references before leaving coverage. No location request, online connection or route is initiated. Actual pedestrian paths require a successful local walking route; imported GPX does not prove public access or safety.</p>
+            <p class="small muted">Check the local road router and installed visual map packages before leaving coverage. This does not start navigation, request your location, or contact online services. A real route still requires coverage between your actual start and destination.</p>
             <button type="button" class="btn outline" id="map-offline-check">Check offline readiness</button>
             <p class="small muted" id="map-offline-status" role="status" aria-live="polite">Not checked yet.</p>
             <div id="map-offline-results" class="map-offline-results"></div>

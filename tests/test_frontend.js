@@ -48,7 +48,7 @@ console.log('v0.2.3 map-first and touchscreen contract checks passed.');
 // v0.2.4: no horizontally scrolling tabs/tables on compact touchscreen widths.
 assert(src.includes('function setNavigationOpen(') && src.includes("event.key === 'Escape'"), 'drawer can be opened and dismissed with Escape');
 assert(src.includes('mainSidebar.inert = compact && !navigationOpen') && src.includes("document.querySelector('.main').inert = compact && navigationOpen"), 'closed drawer and background are non-focusable as appropriate');
-assert(src.includes('if (navigationOpen) {') && src.includes("$('page-title').focus({preventScroll: true})"), 'drawer closes and moves focus to destination on navigation');
+assert(src.includes('const wasNavigationOpen=navigationOpen;') && src.includes("heading.focus({preventScroll:true})") && src.includes("document.querySelector(`#page-${page} .section-heading h2`)"), 'drawer closes and focuses the visible destination heading');
 assert(css.includes('.data-table td:before {content:attr(data-label)') && src.includes('data-label="BSSID"') && src.includes('data-label="RSSI"'), 'measurement tables become stacked labeled rows');
 assert(css.includes('.sidebar .nav {display:grid;grid-template-columns:minmax(0,1fr)') && css.includes('transform:translateX(-110%)'), 'mobile navigation is vertical rather than scrolling horizontally');
 console.log('v0.2.4 menu and non-scrolling table contract checks passed.');

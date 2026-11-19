@@ -99,4 +99,4 @@ $('map-mode-drive').on_click();
 assert.equal(state.navTravelMode,'auto','Returning to drive restores mode');
 assert.equal($('map-picked-route').textContent,'Driving directions');
 assert.equal($('map-begin-guidance').hidden,false);
-console.log('PASS v0.2.134 single-route Start, expanded directions, car/walk selector, map-picked origin/destination');
+console.log('PASS v0.2.136 single-route Start, expanded directions, car/walk selector, map-picked origin/destination');
