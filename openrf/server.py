@@ -20,6 +20,7 @@ from .offline_maps import (available_maps, tile_bytes, import_map, remove_map,
 from .map_areas import (list_areas, get_area, save_area, remove_area, area_geojson, area_tile_manifest, build_subset, AreaError)
 from .tile_archive import import_xyz_zip, TileArchiveError, MAX_ZIP_BYTES
 from .topographic_download import TopographicJobs, TopoError
+from .trip_maps import TripMapJobs, TripMapError, estimate_trip
 from .route_elevation import profile as terrain_profile, ElevationError
 from .terrain_hgt import (list_tiles as list_terrain_tiles, install as import_terrain_hgt,
                           remove as remove_terrain_hgt, TerrainError, SIZES as HGT_SIZES)
@@ -420,6 +421,10 @@ class Handler(BaseHTTPRequestHandler):
                                    'format':'SRTM-compatible-HGT','local_only':True})
         if path == '/api/maps/topographic/status':
             return self._json(200, {'download': self.server.topo_jobs.status()})
+        if path == '/api/maps/trips/status':
+            if urlparse(self.path).query:
+                return self._error(400, 'Trip download status accepts no query parameters')
+            return self._json(200, {'download': self.server.trip_map_jobs.status()})
         if path.startswith('/api/maps/') and '/tiles/' in path:
             pieces = path.split('/')
             if len(pieces) != 8 or pieces[:3] != ['', 'api', 'maps'] or pieces[4] != 'tiles':
@@ -667,7 +672,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, raw, 'text/csv; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.csv"'})
         if path in ('/', '/index.html'):
             file = STATIC_DIR / 'index.html'
-        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/trip-map.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
             file = STATIC_DIR / Path(path).name
         elif path == '/static/offline-trails.js':
             file = STATIC_DIR / 'offline-trails.js'
@@ -1171,6 +1176,21 @@ class Handler(BaseHTTPRequestHandler):
                 if body:
                     raise ValueError('Cancellation accepts no fields')
                 return self._json(200, {'download': self.server.topo_jobs.cancel()})
+            if path == '/api/maps/trips/estimate':
+                if urlparse(self.path).query or set(body) != {'points','corridor_miles','minzoom','maxzoom','source'}:
+                    raise ValueError('Trip map estimate accepts only route points, corridor, zoom range and source')
+                return self._json(200, {'estimate': estimate_trip(**body)})
+            if path == '/api/maps/trips/start':
+                if urlparse(self.path).query or set(body) != {'points','corridor_miles','minzoom','maxzoom','source','preview_id','map_id','confirm_network'}:
+                    raise ValueError('Trip download requires an unchanged preview, new filename and explicit USGS consent')
+                try:
+                    return self._json(202, {'download': self.server.trip_map_jobs.start(body)})
+                except (TripMapError, MapExists, MapBusy) as exc:
+                    return self._error(409, str(exc))
+            if path == '/api/maps/trips/cancel':
+                if body or urlparse(self.path).query:
+                    raise ValueError('Trip download cancellation accepts an empty JSON object only')
+                return self._json(200, {'download': self.server.trip_map_jobs.cancel()})
             if path.startswith('/api/maps/areas/') and path.endswith('/build'):
                 if set(body) - {'source_map_id', 'output_map_id', 'rights_confirmed'}:
                     raise ValueError('Unexpected map build fields; remote URLs are not supported')
@@ -1473,6 +1493,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.terrain_directory = server.map_directory / 'terrain-hgt'
     server.terrain_lock = threading.Lock()
     server.topo_jobs = TopographicJobs(server.map_directory, server.map_lock)
+    server.trip_map_jobs = TripMapJobs(server.map_directory, server.map_lock)
     server.elevation_lock = threading.Lock()
     server.map_asset_directory = repository.path.parent / 'assets'
     server.wifi_scan_lock = threading.Lock()

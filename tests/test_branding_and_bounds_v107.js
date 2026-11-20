@@ -11,7 +11,7 @@ assert.match(html, /class="brand-wordmark"/);
 assert.match(html, /src="\/static\/assets\/openrf-wordmark-light\.png"/);
 assert.match(html, /rel="icon" type="image\/png" sizes="32x32"/);
 assert.match(html, /rel="manifest" href="\/manifest\.webmanifest"/);
-assert.match(html, /FIELD CONSOLE · 0\.2\.148/);
+assert.match(html, /FIELD CONSOLE · 0\.2\.149/);
 assert.match(css, /\.sidebar \.brand-wordmark\{/);
 assert.match(css, /@media\(max-width:520px\)\{\.sidebar \.brand-wordmark/);
 assert.match(html, /\/static\/camera-layers\.js\?v=0\.2\.114/);

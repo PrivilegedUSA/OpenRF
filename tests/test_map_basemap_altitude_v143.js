@@ -10,7 +10,7 @@ const widget=fs.readFileSync('openrf/static/map-elevation.js','utf8');
 for(const kind of ['default','satellite','topographic']){
   assert(html.includes(`name="map-basemap" value="${kind}"`),`Missing ${kind} base-map choice`);
 }
-assert(html.includes('/static/map-elevation.js?v=0.2.148'));
+assert(html.includes('/static/map-elevation.js?v=0.2.149'));
 assert(html.includes('id="map-altimeter-value"'));
 assert(css.includes('map-basemap-options'));
 assert(css.includes('body:not(.map-workspace) .map-altimeter'));
@@ -76,4 +76,4 @@ assert.equal(display.textContent,'— ft','Previously reported altitude must exp
 assert.equal(root.dataset.altitude,'unavailable');
 assert.equal(window.OpenRFMapElevation.update({timestamp:now-120000,coords:{altitude:500}}),false);
 assert.equal(display.textContent,'— ft','Stale GPS fixes must not display a number');
-console.log('PASS v0.2.148 online-only USGS basemap chooser, real GPS altitude display and stale-data guard');
+console.log('PASS v0.2.149 online-only USGS basemap chooser, real GPS altitude display and stale-data guard');

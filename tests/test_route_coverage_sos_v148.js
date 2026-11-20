@@ -1,5 +1,5 @@
 'use strict';
-/* v0.2.148: tested route-coverage UI contract and unsent SOS -> manual radio flow. */
+/* v0.2.149: tested route-coverage UI contract and unsent SOS -> manual radio flow. */
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
@@ -77,5 +77,5 @@ vm.runInNewContext(sos,mock);
   assert.equal(actions.filter(a=>a[0]==='fetch').length,1);
   assert(!actions.some(a=>a[0]==='open' || a[0]==='selected'));
   assert.match(nodes['emergency-sos-status'].textContent,/NOT transmitted/);
-  console.log('PASS v0.2.148 offline route tile checker and SOS manual radio handoff safety contract');
+  console.log('PASS v0.2.149 offline route tile checker and SOS manual radio handoff safety contract');
 })().catch(error=>{console.error(error);process.exitCode=1;});

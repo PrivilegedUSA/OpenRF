@@ -1,5 +1,5 @@
 'use strict';
-// v0.2.148 desktop map layout: altitude floats with the map and an always-open
+// v0.2.149 desktop map layout: altitude floats with the map and an always-open
 // desktop sidebar must not pretend that its X button can close it.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -28,4 +28,4 @@ assert.match(css,/@media\(max-width:900px\), \(max-width:1400px\) and \(max-heig
   'Touch/compact drawer must retain a usable sidebar close button');
 assert(html.includes('id="menu-close"'),'Keep the drawer close action for small screens');
 assert(!html.slice(0,headerEnd).includes('id="map-altimeter"'));
-console.log('PASS v0.2.148 map altitude overlay and responsive sidebar close behavior');
+console.log('PASS v0.2.149 map altitude overlay and responsive sidebar close behavior');

@@ -1,4 +1,4 @@
-"""v0.2.148: honest, read-only storage for the filesystem holding OpenRF data."""
+"""v0.2.149: honest, read-only storage for the filesystem holding OpenRF data."""
 import json
 import tempfile
 import threading
@@ -64,7 +64,7 @@ class AppStorageTests(unittest.TestCase):
                 self.assertEqual(get('/api/device/storage?scope=all')[0],400)
                 self.assertEqual(get('/api/device/storage',host='untrusted.example')[0],403)
                 self.assertEqual(get('/static/app-settings.js')[0],200)
-                self.assertIn(b'/static/app-settings.js?v=0.2.148',get('/')[1])
+                self.assertIn(b'/static/app-settings.js?v=0.2.149',get('/')[1])
             finally:
                 server.shutdown();server.server_close();thread.join(timeout=3)
 

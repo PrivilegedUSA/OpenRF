@@ -2078,7 +2078,7 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
 }
 #page-map .map-directions-follow-actions .btn:disabled{opacity:.55;cursor:not-allowed}
 
-/* v0.2.148 — separate App Settings workspace and storage/readiness cards. */
+/* v0.2.149 — separate App Settings workspace and storage/readiness cards. */
 .sidebar .sidebar-bottom .sidebar-settings-btn{
   position:relative;display:flex;align-items:center;gap:8px;width:100%;min-height:44px;
   margin:0 0 13px;padding:10px 12px;text-align:left;
@@ -2595,6 +2595,12 @@ body:not(.map-workspace) .map-altimeter{display:none!important}
 .route-coverage-results>div{display:flex;justify-content:space-between;gap:10px;padding:7px 9px;border:1px solid #294d55;border-radius:6px;background:#10252e;font-size:12px}
 .route-coverage-results strong{color:#d5eeeb}
 .route-coverage-results span{text-align:right;color:#8fe8d8}
+.trip-map-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:12px 0}
+.trip-map-controls label{min-width:0;color:#b8d8db;font-size:11px;font-weight:700;display:grid;gap:5px}
+.trip-map-controls .field{width:100%;min-width:0;font-size:12px}
+#map-trip-offline .switchline{display:flex;align-items:flex-start;gap:9px;white-space:normal;font-size:11px;line-height:1.45}
+#map-trip-offline .switchline input{flex:0 0 auto;margin-top:3px}
+@media(max-width:430px){.trip-map-controls{grid-template-columns:1fr}}
 /* v0.2.144: show the map hamburger only while the regular sidebar is a
    hidden drawer. At 1280x800 with a fine pointer the sidebar is still open. */
 @media (min-width:1401px),

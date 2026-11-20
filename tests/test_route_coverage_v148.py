@@ -1,4 +1,4 @@
-"""v0.2.148: local, sampled and deliberately non-certifying offline route coverage."""
+"""v0.2.149: local, sampled and deliberately non-certifying offline route coverage."""
 import json
 import tempfile
 import threading

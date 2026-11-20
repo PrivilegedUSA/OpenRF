@@ -2918,8 +2918,18 @@ if(typeof ResizeObserver!=='undefined'){
   }
 }
 window.addEventListener('resize',updateDirectionsStickyOffset);
+const tripMapController=window.OpenRFTripMaps?.init({
+  getRoute:()=>state.navPreview,
+  sample:(coordinates,count)=>window.OpenRFRouteElevation?.sample(coordinates,count),
+  api,
+  refreshMaps:refreshOfflineMaps,
+});
+$('map-trip-offline').addEventListener('toggle',()=>{
+  if($('map-trip-offline').open)tripMapController?.poll();
+});
 function renderDirectionsReview(route) {
   const pane=$('map-directions-review');
+  if(typeof tripMapController!=='undefined')tripMapController?.routeChanged();
   if(route?.type!=='ROAD_ROUTE'){pane.hidden=true;pane.open=false;$('map-walking-follow-actions').hidden=true;return;}
   $('map-route-elevation-chart').hidden=true;
   $('map-route-elevation-chart').replaceChildren();

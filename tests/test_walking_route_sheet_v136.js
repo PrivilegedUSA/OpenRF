@@ -75,6 +75,6 @@ vm.runInContext(extract('async function planRoadRoute(', 'async function freshNa
     'Get directions has only a text label');
   assert.match(css,/#map-begin-guidance/);
   assert.match(css,/fa-location-arrow\.svg/,'Font Awesome arrow moves onto navigation start controls');
-  assert.match(html,/route_guidance\.js\?v=0\.2\.148/,'updated route helper bypasses stale browser cache');
-  console.log('PASS v0.2.148 pedestrian turn list, driving-only follow guard, Font Awesome selector and start icons');
+  assert.match(html,/route_guidance\.js\?v=0\.2\.149/,'updated route helper bypasses stale browser cache');
+  console.log('PASS v0.2.149 pedestrian turn list, driving-only follow guard, Font Awesome selector and start icons');
 })().catch(error=>{console.error(error);process.exitCode=1});

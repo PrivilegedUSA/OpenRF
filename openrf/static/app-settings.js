@@ -1,4 +1,4 @@
-/* OpenRF v0.2.148 — standalone, read-only device settings and field preflight. */
+/* OpenRF v0.2.149 — standalone, read-only device settings and field preflight. */
 (() => {
   'use strict';
   const $=id=>document.getElementById(id);

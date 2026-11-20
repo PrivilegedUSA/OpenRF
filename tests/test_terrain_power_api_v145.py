@@ -1,4 +1,4 @@
-"""v0.2.148 loopback terrain import, source inventory and battery status endpoints."""
+"""v0.2.149 loopback terrain import, source inventory and battery status endpoints."""
 import json
 import struct
 import tempfile

@@ -9,7 +9,7 @@ const source=fs.readFileSync('openrf/static/app-settings.js','utf8');
 assert(html.includes('data-page="settings"'));
 assert(html.indexOf('data-page="settings"')>html.indexOf('class="sidebar-bottom"'));
 assert(html.includes('id="page-settings"'));
-assert(html.includes('/static/app-settings.js?v=0.2.148'));
+assert(html.includes('/static/app-settings.js?v=0.2.149'));
 for(const id of ['app-device-storage','app-storage-free','app-storage-used','app-storage-total',
   'app-storage-track','app-storage-refresh','app-field-check','app-field-results','app-field-status'])
   assert(html.includes(`id="${id}"`),`Missing settings UI ${id}`);
@@ -67,5 +67,5 @@ vm.runInNewContext(source,context);
   assert.equal(nodes['app-storage-track'].attrs['aria-valuenow'],undefined);
   await listeners['openrf:settings-shown']();
   assert.equal(calls.length,6);
-  console.log('PASS v0.2.148 standalone App Settings storage and consent-safe field preflight');
+  console.log('PASS v0.2.149 standalone App Settings storage and consent-safe field preflight');
 })().catch(err=>{console.error(err);process.exitCode=1;});

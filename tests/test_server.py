@@ -13,15 +13,15 @@ from openrf.storage import Repository
 
 class ApiTests(unittest.TestCase):
     def test_emergency_tabs_and_reverse_follow_assets_are_served(self):
-        # v0.2.148 regression: the HTML included these files but the strict
+        # v0.2.149 regression: the HTML included these files but the strict
         # static allowlist returned 404, leaving backup visible and tabs inert.
         status,html=self.call('GET','/')
         self.assertEqual(status,200)
         for name,marker in [('emergency-tabs.js',b'OpenRFEmergencyTabs'),
                             ('breadcrumb_follow.js',b'OpenRFBreadcrumbFollow')]:
             with self.subTest(asset=name):
-                self.assertIn(f'/static/{name}?v=0.2.148'.encode(),html)
-                code,body=self.call('GET',f'/static/{name}?v=0.2.148')
+                self.assertIn(f'/static/{name}?v=0.2.149'.encode(),html)
+                code,body=self.call('GET',f'/static/{name}?v=0.2.149')
                 self.assertEqual(code,200)
                 self.assertIn(marker,body)
         self.assertEqual(self.call('GET','/static/not-permitted.js')[0],404)
@@ -456,7 +456,7 @@ class ApiTests(unittest.TestCase):
     def test_health_static_hardware_and_exports(self):
         s,data=self.call('GET','/api/health')
         self.assertEqual(s,200)
-        self.assertEqual(data['version'],'0.2.148')
+        self.assertEqual(data['version'],'0.2.149')
         for path in ('/','/static/app.css','/static/app.js','/static/history-analysis.js','/static/route_guidance.js','/static/spectrum.js','/static/spectrum-analysis.js','/static/sdr-history.js','/api/export.csv','/api/export.geojson'):
             status,_=self.call('GET',path)
             self.assertEqual(status,200,path)

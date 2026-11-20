@@ -1,5 +1,5 @@
 'use strict';
-/* v0.2.148: user-selected Default/Satellite/Topographic survives app reloads. */
+/* v0.2.149: user-selected Default/Satellite/Topographic survives app reloads. */
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
@@ -34,4 +34,4 @@ assert(app.includes("rememberBaseMap('default')"),'Manual fallback/style switche
 assert(app.includes('Remembered choice reloads USGS tiles next time'));
 assert(html.includes('name="map-basemap" value="satellite"'));
 assert(html.includes('name="map-basemap" value="topographic"'));
-console.log('PASS v0.2.148 persistent basemap preference with restricted storage fallback');
+console.log('PASS v0.2.149 persistent basemap preference with restricted storage fallback');
