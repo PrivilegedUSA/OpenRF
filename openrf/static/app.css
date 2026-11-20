@@ -2197,6 +2197,7 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
 
 /* Use exactly the same outlined warning-triangle SVG as the header shortcut. */
 .sidebar .nav-btn[data-page="emergency"] .nav-icon svg{display:block;width:20px;height:20px;color:inherit}
+.sidebar .nav-btn[data-page="map"] .nav-icon svg{display:block;width:20px;height:20px;color:inherit}
 
 /* A manual pedestrian recovery action only appears after fresh, accurate
    off-path GPS. It never launches a request in the background. */

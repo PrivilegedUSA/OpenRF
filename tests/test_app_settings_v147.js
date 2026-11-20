@@ -9,7 +9,7 @@ const source=fs.readFileSync('openrf/static/app-settings.js','utf8');
 assert(html.includes('data-page="settings"'));
 assert(html.indexOf('data-page="settings"')>html.indexOf('class="sidebar-bottom"'));
 assert(html.includes('id="page-settings"'));
-assert(html.includes('/static/app-settings.js?v=0.2.155'));
+assert(html.includes('/static/app-settings.js?v=0.2.156'));
 for(const id of ['app-device-storage','app-storage-free','app-storage-used','app-storage-total',
   'app-storage-track','app-storage-refresh','app-field-check','app-field-results','app-field-status'])
   assert(html.includes(`id="${id}"`),`Missing settings UI ${id}`);

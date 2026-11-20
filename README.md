@@ -1,5 +1,9 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.156 — reliable sidebar Map icon
+
+- **Map sidebar icon:** Replaced a Unicode symbol that appeared as an empty rectangle in Electron with a built-in folded-map SVG. It inherits the same active/idle color as the rest of the menu and needs no icon font or additional network assets. All other menus, mapping, routing and browser behavior remain unchanged. See [v0.2.156 release checks](docs/RELEASE_0.2.156_TESTS.md).
+
 ## v0.2.155 — Electron shell efficiency and measurement
 
 - **In-window browser retained:** The native Chromium browser continues to live inside OpenRF, with no extra browser window or kiosk launcher. On tab changes or leaving the Browser page, Electron now explicitly hides inactive `WebContentsView`s and enables normal background timer/animation throttling. Live tabs keep their history and loaded pages; reopening a tab does not automatically navigate again.

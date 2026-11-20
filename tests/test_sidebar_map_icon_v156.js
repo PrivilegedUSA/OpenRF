@@ -1,0 +1,15 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const html=fs.readFileSync('openrf/static/index.html','utf8');
+const css=fs.readFileSync('openrf/static/app.css','utf8');
+const start=html.indexOf('data-page="map"');
+const end=html.indexOf('</button>',start);
+assert(start!==-1&&end>start,'Map navigation button is present');
+const map=html.slice(start,end);
+assert(map.includes('<svg viewBox="0 0 24 24"'),'Map nav icon is vector, not a font glyph');
+assert(map.includes('stroke="currentColor"'),'Map icon inherits active/idle nav colors');
+assert(map.includes('aria-hidden="true"'),'Decorative icon hidden from assistive tech');
+assert(!map.includes('⌖'),'Unsupported legacy map character removed');
+assert(css.includes('.sidebar .nav-btn[data-page="map"] .nav-icon svg{display:block;width:20px;height:20px;color:inherit}'));
+console.log('PASS v0.2.156 SVG sidebar map icon works without Unicode symbol font');

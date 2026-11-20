@@ -1,3 +1,8 @@
+## OpenRF v0.2.156 — sidebar map icon compatibility (2026-11-20)
+
+- Replaced the Map sidebar's missing-glyph Unicode character (`⌖`) with an inline folded-map SVG, sized and colored consistently with the existing sidebar Emergency SVG icon. This fixes the rectangle rendered on the user's Linux Electron laptop without adding an icon font dependency.
+- Added a regression test that checks the SVG icon and color inheritance. No backend, database, hardware, browsing or mapping logic changes. See `docs/RELEASE_0.2.156_TESTS.md`.
+
 ## OpenRF v0.2.155 — native browser backgrounding and shell measurements (2026-11-20)
 
 - Kept the Electron `WebContentsView` experience inside OpenRF. Inactive websites are now explicitly hidden with `View.setVisible(false)` and preserve Chromium background throttling while retaining live DOM/navigation state for fast tab switching. No external Chromium kiosk is introduced or required.
