@@ -1,5 +1,12 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.154 — continuous map panning, quiet fallback and honest location status
+
+- **Map stays filled while panning:** The WebGL-free raster renderer now repeats ordinary image tiles at the world boundary using separate display elements and clamps vertical movement at the Web Mercator polar edges. Dragging the zoomed-out USGS map should pan across continuous images instead of sliding the entire image away to reveal a grid.
+- **No persistent fallback card:** After any online USGS or offline raster tile actually loads, the explanatory map-source card disappears. A source that has not loaded retains the helpful retry/selection choices. Map → Layers still switches Default / Satellite / Topographic in raster mode.
+- **Map location feedback:** Tapping recenter shows the actual request/result on the map for 10 seconds. In Electron, OpenRF no longer automatically asks for browser location on startup. A manual recenter checks local gpsd directly if Electron has no browser geolocation provider; otherwise it tries browser geolocation first and may fall back to one consent-gated local GNSS read. Only fresh, accuracy-reported receiver data can move the map. A missing fix is identified and no coordinates are invented or stored. Firefox web mode continues using its normal browser permission behavior. Electron's optional location provider is not automatically configured, and WSL cannot be assumed to access Windows location hardware. See [v0.2.154 release verification](docs/RELEASE_0.2.154_TESTS.md).
+- **Clarifying Electron's role:** The Python backend and local web UI run independently in a normal browser. Electron is an optional Chromium desktop wrapper for full in-window browsing, eventual Linux application packaging, and kiosk tests—not required for using OpenRF on localhost. See [native browser details](docs/NATIVE_BROWSER_PI.md).
+
 ## v0.2.153 — WSL/Electron map fallback and compact sidebar
 
 - **Readable sidebar on desktop Electron:** The workspace links now use 14px labels, matching App Settings, and stay on one line at the 1280×800 test layout. Icons keep their own sizing and the touch targets remain full-height. This fixes inherited 18px label styling that wrapped Signal Viewer and Radio Receiver.

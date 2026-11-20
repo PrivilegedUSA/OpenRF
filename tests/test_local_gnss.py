@@ -109,12 +109,18 @@ class GnssHttp(unittest.TestCase):
         with patch('openrf.server.read_local_gpsd',return_value={'status':'fix','latitude':38.4,'longitude':-120.6}) as probe:
             self.assertEqual(self.get()[0],403)
             self.assertEqual(self.get({'X-OpenRF-GNSS-Consent':'navigation-follow','Origin':'https://evil.example'})[0],403)
+            self.assertEqual(self.get({'X-OpenRF-GNSS-Consent':'map-recenter','Origin':'https://evil.example'})[0],403)
             self.assertEqual(self.get({'X-OpenRF-GNSS-Consent':'navigation-follow'},'/api/navigation/gnss?foo=bar')[0],400)
+            self.assertEqual(self.get({'X-OpenRF-GNSS-Consent':'map-recenter'},'/api/navigation/gnss?foo=bar')[0],400)
             probe.assert_not_called()
             status,data=self.get({'X-OpenRF-GNSS-Consent':'navigation-follow'})
             self.assertEqual(status,200)
             self.assertEqual(data['status'],'fix')
             probe.assert_called_once()
+            status,data=self.get({'X-OpenRF-GNSS-Consent':'map-recenter'})
+            self.assertEqual(status,200)
+            self.assertEqual(data['status'],'fix')
+            self.assertEqual(probe.call_count,2)
 
 
 if __name__=='__main__':unittest.main()

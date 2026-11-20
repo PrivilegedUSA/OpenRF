@@ -489,10 +489,11 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError:
                 return self._error(400, 'Invalid report selection')
         if path == '/api/navigation/gnss':
-            # Deliberate follow-mode poll only; never a background service.
-            # Header prevents casual cross-origin/prefetch location reads.
-            if self.headers.get('X-OpenRF-GNSS-Consent') != 'navigation-follow' or not self._allowed_origin():
-                return self._error(403, 'Local GNSS requires active navigation consent.')
+            # Read only during active navigation following OR an explicit
+            # operator map-recenter tap. Never a background location service.
+            # Consent and loopback-origin checks prevent casual prefetch reads.
+            if self.headers.get('X-OpenRF-GNSS-Consent') not in ('navigation-follow', 'map-recenter') or not self._allowed_origin():
+                return self._error(403, 'Local GNSS requires explicit location consent.')
             if urlparse(self.path).query:
                 return self._error(400, 'GNSS polling does not accept query parameters.')
             return self._json(200, read_local_gpsd())

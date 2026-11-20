@@ -2,6 +2,14 @@
 
 This optional OpenRF shell uses **Electron's Chromium engine and isolated `WebContentsView` tabs** to render external websites inside the Web Browser workspace. It is *not* the standard OpenRF web app's restricted iframe. Since v0.2.152, opening the shell first checks the loopback API, and starts/stops its **own Python backend** if needed. It does **not** ship an Electron executable in the source ZIP.
 
+## Why use Electron if `localhost:8765` works in Firefox?
+
+**You do not need Electron to run OpenRF.** The Python HTTP/SQLite backend and HTML/CSS/JavaScript application are the same either way. In ordinary development, running `python3 -m openrf` in WSL and opening `http://127.0.0.1:8765/` in Firefox is often simpler and has better integration with Windows browser geolocation. This remains a fully valid test workflow.
+
+Electron is an **optional native Chromium host** that turns the existing local UI into a dedicated resizable/fullscreen desktop window, hosts independent Chromium `WebContentsView` tabs in OpenRF's own Browser workspace, and provides the foundation for a future installable Linux `.deb`. Electron currently exposes GPU/WebGL and OS location differences under Windows WSLg that do not occur in Firefox; testing those differences early matters before deploying to the Raspberry Pi kiosk. A `.deb` installer is still future validation work—not a reason to force Electron into every development/test session.
+
+**Geolocation caveat:** Electron's built-in geolocation service requires an additional Google Geolocation API key and associated billing configuration; we do not bundle one or introduce a required paid service into offline-first OpenRF. Since v0.2.154, Electron does not silently request a browser position on startup. Tapping the map's crosshair explicitly requests a position. When no browser provider is configured, it checks an optional local `gpsd` GNSS receiver once without waiting for a browser timeout; if a provider is configured, it tries browser location first. Without either provider or actual connected GNSS hardware, the map remains manually navigable and reports why it could not recenter. Firefox's OS/browser location support is independent of Electron; GPS permission never proves accuracy.
+
 ## Installation (when you have the Raspberry Pi or Linux desktop)
 
 1. Use **64-bit Raspberry Pi OS with a graphical desktop** or a supported Linux desktop. Install Python 3.11+ and Node.js/npm (Node 20+ for this launcher). Electron distributes Linux ARM64 binaries, but the exact Pi OS libraries, display server, GPU stack, memory and touch behavior must be tested on your board.
@@ -27,7 +35,7 @@ This optional OpenRF shell uses **Electron's Chromium engine and isolated `WebCo
    OPENRF_URL=http://127.0.0.1:8765/ npm start
    ```
 
-   For fullscreen kiosk testing set `OPENRF_KIOSK=1` before `npm start`. The shell will attach to an existing **v0.2.152** OpenRF backend on that port, or start its own copy via `python3 -m openrf` with the packaged/source Python files. On exit it stops **only the process it owns**. If an older OpenRF server is still running on 8765, stop the old server with Ctrl+C before launching the newer shell. Use the actual loopback port reported by OpenRF if it differs from 8765. Never bind OpenRF to a public/LAN interface to make the shell connect.
+   For fullscreen kiosk testing set `OPENRF_KIOSK=1` before `npm start`. The shell will attach to an existing **v0.2.154** OpenRF backend on that port, or start its own copy via `python3 -m openrf` with the packaged/source Python files. On exit it stops **only the process it owns**. If an older OpenRF server is still running on 8765, stop the old server with Ctrl+C before launching the newer shell. Use the actual loopback port reported by OpenRF if it differs from 8765. Never bind OpenRF to a public/LAN interface to make the shell connect.
 
 5. Open **Web Browser** in the shell, enter a public website, press **Go**, then switch tabs. Pages run in their own Chromium surfaces within the OpenRF browser area. The side menu and emergency navigation remain part of OpenRF. **Closing a tab** closes its Chromium surface.
 
@@ -67,3 +75,4 @@ The icon next to Messages opens a local NetworkManager-only Wi-Fi panel. Status 
 - [Electron WebContentsView](https://www.electronjs.org/docs/latest/api/web-contents-view)
 - [Electron security checklist](https://www.electronjs.org/docs/latest/tutorial/security)
 - [Electron Linux ARM64 installation](https://www.electronjs.org/docs/latest/tutorial/installation)
+- [Electron geolocation provider requirement](https://www.electronjs.org/docs/latest/api/environment-variables#google_api_key)

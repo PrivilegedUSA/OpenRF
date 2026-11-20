@@ -1308,6 +1308,7 @@ function selectBaseMap(next){
     // Keep the working, no-WebGL raster renderer and switch its tile source.
     for(const image of state.rasterMap.tileNodes.values())image.remove();
     state.rasterMap.tileNodes.clear();state.rasterMap.failedTiles.clear();
+    state.rasterMap.loadedSourceKey=null;
     state.rasterMap.render();
     updateOfflineAttribution();
   }
@@ -1636,11 +1637,14 @@ function updateBrowserLocationMarker() {
   if (state.map && window.maplibregl?.Marker) {
     if (!state.geoMarker) {
       const marker = document.createElement('div'); marker.className = 'browser-location-marker';
-      marker.setAttribute('role','img'); marker.setAttribute('aria-label','Browser-reported location (not a transmitter)');
-      marker.title = 'Browser-reported device location; approximate, not a transmitter or saved survey point';
+      marker.setAttribute('role','img');
       state.geoMarker = new maplibregl.Marker({element:marker,anchor:'center'})
         .setLngLat([state.browserLocation.lon,state.browserLocation.lat]).addTo(state.map);
     } else state.geoMarker.setLngLat([state.browserLocation.lon,state.browserLocation.lat]);
+    const label=state.browserLocation.source==='gpsd'?'Local gpsd GNSS':'Browser-reported';
+    const marker=state.geoMarker.getElement();
+    marker.setAttribute('aria-label',`${label} location (not a transmitter)`);
+    marker.title=`${label} device location; approximate, not a transmitter or saved survey point`;
   }
   state.rasterMap?.render();
 }
@@ -1691,7 +1695,10 @@ function recenterMapToBrowserLocation() {
     epoch:state.mapNavigationEpoch, manual:true
   };
   applyPendingLocation();
-  $('map-location-status').textContent = 'Recentered to recent browser-reported location; may be approximate. No location was saved.';
+  const source=loc.source==='gpsd'?'local GNSS':'browser-reported';
+  const message=`Recentered to recent ${source} location; may be approximate. No location was saved.`;
+  $('map-location-status').textContent = message;
+  showMapLocationFeedback(message);
 }
 function makeMapRecenterButton() {
   const button = document.createElement('button');
@@ -1708,39 +1715,105 @@ function makeMapRecenterButton() {
   return button;
 }
 
+let mapLocationToastTimer=null;
+function showMapLocationFeedback(message,error=false){
+  const toast=$('map-location-toast');
+  toast.textContent=message;toast.dataset.error=String(error);toast.hidden=false;
+  if(mapLocationToastTimer!==null)clearTimeout(mapLocationToastTimer);
+  mapLocationToastTimer=setTimeout(()=>{toast.hidden=true;mapLocationToastTimer=null;},10000);
+}
+function applyMapPosition(pos,origin,manual,epoch){
+  const {latitude:lat,longitude:lon,accuracy}=pos.coords;
+  if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)return false;
+  state.browserLocation={lat,lon,accuracy,capturedAt:Date.now(),source:origin,
+    source_device:pos.source_device||null};
+  globalThis.window?.OpenRFMapElevation?.update(pos);
+  preferLocalVectorsAtBrowserFix(lon,lat);
+  if (!state.navOriginManual) {
+    $('nav-start-lat').value=lat.toFixed(7);
+    $('nav-start-lon').value=lon.toFixed(7);
+    const description=origin==='gpsd'?'local GNSS':'browser-reported';
+    $('nav-origin-status').textContent=`Starting position: ${description} (±${Number.isFinite(accuracy)?Math.round(accuracy):'unknown'} m). Approximate; adjust in Plan a trip if necessary.`;
+  }
+  updateBrowserLocationMarker();
+  if(manual||epoch===state.mapNavigationEpoch){
+    state.pendingLocationView={center:[lon,lat],zoom:locationZoom(accuracy),epoch,manual};
+    applyPendingLocation();
+  }
+  const description=origin==='gpsd'?`Local GNSS (${pos.source_device||'gpsd receiver'})`:'Browser location';
+  const message=`${description}: ${lat.toFixed(4)}, ${lon.toFixed(4)} (±${Number.isFinite(accuracy)?Math.round(accuracy)+' m':'unknown accuracy'}). Not saved.`;
+  $('map-location-status').textContent=message;
+  if(manual)showMapLocationFeedback(message);
+  return true;
+}
+// Map recenter is an explicit one-shot action, separate from permissioned
+// continuous navigation following. The backend still requires loopback origin
+// plus a distinct map-recenter consent header before reading local gpsd.
+async function tryMapRecenterGnss(epoch){
+  try{
+    const response=await fetch('/api/navigation/gnss',{cache:'no-store',headers:{'X-OpenRF-GNSS-Consent':'map-recenter'}});
+    if(!response.ok)return {ok:false,message:'Local GNSS access was refused.'};
+    const fix=await response.json();
+    if(fix.status!=='fix')return {ok:false,message:fix.message||`Local GNSS status: ${fix.status||'unknown'}.`};
+    const timestamp=Date.parse(fix.utc_timestamp);
+    if(!Number.isFinite(timestamp)||Math.abs(Date.now()-timestamp)>15000||
+       !Number.isFinite(fix.latitude)||!Number.isFinite(fix.longitude)||
+       !Number.isFinite(fix.accuracy_m)||fix.accuracy_m<0)
+      return {ok:false,message:'Local GNSS fix is stale, invalid or has no reported accuracy.'};
+    const pos={origin:'gpsd',source_device:fix.source_device,timestamp,coords:{
+      latitude:fix.latitude,longitude:fix.longitude,accuracy:fix.accuracy_m,
+      altitude:fix.altitude_m,altitudeAccuracy:fix.vertical_accuracy_m,
+      altitudeReference:fix.altitude_reference}};
+    return applyMapPosition(pos,'gpsd',true,epoch)?{ok:true}:{ok:false,message:'Local GNSS returned invalid coordinates.'};
+  }catch(_){return {ok:false,message:'Could not query local gpsd. Check the optional GNSS receiver.'};}
+}
 function locateMap(manual = false) {
   if (!manual && state.autoLocateAttempted) return;
   state.autoLocateAttempted = true;
   const status = $('map-location-status');
-  if (!navigator.geolocation) {
-    status.textContent = 'Your browser does not offer geolocation. Use the map manually.';
+  // The Electron shell has no built-in free geolocation provider; unlike a
+  // regular browser it can silently fail without an OS permission dialog.
+  // Do not auto-request at launch in that shell: wait for a tap on recenter.
+  if(!manual&&window.openrfNativeBrowser?.available){
+    status.textContent='Electron location is manual. Tap the map crosshair to check the browser or a connected local GNSS receiver.';
     return;
   }
   const epoch = state.mapNavigationEpoch;
+  // Electron without a configured browser geolocation provider cannot obtain
+  // a location just by granting permission. Avoid a pointless 15-second
+  // browser timeout; attempt the operator's local GNSS receiver once instead.
+  if(manual&&window.openrfNativeBrowser?.available&&window.openrfNativeBrowser.locationProviderConfigured===false){
+    status.textContent='Checking an optional local GNSS receiver for your location…';
+    showMapLocationFeedback(status.textContent);
+    void tryMapRecenterGnss(epoch).then(result=>{
+      if(result.ok)return;
+      const message=`No Electron browser location provider is configured. ${result.message} Open OpenRF in Firefox for desktop location, or connect a local gpsd receiver. No position was invented.`;
+      status.textContent=message;showMapLocationFeedback(message,true);
+    });
+    return;
+  }
+  const fallback=async(detail)=>{
+    if(!manual){status.textContent=`Browser location ${detail}; the map remains usable.`;return;}
+    showMapLocationFeedback(`Browser location ${detail}. Checking optional local GNSS…`);
+    const result=await tryMapRecenterGnss(epoch);
+    if(result.ok)return;
+    const native=window.openrfNativeBrowser?.available;
+    const message=native?
+      `Electron browser location ${detail}. ${result.message} WSL may lack a location provider; use OpenRF in Firefox for desktop location or connect a GPS receiver via gpsd.`:
+      `Browser location ${detail}. ${result.message} Check location permission or enter coordinates manually.`;
+    status.textContent=message;showMapLocationFeedback(message,true);
+  };
+  if (!navigator.geolocation) {
+    void fallback('is unavailable');
+    return;
+  }
   status.textContent = 'Getting browser location (permission may be requested)…';
+  if(manual)showMapLocationFeedback('Requesting your browser location. Nothing is saved.');
   navigator.geolocation.getCurrentPosition(pos => {
-    const {latitude: lat, longitude: lon, accuracy} = pos.coords;
-    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat)>90 || Math.abs(lon)>180) {
-      status.textContent = 'Browser returned invalid coordinates. Map remains available manually.'; return;
-    }
-    state.browserLocation = {lat, lon, accuracy, capturedAt: Date.now()};
-    globalThis.window?.OpenRFMapElevation?.update(pos);
-    preferLocalVectorsAtBrowserFix(lon,lat);
-    if (!state.navOriginManual) {
-      $('nav-start-lat').value=lat.toFixed(7);
-      $('nav-start-lon').value=lon.toFixed(7);
-      $('nav-origin-status').textContent=`Starting position: browser-reported (±${Number.isFinite(accuracy) ? Math.round(accuracy) : 'unknown'} m). Approximate; adjust in Plan a trip if necessary.`;
-    }
-    updateBrowserLocationMarker();
-    if (manual || epoch === state.mapNavigationEpoch) {
-      state.pendingLocationView = {center:[lon,lat], zoom:locationZoom(accuracy), epoch, manual};
-      applyPendingLocation();
-    }
-    const accuracyText = Number.isFinite(accuracy) ? `±${Math.round(accuracy)} m` : 'unknown accuracy';
-    status.textContent = `Browser location: ${lat.toFixed(4)}, ${lon.toFixed(4)} (${accuracyText}). Not saved. Desktop/VPN locations can be approximate.`;
+    if(!applyMapPosition(pos,'browser',manual,epoch))void fallback('returned invalid coordinates');
   }, err => {
     const detail = err.code === 1 ? 'permission denied' : err.code === 3 ? 'request timed out' : 'position unavailable';
-    status.textContent = `Browser location ${detail}; the map remains usable. Try “My browser location” or enter survey coordinates manually.`;
+    void fallback(detail);
   }, {timeout:15000, maximumAge:60000, enableHighAccuracy:false});
 }
 function visibleWaypoints() {
@@ -1927,6 +2000,33 @@ function rasterTileSource(baseMap, offlineMap, zoom){
   }
   return null;
 }
+// Horizontal wrap is real: near a world edge, the same URL may need two
+// independent <img> elements at different viewport positions. Distinguish
+// the *unwrapped* world column in the DOM key, but use wrapped x in the URL.
+function rasterVisibleTiles(center,zoom,width,height,source){
+  if(!source||width<=0||height<=0)return [];
+  const centerPx=worldPixel(center[0],center[1],zoom);
+  const factor=2**(zoom-source.tileZoom),tileSize=256*factor;
+  const left=centerPx[0]-width/2,top=centerPx[1]-height/2;
+  const count=2**source.tileZoom,output=[];
+  const firstX=Math.floor(left/tileSize),lastX=Math.floor((left+width)/tileSize);
+  const firstY=Math.max(0,Math.floor(top/tileSize));
+  const lastY=Math.min(count-1,Math.floor((top+height)/tileSize));
+  for(let ty=firstY;ty<=lastY;ty++)for(let tx=firstX;tx<=lastX;tx++){
+    const wrapped=((tx%count)+count)%count;
+    output.push({key:`${source.key}/${source.tileZoom}/${tx}/${ty}`,url:source.url(wrapped,ty),
+      size:tileSize,left:tx*tileSize-left,top:ty*tileSize-top});
+  }
+  return output;
+}
+// Web Mercator wraps east/west, never north/south. At zoom 2 the map is just
+// 1024px tall, so clamp the camera to avoid dragging empty space over a pole.
+function clampRasterCenter(center,zoom,viewportHeight){
+  const maxY=256*2**zoom;
+  const margin=Math.min(maxY/2,viewportHeight/2);
+  const point=worldPixel(center[0],center[1],zoom);
+  return pixelWorld(point[0],Math.max(margin,Math.min(maxY-margin,point[1])),zoom);
+}
 function startRasterMap(reason, view = null) {
   if (state.rasterMap) return;
   updateBaseMapPicker();
@@ -1949,6 +2049,7 @@ function startRasterMap(reason, view = null) {
       if(!state.rasterMap)return;
       for(const image of state.rasterMap.tileNodes.values())image.remove();
       state.rasterMap.tileNodes.clear();state.rasterMap.failedTiles.clear();
+      state.rasterMap.loadedSourceKey=null;
       state.rasterMap.render();
     });
     choices.append(button);return [source,button];
@@ -1970,7 +2071,7 @@ function startRasterMap(reason, view = null) {
   root.replaceChildren(surface, notice, controls);
   queueMapToolRailAlignment();
   let flightFrame = null;
-  const raster = {center:view?.center || [-98.5,39.8], zoom:Math.max(2,Math.min(18,Math.round(view?.zoom || 2))), tileNodes:new Map(), failedTiles:new Set(),
+  const raster = {center:view?.center || [-98.5,39.8], zoom:Math.max(2,Math.min(18,Math.round(view?.zoom || 2))), tileNodes:new Map(), failedTiles:new Set(),loadedSourceKey:null,
     render() {
       root.classList.toggle('raster-dark',state.style==='dark'&&state.baseMap==='default');
       const failures=[...raster.failedTiles.keys()].filter(key=>key.startsWith(`${state.baseMap==='default'?'local-'+state.offlineMap?.id:state.baseMap}/`)).length;
@@ -1981,27 +2082,17 @@ function startRasterMap(reason, view = null) {
       }
       const width = root.clientWidth, height = root.clientHeight;
       if (!width || !height) return;
+      raster.center=clampRasterCenter(raster.center,raster.zoom,height);
       const center = worldPixel(raster.center[0], raster.center[1], raster.zoom);
       const size = 256 * 2 ** raster.zoom;
-      const left = center[0] - width/2, top = center[1] - height/2;
-      const startX = Math.floor(left/256), endX = Math.floor((left + width)/256);
-      const startY = Math.floor(top/256), endY = Math.floor((top + height)/256);
       // Default is strictly local. Remote imagery is used only after the
       // operator selected (and remembered) Satellite or Topographic.
       const source = rasterTileSource(state.baseMap,state.offlineMap,raster.zoom);
-      const tileZoom = source?.tileZoom ?? -1;
-      const canShowTiles = !!source;
-      const factor = canShowTiles ? 2 ** (raster.zoom - tileZoom) : 1;
-      const tileSize = 256 * factor;
-      const tileCount = canShowTiles ? 2 ** tileZoom : 0;
+      notice.hidden=!!source&&raster.loadedSourceKey===source.key;
       const visible = new Set();
-      if (canShowTiles) {
-        const firstX = Math.floor(left / tileSize), lastX = Math.floor((left + width) / tileSize);
-        const firstY = Math.floor(top / tileSize), lastY = Math.floor((top + height) / tileSize);
-        for (let ty = Math.max(0,firstY); ty <= Math.min(tileCount-1,lastY); ty++) {
-          for (let tx=firstX; tx<=lastX; tx++) {
-            const wrapped = ((tx % tileCount) + tileCount) % tileCount;
-            const key = `${source.key}/${tileZoom}/${wrapped}/${ty}`;
+      if (source) {
+        for (const tile of rasterVisibleTiles(raster.center,raster.zoom,width,height,source)) {
+            const key=tile.key;
             if (raster.failedTiles.has(key)) continue;
             visible.add(key);
             let image = raster.tileNodes.get(key);
@@ -2009,18 +2100,23 @@ function startRasterMap(reason, view = null) {
               image = document.createElement('img');
               image.alt = ''; image.setAttribute('aria-hidden', 'true');
               image.loading = 'lazy';
+              image.addEventListener('load',()=>{
+                if(state.rasterMap===raster&&raster.tileNodes.get(key)===image){
+                  raster.loadedSourceKey=source.key;
+                  notice.hidden=true;
+                }
+              });
               image.addEventListener('error', () => {
                 raster.failedTiles.add(key); raster.tileNodes.delete(key); image.remove();
                 // A failed server/coverage request must never be called a
                 // successful online or offline map load.
                 if(state.rasterMap===raster)raster.render();
               });
-              image.src = source.url(wrapped,ty);
+              image.src = tile.url;
               raster.tileNodes.set(key, image); tiles.append(image);
             }
-            image.style.width = `${tileSize}px`; image.style.height = `${tileSize}px`;
-            image.style.left = `${tx * tileSize-left}px`; image.style.top = `${ty * tileSize-top}px`;
-          }
+            image.style.width = `${tile.size}px`; image.style.height = `${tile.size}px`;
+            image.style.left = `${tile.left}px`; image.style.top = `${tile.top}px`;
         }
       }
       for (const [key,image] of raster.tileNodes) {
@@ -2070,7 +2166,9 @@ function startRasterMap(reason, view = null) {
         if (Math.abs(dx)<=width/2+15 && Math.abs(dy)<=height/2+15) {
           const marker=document.createElement('div'); marker.className='browser-location-marker raster-location';
           marker.style.left=`${width/2+dx}px`; marker.style.top=`${height/2+dy}px`;
-          marker.title='Browser-reported location (not a transmitter or survey observation)';
+          marker.title=state.browserLocation.source==='gpsd'?
+            'Local GNSS location (not a transmitter or survey observation)':
+            'Browser-reported location (not a transmitter or survey observation)';
           nextPins.append(marker);
         }
       }

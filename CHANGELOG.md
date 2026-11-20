@@ -1,3 +1,10 @@
+## OpenRF v0.2.154 — continuous raster panning and manual location diagnostics (2026-11-20)
+
+- Corrected Web Mercator wrap in the no-WebGL renderer: independent tile image nodes are now keyed by unwrapped world column, while the requested XYZ address wraps. The camera clamps vertical panning at polar bounds so wide, zoomed-out maps do not reveal avoidable coordinate-grid gaps.
+- The fallback explanation and layer-picker disappear after real raster imagery loads; offline and online imagery remain selectable under Map → Layers, and failed tile retries remain available before successful display.
+- Added visible map recenter progress/error feedback; Electron skips the automatic browser location request and makes location a deliberate map recenter action. Without a configured Electron browser provider it checks the already-supported local gpsd adapter directly; otherwise browser failure may fall back to a one-shot GNSS check with separate consent header and strict fresh/accuracy checks. No GNSS receiver or desktop geolocation service is assumed, no automatic tracking or storage added. WSL Firefox remains the easy location-enabled development path.
+- Added raster panning/projection and consent/quality tests. No SQLite change, new Python dependency, installed OS driver, RF hardware behavior or map pack mutation. See `docs/RELEASE_0.2.154_TESTS.md`.
+
 ## OpenRF v0.2.153 — Electron desktop map recovery and sidebar sizing (2026-11-20)
 
 - Fixed inherited 18px desktop sidebar label sizing, preventing Signal Viewer and Radio Receiver from wrapping at a 1280×800 Linux Electron window. Kept navigation tap targets and the App Settings typography consistent.

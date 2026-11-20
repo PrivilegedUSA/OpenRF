@@ -77,16 +77,17 @@ assert(recenterStart>=0&&recenterEnd>recenterStart,'recenter logic must remain i
 const recenterCode=source.slice(recenterStart,recenterEnd);
 assert(!recenterCode.includes('fetch(')&&!recenterCode.includes('api('),'recenter does not save or send observations');
 function runRecenter(browserLocation) {
-  const calls={locate:0,apply:0};
+  const calls={locate:0,apply:0,feedback:0};
   const s={browserLocation,mapNavigationEpoch:4,pendingLocationView:null};
   const ref={textContent:''};
-  const fn=Function('state','Date','locateMap','applyPendingLocation','locationZoom','$',
+  const fn=Function('state','Date','locateMap','applyPendingLocation','locationZoom','$','showMapLocationFeedback',
     `${recenterCode};return recenterMapToBrowserLocation;`)(s,{now:()=>100000},
-      manual=>{assert.equal(manual,true);calls.locate++;},()=>{calls.apply++;},()=>14,()=>ref);
+      manual=>{assert.equal(manual,true);calls.locate++;},()=>{calls.apply++;},()=>14,()=>ref,()=>{calls.feedback++;});
   fn();return {s,calls,ref};
 }
 const recent=runRecenter({lat:38.48,lon:-120.62,accuracy:35,capturedAt:80000});
 assert.equal(recent.calls.locate,0);assert.equal(recent.calls.apply,1);
+assert.equal(recent.calls.feedback,1,'Manual recenter reports its result on the map');
 assert.deepEqual(recent.s.pendingLocationView.center,[-120.62,38.48]);
 assert.equal(recent.s.pendingLocationView.manual,true);
 assert.equal(recent.s.mapNavigationEpoch,5);

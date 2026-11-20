@@ -2288,6 +2288,11 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
 #map.raster-mode .raster-source-choices button.active{border-color:#44cbb9;background:#20524f;color:#c7fff1}
 #map.raster-mode .raster-source-choices button:hover{background:#235462}
 
+/* v0.2.154 — location result is visible on the map, not hidden in settings. */
+#page-map .map-wrap .map-location-toast{position:absolute;z-index:35;left:12px;top:80px;right:72px;width:fit-content;max-width:min(440px,calc(100% - 90px));padding:10px 12px;border:1px solid #418f82;border-radius:9px;background:#092833f5;color:#d8f8f0;font-size:12px;line-height:1.45;box-shadow:0 4px 16px #0009;pointer-events:none}
+#page-map .map-wrap .map-location-toast[data-error="true"]{border-color:#ac864c;color:#ffe1b5}
+#page-map .map-wrap .map-location-toast[hidden]{display:none!important}
+
 /* Walking recording is a separate, opt-in local location-history operation. */
 #page-map .map-nav-record{margin:8px 0 6px;padding:8px 9px;background:#102f36;
   border:1px solid #366967;border-radius:8px}

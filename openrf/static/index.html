@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.153">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.154">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -23,10 +23,10 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/map-elevation.js?v=0.2.151"></script>
   <script defer src="/static/battery-status.js?v=0.2.151"></script>
-  <script defer src="/static/wifi-quick.js?v=0.2.153"></script>
+  <script defer src="/static/wifi-quick.js?v=0.2.154"></script>
   <script defer src="/static/route-elevation.js?v=0.2.151"></script>
   <script defer src="/static/trip-map.js?v=0.2.151"></script>
-  <script defer src="/static/app.js?v=0.2.153"></script>
+  <script defer src="/static/app.js?v=0.2.154"></script>
   <script defer src="/static/app-settings.js?v=0.2.151"></script>
   <script defer src="/static/browser-workspace.js?v=0.2.151"></script>
   <script defer src="/static/saved-trips.js?v=0.2.151"></script>
@@ -60,7 +60,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.153</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.154</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -364,7 +364,7 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
       </section>
       <section class="page active" id="page-map">
         <div class="section-heading map-first-heading"><div><h2>Survey map</h2></div></div>
-        <div class="map-wrap"><div id="map"></div><svg id="navigation-preview-overlay" class="navigation-preview-overlay" aria-hidden="true" preserveAspectRatio="none"></svg><div id="navigation-preview-label" class="navigation-preview-label" hidden>DIRECT LINE · NOT A ROAD ROUTE</div>
+        <div class="map-wrap"><div id="map"></div><div id="map-location-toast" class="map-location-toast" role="status" aria-live="polite" hidden></div><svg id="navigation-preview-overlay" class="navigation-preview-overlay" aria-hidden="true" preserveAspectRatio="none"></svg><div id="navigation-preview-label" class="navigation-preview-label" hidden>DIRECT LINE · NOT A ROAD ROUTE</div>
         <div id="map-altimeter" class="map-altimeter" role="status" aria-live="off" tabindex="0" title="Altitude is unavailable until a fresh GPS fix reports it; altitude reference and vertical uncertainty vary by device.">
           <span class="map-altimeter-label">ALTITUDE</span><strong id="map-altimeter-value">— ft</strong>
         </div>
