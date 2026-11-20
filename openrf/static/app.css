@@ -2489,12 +2489,28 @@ body:not(.map-workspace) .topbar .menu-toggle{flex-shrink:0}
 #page-map .map-basemap-options input{flex:0 0 14px;width:14px;height:14px;margin:0;accent-color:#34c9b1}
 #page-map #map-basemap-note{display:block;min-height:29px;font-size:10px;line-height:1.45;color:#9ebac5}
 .map-altimeter{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1px;
-  min-width:86px;min-height:44px;padding:4px 8px;border:1px solid #315360;border-radius:9px;
+  box-sizing:border-box;min-width:75px;height:44px;min-height:44px;max-height:44px;padding:5px 9px;border:1px solid #315360;border-radius:9px;
   background:#102b36ee;color:#d7f6f1;font-variant-numeric:tabular-nums;pointer-events:none}
 .map-altimeter-label{font-size:8px;font-weight:850;letter-spacing:.9px;color:#8dcaba}
 .map-altimeter strong{font-size:13px;white-space:nowrap;line-height:1.25}
-.map-altimeter small{font-size:9px;color:#9abbbd;white-space:nowrap}
 .map-altimeter[data-altitude="unavailable"] strong{color:#9ab4bc}
 body:not(.map-workspace) .map-altimeter{display:none!important}
 @media(max-width:480px){body.map-workspace .map-altimeter{min-width:74px;padding:4px 5px}
   body.map-workspace .map-altimeter strong{font-size:12px}}
+.area-topo-download{margin:15px 0;padding:13px;border:1px solid #34606a;border-radius:9px;background:#10303b88}
+.area-topo-download h3{margin:0 0 7px}
+.area-topo-download label:not(.switchline){display:grid;gap:6px;margin:8px 0}
+.area-topo-download .switchline{display:flex;align-items:flex-start;gap:8px;margin:12px 0}
+.route-elevation-panel{margin:12px 0;border:1px solid #345a63;border-radius:9px;padding:9px;background:#102b35}
+.route-elevation-panel summary{cursor:pointer;color:#adf4e6;font-weight:800;font-size:12px}
+.route-elevation-panel p{margin:9px 0;line-height:1.5}
+.route-elevation-chart{width:100%;margin-top:10px;border-radius:7px;background:#0a2028}
+.route-elevation-chart[hidden]{display:none!important}
+.route-elevation-chart svg{display:block;width:100%;height:auto;max-height:165px}
+/* v0.2.144: show the map hamburger only while the regular sidebar is a
+   hidden drawer. At 1280x800 with a fine pointer the sidebar is still open. */
+@media (min-width:1401px),
+       (min-width:901px) and (pointer:fine),
+       (min-width:901px) and (min-height:851px){
+  body.map-workspace .topbar .menu-toggle{display:none!important}
+}

@@ -1274,7 +1274,7 @@ function updateBaseMapPicker(){
   if(note)note.textContent=state.baseMap==='satellite'?
     'USGS aerial imagery · online, U.S. only. Tile requests expose the viewed map area; no GPS logs are uploaded.':
     state.baseMap==='topographic'?
-    'USGS contours and relief · online, mainly U.S. coverage. Tile requests expose the viewed area; no offline topo pack yet.':
+    'USGS contours and relief · online, mainly U.S. coverage. For local topo tiles open Offline maps → Offline map files and download a saved small area.':
     state.mapVectorOffline?'Default OpenRF · installed regional vector tiles, available offline.':
     'Default OpenRF · worldwide online map, auto-selects installed regional maps when available.';
   updateOfflineAttribution();
@@ -2303,6 +2303,7 @@ function renderSavedArea() {
   $('area-saved-remove').disabled=!p;
   $('area-build').disabled=!p;
   $('area-zip-import').disabled=!p;
+  $('area-topo-start').disabled=!p || p.candidate_tiles>96 || p.candidate_tiles<1;
   const tilePlanLink=$('area-saved-tile-plan');
   const exportLink=$('area-saved-export');
   if(p) {
@@ -2311,6 +2312,7 @@ function renderSavedArea() {
     exportLink.href=`/api/maps/areas/${p.id}.geojson`;
     exportLink.setAttribute('aria-disabled','false');exportLink.removeAttribute('tabindex');
     $('area-saved-detail').textContent=`${p.name}: ${p.bounds.map(v=>v.toFixed(4)).join(', ')} · zoom ${p.minzoom}–${p.maxzoom} · up to ${p.candidate_tiles.toLocaleString()} tile slots (not guaranteed data).`;
+    if(p.candidate_tiles>96)$('area-topo-status').textContent=`This plan has ${p.candidate_tiles.toLocaleString()} tile slots. Create a smaller plan with 96 or fewer to enable the USGS download.`;
   } else {
     tilePlanLink.removeAttribute('href');tilePlanLink.setAttribute('aria-disabled','true');tilePlanLink.tabIndex=-1;
     exportLink.removeAttribute('href');exportLink.setAttribute('aria-disabled','true');exportLink.tabIndex=-1;
@@ -2327,6 +2329,51 @@ async function refreshAreaPlans(selectId=null) {
   el.value=state.selectedArea?.id||'';
   renderSavedArea();
 }
+// USGS topography: downloads occur ONLY when the operator confirms a saved
+// area and starts this background job; no prefetch on location/map movement.
+let topoPollTimer=null;
+async function pollTopoDownload(){
+  const response=await api('/api/maps/topographic/status');
+  const job=response.download||{state:'idle'};
+  const busy=job.state==='running';
+  $('area-topo-cancel').disabled=!busy;
+  $('area-topo-start').disabled=busy||!state.selectedArea||state.selectedArea.candidate_tiles>96;
+  if(busy){
+    $('area-topo-status').textContent=`Downloading ${job.map_id}.mbtiles from USGS: ${job.downloaded}/${job.candidate_tiles} tiles saved, ${job.missing} missing. You may leave this panel open.`;
+    if(!topoPollTimer)topoPollTimer=setInterval(()=>pollTopoDownload().catch(err=>{
+      $('area-topo-status').textContent=`Waiting for download status: ${err.message}`;
+    }),1300);
+    return;
+  }
+  if(topoPollTimer){clearInterval(topoPollTimer);topoPollTimer=null;}
+  if(job.state==='complete'){
+    const result=job.result;
+    $('area-topo-status').textContent=`Offline USGS topo ready: ${result.tiles_downloaded}/${result.candidate_tiles} tiles, ${result.tiles_missing} missing. Select the local package for offline raster viewing; tiles show contours, not numeric heights.`;
+    if(state.offlineMaps.every(pack=>pack.id!==result.map.id)){
+      await refreshOfflineMaps();
+      $('offline-map-select').value=result.map.id;
+      $('offline-map-select').dispatchEvent(new Event('change'));
+    }
+  }else if(job.state==='failed'||job.state==='cancelled'){
+    $('area-topo-status').textContent=`${job.state==='failed'?'Topographic download failed':'Download cancelled'}: ${job.error||'No offline package installed'}`;
+  }
+}
+$('area-topo-start').addEventListener('click',()=>runAction(async()=>{
+  const p=state.selectedArea,mapId=$('area-topo-name').value.trim();
+  if(!p||p.candidate_tiles>96)throw Error('Select a saved area with no more than 96 tiles.');
+  if(!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(mapId)||mapId.endsWith('.'))throw Error('Choose a new safe local topo filename.');
+  if(!$('area-topo-confirm').checked)throw Error('Check the box to explicitly approve the USGS network download.');
+  if(!confirm(`Download up to ${p.candidate_tiles} USGS topographic tiles for ${p.name}? USGS receives requested map tile coordinates. Package stays on your device.`))return;
+  await api('/api/maps/topographic/start','POST',{area_id:p.id,map_id:mapId,confirm_network:true});
+  $('area-topo-start').disabled=true;
+  $('area-topo-status').textContent='Starting bounded USGS topographic download…';
+  await pollTopoDownload();
+}));
+$('area-topo-cancel').addEventListener('click',()=>runAction(async()=>{
+  await api('/api/maps/topographic/cancel','POST',{});
+  $('area-topo-status').textContent='Cancelling download after the current tile; no incomplete package will be published.';
+}));
+pollTopoDownload().catch(()=>{});
 $('area-plan-choose').addEventListener('click',()=>{
   if (!state.map && !state.rasterMap) startMap();
   if (state.navPicking) {state.navPicking=false;syncDestinationPickMode();}
@@ -2785,6 +2832,9 @@ window.addEventListener('resize',updateDirectionsStickyOffset);
 function renderDirectionsReview(route) {
   const pane=$('map-directions-review');
   if(route?.type!=='ROAD_ROUTE'){pane.hidden=true;pane.open=false;$('map-walking-follow-actions').hidden=true;return;}
+  $('map-route-elevation-chart').hidden=true;
+  $('map-route-elevation-chart').replaceChildren();
+  $('map-elevation-status').textContent='No profile loaded for this route. View saved data offline or opt in to online preparation.';
   const walking=route.travel_mode==='pedestrian' || route.is_driving_route!==true;
   const turns=routeGuide.routeSteps(route);
   pane.hidden=false;pane.open=true;
@@ -2845,6 +2895,36 @@ function renderDirectionsReview(route) {
     list.append(li);
   }
 }
+async function loadRouteTerrainProfile(allowOnline){
+  const current=state.navPreview;
+  if(current?.type!=='ROAD_ROUTE')throw Error('Plan a driving or walking route first.');
+  const elevation=window.OpenRFRouteElevation;
+  const points=elevation?.sample(current.coordinates,13);
+  if(!points)throw Error('This route has no usable line geometry for a terrain profile.');
+  if(allowOnline && !confirm('Send 13 sampled locations along this planned route to USGS 3DEP for terrain elevations? This uses internet; the result is cached privately for offline reuse.'))return;
+  const status=$('map-elevation-status'),chart=$('map-route-elevation-chart');
+  $('map-elevation-cached').disabled=true;$('map-elevation-prepare').disabled=true;
+  status.textContent=allowOnline?'Preparing terrain elevations via USGS (may take a minute)…':'Checking saved terrain profile locally…';
+  try{
+    const response=await api('/api/navigation/elevation-profile','POST',{points,allow_online:allowOnline});
+    if(current!==state.navPreview)return;
+    const profile=response.profile;
+    if(profile.status==='not_prepared'){
+      chart.hidden=true;
+      status.textContent='No profile stored for this route. Connect to internet and choose Prepare online if you wish.';
+      return;
+    }
+    const range=elevation.draw(chart,profile,Number(current.distance_miles));
+    chart.hidden=!range;
+    status.textContent=range?`${profile.status==='cached'?'Saved offline profile':'Profile prepared and saved'} · ${range.minFeet.toLocaleString()}–${range.maxFeet.toLocaleString()} ft terrain elevation · ${profile.available_points}/${profile.sample_points} samples${profile.partial?' (incomplete coverage)':''}. USGS 3DEP modeled terrain; not GPS altitude or a surveyed safety grade.`:'USGS supplied too few usable terrain heights.';
+  }catch(err){
+    if(current===state.navPreview)status.textContent=`Terrain profile unavailable: ${err.message}. This does not affect route directions.`;
+  }finally{
+    $('map-elevation-cached').disabled=false;$('map-elevation-prepare').disabled=false;
+  }
+}
+$('map-elevation-cached').addEventListener('click',()=>loadRouteTerrainProfile(false));
+$('map-elevation-prepare').addEventListener('click',()=>loadRouteTerrainProfile(true));
 $('map-directions-start').addEventListener('click',startSelectedRouteNavigation);
 function routeLabels(){return {origin:state.navOriginManual?$('nav-start-query').value.trim()||'Chosen start':'Browser-reported starting location',destination:$('map-destination-query').value.trim()||$('nav-dest-name').value.trim()||'Selected map point'};}
 function saveRouteSheet(filename,mime,body){

@@ -112,5 +112,5 @@ const reset=()=>{
   resume({route:updated});await inFlight;
   assert.equal(previewChanges.length,0,'An in-flight response after Stop cannot replace the trip');
   assert.equal(state.navPreview,route);
-  console.log('PASS v0.2.143 explicit pedestrian replan gates, failed route preservation and stop epoch cancellation');
+  console.log('PASS v0.2.144 explicit pedestrian replan gates, failed route preservation and stop epoch cancellation');
 })().catch(error=>{console.error(error);process.exitCode=1});

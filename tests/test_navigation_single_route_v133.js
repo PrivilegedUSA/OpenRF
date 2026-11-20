@@ -8,7 +8,7 @@ const html=fs.readFileSync('openrf/static/index.html','utf8');
 const css=fs.readFileSync('openrf/static/app.css','utf8');
 const app=fs.readFileSync('openrf/static/app.js','utf8');
 
-const directions=html.match(/<details id="map-directions-review"[\s\S]*?<\/details>/)?.[0];
+const directions=html.slice(html.indexOf('<details id="map-directions-review"'),html.indexOf('<section id="map-route-choices"'));
 assert(directions,'Directions panel is available');
 const exportRow=directions.indexOf('class="map-directions-actions"');
 const start=directions.indexOf('id="map-directions-start"');
@@ -101,4 +101,4 @@ $('map-mode-drive').on_click();
 assert.equal(state.navTravelMode,'auto','Returning to drive restores mode');
 assert.equal($('map-picked-route').textContent,'Driving directions');
 assert.equal($('map-begin-guidance').hidden,false);
-console.log('PASS v0.2.143 single-route Start, expanded directions, car/walk selector, map-picked origin/destination');
+console.log('PASS v0.2.144 single-route Start, expanded directions, car/walk selector, map-picked origin/destination');

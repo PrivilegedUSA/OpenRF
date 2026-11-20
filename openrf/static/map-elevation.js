@@ -1,10 +1,9 @@
-/* OpenRF v0.2.143 — presentation of reported altitude only; never estimates it. */
+/* OpenRF v0.2.144 — presentation of reliable reported altitude; never estimates it. */
 (() => {
   'use strict';
   const root=document.getElementById('map-altimeter');
   const value=document.getElementById('map-altimeter-value');
-  const detail=document.getElementById('map-altimeter-detail');
-  if(!root || !value || !detail)return;
+  if(!root || !value)return;
   const METERS_TO_FEET=3.280839895;
   const MAX_AGE_MS=45000;
   let last=null;
@@ -14,7 +13,6 @@
     const age=last?Date.now()-last.time:Infinity;
     if(!last || !Number.isFinite(age) || age< -5000 || age>MAX_AGE_MS){
       value.textContent='— ft';
-      detail.textContent=last?'GPS altitude stale':unavailable;
       root.dataset.altitude='unavailable';
       root.title=last?'The last reported altitude is stale. A new GPS reading is required.':unavailable;
       return;
@@ -22,8 +20,6 @@
     const feet=Math.round(last.meters*METERS_TO_FEET);
     value.textContent=`${feet.toLocaleString('en-US')} ft`;
     const sourceLabel=last.reference==='msl'?'MSL':'GPS altitude';
-    const accuracy=Number.isFinite(last.accuracy)?` ±${Math.round(last.accuracy*METERS_TO_FEET)} ft`:'';
-    detail.textContent=sourceLabel+accuracy;
     root.dataset.altitude='reported';
     root.title=`${last.source} reported ${feet} ft (${sourceLabel}). ${Number.isFinite(last.accuracy)?`Vertical uncertainty reported as ±${Math.round(last.accuracy*METERS_TO_FEET)} ft.`:'Vertical accuracy was not supplied.'} Not a surveyed terrain elevation; GPS height references can differ.`;
   }
@@ -40,6 +36,12 @@
       last=null;unavailable='Altitude unavailable';render();return false;
     }
     const vertical=coords.altitudeAccuracy;
+    // Desktop geolocation providers sometimes supply a fabricated zero with
+    // no vertical-accuracy measurement. Browser elevation is not trustworthy
+    // without a reported vertical uncertainty; the gpsd 3D source is distinct.
+    if(position.origin!=='gpsd' && (!Number.isFinite(vertical) || vertical<=0 || vertical>300)){
+      last=null;unavailable='Browser location did not report reliable elevation';render();return false;
+    }
     last={meters:altitude,time,
       accuracy:Number.isFinite(vertical) && vertical>=0 && vertical<=10000?vertical:null,
       reference:coords.altitudeReference==='msl'?'msl':'ellipsoid',

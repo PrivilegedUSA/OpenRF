@@ -19,6 +19,8 @@ from .offline_maps import (available_maps, tile_bytes, import_map, remove_map,
                            MapNotFound, MapExists, MapBusy, TileMissing, MAX_IMPORT_BYTES)
 from .map_areas import (list_areas, get_area, save_area, remove_area, area_geojson, area_tile_manifest, build_subset, AreaError)
 from .tile_archive import import_xyz_zip, TileArchiveError, MAX_ZIP_BYTES
+from .topographic_download import TopographicJobs, TopoError
+from .route_elevation import profile as terrain_profile, ElevationError
 from . import vector_maps
 from .hardware import status_report, enumerate_serial_ports, serial_port_diagnostics
 from .readiness import readiness_report
@@ -401,7 +403,10 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/maps':
             return self._json(200, {'maps': available_maps(self.server.map_directory),
                                     'storage': 'local-raster-mbtiles',
-                                    'downloads_enabled': False, 'imports_enabled': True, 'max_import_bytes': MAX_IMPORT_BYTES})
+                                    'downloads_enabled': True, 'imports_enabled': True, 'max_import_bytes': MAX_IMPORT_BYTES,
+                                    'topographic_download': 'explicit-bounded-usgs-region-only'})
+        if path == '/api/maps/topographic/status':
+            return self._json(200, {'download': self.server.topo_jobs.status()})
         if path.startswith('/api/maps/') and '/tiles/' in path:
             pieces = path.split('/')
             if len(pieces) != 8 or pieces[:3] != ['', 'api', 'maps'] or pieces[4] != 'tiles':
@@ -649,7 +654,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, raw, 'text/csv; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.csv"'})
         if path in ('/', '/index.html'):
             file = STATIC_DIR / 'index.html'
-        elif path in ('/static/app.css', '/static/app.js', '/static/map-elevation.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/map-elevation.js', '/static/route-elevation.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
             file = STATIC_DIR / Path(path).name
         elif path == '/static/offline-trails.js':
             file = STATIC_DIR / 'offline-trails.js'
@@ -1124,6 +1129,18 @@ class Handler(BaseHTTPRequestHandler):
                 created = save_area(self.server.map_directory, body.get('name'), body.get('bounds'),
                                     body.get('minzoom'), body.get('maxzoom'), self.server.map_lock)
                 return self._json(201, {'area': created})
+            if path == '/api/maps/topographic/start':
+                if set(body) != {'area_id', 'map_id', 'confirm_network'}:
+                    raise ValueError('Topographic download needs a saved area, safe output filename and explicit network confirmation')
+                try:
+                    return self._json(202, {'download': self.server.topo_jobs.start(
+                        body['area_id'], body['map_id'], body['confirm_network'])})
+                except (TopoError, AreaError, MapExists, MapBusy) as exc:
+                    return self._error(409, str(exc))
+            if path == '/api/maps/topographic/cancel':
+                if body:
+                    raise ValueError('Cancellation accepts no fields')
+                return self._json(200, {'download': self.server.topo_jobs.cancel()})
             if path.startswith('/api/maps/areas/') and path.endswith('/build'):
                 if set(body) - {'source_map_id', 'output_map_id', 'rights_confirmed'}:
                     raise ValueError('Unexpected map build fields; remote URLs are not supported')
@@ -1136,6 +1153,15 @@ class Handler(BaseHTTPRequestHandler):
                 if set(body) != {'maptiler_key'}:
                     raise ValueError('Only maptiler_key may be configured.')
                 return self._json(200, save_maptiler_key(body['maptiler_key']))
+            if path == '/api/navigation/elevation-profile':
+                if set(body) != {'points', 'allow_online'}:
+                    raise ValueError('Terrain profile requires only sampled route points and explicit online permission')
+                try:
+                    data = terrain_profile(self.server.map_directory, body['points'],
+                                           body['allow_online'], self.server.elevation_lock)
+                    return self._json(200, {'profile': data})
+                except ElevationError as exc:
+                    return self._error(422, str(exc), 'terrain_elevation_unavailable')
             if path == '/api/navigation/route':
                 if set(body) not in ({'locations'}, {'locations', 'options'}):
                     raise ValueError('Only route locations and optional routing preferences are allowed.')
@@ -1397,6 +1423,8 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.trail_store = TrailStore(repository.path.parent / 'imported-trails.sqlite3')
     server.map_directory = repository.path.parent / 'maps'
     server.map_lock = threading.Lock()
+    server.topo_jobs = TopographicJobs(server.map_directory, server.map_lock)
+    server.elevation_lock = threading.Lock()
     server.map_asset_directory = repository.path.parent / 'assets'
     server.wifi_scan_lock = threading.Lock()
     server.scan_receipts = ScanReceiptStore()

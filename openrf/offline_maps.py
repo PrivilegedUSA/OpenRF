@@ -15,7 +15,7 @@ from urllib.parse import quote
 
 # Filenames are stable opaque identifiers; never accept paths from HTTP requests.
 MAP_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\Z")
-SUPPORTED_FORMATS = {'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'webp': 'image/webp'}
+SUPPORTED_FORMATS = {'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'webp': 'image/webp', 'mixed': 'image/png'}
 MAX_TILE_BYTES = 8 * 1024 * 1024
 # Bound upload size and memory use. This is a transport cap, not a map-size claim.
 MAX_IMPORT_BYTES = 1024 * 1024 * 1024
@@ -102,6 +102,8 @@ def map_info(folder: Path, map_id: str) -> dict:
 
 
 def _image_matches_format(raw: bytes, fmt: str) -> bool:
+    if fmt == 'mixed':
+        return any(_image_matches_format(raw, f) for f in ('png', 'jpg', 'webp'))
     return (fmt == 'png' and raw.startswith(b'\x89PNG\r\n\x1a\n') or
             fmt in ('jpg', 'jpeg') and raw.startswith(b'\xff\xd8\xff') or
             fmt == 'webp' and raw.startswith(b'RIFF') and raw[8:12] == b'WEBP')
@@ -205,4 +207,7 @@ def tile_bytes(folder: Path, map_id: str, zoom: int, x: int, y: int) -> tuple[by
     fmt = info['format']
     if not _image_matches_format(raw, fmt):
         raise TileMissing('Local tile image does not match declared format')
+    if fmt == 'mixed':
+        return raw, ('image/png' if _image_matches_format(raw, 'png') else
+                     'image/jpeg' if _image_matches_format(raw, 'jpg') else 'image/webp')
     return raw, SUPPORTED_FORMATS[fmt]

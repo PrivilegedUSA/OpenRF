@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.143">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.144">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -18,27 +18,28 @@
   <script defer src="/static/sdr-history.js?v=0.2.76"></script>
   <script defer src="/static/survey_map.js?v=0.2.76"></script>
   <script defer src="/static/navigation.js?v=0.2.76"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.143"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.144"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/map-elevation.js?v=0.2.143"></script>
-  <script defer src="/static/app.js?v=0.2.143"></script>
-  <script defer src="/static/emergency-tabs.js?v=0.2.143"></script>
-  <script defer src="/static/breadcrumb_follow.js?v=0.2.143"></script>
-  <script defer src="/static/field-breadcrumbs.js?v=0.2.143"></script>
-  <script defer src="/static/offline-trails.js?v=0.2.143"></script>
-  <script defer src="/static/emergency.js?v=0.2.143"></script>
-  <script defer src="/static/emergency-library.js?v=0.2.143"></script>
-  <script defer src="/static/emergency-sos.js?v=0.2.143"></script>
-  <script defer src="/static/emergency-handoff.js?v=0.2.143"></script>
-  <script defer src="/static/emergency-teams.js?v=0.2.143"></script>
-  <script defer src="/static/emergency-checkins.js?v=0.2.143"></script>
-  <script defer src="/static/emergency-inbox.js?v=0.2.143"></script>
-  <script defer src="/static/emergency-protocol.js?v=0.2.143"></script>
-  <script defer src="/static/emergency-dashboard.js?v=0.2.143"></script>
-  <script defer src="/static/emergency-survival.js?v=0.2.143"></script>
-  <script defer src="/static/emergency-backup.js?v=0.2.143"></script>
-  <script defer src="/static/field-calendar.js?v=0.2.143"></script>
+  <script defer src="/static/map-elevation.js?v=0.2.144"></script>
+  <script defer src="/static/route-elevation.js?v=0.2.144"></script>
+  <script defer src="/static/app.js?v=0.2.144"></script>
+  <script defer src="/static/emergency-tabs.js?v=0.2.144"></script>
+  <script defer src="/static/breadcrumb_follow.js?v=0.2.144"></script>
+  <script defer src="/static/field-breadcrumbs.js?v=0.2.144"></script>
+  <script defer src="/static/offline-trails.js?v=0.2.144"></script>
+  <script defer src="/static/emergency.js?v=0.2.144"></script>
+  <script defer src="/static/emergency-library.js?v=0.2.144"></script>
+  <script defer src="/static/emergency-sos.js?v=0.2.144"></script>
+  <script defer src="/static/emergency-handoff.js?v=0.2.144"></script>
+  <script defer src="/static/emergency-teams.js?v=0.2.144"></script>
+  <script defer src="/static/emergency-checkins.js?v=0.2.144"></script>
+  <script defer src="/static/emergency-inbox.js?v=0.2.144"></script>
+  <script defer src="/static/emergency-protocol.js?v=0.2.144"></script>
+  <script defer src="/static/emergency-dashboard.js?v=0.2.144"></script>
+  <script defer src="/static/emergency-survival.js?v=0.2.144"></script>
+  <script defer src="/static/emergency-backup.js?v=0.2.144"></script>
+  <script defer src="/static/field-calendar.js?v=0.2.144"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
   <script defer src="/static/mesh.js?v=0.2.104"></script>
   <script defer src="/static/reticulum.js?v=0.2.104"></script>
@@ -53,7 +54,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.143</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.144</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -95,7 +96,7 @@
           </div>
         </div>
         <div id="map-altimeter" class="map-altimeter" role="status" aria-live="off" title="Altitude is unavailable until a fresh GPS fix reports it; altitude reference and vertical uncertainty vary by device.">
-          <span class="map-altimeter-label">ALTITUDE</span><strong id="map-altimeter-value">— ft</strong><small id="map-altimeter-detail">GPS unavailable</small>
+          <span class="map-altimeter-label">ALTITUDE</span><strong id="map-altimeter-value">— ft</strong>
         </div>
         <button type="button" id="header-emergency-shortcut" class="header-emergency-shortcut" data-page="emergency" aria-label="Open Emergency readiness" title="Emergency readiness — opens the page, does not send an SOS"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5 22 20H2L12 2.5Z"/><path d="M12 8.5v5.5"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></svg></button>
         <div class="header-messages-menu" id="header-messages-menu">
@@ -355,7 +356,7 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
 </div></details>
 
 
-<details id="map-directions-review" class="map-directions-review" hidden><summary id="map-directions-summary">Directions · planned road route</summary><div id="map-directions-actions" class="map-directions-actions" role="group" aria-label="Export directions"><button type="button" class="btn outline" id="map-print-directions">Print</button><button type="button" class="btn outline" id="map-save-directions-html">Save HTML</button><button type="button" class="btn outline" id="map-save-directions-json">Save JSON</button></div><div class="map-directions-follow-actions"><button type="button" class="btn primary" id="map-directions-start" disabled>Start navigation</button></div><div class="map-walking-follow-actions" id="map-walking-follow-actions" hidden><button type="button" class="btn primary" id="map-directions-walk-start" disabled>Start walking navigation</button></div><div class="map-directions-body"><p class="small muted" id="map-directions-intro">Tap a turn to avoid its mapped road point for this trip or future trips. Recalculate directions afterward. Signs and legal access rules take priority; no live traffic feed.</p><ol id="map-directions-list"></ol><p class="small muted" id="map-directions-note">Saved HTML works offline after downloading. JSON includes route coordinates and should be kept private.</p></div></details>
+<details id="map-directions-review" class="map-directions-review" hidden><summary id="map-directions-summary">Directions · planned road route</summary><div id="map-directions-actions" class="map-directions-actions" role="group" aria-label="Export directions"><button type="button" class="btn outline" id="map-print-directions">Print</button><button type="button" class="btn outline" id="map-save-directions-html">Save HTML</button><button type="button" class="btn outline" id="map-save-directions-json">Save JSON</button></div><div class="map-directions-follow-actions"><button type="button" class="btn primary" id="map-directions-start" disabled>Start navigation</button></div><div class="map-walking-follow-actions" id="map-walking-follow-actions" hidden><button type="button" class="btn primary" id="map-directions-walk-start" disabled>Start walking navigation</button></div><div class="map-directions-body"><p class="small muted" id="map-directions-intro">Tap a turn to avoid its mapped road point for this trip or future trips. Recalculate afterward. Signs and legal access rules take priority; no live traffic feed.</p><details class="route-elevation-panel" id="map-route-elevation"><summary>Route elevation profile</summary><p class="muted small">Estimated ground elevation from USGS 3DEP, not live GPS height. Check a previously prepared profile offline, or explicitly sample your planned route online. Preparation sends up to 13 points along this route to USGS.</p><div class="button-line"><button class="btn outline mini" type="button" id="map-elevation-cached">View saved profile</button><button class="btn primary mini" type="button" id="map-elevation-prepare">Prepare online</button></div><div id="map-route-elevation-chart" class="route-elevation-chart" role="group" aria-label="Terrain profile" hidden></div><p class="muted small" id="map-elevation-status" role="status">No profile requested yet.</p></details><ol id="map-directions-list"></ol><p class="small muted" id="map-directions-note">Saved HTML works offline after downloading. JSON includes route coordinates and should be kept private.</p></div></details>
 <section id="map-route-choices" class="map-route-choices" hidden aria-label="Available road routes">
  <div class="route-choice-head"><strong>Choose a route</strong><button type="button" id="route-choice-close" aria-label="Hide route choices">×</button></div>
  <div class="route-choice-scroll">
@@ -596,11 +597,11 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
           <button type="button" class="btn outline" id="sdr-sites-map-export">Export precise site coordinates (GeoJSON)</button>
         </details>
         <details class="map-area-manager" id="offline-basemap-settings"><summary>Offline basemap <span class="small muted">(optional · local tiles)</span></summary>
-        <div class="offline-map-manager" aria-label="Offline map package selector"><label for="offline-map-select">Offline basemap</label><select class="field" id="offline-map-select" aria-label="Local raster map"><option value="">Coordinate grid · no map package</option></select><button type="button" class="btn outline" id="offline-map-refresh">Refresh maps</button><span id="offline-map-status" role="status" aria-live="polite">Local map packages are optional. No online tile downloading.</span></div>
+        <div class="offline-map-manager" aria-label="Offline map package selector"><label for="offline-map-select">Offline basemap</label><select class="field" id="offline-map-select" aria-label="Local raster map"><option value="">Coordinate grid · no map package</option></select><button type="button" class="btn outline" id="offline-map-refresh">Refresh maps</button><span id="offline-map-status" role="status" aria-live="polite">Local packages are optional; tile downloads require explicit confirmation in Offline map files.</span></div>
         </details>
         <details class="map-area-manager" id="map-area-manager"><summary>Offline map files <span class="small muted">(optional · tiles for use without internet)</span></summary>
           <div class="map-area-controls"><label for="offline-map-file">Import licensed raster MBTiles</label><input class="field" id="offline-map-file" type="file" accept=".mbtiles,application/octet-stream" aria-describedby="offline-map-guidance"><button type="button" class="btn primary" id="offline-map-import">Import selected file</button></div>
-          <p id="offline-map-guidance" class="muted small">Select a previously downloaded PNG, JPEG or WebP raster MBTiles file. Files stay in the private OpenRF maps directory (limit 1 GiB). OpenRF does not download or generate tile regions.</p>
+          <p id="offline-map-guidance" class="muted small">Import a PNG/JPEG/WebP raster MBTiles file, or explicitly prepare a small USGS Topographic package below. Files stay in OpenRF's private maps directory (1 GiB import limit); no automatic downloads.</p>
           <div id="offline-map-detail" class="offline-map-detail muted small" aria-live="polite">Choose an installed map to see its geographic coverage, zoom range, and local file size.</div>
           <div class="button-line offline-area-actions"><button type="button" class="btn outline" id="offline-map-zoom" disabled>View area on map</button><button type="button" class="btn danger-outline" id="offline-map-remove" disabled>Remove selected map</button></div>
           <p id="offline-map-operation" class="muted small" role="status" aria-live="polite">No import in progress. Removing a map does not delete observations or investigations.</p>
@@ -621,6 +622,14 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
             <p id="area-plan-estimate" class="muted small">Candidate tiles are estimated from map bounds and zooms; actual source coverage, file size and detail can vary.</p>
             <div class="area-saved-manager"><label for="area-saved-select">Saved area plans</label><select class="field" id="area-saved-select"><option value="">Select a saved area</option></select><button type="button" class="btn outline" id="area-saved-view" disabled>View plan</button><a id="area-saved-export" class="btn outline" aria-disabled="true" tabindex="-1">Export GeoJSON</a><a class="btn outline" id="area-saved-tile-plan" aria-disabled="true" tabindex="-1">Export tile plan JSON</a><button type="button" class="btn danger-outline" id="area-saved-remove" disabled>Delete plan</button></div>
             <p id="area-saved-detail" class="muted small">No plan selected.</p>
+            <div class="area-topo-download" aria-label="Prepare offline USGS topographic tiles">
+              <h3>Download USGS topographic tiles for offline use</h3>
+              <p class="muted small">Choose a saved area above, then download up to <strong>96</strong> map tiles (maximum 64 MiB). Only after you confirm, OpenRF contacts USGS for the chosen region. The resulting local package includes contours and relief, not numeric elevation values. This can take up to 150 seconds; Wi-Fi is needed for preparation only.</p>
+              <label>New local topo filename (without .mbtiles)<input class="field" id="area-topo-name" maxlength="80" placeholder="topo-field-area"></label>
+              <label class="switchline"><input type="checkbox" id="area-topo-confirm"> I want to download this area from USGS to my device. USGS receives the requested tile coordinates.</label>
+              <div class="button-line"><button type="button" id="area-topo-start" class="btn primary" disabled>Download topo region</button><button type="button" id="area-topo-cancel" class="btn outline" disabled>Cancel</button></div>
+              <p id="area-topo-status" class="muted small" role="status" aria-live="polite">Select a saved area to prepare offline topography.</p>
+            </div>
             <h3>Build a smaller map from an installed package</h3>
             <p class="muted small">This copies only tiles already present in a local raster MBTiles source; it never downloads tiles. You must have permission to make derivatives. Sources remain untouched. Missing tiles stay missing.</p>
             <div class="area-build-controls"><label>Source raster map<select class="field" id="area-build-source"><option value="">Choose an installed source map</option></select></label><label>New package filename (without .mbtiles)<input class="field" id="area-build-name" maxlength="80" placeholder="my-region"></label></div>

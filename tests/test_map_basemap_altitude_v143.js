@@ -10,7 +10,7 @@ const widget=fs.readFileSync('openrf/static/map-elevation.js','utf8');
 for(const kind of ['default','satellite','topographic']){
   assert(html.includes(`name="map-basemap" value="${kind}"`),`Missing ${kind} base-map choice`);
 }
-assert(html.includes('/static/map-elevation.js?v=0.2.143'));
+assert(html.includes('/static/map-elevation.js?v=0.2.144'));
 assert(html.includes('id="map-altimeter-value"'));
 assert(css.includes('map-basemap-options'));
 assert(css.includes('body:not(.map-workspace) .map-altimeter'));
@@ -46,28 +46,31 @@ assert.equal(styles.at(-1),'/api/vector/styles/dark.json?offline=1',
   'Returning to Default must restore the installed offline vector preference');
 
 let now=1800000000000;
-const fields=new Map(['map-altimeter','map-altimeter-value','map-altimeter-detail'].map(id=>[id,{id,textContent:'',dataset:{},title:''}]));
+const fields=new Map(['map-altimeter','map-altimeter-value'].map(id=>[id,{id,textContent:'',dataset:{},title:''}]));
 const window={};
 let updateAge;
 const ctx={window,document:{getElementById:id=>fields.get(id)},
   Date:{now:()=>now},setInterval(fn,delay){assert.equal(delay,5000);updateAge=fn;}};
 vm.runInNewContext(widget,ctx);
 const display=fields.get('map-altimeter-value');
-const detail=fields.get('map-altimeter-detail');
 const root=fields.get('map-altimeter');
 assert.equal(display.textContent,'— ft');
 assert.equal(window.OpenRFMapElevation.update({timestamp:now,coords:{altitude:null}}),false);
 assert.equal(display.textContent,'— ft','No reported altitude must never become zero');
 assert.equal(window.OpenRFMapElevation.update({timestamp:now,coords:{altitude:1500,altitudeAccuracy:12}}),true);
 assert.equal(display.textContent,'4,921 ft');
-assert.match(detail.textContent,/GPS altitude ±39 ft/);
+assert(!html.includes('id="map-altimeter-detail"'),'Compact altitude badge must not include a third line');
 assert.equal(root.dataset.altitude,'reported');
 assert.equal(window.OpenRFMapElevation.update({timestamp:now,origin:'gpsd',coords:{altitude:1520,altitudeAccuracy:4,altitudeReference:'msl'}}),true);
 assert.equal(display.textContent,'4,987 ft');
-assert.match(detail.textContent,/MSL ±13 ft/);
+assert.match(root.title,/MSL/);
+assert.equal(window.OpenRFMapElevation.update({timestamp:now,coords:{altitude:0,altitudeAccuracy:null}}),false);
+assert.equal(display.textContent,'— ft','Unqualified desktop zero is not an elevation measurement');
+assert.equal(window.OpenRFMapElevation.update({timestamp:now,coords:{altitude:0,altitudeAccuracy:0}}),false);
+assert.equal(display.textContent,'— ft','Impossible zero vertical uncertainty must not validate desktop zero');
 now+=46000;updateAge();
 assert.equal(display.textContent,'— ft','Previously reported altitude must expire');
 assert.equal(root.dataset.altitude,'unavailable');
 assert.equal(window.OpenRFMapElevation.update({timestamp:now-120000,coords:{altitude:500}}),false);
 assert.equal(display.textContent,'— ft','Stale GPS fixes must not display a number');
-console.log('PASS v0.2.143 online-only USGS basemap chooser, real GPS altitude display and stale-data guard');
+console.log('PASS v0.2.144 online-only USGS basemap chooser, real GPS altitude display and stale-data guard');
