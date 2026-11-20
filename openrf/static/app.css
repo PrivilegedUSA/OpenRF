@@ -2145,6 +2145,57 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
 /* v0.2.139 — use a single full-width Analysis column at every viewport. */
 #page-scanner > .two-columns{grid-template-columns:minmax(0,1fr);gap:16px}
 
+/* v0.2.140 — emergency information is never more than one tab away. The
+   immediate-danger warning stays outside the tabpanels and is always shown. */
+#page-emergency .emergency-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:6px;padding:6px;margin:0 0 15px;position:sticky;top:4px;z-index:45;
+  background:#071a23f7;border:1px solid #28515a;border-radius:11px;
+  box-shadow:0 6px 22px #0008;backdrop-filter:blur(8px)}
+#page-emergency .emergency-tabs>button{display:flex;align-items:center;justify-content:center;
+  gap:8px;min-width:0;min-height:54px;padding:8px 7px;color:#a7c9d3;
+  background:#102732;border:1px solid transparent;border-radius:8px;
+  font-size:12px;font-weight:750;line-height:1.25;text-align:center;white-space:normal}
+#page-emergency .emergency-tabs>button:hover{background:#1b3a43;color:#e3fef6}
+#page-emergency .emergency-tabs>button[aria-selected="true"]{background:#173e46;
+  border-color:#38bcae;color:#c5fff1;box-shadow:inset 0 -3px 0 #34c9b1}
+#page-emergency .emergency-tab-symbol{font-size:20px;font-weight:700;color:#5bd9c5;flex:none}
+#page-emergency .emergency-tab-panel[hidden]{display:none!important}
+#page-emergency .emergency-tab-panel:focus-visible{outline:2px solid #34c9b1;outline-offset:4px}
+#page-emergency .emergency-quick-access{padding:14px 16px;margin:0 0 15px;
+  border:1px solid #2b626b;border-radius:10px;background:linear-gradient(110deg,#14333b,#10242e)}
+#page-emergency .emergency-quick-access>strong{display:flex;gap:8px;align-items:baseline;
+  flex-wrap:wrap;font-size:13px;color:#c8fff0}
+#page-emergency .emergency-quick-access>strong span{font-size:10px;color:#92b9bf;font-weight:500}
+#page-emergency .emergency-quick-buttons{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}
+#page-emergency .emergency-quick-buttons button{min-height:43px;padding:8px;
+  border:1px solid #3f7580;border-radius:7px;background:#14313b;color:#d4f3ed;font-size:12px;font-weight:750}
+#page-emergency .emergency-quick-buttons button:hover{border-color:#34c9b1;background:#21505a}
+#page-emergency>.emergency-notice{padding:13px 17px;margin-bottom:13px}
+#page-emergency>.emergency-notice p{margin:6px 0 0}
+@media(max-width:880px){
+  #page-emergency .emergency-tabs{display:flex;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin}
+  #page-emergency .emergency-tabs>button{flex:0 0 154px}
+  #page-emergency .emergency-quick-buttons{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:490px){#page-emergency .emergency-quick-buttons{grid-template-columns:1fr}}
+
+/* Active reverse-track GPS reference stays visible when the tool sheet closes.
+   It is not presented as local Valhalla road guidance. */
+#page-map .map-breadcrumb-follow-hud{position:absolute;z-index:37;top:65px;left:10px;
+  width:min(415px,calc(100% - 95px));max-height:min(44dvh,275px);overflow:auto;
+  padding:11px 13px;border:1px solid #4ca8c5;border-left:4px solid #70b9ff;
+  border-radius:10px;background:#0c2733f5;color:#dceef6;box-shadow:0 7px 24px #000b}
+#page-map .map-breadcrumb-follow-hud[hidden]{display:none!important}
+#page-map .breadcrumb-follow-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+#page-map .breadcrumb-follow-head strong{color:#c5ecff;font-size:13px;line-height:1.35}
+#page-map .breadcrumb-follow-head .btn{min-height:39px;min-width:65px}
+#page-map #breadcrumb-follow-distance{font-size:12px;color:#a8fff0}
+#page-map #breadcrumb-follow-status{font-size:11px;line-height:1.45;color:#d2e7ef;margin:7px 0}
+#page-map .map-breadcrumb-follow-hud small{display:block;font-size:10px;line-height:1.45;color:#9ebac7}
+#page-map .map-breadcrumb-follow-hud.is-offtrack{border-color:#d49a50;border-left-color:#ffbd6f}
+#page-map .map-breadcrumb-follow-hud.is-offtrack #breadcrumb-follow-status{color:#ffdda6}
+@media(max-width:600px){#page-map .map-breadcrumb-follow-hud{left:7px;top:60px;max-height:min(55dvh,260px);width:calc(100% - 78px)}}
+
 /* v0.2.139 — navigation follow accidentally masked the map workspaces and
    lower-right gear. They are still independent, user-operated controls. Keep
    the destination and route-review sheets hidden while following, but leave
@@ -2298,9 +2349,9 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
 .field-calendar-day.is-today{outline:1px solid #34c9b1}.field-calendar-day.is-selected{background:#2d7b73;color:#fff}
 .field-calendar-panel p{margin:12px 0;font-size:11px}
 /* v0.2.130: emergency spacing and consistent handheld controls. */
-#page-emergency>.panel{margin-bottom:18px;padding:clamp(14px,2vw,22px)}
-#page-emergency>.panel>.panel-title{margin-bottom:13px;gap:12px;flex-wrap:wrap}
-#page-emergency>.panel>p{line-height:1.55;margin:10px 0 14px}
+#page-emergency>.panel,#page-emergency .emergency-tab-panel>.panel{margin-bottom:18px;padding:clamp(14px,2vw,22px)}
+#page-emergency>.panel>.panel-title,#page-emergency .emergency-tab-panel>.panel>.panel-title{margin-bottom:13px;gap:12px;flex-wrap:wrap}
+#page-emergency>.panel>p,#page-emergency .emergency-tab-panel>.panel>p{line-height:1.55;margin:10px 0 14px}
 #page-emergency .emergency-form{margin:14px 0;align-items:stretch;gap:14px}
 #page-emergency .emergency-form>button{min-height:44px;align-self:end}
 #page-emergency .emergency-records{gap:12px;margin:14px 0}

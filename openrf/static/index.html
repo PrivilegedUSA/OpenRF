@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.139">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.140">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -18,24 +18,26 @@
   <script defer src="/static/sdr-history.js?v=0.2.76"></script>
   <script defer src="/static/survey_map.js?v=0.2.76"></script>
   <script defer src="/static/navigation.js?v=0.2.76"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.139"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.140"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/app.js?v=0.2.139"></script>
-  <script defer src="/static/field-breadcrumbs.js?v=0.2.139"></script>
-  <script defer src="/static/offline-trails.js?v=0.2.139"></script>
-  <script defer src="/static/emergency.js?v=0.2.139"></script>
-  <script defer src="/static/emergency-library.js?v=0.2.139"></script>
-  <script defer src="/static/emergency-sos.js?v=0.2.139"></script>
-  <script defer src="/static/emergency-handoff.js?v=0.2.139"></script>
-  <script defer src="/static/emergency-teams.js?v=0.2.139"></script>
-  <script defer src="/static/emergency-checkins.js?v=0.2.139"></script>
-  <script defer src="/static/emergency-inbox.js?v=0.2.139"></script>
-  <script defer src="/static/emergency-protocol.js?v=0.2.139"></script>
-  <script defer src="/static/emergency-dashboard.js?v=0.2.139"></script>
-  <script defer src="/static/emergency-survival.js?v=0.2.139"></script>
-  <script defer src="/static/emergency-backup.js?v=0.2.139"></script>
-  <script defer src="/static/field-calendar.js?v=0.2.139"></script>
+  <script defer src="/static/app.js?v=0.2.140"></script>
+  <script defer src="/static/emergency-tabs.js?v=0.2.140"></script>
+  <script defer src="/static/breadcrumb_follow.js?v=0.2.140"></script>
+  <script defer src="/static/field-breadcrumbs.js?v=0.2.140"></script>
+  <script defer src="/static/offline-trails.js?v=0.2.140"></script>
+  <script defer src="/static/emergency.js?v=0.2.140"></script>
+  <script defer src="/static/emergency-library.js?v=0.2.140"></script>
+  <script defer src="/static/emergency-sos.js?v=0.2.140"></script>
+  <script defer src="/static/emergency-handoff.js?v=0.2.140"></script>
+  <script defer src="/static/emergency-teams.js?v=0.2.140"></script>
+  <script defer src="/static/emergency-checkins.js?v=0.2.140"></script>
+  <script defer src="/static/emergency-inbox.js?v=0.2.140"></script>
+  <script defer src="/static/emergency-protocol.js?v=0.2.140"></script>
+  <script defer src="/static/emergency-dashboard.js?v=0.2.140"></script>
+  <script defer src="/static/emergency-survival.js?v=0.2.140"></script>
+  <script defer src="/static/emergency-backup.js?v=0.2.140"></script>
+  <script defer src="/static/field-calendar.js?v=0.2.140"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
   <script defer src="/static/mesh.js?v=0.2.104"></script>
   <script defer src="/static/reticulum.js?v=0.2.104"></script>
@@ -50,7 +52,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.139</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.140</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -108,6 +110,13 @@
       <section class="page" id="page-emergency" aria-label="Offline emergency planning">
         <div class="section-heading"><div><h2>Emergency readiness</h2><p>Private, offline planning tools. No SOS has been sent and no emergency delivery service is connected.</p></div><span class="pill">LOCAL ONLY</span></div>
         <div class="panel emergency-notice"><strong>In immediate danger?</strong><p>Use official emergency channels (such as 911 in the US) when available. An OpenRF SOS draft does not contact rescuers.</p></div>
+        <nav id="emergency-tabs" class="emergency-tabs" role="tablist" aria-label="Emergency tools">
+          <button type="button" role="tab" id="emergency-tab-dashboard" aria-controls="emergency-tab-panel-dashboard" aria-selected="true" tabindex="0" data-emergency-tab="dashboard"><span class="emergency-tab-symbol" aria-hidden="true">▦</span><span>Dashboard</span></button>
+          <button type="button" role="tab" id="emergency-tab-sos" aria-controls="emergency-tab-panel-sos" aria-selected="false" tabindex="-1" data-emergency-tab="sos"><span class="emergency-tab-symbol" aria-hidden="true">✚</span><span>SOS &amp; Check-ins</span></button>
+          <button type="button" role="tab" id="emergency-tab-radio" aria-controls="emergency-tab-panel-radio" aria-selected="false" tabindex="-1" data-emergency-tab="radio"><span class="emergency-tab-symbol" aria-hidden="true">⌁</span><span>Radio &amp; Messages</span></button>
+          <button type="button" role="tab" id="emergency-tab-plans" aria-controls="emergency-tab-panel-plans" aria-selected="false" tabindex="-1" data-emergency-tab="plans"><span class="emergency-tab-symbol" aria-hidden="true">▤</span><span>Plans &amp; References</span></button>
+          <button type="button" role="tab" id="emergency-tab-device" aria-controls="emergency-tab-panel-device" aria-selected="false" tabindex="-1" data-emergency-tab="device"><span class="emergency-tab-symbol" aria-hidden="true">⚙</span><span>Device &amp; Backup</span></button>
+        </nav>
         <div class="panel" id="emergency-backup-panel"><div class="panel-title"><h3>Encrypted emergency data backup</h3><span class="pill">MANUAL · PRIVATE</span></div>
           <p class="muted small">Export the main OpenRF SQLite database as a password-encrypted file. This includes sensitive saved investigations and check-ins; keep the file private. It does not include offline maps, recorded SDR files or separately stored radio histories. Your passphrase is never saved or transmitted off this local device.</p>
           <form id="emergency-backup-form" class="emergency-form">
@@ -376,13 +385,19 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
           <nav id="map-tool-rail" class="map-tool-rail" aria-label="Map workspaces">
             <button type="button" class="map-tool-button" data-map-tool="trip" aria-label="Plan a trip" title="Plan a trip" aria-controls="map-tool-overlay" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="18" r="2"/><circle cx="19" cy="6" r="2"/><path d="M7 18h7a5 5 0 0 0 0-10H9a4 4 0 0 0-4 4"/></svg></button>
             <button type="button" class="map-tool-button" data-map-tool="settings" aria-label="Map settings" title="Map settings" aria-controls="map-tool-overlay" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Z M9 3v16M15 5v16"/></svg></button>
-            <button type="button" class="map-tool-button" data-map-tool="gps" aria-label="GPS and walking trails: record and backtrack" title="GPS and walking trails: record and backtrack" aria-controls="map-tool-overlay" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg></button>
+            <button type="button" class="map-tool-button" data-map-tool="gps" aria-label="GPS: record walking and driving tracks, backtrack and return to start" title="GPS tracks: walking, driving and backtrack" aria-controls="map-tool-overlay" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg></button>
             <button type="button" class="map-tool-button" data-map-tool="offline" aria-label="Offline maps" title="Offline maps" aria-controls="map-tool-overlay" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v14H4Z M7 14l3-4 3 3 2-2 3 3M12 19v4M7 23h10"/></svg></button>
           </nav>
           <section id="map-tool-overlay" class="map-tool-overlay" hidden aria-label="Map tool panel">
             <header class="map-tool-heading"><strong id="map-tool-title">Map tools</strong><button type="button" id="map-tool-close" class="map-tool-close" aria-label="Close map tools" title="Close">×</button></header>
             <div id="map-tool-content" class="map-tool-content"></div>
           </section>
+          <aside id="map-breadcrumb-follow-hud" class="map-breadcrumb-follow-hud" hidden aria-label="Live recorded-track backtrack" aria-live="polite">
+            <div class="breadcrumb-follow-head"><strong id="breadcrumb-follow-title">Following recorded track backward</strong><button type="button" class="btn outline mini" id="breadcrumb-follow-stop">Stop</button></div>
+            <strong id="breadcrumb-follow-distance">Waiting for a fresh browser GPS fix…</strong>
+            <p id="breadcrumb-follow-status" role="status">Historical GPS track · not verified as safe or accessible.</p>
+            <small>Reverse line = saved positions, blue dot = your current browser-reported position. No turn-by-turn road or trail guidance, rerouting, recording or transmission.</small>
+          </aside>
           <aside id="map-picked-action" class="map-picked-action" hidden aria-label="Selected destination">
             <div class="map-picked-top"><strong>Destination selected</strong><button type="button" id="map-picked-close" aria-label="Hide destination actions" title="Hide destination actions">×</button></div>
             <small id="map-picked-coordinates"></small><p id="map-picked-status" role="status" aria-live="polite"></p>
@@ -522,7 +537,8 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
             <div class="breadcrumb-howto"><strong>How to record a walk or drive and return</strong><ol>
               <li>Choose <strong>Walking</strong> or <strong>Driving</strong>, name the trip, and tap <strong>Start recording</strong>. Keep OpenRF visible. Starting navigation alone never saves a track.</li>
               <li>Tap <strong>Stop recording</strong> to save your private history. Recording started from a navigation HUD also finishes when that navigation session stops.</li>
-              <li>Under <strong>Saved tracks</strong>, choose <strong>Reverse track preview</strong> for the exact recorded line backward, or <strong>Route to recorded start</strong> for a fresh local walking/driving plan. A new route may differ from the track. Neither guarantees safe access or live traffic.</li>
+              <li>Under <strong>Saved tracks</strong>, choose <strong>Reverse track preview</strong> for the original reported points backward, or <strong>Follow reverse track (GPS)</strong> to compare your new live position with that historical line. Stop any time; the browser tab must remain visible.</li>
+              <li><strong>Route to recorded start</strong> requests a new local walking/driving plan from your current position. It may differ from the recorded path. Neither historical GPS nor local routing verifies access, closures or safety.</li>
             </ol></div>
             <p class="small muted">Record reported browser positions only while OpenRF stays visible. This is a private navigation aid, not an SOS beacon or verified GNSS logger. Recording stops when the tab is hidden; never depend on it as your only way back.</p>
             <label for="breadcrumb-mode">Travel mode</label>
@@ -538,7 +554,7 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
             <div class="breadcrumb-current" id="breadcrumb-current" hidden></div>
             <h4>Saved tracks <span class="pill">DEVICE ONLY</span></h4>
             <div id="breadcrumb-list" class="breadcrumb-list"><p class="small muted">Loading locally saved tracks…</p></div>
-            <p class="small muted">Reverse track is a historical line, not road guidance. Route to recorded start uses the installed local Valhalla graph and a new, fresh GPS reading; it may take a different route or be unavailable. Driving requires attention to traffic and posted signs. GPX/GeoJSON exports contain precise history—share carefully. Background/locked-screen recording is unsupported.</p>
+            <p class="small muted"><strong>Follow reverse track (GPS)</strong> is an opt-in, live location comparison against saved points; it warns when your fix is inaccurate or you are off the recorded line. It does not offer verified turn-by-turn path guidance. <strong>Route to recorded start</strong> asks local Valhalla for a different, potentially safer route based on currently mapped streets/paths. Both can be wrong about actual access. Driving requires attention to posted signs and traffic; do not handle the device while moving. GPX/GeoJSON exports contain precise history. Background/locked-screen recording is unsupported.</p>
             <button type="button" id="breadcrumb-clear-map" class="btn ghost" disabled>Clear trail from map</button>
           </div>
         </details>

@@ -1,5 +1,12 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.140 — Emergency dashboard tabs and live track backtrack
+
+- **Emergency** now opens on a compact Dashboard tab, with SOS & Check-ins, Radio & Messages, Plans & References, and Device & Backup always one tap away. The official emergency-channel notice remains visible and no navigation or tab change sends any messages. Existing forms and data are preserved.
+- Under **Map → GPS tracks → Saved tracks**, a stopped walking or driving track offers **Follow reverse track (GPS)**. After explicit consent and a fresh accurate browser GPS fix, the map displays your reported blue position against the reverse historical line, approximate distance along that line to its original start and off-track/accuracy warnings. **Stop** and tab hiding end the unsaved position watch.
+- **Route to recorded start** still asks local Valhalla for a new appropriate route; **Reverse track preview** still shows stored history without a GPS watch. The live reverse mode is *not* trusted turn-by-turn routing and does not verify road or path access. Do not operate the screen while driving.
+- See [v0.2.140 test and install notes](docs/RELEASE_0.2.140_TESTS.md). Device GNSS, offline graph coverage, browser behavior, daylight map visibility and the 1280×800 seven-inch touchscreen require real-world testing.
+
 ## v0.2.139 — Private walk/drive tracks and map controls
 
 - The map's right-hand four-button rail and lower-right settings gear remain visible during GPS walking and driving follow, including at the planned **1280×800 seven-inch** landscape size. Compass/recenter/tool spacing is more consistent. Emergency's sidebar icon matches other sidebar icons; Analysis cards stack full-width.

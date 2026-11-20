@@ -367,6 +367,13 @@ function resetRouteForNewDestination() {
   if(state.navAvoidSession?.length){state.navAvoidSession=[];renderRoadAvoidList();}
   renderNavigationOverlay();
 }
+// A manually started breadcrumb follow is a standalone GPS reference. Make a
+// clean visual map before showing it, without treating its line as a route.
+if(typeof window!=='undefined')window.OpenRFPrepareTrackBacktrack=()=>{
+  resetRouteForNewDestination();
+  closeMapToolOverlay();
+  $('map-picked-action').hidden=true;
+};
 function syncMapPickedAction() {
   const selected = Array.isArray(state.navPickedPoint) && !state.navPicking;
   const popup = $('map-picked-action');
@@ -408,6 +415,7 @@ function showPage(page, options = {}) {
   closeHeaderMessageMenu();
   rememberPage(page);
   if(page!=='map' && state.navFollowId!==null) stopNavigationFollow();
+  if(page!=='map' && typeof window!=='undefined')window.OpenRFBreadcrumbs?.stopFollow?.('GPS backtrack stopped when you left the Map page.');
   const wasMap = document.body.classList.contains('map-workspace');
   document.body.classList.toggle('map-workspace', page === 'map');
   // Do not collapse an open search when another action selects the same page.
@@ -4304,6 +4312,8 @@ $('map-nav-record-stop')?.addEventListener('click',async()=>{
 });
 function stopNavigationFollow(){
   const finishingActiveTrip=state.navFollowId!==null;
+  if(typeof window!=='undefined' && window.OpenRFBreadcrumbs?.snapshot?.().following)
+    window.OpenRFBreadcrumbs.stopFollow('Reverse-track GPS follow stopped.');
   if(state.navTrackLinked){
     state.navTrackLinked=false;
     void window.OpenRFBreadcrumbs?.stop?.();

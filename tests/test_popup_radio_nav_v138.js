@@ -1,5 +1,5 @@
 'use strict';
-// v0.2.139: compact map destination actions, clear menu labels and radio spacing.
+// v0.2.140: compact map destination actions, clear menu labels and radio spacing.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const html=fs.readFileSync('openrf/static/index.html','utf8');
@@ -37,5 +37,5 @@ for(const segment of ['M12 2.5 22 20H2L12 2.5Z','M12 8.5v5.5','cx="12" cy="17"']
   assert(nav.includes(segment) && header.includes(segment),`Same warning triangle in sidebar and header: ${segment}`);
 }
 assert.match(css, /\.sidebar \.nav-btn\[data-page="emergency"\] \.nav-icon svg/);
-assert.match(html, /FIELD CONSOLE · 0\.2\.139/);
-console.log('PASS v0.2.139 destination action rows and padding, radio spacing, Signal Viewer, warning icon');
+assert.match(html, /FIELD CONSOLE · 0\.2\.140/);
+console.log('PASS v0.2.140 destination action rows and padding, radio spacing, Signal Viewer, warning icon');

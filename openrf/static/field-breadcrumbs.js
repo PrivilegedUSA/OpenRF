@@ -1,4 +1,4 @@
-/* OpenRF 0.2.139 — opt-in browser walking/driving tracks; never automatic GPS collection. */
+/* OpenRF 0.2.140 — opt-in walking/driving tracks and live reverse GPS reference. */
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
@@ -8,6 +8,8 @@
   let sessions = [], recordingId = null, watchId = null, busy = false;
   let recordingMode = null;
   let uploadBusy = false, selectedId = null, selectedGeometry = null, reversing = false;
+  let followId=null,followMode=null,followTrackId=null,followEpoch=0;
+  let followPreparing=false,followGeometry=null,liveFix=null;
   let currentMap = null;
   const empty = {type:'FeatureCollection',features:[]};
   let latestStatus='No position watch running.';
@@ -16,7 +18,8 @@
   const meters = value => value < 1000 ? `${Math.round(value)} m` : `${(value/1000).toFixed(2)} km`;
   const dateString = value => { try { return new Date(value).toLocaleString(); } catch { return value; } };
   const modeName = mode => mode === 'auto' ? 'Driving' : 'Walking';
-  const snapshot = () => ({recording:recordingId !== null,busy,mode:recordingMode,message:latestStatus});
+  const snapshot = () => ({recording:recordingId !== null,busy,mode:recordingMode,message:latestStatus,
+    following:followId!==null});
   function publishState() {
     if(typeof window.dispatchEvent === 'function' && typeof CustomEvent === 'function')
       window.dispatchEvent(new CustomEvent('openrf:breadcrumbs-state',{detail:snapshot()}));
@@ -53,10 +56,10 @@
 
   function updateButtons() {
     const active = sessions.find(s => s.state === 'RECORDING');
-    $('breadcrumb-start').disabled = busy || Boolean(active) || recordingId !== null;
+    $('breadcrumb-start').disabled = busy || followPreparing || followId!==null || Boolean(active) || recordingId !== null;
     $('breadcrumb-stop').disabled = busy || (!active && recordingId === null);
-    $('breadcrumb-label').disabled = busy || recordingId !== null;
-    if($('breadcrumb-mode'))$('breadcrumb-mode').disabled = busy || recordingId !== null;
+    $('breadcrumb-label').disabled = busy || followPreparing || followId!==null || recordingId !== null;
+    if($('breadcrumb-mode'))$('breadcrumb-mode').disabled = busy || followPreparing || followId!==null || recordingId !== null;
     $('breadcrumb-clear-map').disabled = selectedId === null;
     publishState();
   }
@@ -77,6 +80,7 @@
           <div class="breadcrumb-track-actions" data-breadcrumb-id="${track.id}">
           <button type="button" class="btn outline" data-track="view" ${track.point_count ? '' : 'disabled'}>${selected&&!reversing?'Showing':'View trail'}</button>
           <button type="button" class="btn outline" data-track="backtrack" ${track.point_count>1?'':'disabled'}>${selected&&reversing?'Reverse preview shown':'Reverse track preview'}</button>
+          <button type="button" class="btn outline" data-track="follow" ${track.point_count>1&&!isRecording&&!busy&&!followPreparing?'':'disabled'}>${followTrackId===track.id?'GPS follow active':'Follow reverse track (GPS)'}</button>
           <button type="button" class="btn outline" data-track="return" ${track.point_count && !isRecording?'':'disabled'}>Route to recorded start</button>
           <button type="button" class="btn ghost" data-track="geojson" ${track.point_count?'':'disabled'}>GeoJSON</button>
           <button type="button" class="btn ghost" data-track="gpx" ${track.point_count?'':'disabled'}>GPX</button>
@@ -140,7 +144,7 @@
   }
 
   async function startRecording(modeArg,guard=()=>true) {
-    if (busy || recordingId !== null) return;
+    if (busy || followPreparing || followId!==null || recordingId !== null) return;
     if (!navigator.geolocation) { status('Browser geolocation is unavailable. No track created.'); return; }
     const mode = typeof modeArg === 'string' ? modeArg : ($('breadcrumb-mode')?.value || 'pedestrian');
     if(!['pedestrian','auto'].includes(mode)){status('Choose Walking or Driving before recording.');return;}
@@ -198,11 +202,14 @@
     if (!points.length) return empty;
     const line = points.map(p => [p.longitude,p.latitude]);
     if (reversing) line.reverse();
-    return {type:'FeatureCollection',features:[
+    const features=[
       {type:'Feature',properties:{role:'route'},geometry:{type:'LineString',coordinates:line}},
       {type:'Feature',properties:{role:'start'},geometry:{type:'Point',coordinates:line[0]}},
       {type:'Feature',properties:{role:'finish'},geometry:{type:'Point',coordinates:line[line.length-1]}}
-    ]};
+    ];
+    if(liveFix && followTrackId===selectedId)features.push({type:'Feature',
+      properties:{role:'live'},geometry:{type:'Point',coordinates:[liveFix.longitude,liveFix.latitude]}});
+    return {type:'FeatureCollection',features};
   }
 
   function syncMap() {
@@ -217,7 +224,7 @@
           'line-width':5,'line-opacity':0.93,'line-dasharray':reversing?[2,1.4]:[1,.01]}});
         map.addLayer({id:'openrf-breadcrumb-markers',type:'circle',source:'openrf-breadcrumb-data',
           filter:['!=',['get','role'],'route'],paint:{'circle-radius':8,'circle-stroke-width':2,
-          'circle-stroke-color':'#092530','circle-color':['match',['get','role'],'start','#ffbe6d','finish','#70e5bf','#fff']}});
+          'circle-stroke-color':'#092530','circle-color':['match',['get','role'],'start','#ffbe6d','finish','#70e5bf','live','#53b7ff','#fff']}});
         source=map.getSource('openrf-breadcrumb-data');
       }
       source.setData(featureData());
@@ -252,7 +259,101 @@
       `Showing ${modeName(data.session.travel_mode).toLowerCase()} track #${id} · ${meters(data.distance_m)}; orange = start, green = last fix. Not a verified route.`);
   }
 
+  // Follow a saved geometry backward using fresh browser-reported positions.
+  // Never request Valhalla here: an old GPS line is not a verified road/path.
+  function stopReverseFollow(reason='Reverse-track GPS follow stopped. No position history was saved.'){
+    if(followId===null && !followPreparing)return;
+    followEpoch++;
+    if(followId!==null && followId>=0)navigator.geolocation?.clearWatch?.(followId);
+    followId=null;followPreparing=false;followMode=null;followTrackId=null;followGeometry=null;liveFix=null;
+    const hud=$('map-breadcrumb-follow-hud');if(hud){hud.hidden=true;hud.classList.remove('is-offtrack');}
+    syncMap();renderList();status(reason);
+  }
+
+  function updateReverseFix(position,epoch){
+    if(epoch!==followEpoch || followId===null || !followGeometry)return;
+    const helper=window.OpenRFBreadcrumbFollow;
+    const quality=helper.assessFix(position,followMode);
+    const hud=$('map-breadcrumb-follow-hud');
+    hud.classList.remove('is-offtrack');
+    if(!quality.ok){
+      liveFix=null;syncMap();
+      $('breadcrumb-follow-distance').textContent='Live backtrack progress paused';
+      $('breadcrumb-follow-status').textContent=`${quality.reason}. Retain the saved line for reference; no reliable progress or GPS marker.`;
+      hud.classList.add('is-offtrack');return;
+    }
+    liveFix=quality;
+    const match=helper.closest(followGeometry.points,quality);
+    const threshold=helper.threshold(followMode,quality.accuracy_m);
+    const off=match.offtrack_m>threshold;
+    const nearOriginalStart=match.straight_to_start_m<=25;
+    hud.classList.toggle('is-offtrack',off);
+    if(off){
+      $('breadcrumb-follow-distance').textContent=`~${meters(match.offtrack_m)} from the recorded line`;
+      $('breadcrumb-follow-status').textContent=`Off recorded track (tolerance ~${Math.round(threshold)} m). No reliable backtrack progress; check real-world access and your location.`;
+    }else if(nearOriginalStart){
+      $('breadcrumb-follow-distance').textContent='Near the originally recorded start';
+      $('breadcrumb-follow-status').textContent=`Reported position is near that saved fix (±${Math.round(quality.accuracy_m)} m). This does not verify arrival or safety.`;
+    }else{
+      $('breadcrumb-follow-distance').textContent=`~${meters(match.remaining_to_start_m)} along saved track to original start`;
+      $('breadcrumb-follow-status').textContent=`Near historical line · browser accuracy ±${Math.round(quality.accuracy_m)} m · age ${Math.round(quality.age_s)}s. This is visual reference, NOT verified turn guidance.`;
+    }
+    syncMap();
+    const map=window.OpenRFMapReadOnly?.();
+    if(map?.easeTo)map.easeTo({center:[quality.longitude,quality.latitude],duration:450});
+  }
+
+  async function startReverseFollow(id){
+    if(followPreparing || busy || recordingId!==null)return;
+    if(followId!==null){stopReverseFollow();}
+    const helper=window.OpenRFBreadcrumbFollow;
+    if(!helper || !navigator.geolocation?.getCurrentPosition || !navigator.geolocation.watchPosition)
+      throw Error('Live backtracking needs browser geolocation; no watch started');
+    followPreparing=true;updateButtons();
+    const epoch=++followEpoch;
+    try{
+      const data=await api(`${endpoint}/${id}`);
+      if(data.session?.state==='RECORDING'||!Array.isArray(data.points)||data.points.length<2)
+        throw Error('Stop and save at least two valid browser fixes before following a track');
+      const mode=data.session.travel_mode==='auto'?'auto':'pedestrian';
+      if(!confirm(`Follow this saved ${modeName(mode).toLowerCase()} track backward using live browser GPS? It is NOT a verified road or trail, offers NO turn-by-turn guidance, and does not save new positions. Keep this tab visible. Do not interact with the screen while driving.`))return;
+      status('Getting one fresh, accurate browser fix before showing live backtrack…');
+      const pos=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,
+        {enableHighAccuracy:true,maximumAge:0,timeout:16000}));
+      const quality=helper.assessFix(pos,mode);
+      // An approximate-but-fresh first fix may become accurate on the watch.
+      // Show PAUSED until that happens; never compute backtrack progress from it.
+      if(!quality.ok && !quality.reason.startsWith('Location approximate'))throw Error(quality.reason);
+      if(document.hidden || epoch!==followEpoch)throw Error('Live backtrack canceled; tab hidden or page changed');
+      window.OpenRFPrepareTrackBacktrack?.();
+      if(epoch!==followEpoch)throw Error('Live backtrack canceled by another map action');
+      selectedId=id;selectedGeometry=data;reversing=true;
+      followMode=mode;followGeometry=data;followTrackId=id;followId=-1;
+      const hud=$('map-breadcrumb-follow-hud');hud.hidden=false;
+      $('breadcrumb-follow-title').textContent=`${modeName(mode)} · follow saved track backward`;
+      attachMap();syncMap();updateReverseFix(pos,epoch);
+      const idWatch=navigator.geolocation.watchPosition(p=>updateReverseFix(p,epoch),error=>{
+        if(epoch!==followEpoch)return;
+        const stopped=error?.code===1;
+        if(stopped){stopReverseFollow('Location permission revoked. Reverse-track follow stopped.');return;}
+        liveFix=null;syncMap();
+        $('breadcrumb-follow-distance').textContent='Position unavailable · progress paused';
+        $('breadcrumb-follow-status').textContent=`Browser location error: ${errorMessage(error)}. Saved historical line remains; no reliable live location.`;
+        hud.classList.add('is-offtrack');
+      },{enableHighAccuracy:true,maximumAge:0,timeout:16000});
+      if(epoch!==followEpoch)navigator.geolocation.clearWatch?.(idWatch);
+      else followId=idWatch;
+      renderList();
+      status(`${modeName(mode)} reverse-track follow active. Blue marker is live browser position; historical line is not verified safe.`);
+    }catch(error){
+      if(epoch===followEpoch)stopReverseFollow(`Live backtrack unavailable: ${errorMessage(error)}`);
+      else status(`Backtrack canceled: ${errorMessage(error)}`);
+      throw error;
+    }finally{if(epoch===followEpoch)followPreparing=false;updateButtons();}
+  }
+
   function clearMap() {
+    stopReverseFollow();
     selectedGeometry=null;selectedId=null;reversing=false;
     const map=window.OpenRFMapReadOnly?.();
     if (map?.getSource?.('openrf-breadcrumb-data')) map.getSource('openrf-breadcrumb-data').setData(empty);
@@ -276,8 +377,11 @@
     const action=button.dataset.track;
     button.disabled=true;
     try {
+      if ((action==='view'||action==='backtrack') && followTrackId!==id)stopReverseFollow();
       if (action==='view'||action==='backtrack') await showTrack(id,action==='backtrack');
+      if (action==='follow') await startReverseFollow(id);
       if (action==='return') {
+        stopReverseFollow();
         const data=await api(`${endpoint}/${id}`);
         if (data.session?.state==='RECORDING' || !data.points?.length) throw Error('Stop recording and save at least one point before routing homeward');
         if(typeof window.OpenRFPlanReturnToStart!=='function') throw Error('Map router not ready');
@@ -288,6 +392,7 @@
       }
       if (action==='stop') await stopRecording(id);
       if (action==='delete' && confirm('Permanently delete this private track and all its precise location points?')) {
+        if(followTrackId===id)stopReverseFollow();
         const deleted=await api(`${endpoint}/${id}`,'DELETE');
         if (!deleted.deleted) throw Error('Track cannot be deleted while still recording');
         if (selectedId===id) clearMap();
@@ -302,16 +407,20 @@
     finally { button.disabled=false; }
   }
 
-  window.OpenRFBreadcrumbs = Object.freeze({start:(mode,guard)=>startRecording(mode,guard||(()=>true)),stop:()=>stopRecording(),snapshot});
+  window.OpenRFBreadcrumbs = Object.freeze({start:(mode,guard)=>startRecording(mode,guard||(()=>true)),
+    stop:()=>stopRecording(),stopFollow:stopReverseFollow,snapshot});
   $('breadcrumb-start').addEventListener('click',()=>startRecording());
   $('breadcrumb-stop').addEventListener('click',()=>void stopRecording());
   $('breadcrumb-refresh').addEventListener('click',()=>refreshTracks().catch(error=>status(`Could not load tracks: ${errorMessage(error)}`)));
   $('breadcrumb-clear-map').addEventListener('click',clearMap);
   $('breadcrumb-list').addEventListener('click',onListClick);
+  $('breadcrumb-follow-stop')?.addEventListener('click',()=>stopReverseFollow());
   document.addEventListener('visibilitychange',()=>{
     if (document.hidden && recordingId!==null) void stopRecording();
+    if(document.hidden)stopReverseFollow('Live backtrack stopped because the browser tab was hidden.');
   });
   window.addEventListener('pagehide',()=>{
+    stopReverseFollow('Live backtrack stopped as the page was closed.');
     if (recordingId!==null) {
       stopBrowserWatch();
       fetch(`${endpoint}/${recordingId}/stop`,{method:'POST',headers:{'Content-Type':'application/json'},
