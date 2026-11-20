@@ -2148,9 +2148,8 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
 /* v0.2.140 — emergency information is never more than one tab away. The
    immediate-danger warning stays outside the tabpanels and is always shown. */
 #page-emergency .emergency-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
-  gap:6px;padding:6px;margin:0 0 15px;position:sticky;top:4px;z-index:45;
-  background:#071a23f7;border:1px solid #28515a;border-radius:11px;
-  box-shadow:0 6px 22px #0008;backdrop-filter:blur(8px)}
+  gap:8px;padding:0;margin:0 0 16px;position:sticky;top:4px;z-index:45;
+  background:transparent;border:0;border-radius:0;box-shadow:none;backdrop-filter:none}
 #page-emergency .emergency-tabs>button{display:flex;align-items:center;justify-content:center;
   gap:8px;min-width:0;min-height:54px;padding:8px 7px;color:#a7c9d3;
   background:#102732;border:1px solid transparent;border-radius:8px;

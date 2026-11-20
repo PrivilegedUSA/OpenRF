@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.140">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.141">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -18,26 +18,26 @@
   <script defer src="/static/sdr-history.js?v=0.2.76"></script>
   <script defer src="/static/survey_map.js?v=0.2.76"></script>
   <script defer src="/static/navigation.js?v=0.2.76"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.140"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.141"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/app.js?v=0.2.140"></script>
-  <script defer src="/static/emergency-tabs.js?v=0.2.140"></script>
-  <script defer src="/static/breadcrumb_follow.js?v=0.2.140"></script>
-  <script defer src="/static/field-breadcrumbs.js?v=0.2.140"></script>
-  <script defer src="/static/offline-trails.js?v=0.2.140"></script>
-  <script defer src="/static/emergency.js?v=0.2.140"></script>
-  <script defer src="/static/emergency-library.js?v=0.2.140"></script>
-  <script defer src="/static/emergency-sos.js?v=0.2.140"></script>
-  <script defer src="/static/emergency-handoff.js?v=0.2.140"></script>
-  <script defer src="/static/emergency-teams.js?v=0.2.140"></script>
-  <script defer src="/static/emergency-checkins.js?v=0.2.140"></script>
-  <script defer src="/static/emergency-inbox.js?v=0.2.140"></script>
-  <script defer src="/static/emergency-protocol.js?v=0.2.140"></script>
-  <script defer src="/static/emergency-dashboard.js?v=0.2.140"></script>
-  <script defer src="/static/emergency-survival.js?v=0.2.140"></script>
-  <script defer src="/static/emergency-backup.js?v=0.2.140"></script>
-  <script defer src="/static/field-calendar.js?v=0.2.140"></script>
+  <script defer src="/static/app.js?v=0.2.141"></script>
+  <script defer src="/static/emergency-tabs.js?v=0.2.141"></script>
+  <script defer src="/static/breadcrumb_follow.js?v=0.2.141"></script>
+  <script defer src="/static/field-breadcrumbs.js?v=0.2.141"></script>
+  <script defer src="/static/offline-trails.js?v=0.2.141"></script>
+  <script defer src="/static/emergency.js?v=0.2.141"></script>
+  <script defer src="/static/emergency-library.js?v=0.2.141"></script>
+  <script defer src="/static/emergency-sos.js?v=0.2.141"></script>
+  <script defer src="/static/emergency-handoff.js?v=0.2.141"></script>
+  <script defer src="/static/emergency-teams.js?v=0.2.141"></script>
+  <script defer src="/static/emergency-checkins.js?v=0.2.141"></script>
+  <script defer src="/static/emergency-inbox.js?v=0.2.141"></script>
+  <script defer src="/static/emergency-protocol.js?v=0.2.141"></script>
+  <script defer src="/static/emergency-dashboard.js?v=0.2.141"></script>
+  <script defer src="/static/emergency-survival.js?v=0.2.141"></script>
+  <script defer src="/static/emergency-backup.js?v=0.2.141"></script>
+  <script defer src="/static/field-calendar.js?v=0.2.141"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
   <script defer src="/static/mesh.js?v=0.2.104"></script>
   <script defer src="/static/reticulum.js?v=0.2.104"></script>
@@ -52,7 +52,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.140</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.141</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -115,7 +115,7 @@
           <button type="button" role="tab" id="emergency-tab-sos" aria-controls="emergency-tab-panel-sos" aria-selected="false" tabindex="-1" data-emergency-tab="sos"><span class="emergency-tab-symbol" aria-hidden="true">✚</span><span>SOS &amp; Check-ins</span></button>
           <button type="button" role="tab" id="emergency-tab-radio" aria-controls="emergency-tab-panel-radio" aria-selected="false" tabindex="-1" data-emergency-tab="radio"><span class="emergency-tab-symbol" aria-hidden="true">⌁</span><span>Radio &amp; Messages</span></button>
           <button type="button" role="tab" id="emergency-tab-plans" aria-controls="emergency-tab-panel-plans" aria-selected="false" tabindex="-1" data-emergency-tab="plans"><span class="emergency-tab-symbol" aria-hidden="true">▤</span><span>Plans &amp; References</span></button>
-          <button type="button" role="tab" id="emergency-tab-device" aria-controls="emergency-tab-panel-device" aria-selected="false" tabindex="-1" data-emergency-tab="device"><span class="emergency-tab-symbol" aria-hidden="true">⚙</span><span>Device &amp; Backup</span></button>
+          <button type="button" role="tab" id="emergency-tab-device" aria-controls="emergency-tab-panel-device" aria-selected="false" tabindex="-1" data-emergency-tab="device"><span class="emergency-tab-symbol" aria-hidden="true">⚙</span><span>Backup &amp; Data</span></button>
         </nav>
         <div class="panel" id="emergency-backup-panel"><div class="panel-title"><h3>Encrypted emergency data backup</h3><span class="pill">MANUAL · PRIVATE</span></div>
           <p class="muted small">Export the main OpenRF SQLite database as a password-encrypted file. This includes sensitive saved investigations and check-ins; keep the file private. It does not include offline maps, recorded SDR files or separately stored radio histories. Your passphrase is never saved or transmitted off this local device.</p>

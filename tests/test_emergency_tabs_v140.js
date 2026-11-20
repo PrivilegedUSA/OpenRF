@@ -10,8 +10,10 @@ for(const key of ['dashboard','sos','radio','plans','device']){
   assert(html.includes(`aria-controls="emergency-tab-panel-${key}"`));
 }
 assert(html.indexOf('class="panel emergency-notice"')<html.indexOf('id="emergency-tabs"'));
-assert.match(html,/emergency-tabs\.js\?v=0\.2\.140/);
+assert.match(html,/emergency-tabs\.js\?v=0\.2\.141/);
 assert.match(css,/emergency-tab-panel\[hidden\]\{display:none!important\}/);
+assert.match(css,/background:transparent;border:0;border-radius:0;box-shadow:none;backdrop-filter:none\}/,
+  'Five independent tab buttons should have no outer tray card');
 assert.match(script,/ArrowRight|ArrowLeft/);
 assert.match(script,/nothing is sent automatically/);
 
@@ -53,10 +55,13 @@ vm.runInNewContext(script,{document,window,console});
 assert.equal(window.OpenRFEmergencyTabs.current(),'dashboard');
 const content=tabs.next;
 const pane=key=>content.children.find(item=>item.id===`emergency-tab-panel-${key}`);
-assert(pane('dashboard').children.some(n=>n.id==='emergency-ops-panel'));
+assert.equal(pane('dashboard').children[0].id,'emergency-ops-panel',
+  'Operations snapshot must be the first dashboard card');
+assert.equal(pane('dashboard').children[1].id,'emergency-survival-panel',
+  'Departure and power checks come directly after operations');
 assert(pane('sos').children.some(n=>n.id==='checkin'));
 assert(pane('radio').children.some(n=>n.id==='handoff'));
-assert(pane('device').children[0].id==='emergency-survival-panel');
+assert.equal(pane('device').children[0].id,'emergency-backup-panel');
 assert(pane('plans').children.some(n=>n.id==='plans'));
 assert(root.children.some(n=>n.id==='notice'),'Immediate-danger notice always stays visible');
 const sos=els.get('sos');sos.handlers.click();
@@ -72,4 +77,4 @@ assert(pane('device').hidden);
 window.OpenRFEmergencyTabs.open('device');
 assert(!pane('device').hidden);
 assert(pane('radio').hidden);
-console.log('PASS v0.2.140 accessible emergency tabs, dashboard, quick tools and original form ownership');
+console.log('PASS v0.2.141 accessible emergency tabs, dashboard, quick tools and original form ownership');

@@ -15,4 +15,4 @@ assert(/\bheight\s*:\s*auto\s*;/.test(rule), 'legend is not stretched vertically
 assert(css.includes('.map-wrap .map-legend{display:none;}'), 'compact map layout remains uncluttered');
 assert(html.includes('id="map-credits"') && html.includes('www.openstreetmap.org/copyright'), 'required map attribution kept');
 assert(html.includes('Survey location') && html.includes('DEMO (optional)'), 'survey and demo meanings kept');
-console.log('PASS v0.2.140 bottom-left map legend and map credits');
+console.log('PASS v0.2.141 bottom-left map legend and map credits');

@@ -26,18 +26,20 @@
   const originals=[...root.children].filter(node=>node.classList?.contains('panel') &&
     !node.classList.contains('emergency-notice'));
   function category(panel){
-    if(panel.id==='emergency-ops-panel' || panel.querySelector('#emergency-readiness'))return 'dashboard';
+    if(panel.id==='emergency-ops-panel' || panel.id==='emergency-survival-panel' ||
+      panel.querySelector('#emergency-readiness'))return 'dashboard';
     if(panel.querySelector('#emergency-sos-form,#emergency-checkin-form'))return 'sos';
     if(panel.querySelector('#emergency-protocol-form,#emergency-inbox-board,#emergency-handoff-form,#emergency-team-form'))return 'radio';
-    if(panel.id==='emergency-backup-panel' || panel.id==='emergency-survival-panel')return 'device';
+    if(panel.id==='emergency-backup-panel')return 'device';
     return 'plans';
   }
   for(const panel of originals)panels.get(category(panel)).append(panel);
-  // Power/readiness is the first device task during an actual emergency;
-  // backups stay available in the same tab, below those checks.
-  const survival=document.getElementById('emergency-survival-panel');
-  if(survival)panels.get('device').prepend(survival);
   const dash=panels.get('dashboard');
+  // First see the operations snapshot, then departure/power readiness; the
+  // full SOS/check-in and radio forms remain one tap away in their own tabs.
+  const operations=document.getElementById('emergency-ops-panel');
+  if(operations)dash.prepend(operations);
+  const survival=document.getElementById('emergency-survival-panel');
   const shortcuts=document.createElement('div');
   shortcuts.className='emergency-quick-access';
   shortcuts.innerHTML=`<strong>Quick access <span>Choose a tool — nothing is sent automatically</span></strong>
@@ -45,9 +47,10 @@
       <button type="button" data-emergency-open="sos" data-emergency-focus="emergency-sos-template">Prepare SOS draft</button>
       <button type="button" data-emergency-open="sos" data-emergency-focus="emergency-checkin-person">Family check-in</button>
       <button type="button" data-emergency-open="radio" data-emergency-focus="emergency-handoff-draft">Radio handoff</button>
-      <button type="button" data-emergency-open="device" data-emergency-focus="emergency-survival-refresh">Device readiness</button>
+      <button type="button" data-emergency-open="dashboard" data-emergency-focus="emergency-survival-refresh">Device readiness</button>
     </div>`;
-  dash.prepend(shortcuts);
+  if(survival)survival.after(shortcuts);
+  else dash.append(shortcuts);
   tabs.after(container);
 
   function activate(key,{focusTab=false,scroll=false}={}){

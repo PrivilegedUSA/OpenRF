@@ -1,5 +1,11 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.141 — Emergency tabs repair
+
+- **Fixes the v0.2.140 Emergency regression:** The new tab buttons could highlight but not actually switch sections because `emergency-tabs.js` was missing from the loopback server's permitted static files. The new breadcrumb GPS-follow math script was blocked for the same reason; both are now served, with HTTP tests.
+- The Emergency Dashboard opens with the **operations snapshot first** and **device survival/departure checks second**. Quick shortcuts appear below those; the other workspaces have dedicated tabs. Five individual buttons replace the boxed button tray, with the last tab renamed **Backup & Data**.
+- The original emergency form IDs/data and send-confirmation gates are unchanged. See [v0.2.141 verification](docs/RELEASE_0.2.141_TESTS.md); install this complete ZIP using the normal updater.
+
 ## v0.2.140 — Emergency dashboard tabs and live track backtrack
 
 - **Emergency** now opens on a compact Dashboard tab, with SOS & Check-ins, Radio & Messages, Plans & References, and Device & Backup always one tap away. The official emergency-channel notice remains visible and no navigation or tab change sends any messages. Existing forms and data are preserved.
