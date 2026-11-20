@@ -1304,10 +1304,12 @@ function selectBaseMap(next){
     state.mapReady=false;
     state.map.setStyle(openrfMapStyleUrl());
   }else if(state.rasterMap){
-    state.preferredView={center:[...state.rasterMap.center],zoom:state.rasterMap.zoom};
-    state.rasterMap.stop();state.rasterMap=null;
-    $('map').replaceChildren();$('map').classList.remove('raster-mode','raster-dark');
-    startMap();
+    // A failed WebGL context will not be repaired by switching styles.
+    // Keep the working, no-WebGL raster renderer and switch its tile source.
+    for(const image of state.rasterMap.tileNodes.values())image.remove();
+    state.rasterMap.tileNodes.clear();state.rasterMap.failedTiles.clear();
+    state.rasterMap.render();
+    updateOfflineAttribution();
   }
 }
 function regionalVectorReady(){
@@ -1908,9 +1910,25 @@ function pixelWorld(x, y, zoom) {
   const lat = (180 / Math.PI) * Math.atan(Math.sinh(Math.PI * (1 - 2 * y / size)));
   return [lon, lat];
 }
+// Raster-only fallback supports local MBTiles without a network request and
+// the same *user-selected* USGS sources already offered by the vector viewer.
+// No online tiles are requested if the operator selected Default/Offline.
+function rasterTileSource(baseMap, offlineMap, zoom){
+  if(baseMap==='satellite'||baseMap==='topographic'){
+    const service=baseMap==='satellite'?'USGSImageryOnly':'USGSTopo';
+    const tileZoom=Math.min(zoom,baseMap==='satellite'?18:16);
+    return {key:baseMap,kind:'usgs',tileZoom,url:(x,y)=>
+      `https://basemap.nationalmap.gov/arcgis/rest/services/${service}/MapServer/tile/${tileZoom}/${y}/${x}`};
+  }
+  if(offlineMap&&zoom>=offlineMap.minzoom&&zoom-Math.min(zoom,offlineMap.maxzoom)<=4){
+    const tileZoom=Math.min(zoom,offlineMap.maxzoom);
+    return {key:`local-${offlineMap.id}`,kind:'offline',tileZoom,url:(x,y)=>
+      `/api/maps/${encodeURIComponent(offlineMap.id)}/tiles/${tileZoom}/${x}/${y}.png`};
+  }
+  return null;
+}
 function startRasterMap(reason, view = null) {
   if (state.rasterMap) return;
-  state.baseMap='default'; // Coordinate fallback cannot display USGS raster sources.
   updateBaseMapPicker();
   $('map-error').hidden = true;
   const root = $('map');
@@ -1920,10 +1938,29 @@ function startRasterMap(reason, view = null) {
   const tiles = document.createElement('div'); tiles.className = 'raster-tiles';
   const pins = document.createElement('div'); pins.className = 'raster-pins';
   const notice = document.createElement('div'); notice.className = 'raster-notice';
-  const fallbackDetail=()=>state.offlineMap ? `Local raster package: ${state.offlineMap.name}. Tiles outside its coverage remain blank.` :
-    regionalVectorReady() ? 'The custom Amador/Calaveras vector tiles are installed, but this coordinate fallback cannot draw vector tiles. Check browser WebGL, then press Map settings → Offline / raster to retry vectors.' :
-    'Coordinate grid only. Install a licensed raster MBTiles package for offline streets.';
-  notice.textContent = `${reason} ${fallbackDetail()}`;
+  const noticeMessage=document.createElement('div');
+  const choices=document.createElement('div');choices.className='raster-source-choices';
+  const sourceButtons=[['default','Offline/grid'],['topographic','Topo · online'],['satellite','Satellite · online']].map(([source,label])=>{
+    const button=document.createElement('button');button.type='button';button.textContent=label;
+    button.title='Select this map. Press again to retry missing tiles.';
+    button.addEventListener('click',event=>{
+      event.stopPropagation();
+      if(source!==state.baseMap){selectBaseMap(source);return;}
+      if(!state.rasterMap)return;
+      for(const image of state.rasterMap.tileNodes.values())image.remove();
+      state.rasterMap.tileNodes.clear();state.rasterMap.failedTiles.clear();
+      state.rasterMap.render();
+    });
+    choices.append(button);return [source,button];
+  });
+  notice.append(noticeMessage,choices);
+  const startupExplanation = /Vector renderer could not start|WebGL/i.test(reason) ?
+    'WebGL is unavailable in this window, so local vector maps cannot render.' : reason;
+  const fallbackDetail=()=>state.baseMap==='topographic'||state.baseMap==='satellite'?
+    `Showing online USGS ${state.baseMap==='topographic'?'topographic map':'imagery'} as ordinary images (no WebGL). Internet is required; visible map tiles are requested from USGS.` :
+    state.offlineMap ? `Local raster package: ${state.offlineMap.name}. Tiles outside its coverage remain blank.` :
+    regionalVectorReady() ? 'Your installed regional vector tiles need WebGL. Choose an online raster map below, or install a local raster MBTiles pack for offline maps.' :
+    'Coordinate grid only. Choose an online raster map below or install a local raster MBTiles pack.';
   const controls = document.createElement('div'); controls.className = 'raster-control';
   const plus = document.createElement('button'); plus.type = 'button'; plus.textContent = '+'; plus.title = 'Zoom in';
   const minus = document.createElement('button'); minus.type = 'button'; minus.textContent = '−'; minus.title = 'Zoom out';
@@ -1935,7 +1972,13 @@ function startRasterMap(reason, view = null) {
   let flightFrame = null;
   const raster = {center:view?.center || [-98.5,39.8], zoom:Math.max(2,Math.min(18,Math.round(view?.zoom || 2))), tileNodes:new Map(), failedTiles:new Set(),
     render() {
-      notice.textContent = `${reason} ${fallbackDetail()}`;
+      root.classList.toggle('raster-dark',state.style==='dark'&&state.baseMap==='default');
+      const failures=[...raster.failedTiles.keys()].filter(key=>key.startsWith(`${state.baseMap==='default'?'local-'+state.offlineMap?.id:state.baseMap}/`)).length;
+      noticeMessage.textContent=`${startupExplanation} ${fallbackDetail()}${failures?' Some tiles did not load; check network or coverage and tap the selected layer again to retry.':''}`;
+      for(const [source,button] of sourceButtons){
+        button.classList.toggle('active',source===state.baseMap);
+        button.setAttribute('aria-pressed',String(source===state.baseMap));
+      }
       const width = root.clientWidth, height = root.clientHeight;
       if (!width || !height) return;
       const center = worldPixel(raster.center[0], raster.center[1], raster.zoom);
@@ -1943,11 +1986,11 @@ function startRasterMap(reason, view = null) {
       const left = center[0] - width/2, top = center[1] - height/2;
       const startX = Math.floor(left/256), endX = Math.floor((left + width)/256);
       const startY = Math.floor(top/256), endY = Math.floor((top + height)/256);
-      // Read only local MBTiles over the loopback API. Overzoom scales the
-      // nearest available package level; do not reach for a remote tile server.
-      const pack = state.offlineMap;
-      const tileZoom = pack ? Math.min(raster.zoom, pack.maxzoom) : -1;
-      const canShowTiles = pack && tileZoom >= pack.minzoom && raster.zoom - tileZoom <= 4;
+      // Default is strictly local. Remote imagery is used only after the
+      // operator selected (and remembered) Satellite or Topographic.
+      const source = rasterTileSource(state.baseMap,state.offlineMap,raster.zoom);
+      const tileZoom = source?.tileZoom ?? -1;
+      const canShowTiles = !!source;
       const factor = canShowTiles ? 2 ** (raster.zoom - tileZoom) : 1;
       const tileSize = 256 * factor;
       const tileCount = canShowTiles ? 2 ** tileZoom : 0;
@@ -1958,7 +2001,7 @@ function startRasterMap(reason, view = null) {
         for (let ty = Math.max(0,firstY); ty <= Math.min(tileCount-1,lastY); ty++) {
           for (let tx=firstX; tx<=lastX; tx++) {
             const wrapped = ((tx % tileCount) + tileCount) % tileCount;
-            const key = `${pack.id}/${tileZoom}/${wrapped}/${ty}`;
+            const key = `${source.key}/${tileZoom}/${wrapped}/${ty}`;
             if (raster.failedTiles.has(key)) continue;
             visible.add(key);
             let image = raster.tileNodes.get(key);
@@ -1968,8 +2011,11 @@ function startRasterMap(reason, view = null) {
               image.loading = 'lazy';
               image.addEventListener('error', () => {
                 raster.failedTiles.add(key); raster.tileNodes.delete(key); image.remove();
+                // A failed server/coverage request must never be called a
+                // successful online or offline map load.
+                if(state.rasterMap===raster)raster.render();
               });
-              image.src = `/api/maps/${encodeURIComponent(pack.id)}/tiles/${tileZoom}/${wrapped}/${ty}.png`;
+              image.src = source.url(wrapped,ty);
               raster.tileNodes.set(key, image); tiles.append(image);
             }
             image.style.width = `${tileSize}px`; image.style.height = `${tileSize}px`;
@@ -2133,8 +2179,8 @@ async function runAction(fn, fallback='Could not complete operation') {
 function updateOfflineAttribution() {
   const local = $('offline-map-attribution');
   const online = $('online-map-credits');
-  const external=!state.rasterMap && (state.baseMap==='satellite' || state.baseMap==='topographic');
-  const offlineActive = !!state.rasterMap || (!!state.mapVectorOffline && !external);
+  const external=state.baseMap==='satellite'||state.baseMap==='topographic';
+  const offlineActive = !external && (!!state.rasterMap || !!state.mapVectorOffline);
   const text = external ?
       state.baseMap==='satellite' ?
         'USGS Imagery Only: © USGS The National Map · USDA NAIP and other imagery partners. Online U.S. imagery; not an offline package.' :
@@ -5346,7 +5392,11 @@ $('map-style').addEventListener('click',()=>{
   state.style = state.style==='dark'?'light':'dark';
   updateBaseMapPicker();
   if (state.map) {state.mapReady=false;state.map.setStyle(openrfMapStyleUrl());}
-  if (state.rasterMap) {$('map').classList.toggle('raster-dark',state.style==='dark');}
+  if (state.rasterMap) {
+    for(const image of state.rasterMap.tileNodes.values())image.remove();
+    state.rasterMap.tileNodes.clear();state.rasterMap.failedTiles.clear();
+    state.rasterMap.render();
+  }
   $('map-style').textContent=state.style==='dark'?'OpenRF Light':'OpenRF Dark';
 });
 $('map-vector-source').addEventListener('click',()=>{

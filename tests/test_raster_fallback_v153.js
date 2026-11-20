@@ -1,0 +1,40 @@
+/* v0.2.153 — WebGL-free map sources and compact desktop sidebar. */
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const path = require('node:path');
+const root = path.join(__dirname, '..', 'openrf', 'static');
+const js = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+const css = fs.readFileSync(path.join(root, 'app.css'), 'utf8');
+const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+
+const helperStart = js.indexOf('function rasterTileSource(');
+const helperEnd = js.indexOf('\nfunction startRasterMap(', helperStart);
+assert(helperStart !== -1 && helperEnd > helperStart, 'Raster source selection helper exists');
+const select = vm.runInNewContext(`${js.slice(helperStart, helperEnd)}; rasterTileSource`);
+assert.equal(select('default', null, 12), null, 'Default with no raster pack never downloads a remote map');
+const raster = {id:'my map', minzoom:5, maxzoom:12};
+assert.equal(select('default', raster, 13).url(100,200), '/api/maps/my%20map/tiles/12/100/200.png');
+assert.equal(select('default', raster, 4), null, 'Outside local pack zoom range shows grid');
+assert.equal(select('default', raster, 17), null, 'Outside reasonable raster overzoom shows grid');
+const topo = select('topographic', raster, 17);
+assert.equal(topo.kind, 'usgs');
+assert.equal(topo.tileZoom, 16);
+assert.equal(topo.url(123,456), 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/16/456/123');
+const satellite = select('satellite', null, 17);
+assert.equal(satellite.url(123,456), 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/17/456/123');
+
+const start = js.slice(js.indexOf('function startRasterMap('), js.indexOf('\nfunction zoomToRecord(',js.indexOf('function startRasterMap(')));
+assert(!start.includes("state.baseMap='default'"), 'WebGL failure must preserve remembered basemap');
+assert(start.includes('rasterTileSource(state.baseMap,state.offlineMap,raster.zoom)'), 'Renderer uses chosen raster source');
+assert(start.includes("'Topo · online'"), 'Map fallback offers explicit online topographic choice');
+assert(start.includes("'Satellite · online'"), 'Map fallback offers explicit online satellite choice');
+const picker = js.slice(js.indexOf('function selectBaseMap('), js.indexOf('function regionalVectorReady('));
+assert(picker.includes('state.rasterMap.render()'), 'Changing basemap in raster mode redraws without retrying broken WebGL');
+assert(!picker.includes('startMap()'), 'Selecting raster sources must not force a new vector map context');
+assert(css.includes('.sidebar .nav .nav-btn .nav-label{display:block;width:auto;'), 'Desktop menu label overrides old 18px span sizing');
+assert(css.includes('font-size:14px;font-weight:650;line-height:1.25;white-space:nowrap'), 'Long menu labels stay compact on one line');
+assert(css.includes('#map.raster-mode .raster-notice{pointer-events:auto;'), 'No-WebGL map choice buttons are clickable');
+assert(html.includes('FIELD CONSOLE · 0.2.153'), 'Release version appears in sidebar');
+console.log('PASS v0.2.153 no-WebGL offline/online raster selection, attribution affordance and one-line sidebar labels');

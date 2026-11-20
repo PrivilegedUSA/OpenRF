@@ -1,3 +1,10 @@
+## OpenRF v0.2.153 — Electron desktop map recovery and sidebar sizing (2026-11-20)
+
+- Fixed inherited 18px desktop sidebar label sizing, preventing Signal Viewer and Radio Receiver from wrapping at a 1280×800 Linux Electron window. Kept navigation tap targets and the App Settings typography consistent.
+- Added an explicit no-WebGL USGS Topographic / Satellite raster path using ordinary image elements, with the original local MBTiles and coordinate-grid fallback still available. Basemap selection survives startup/context failures and works within raster mode without reattempting the failing MapLibre context. Repeated selection retries failed tiles, and failed requests are labeled.
+- Kept Default/Offline mode free of new remote tile requests and preserved USGS attribution. Regional offline **vector** MBTiles still need hardware/software WebGL; this update does not claim to fix Linux WSL graphics drivers or deliver offline topo raster data automatically.
+- Added targeted regression checks and maintained all Python/JavaScript integration tests. No database migration, hardware assumptions, new required package or RF sensor changes. See `docs/RELEASE_0.2.153_TESTS.md`.
+
 ## OpenRF v0.2.152 — Wi-Fi quick connect and Linux desktop launcher groundwork (2026-11-20)
 
 - Added a compact Wi-Fi button alongside Emergency and Messages in the top-right header. A bounded dropdown offers read-only Linux Wi-Fi status, explicit NetworkManager scan, named nearby networks with approximate quality/security, and a separate confirmation step to join an open or WPA-personal network. No background scanning, guessed networks, extra location collection or RF survey saving. Unsupported WSL/no-NetworkManager conditions are labeled honestly.

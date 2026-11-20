@@ -2273,6 +2273,21 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
 #page-map #map .maplibregl-ctrl-top-right .openrf-recenter-control{margin-top:7px!important}
 #page-map .raster-control .raster-recenter{margin-top:7px}
 
+/* v0.2.153 — desktop Electron must not inherit the old 18px span rule.
+   Keep full-size touch targets while matching the App Settings typography. */
+.sidebar .nav .nav-btn{font-size:14px;font-weight:650;line-height:1.2;white-space:nowrap;min-width:0;padding-left:12px;padding-right:12px}
+.sidebar .nav .nav-btn .nav-label{display:block;width:auto;min-width:0;flex:1 1 auto;font-size:14px;font-weight:650;line-height:1.25;white-space:nowrap}
+.sidebar .nav .nav-btn .nav-icon{display:inline-flex;align-items:center;justify-content:center;flex:0 0 24px;width:24px;font-size:18px}
+.sidebar .nav .nav-btn .nav-chevron{flex:0 0 auto;width:auto;font-size:11px}
+.sidebar .nav .nav-subpage .nav-label{font-size:12px}
+
+/* WebGL-free mode: user-selectable USGS raster tiles or local MBTiles. */
+#map.raster-mode .raster-notice{pointer-events:auto;max-width:min(460px,calc(100% - 92px));line-height:1.45}
+#map.raster-mode .raster-source-choices{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+#map.raster-mode .raster-source-choices button{border:1px solid #376470;border-radius:6px;background:#12303a;color:#c8e5e9;padding:6px 8px;font-size:11px;font-weight:700;min-height:30px}
+#map.raster-mode .raster-source-choices button.active{border-color:#44cbb9;background:#20524f;color:#c7fff1}
+#map.raster-mode .raster-source-choices button:hover{background:#235462}
+
 /* Walking recording is a separate, opt-in local location-history operation. */
 #page-map .map-nav-record{margin:8px 0 6px;padding:8px 9px;background:#102f36;
   border:1px solid #366967;border-radius:8px}

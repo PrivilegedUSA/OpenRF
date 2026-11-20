@@ -1,5 +1,11 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.153 — WSL/Electron map fallback and compact sidebar
+
+- **Readable sidebar on desktop Electron:** The workspace links now use 14px labels, matching App Settings, and stay on one line at the 1280×800 test layout. Icons keep their own sizing and the touch targets remain full-height. This fixes inherited 18px label styling that wrapped Signal Viewer and Radio Receiver.
+- **Usable raster maps without WebGL:** If Chromium/WSLg cannot create a MapLibre WebGL context, the map's fallback panel now offers **Topo · online**, **Satellite · online**, and **Offline/grid**. The online choices draw USGS image tiles directly with normal browser images; no WebGL renderer is needed. Selection is remembered and can be switched directly in fallback without retrying broken graphics. The default and offline raster choices make no new external tile requests; locally installed *vector* tiles still require WebGL, while operator-installed *raster* MBTiles work offline. Choose a source again to retry failed tiles.
+- **Honest limitations:** Online USGS imagery requires connectivity and U.S. coverage, while offline vector tiles do not magically become raster. This is a source-tested fallback, not a confirmed WSLg GPU repair or a Raspberry Pi hardware test. See [v0.2.153 verification](docs/RELEASE_0.2.153_TESTS.md).
+
 ## v0.2.152 — Wi-Fi quick access and Linux desktop installer groundwork
 
 - **Wi-Fi icon beside Messages:** On all OpenRF pages, tap the new Wi-Fi symbol in the header to see the Linux device's NetworkManager connection, manually list nearby named networks, and explicitly connect to a chosen open or WPA-personal network. No background scans or connection attempts; WSL without a Linux Wi-Fi interface clearly says unsupported. Enterprise/EAP, WEP and hidden SSIDs remain system-settings tasks. Passwords go to `nmcli --ask` on stdin, are cleared from the form, and are not saved to OpenRF. NetworkManager may save the device connection per OS policy. Connection success does not independently verify internet access.
