@@ -4,6 +4,7 @@
   const labels={NEED_HELP:'I need assistance.',SAFE:'I am safe.',EVACUATING:'I am evacuating.',CHECK_IN:'Checking in. Please reply when you can.'};
   let position=null;
   let requestToken=0;
+  let saving=false;
   function validatedPosition(raw){
     const coords=raw?.coords||{};
     const {latitude,longitude,accuracy}=coords;
@@ -56,19 +57,43 @@
   $('emergency-sos-clear').addEventListener('click',()=>{requestToken++;position=null;
     $('emergency-sos-location').textContent='No browser location attached.';preview();});
   $('emergency-sos-form').addEventListener('submit',async event=>{
-    event.preventDefault();preview();
+    event.preventDefault();if(saving)return;preview();
+    const prepareRadio=event.submitter?.id==='emergency-sos-prepare-radio';
     if(position&&!currentLocation()){
       $('emergency-sos-status').textContent='Your location fix expired. Refresh it or remove the location before saving.';return;
     }
-    if(!confirm('Save this message as a LOCAL, UNSENT draft? No emergency service or contact will receive it.'))return;
+    if(!confirm(prepareRadio?
+      'Save this as a LOCAL draft, then open radio handoff? Nothing will transmit until you choose a recipient and explicitly confirm a radio send. This does NOT contact 911.':
+      'Save this message as a LOCAL, UNSENT draft? No emergency service or contact will receive it.'))return;
     const payload={template:$('emergency-sos-template').value,recipient:$('emergency-sos-recipient').value,
                    message:$('emergency-sos-message').value,location:currentLocation()};
+    saving=true;
+    $('emergency-sos-save').disabled=true;
+    $('emergency-sos-prepare-radio').disabled=true;
+    let savedDraftId=null;
     try{
       const response=await fetch('/api/emergency/sos/draft',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       const data=await response.json();if(!response.ok)throw Error(data.error||'Save failed');
-      $('emergency-sos-status').textContent=`Saved local draft #${data.record.id}. NOT transmitted.`;
+      savedDraftId=data.record.id;
+      $('emergency-sos-status').textContent=`Saved local draft #${savedDraftId}. NOT transmitted.`;
+      if(prepareRadio){
+        if(!window.OpenRFEmergencyHandoff?.selectDraft || !window.OpenRFEmergencyTabs?.open){
+          $('emergency-sos-status').textContent+=' Radio handoff could not be opened; select the draft under Radio & Messages.';
+        }else{
+          await window.OpenRFEmergencyHandoff.selectDraft(data.record.id);
+          window.OpenRFEmergencyTabs.open('radio');
+          $('emergency-handoff-status').textContent=`Draft #${data.record.id} selected. Enter a specific radio recipient, review the text and manually confirm send. Nothing has transmitted.`;
+          $('emergency-handoff-destination').focus({preventScroll:true});
+          // This explicit action should reveal the send form; ordinary tab
+          // switching still preserves the user's scroll position.
+          $('emergency-handoff-form').scrollIntoView({block:'center',behavior:'auto'});
+        }
+      }
       document.dispatchEvent(new Event('openrf:emergency-shown'));
-    }catch(e){$('emergency-sos-status').textContent=e.message;}
+    }catch(e){$('emergency-sos-status').textContent=savedDraftId===null?
+      `SOS draft save failed: ${e.message}`:
+      `Saved local draft #${savedDraftId}. NOT transmitted. Radio handoff could not be opened: ${e.message}. Select this draft under Radio & Messages.`;}
+    finally{saving=false;$('emergency-sos-save').disabled=false;$('emergency-sos-prepare-radio').disabled=false;}
   });
   document.addEventListener('openrf:emergency-shown',preview);
   preview();

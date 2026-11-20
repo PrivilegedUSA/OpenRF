@@ -1,3 +1,10 @@
+## OpenRF v0.2.148 — Local route coverage samples and SOS radio-send discoverability (2026-11-20)
+
+- Added a map-directions **Offline tiles along this route** panel for both local walking and driving routes. It samples 13 evenly spaced selected-route points and probes actual installed regional vector tiles and private raster MBTiles packages at an appropriate zoom. Each basemap's available sample count is reported separately; samples are never pooled into a false complete map claim. The local POST endpoint refuses unrelated fields, malformed coordinates, excess sample points, untrusted hosts and any online flag. Checks don't fetch tiles externally, persist coordinates, start GNSS or alter maps.
+- Preserved the last explicitly selected **Default/Satellite/Topographic** basemap using browser-local storage. Restored online USGS styles can request imagery for the viewed area on app reopening; blocked/private storage falls back safely to Default. Manual map-style, vector-source and raster-mode switches reset the remembered basemap to Default.
+- Explained that a saved SOS draft **is not sent**. Added **Save & prepare radio send**, which saves locally, loads the draft into the existing manual Meshtastic/Reticulum radio handoff, and focuses the specific-recipient field. Transmission still requires supported connected equipment and an explicit confirmation; a send attempt, if requested, is not a 911 dispatch or guaranteed recipient delivery. The pre-existing offline outbox/attempt history remain intact.
+- No database migration or additional Python dependency. See `docs/RELEASE_0.2.148_TESTS.md` for verified tests, limits and next steps.
+
 ## OpenRF v0.2.147 — Standalone application settings and honest field readiness (2026-11-20)
 
 - Added **App Settings** in the permanent sidebar footer and compact navigation drawer, separate from Map Settings, with normal page title/visibility/session behavior. Added an accessible, full-width Settings workspace.

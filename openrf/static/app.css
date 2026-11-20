@@ -2078,7 +2078,7 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
 }
 #page-map .map-directions-follow-actions .btn:disabled{opacity:.55;cursor:not-allowed}
 
-/* v0.2.147 — separate App Settings workspace and storage/readiness cards. */
+/* v0.2.148 — separate App Settings workspace and storage/readiness cards. */
 .sidebar .sidebar-bottom .sidebar-settings-btn{
   position:relative;display:flex;align-items:center;gap:8px;width:100%;min-height:44px;
   margin:0 0 13px;padding:10px 12px;text-align:left;
@@ -2588,6 +2588,13 @@ body:not(.map-workspace) .map-altimeter{display:none!important}
 .route-elevation-chart{width:100%;margin-top:10px;border-radius:7px;background:#0a2028}
 .route-elevation-chart[hidden]{display:none!important}
 .route-elevation-chart svg{display:block;width:100%;height:auto;max-height:165px}
+.emergency-sos-actions{grid-column:1/-1;display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:5px}
+.emergency-sos-actions .btn{flex:1 1 190px;min-height:44px}
+#page-emergency .emergency-sos-send-note{grid-column:1/-1;margin:0;line-height:1.5}
+.route-coverage-results{display:grid;gap:7px;margin-top:9px}
+.route-coverage-results>div{display:flex;justify-content:space-between;gap:10px;padding:7px 9px;border:1px solid #294d55;border-radius:6px;background:#10252e;font-size:12px}
+.route-coverage-results strong{color:#d5eeeb}
+.route-coverage-results span{text-align:right;color:#8fe8d8}
 /* v0.2.144: show the map hamburger only while the regular sidebar is a
    hidden drawer. At 1280x800 with a fine pointer the sidebar is still open. */
 @media (min-width:1401px),

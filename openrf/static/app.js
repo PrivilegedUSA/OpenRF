@@ -3,7 +3,16 @@
 const $ = (id) => document.getElementById(id);
 const SELECTED_PAGE_SESSION_KEY = 'openrf.selected-page.v1';
 const MAP_VECTOR_PREFERENCE_KEY = 'openrf.map.vector-preference.v1';
+const MAP_BASEMAP_PREFERENCE_KEY = 'openrf.map.basemap.v1';
 const VALID_PAGES = new Set(['map','overview','emergency','scanner','spectrum','radio','messages','reticulum','hamradio','discoveries','sessions','hardware','settings']);
+function rememberedBaseMap(){
+  try {const value=window.localStorage?.getItem(MAP_BASEMAP_PREFERENCE_KEY);
+    return ['default','satellite','topographic'].includes(value)?value:'default';}
+  catch (_) {return 'default';} // Private browsing or blocked storage.
+}
+function rememberBaseMap(value){
+  try {window.localStorage?.setItem(MAP_BASEMAP_PREFERENCE_KEY,value);} catch (_) { /* Current choice still works. */ }
+}
 function rememberedVectorPreference(){
   try {const value=window.localStorage?.getItem(MAP_VECTOR_PREFERENCE_KEY);return value==='offline'||value==='online'?value:'auto';}
   catch (_) {return 'auto';}
@@ -28,9 +37,9 @@ state.navPickKind='destination';
 state.navPickedOrigin=null;
 state.mapVectorPreference=rememberedVectorPreference();
 state.mapOfflineRecoveryTried=false;
-// Satellite/topographic imagery is opt-in and online-only; reopening OpenRF
-// always starts on the existing map, which can use installed regional data.
-state.baseMap='default';
+// The operator's explicitly selected basemap is remembered locally. Restoring
+// Satellite or Topographic may request USGS tiles when OpenRF reopens.
+state.baseMap=rememberedBaseMap();
 window.OpenRFMapReadOnly = () => state.map;
 document.addEventListener('openrf:checkin-map-requested',()=>showPage('map'));
 state.mapStartupError=null;
@@ -1273,15 +1282,17 @@ function updateBaseMapPicker(){
     option.checked=option.value===state.baseMap;
   const note=$('map-basemap-note');
   if(note)note.textContent=state.baseMap==='satellite'?
-    'USGS aerial imagery · online, U.S. only. Tile requests expose the viewed map area; no GPS logs are uploaded.':
+    'USGS aerial imagery · online, U.S. only. Remembered choice reloads USGS tiles next time; viewed map area is shared, not GPS logs.':
     state.baseMap==='topographic'?
-    'USGS contours and relief · online, mainly U.S. coverage. For local topo tiles open Offline maps → Offline map files and download a saved small area.':
+    'USGS contours and relief · online, mainly U.S. coverage. Remembered choice reloads USGS tiles next time; offline areas can be saved separately.':
     state.mapVectorOffline?'Default OpenRF · installed regional vector tiles, available offline.':
     'Default OpenRF · worldwide online map, auto-selects installed regional maps when available.';
   updateOfflineAttribution();
 }
 function selectBaseMap(next){
-  if(!['default','satellite','topographic'].includes(next) || next===state.baseMap)return;
+  if(!['default','satellite','topographic'].includes(next))return;
+  rememberBaseMap(next);
+  if(next===state.baseMap)return;
   state.baseMap=next;
   state.mapBasemapVisible=false;state.mapSourceWarningShown=false;
   $('map-error').hidden=true;
@@ -2913,6 +2924,8 @@ function renderDirectionsReview(route) {
   $('map-route-elevation-chart').hidden=true;
   $('map-route-elevation-chart').replaceChildren();
   $('map-elevation-status').textContent='No profile loaded for this route. View saved data offline or opt in to online preparation.';
+  $('map-route-coverage-results').replaceChildren();
+  $('map-route-coverage-status').textContent='Not checked for this route.';
   const walking=route.travel_mode==='pedestrian' || route.is_driving_route!==true;
   const turns=routeGuide.routeSteps(route);
   pane.hidden=false;pane.open=true;
@@ -3004,6 +3017,39 @@ async function loadRouteTerrainProfile(allowOnline){
 }
 $('map-elevation-cached').addEventListener('click',()=>loadRouteTerrainProfile(false));
 $('map-elevation-prepare').addEventListener('click',()=>loadRouteTerrainProfile(true));
+async function checkOfflineRouteTiles(){
+  const current=state.navPreview;
+  const points=current?.type==='ROAD_ROUTE'&&window.OpenRFRouteElevation?.sample(current.coordinates,13);
+  const status=$('map-route-coverage-status');
+  const results=$('map-route-coverage-results');
+  if(!points){status.textContent='Plan a local driving or walking route before checking coverage.';return;}
+  const button=$('map-route-coverage-check');button.disabled=true;
+  results.replaceChildren();
+  status.textContent='Checking installed offline vector and raster tiles for 13 route samples…';
+  const row=(label,detail)=>{
+    const line=document.createElement('div'),heading=document.createElement('strong'),value=document.createElement('span');
+    heading.textContent=label;value.textContent=detail;line.append(heading,value);results.append(line);
+  };
+  try{
+    const response=await api('/api/navigation/route-coverage','POST',{points});
+    if(current!==state.navPreview)return;
+    if(response.kind!=='OFFLINE_ROUTE_TILE_SAMPLES'||response.read_only!==true||
+       response.external_requests!==false||response.gps_fix_checked!==false||response.sample_count!==13)
+      throw Error('Unexpected route coverage response');
+    const v=response.vector_basemap;
+    row('Installed vector basemap',v.ready?`${v.sampled_tiles_present}/13 tile samples at zoom ${v.zoom_tested}`:'Not ready (regional tiles or fonts missing)');
+    if(!response.raster_basemaps.length)row('Installed raster basemaps','No offline raster packages');
+    else for(const map of response.raster_basemaps)
+      row(map.name,`${map.sampled_tiles_present}/13 tile samples at zoom ${map.zoom_tested}`);
+    row('Local road router',response.routing_service_reachable?'Responding (graph coverage not proven)':'Not responding');
+    status.textContent=response.some_basemap_has_all_sampled_tiles?
+      'One offline basemap contains all 13 sampled tiles. Gaps between samples, road graph, GPS and conditions are NOT verified.':
+      'No single installed offline basemap contains all 13 sampled tiles. Prepare more map coverage before relying on this route offline.';
+  }catch(error){
+    if(current===state.navPreview){results.replaceChildren();status.textContent=`Offline tile check unavailable: ${error.message}. No network request or navigation was started.`;}
+  }finally{button.disabled=false;}
+}
+$('map-route-coverage-check').addEventListener('click',checkOfflineRouteTiles);
 $('map-directions-start').addEventListener('click',startSelectedRouteNavigation);
 function routeLabels(){return {origin:state.navOriginManual?$('nav-start-query').value.trim()||'Chosen start':'Browser-reported starting location',destination:$('map-destination-query').value.trim()||$('nav-dest-name').value.trim()||'Selected map point'};}
 function saveRouteSheet(filename,mime,body){
@@ -5283,6 +5329,7 @@ for(const option of document.querySelectorAll('#map-survey-panel input[name="map
 }
 $('map-style').addEventListener('click',()=>{
   state.baseMap='default';
+  rememberBaseMap('default');
   state.style = state.style==='dark'?'light':'dark';
   updateBaseMapPicker();
   if (state.map) {state.mapReady=false;state.map.setStyle(openrfMapStyleUrl());}
@@ -5296,6 +5343,7 @@ $('map-vector-source').addEventListener('click',()=>{
   }
   state.mapVectorOffline=!state.mapVectorOffline;
   state.baseMap='default';
+  rememberBaseMap('default');
   state.mapRegionalFramePending=state.mapVectorOffline;
   state.mapVectorPreference=state.mapVectorOffline?'offline':'online';
   rememberVectorPreference(state.mapVectorPreference);
@@ -5319,7 +5367,7 @@ $('map-style-sheet').addEventListener('click',()=>$('map-style').click());
 $('map-mode-sheet').addEventListener('click',()=>$('map-mode').click());
 $('show-demo-map-sheet').addEventListener('change',e=>{ $('show-demo-map').checked=e.target.checked;$('show-demo-map').dispatchEvent(new Event('change')); });
 $('map-mode').addEventListener('click',()=>{
-  if (!state.rasterMap) {state.baseMap='default';updateBaseMapPicker();switchToRasterMap('Offline raster/coordinate mode selected.');return;}
+  if (!state.rasterMap) {state.baseMap='default';rememberBaseMap('default');updateBaseMapPicker();switchToRasterMap('Offline raster/coordinate mode selected.');return;}
   state.preferredView={center:[...state.rasterMap.center],zoom:state.rasterMap.zoom};
   state.rasterMap.stop();
   state.rasterMap=null;

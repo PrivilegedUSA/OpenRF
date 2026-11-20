@@ -1,5 +1,12 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.148 — Local route tile sampling and transparent SOS radio handoff
+
+- **Route-specific offline tiles:** After planning a local driving or walking route, open **Offline tiles along this route** in the directions panel and choose **Check offline map tiles**. OpenRF checks 13 evenly spaced points against real installed regional vector and private MBTiles raster tiles, grouped by basemap and zoom. It uses only the local OpenRF API, without requesting GPS or downloading any missing tiles. This is a *sample test*, not continuous route coverage certification; the separate road graph, access, weather and GNSS accuracy require their own checks.
+- **Remembered basemap:** Map → Layers → **Default / Satellite / Topographic** now remembers the last explicitly selected choice in this browser across reloads and app restarts. Manually changing to Default or offline/raster mode also updates the preference. Restored Satellite/Topographic views use the online USGS service and can send new viewed-area tile requests when you reopen OpenRF; offline downloaded tiles remain separate.
+- **Emergency SOS:** The **Save UNSENT draft** action remains local-only. A second **Save & prepare radio send** button saves the draft, selects it in **Emergency → Radio & Messages → Emergency radio handoff**, and puts the recipient/address and outgoing-text controls in reach. Nothing transmits automatically. A configured Meshtastic or Reticulum link, known specific recipient and an additional explicit operator confirmation are required for any attempt. Radio submission is not a 911 call and never proves rescue delivery.
+- No required library, private map upload, automatic emergency broadcast, database schema migration or new online dependency. See [v0.2.148 verification](docs/RELEASE_0.2.148_TESTS.md).
+
 ## v0.2.147 — App Settings, honest device storage and field readiness
 
 - **Separate App Settings page:** A dedicated **App Settings** button now sits near the bottom of the left sidebar, apart from Map Settings. It opens its own full-width workspace and works with the existing drawer/sidebar navigation. Its selection is remembered within the browser session, just like the other pages.

@@ -39,7 +39,8 @@ from .wifi_halow import status_report as halow_status_report
 from .halow_diagnostics import diagnostic_report as halow_diagnostic_report, HaLowDiagnosticError
 from .field_network import readiness_report as field_network_readiness_report
 from .field_hotspot import HotspotManager, HotspotError
-from .offline_navigation_readiness import readiness_report as offline_navigation_readiness_report
+from .offline_navigation_readiness import (readiness_report as offline_navigation_readiness_report,
+                                           route_coverage_report)
 from . import camera_catalog, chirp_channels, national_alpr, camera_routes
 from .sdr_survey import capture_sites_geojson
 from .routing import local_route, local_status, RouteUnavailable, RouteError
@@ -1192,6 +1193,18 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json(200, {'profile': data})
                 except ElevationError as exc:
                     return self._error(422, str(exc), 'terrain_elevation_unavailable')
+            if path == '/api/navigation/route-coverage':
+                if urlparse(self.path).query:
+                    raise ValueError('Offline route coverage accepts no query parameters')
+                if set(body) != {'points'}:
+                    raise ValueError('Only sampled route coordinates are accepted for offline coverage')
+                return self._json(200, route_coverage_report(
+                    points=body['points'], route_status=local_status(),
+                    vector_status=vector_maps.status(),
+                    raster_maps=available_maps(self.server.map_directory),
+                    vector_probe=vector_maps.tile,
+                    raster_probe=lambda map_id, z, x, y: tile_bytes(
+                        self.server.map_directory, map_id, z, x, y)))
             if path == '/api/navigation/route':
                 if set(body) not in ({'locations'}, {'locations', 'options'}):
                     raise ValueError('Only route locations and optional routing preferences are allowed.')

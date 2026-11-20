@@ -105,6 +105,15 @@
       update();await attempts();await refreshOutbox();
     }catch(e){$('emergency-handoff-status').textContent=e.message;}
   }
+  async function selectDraft(id){
+    await load();
+    const option=drafts.find(row=>row.id===Number(id));
+    if(!option)throw Error(`Saved draft #${id} was not available in radio handoff`);
+    $('emergency-handoff-draft').value=String(id);
+    $('emergency-handoff-draft').dispatchEvent(new Event('change'));
+    return true;
+  }
+  window.OpenRFEmergencyHandoff=Object.freeze({selectDraft});
   $('emergency-handoff-draft').addEventListener('change',()=>{
     const draft=drafts.find(row=>String(row.id)===$('emergency-handoff-draft').value);
     $('emergency-handoff-text').value=draft?textFromDraft(draft):'';
