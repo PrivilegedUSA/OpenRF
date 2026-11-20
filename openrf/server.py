@@ -5,6 +5,7 @@ import argparse
 import json
 import logging
 import os
+import signal
 import tempfile
 import sqlite3
 import threading
@@ -50,6 +51,7 @@ from .geocoding import (search as address_search, provider as geocoder_provider,
                        configuration_status as geocoder_status, save_maptiler_key,
                        GeocoderUnavailable, GeocoderError)
 from .drivers.wifi_nmcli import scan_once, WifiScanUnavailable
+from .wifi_connect import wifi_status, list_wifi, connect_wifi, WifiConnectionError
 from .drivers.ble_bluez import scan_once as ble_scan_once, BleScanUnavailable
 from .drivers.serial_openrf import query_port, SerialSensorError
 from .storage import Repository, to_csv, to_geojson
@@ -634,6 +636,10 @@ class Handler(BaseHTTPRequestHandler):
             if urlparse(self.path).query:
                 return self._error(400, 'Field network inspection accepts no query parameters')
             return self._json(200, field_network_readiness_report())
+        if path == '/api/network/wifi/status':
+            if urlparse(self.path).query:
+                return self._error(400, 'Wi-Fi status accepts no query parameters')
+            return self._json(200, wifi_status())
         if path == '/api/network/hotspot/status':
             if urlparse(self.path).query:
                 return self._error(400, 'Hotspot status accepts no query parameters')
@@ -685,7 +691,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, raw, 'text/csv; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.csv"'})
         if path in ('/', '/index.html'):
             file = STATIC_DIR / 'index.html'
-        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/browser-workspace.js', '/static/saved-trips.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/trip-map.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/browser-workspace.js', '/static/saved-trips.js', '/static/wifi-quick.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/trip-map.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
             file = STATIC_DIR / Path(path).name
         elif path == '/static/offline-trails.js':
             file = STATIC_DIR / 'offline-trails.js'
@@ -809,6 +815,27 @@ class Handler(BaseHTTPRequestHandler):
             body = self._decode_body()
             if not isinstance(body, dict):
                 raise ValueError('Expected a JSON object')
+            if path in ('/api/network/wifi/scan', '/api/network/wifi/connect'):
+                if self.headers.get('X-OpenRF-Wifi-Consent') != ('scan' if path.endswith('/scan') else 'connect'):
+                    return self._error(403, 'Wi-Fi operations require an explicit local UI action')
+                if not self.server.wifi_connection_lock.acquire(blocking=False):
+                    return self._error(409, 'Another Wi-Fi operation is in progress')
+                try:
+                    if path.endswith('/scan'):
+                        if body:
+                            return self._error(400, 'Wi-Fi scan accepts no extra options')
+                        try:
+                            return self._json(200, list_wifi())
+                        except WifiConnectionError as exc:
+                            return self._error(exc.status, str(exc), exc.code)
+                    if set(body) != {'ssid', 'password', 'confirm'}:
+                        return self._error(400, 'Choose a network, enter a password if required, and confirm')
+                    try:
+                        return self._json(200, connect_wifi(body['ssid'], body['password'], body['confirm']))
+                    except WifiConnectionError as exc:
+                        return self._error(exc.status, str(exc), exc.code)
+                finally:
+                    self.server.wifi_connection_lock.release()
             if path == '/api/emergency/packs/install':
                 return self._json(200, self.server.emergency_store.install_pack(body))
             if path == '/api/emergency/sos/draft':
@@ -1510,6 +1537,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.elevation_lock = threading.Lock()
     server.map_asset_directory = repository.path.parent / 'assets'
     server.wifi_scan_lock = threading.Lock()
+    server.wifi_connection_lock = threading.Lock()
     server.scan_receipts = ScanReceiptStore()
     server.ble_scan_lock = threading.Lock()
     server.ble_receipts = BleScanReceiptStore()
@@ -1542,12 +1570,19 @@ def main():
     print(f'OpenRF v{__version__} — http://localhost:{args.port}')
     print(f'Private database: {repo.path}')
     print('Loopback only; press Ctrl+C to stop. On-demand Linux Wi-Fi scans require a visible compatible adapter; RTL-SDR scans are user-triggered, bounded and require compatible Linux-visible hardware.', flush=True)
+    # The Electron child launcher stops only the backend process it owns.
+    # HTTPServer.shutdown must run on another thread than serve_forever.
+    previous_sigterm = signal.getsignal(signal.SIGTERM)
+    def stop_on_sigterm(_signum, _frame):
+        threading.Thread(target=server.shutdown, daemon=True).start()
+    signal.signal(signal.SIGTERM, stop_on_sigterm)
     try:
         server.serve_forever(poll_interval=0.25)
     except KeyboardInterrupt:
         print('\nShutting down OpenRF...')
     finally:
         server.server_close()
+        signal.signal(signal.SIGTERM, previous_sigterm)
 
 if __name__ == '__main__':
     main()

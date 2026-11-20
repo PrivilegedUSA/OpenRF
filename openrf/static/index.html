@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.151">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.152">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -23,6 +23,7 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/map-elevation.js?v=0.2.151"></script>
   <script defer src="/static/battery-status.js?v=0.2.151"></script>
+  <script defer src="/static/wifi-quick.js?v=0.2.152"></script>
   <script defer src="/static/route-elevation.js?v=0.2.151"></script>
   <script defer src="/static/trip-map.js?v=0.2.151"></script>
   <script defer src="/static/app.js?v=0.2.151"></script>
@@ -59,7 +60,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.151</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.152</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -108,6 +109,21 @@
           <div class="device-battery-reading"><svg viewBox="0 0 24 14" aria-hidden="true"><rect x="1" y="1" width="19" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="21" y="4" width="2" height="6" rx="1" fill="currentColor"/><rect id="device-battery-fill" x="3" y="3" width="0" height="8" rx="1" fill="currentColor"/></svg><strong id="device-battery-value">—</strong></div>
         </div>
         <button type="button" id="header-emergency-shortcut" class="header-emergency-shortcut" data-page="emergency" aria-label="Open Emergency readiness" title="Emergency readiness — opens the page, does not send an SOS"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5 22 20H2L12 2.5Z"/><path d="M12 8.5v5.5"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></svg></button>
+        <div class="header-wifi-menu" id="header-wifi-menu">
+          <button type="button" id="header-wifi-button" class="header-wifi-button" aria-label="Wi-Fi connections" aria-expanded="false" aria-controls="header-wifi-panel" title="Wi-Fi connections"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8.8a15 15 0 0 1 19 0"/><path d="M5.8 12.3a10 10 0 0 1 12.4 0"/><path d="M9.2 15.7a5 5 0 0 1 5.6 0"/><circle cx="12" cy="19" r="1.25" fill="currentColor" stroke="none"/></svg></button>
+          <div id="header-wifi-panel" class="header-wifi-panel" role="dialog" aria-label="Connect to Wi-Fi" hidden>
+            <div class="header-wifi-panel-head"><strong>Wi-Fi connections</strong><button type="button" id="header-wifi-close" aria-label="Close Wi-Fi connections">×</button></div>
+            <p id="header-wifi-status" role="status" aria-live="polite">Checking Linux Wi-Fi adapter…</p>
+            <button type="button" class="btn outline" id="header-wifi-scan">Find nearby networks</button>
+            <div id="header-wifi-list" class="header-wifi-list" aria-label="Nearby Wi-Fi networks"></div>
+            <form id="header-wifi-connect-form" class="header-wifi-connect-form" hidden>
+              <strong id="header-wifi-selected"></strong>
+              <label id="header-wifi-password-row">Wi-Fi password<input class="field" id="header-wifi-password" type="password" autocomplete="off" maxlength="128" placeholder="Network password"></label>
+              <p class="small muted">This changes the Linux device's Wi-Fi network. Connection details are handled by NetworkManager, not saved in OpenRF.</p>
+              <div class="header-wifi-form-actions"><button type="button" class="btn outline" id="header-wifi-cancel">Cancel</button><button type="submit" class="btn primary" id="header-wifi-connect">Connect</button></div>
+            </form>
+          </div>
+        </div>
         <div class="header-messages-menu" id="header-messages-menu">
           <button type="button" class="messages-header-button" id="mesh-header-button" aria-label="Choose message inbox" aria-haspopup="true" aria-expanded="false" aria-controls="header-messages-choices" title="Choose message inbox">
             <span class="messages-header-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><span class="mesh-unread-badge" id="mesh-header-unread" hidden>0</span></span>

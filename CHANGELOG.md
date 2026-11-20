@@ -1,3 +1,10 @@
+## OpenRF v0.2.152 — Wi-Fi quick connect and Linux desktop launcher groundwork (2026-11-20)
+
+- Added a compact Wi-Fi button alongside Emergency and Messages in the top-right header. A bounded dropdown offers read-only Linux Wi-Fi status, explicit NetworkManager scan, named nearby networks with approximate quality/security, and a separate confirmation step to join an open or WPA-personal network. No background scanning, guessed networks, extra location collection or RF survey saving. Unsupported WSL/no-NetworkManager conditions are labeled honestly.
+- Added backend `/api/network/wifi/status`, `/api/network/wifi/scan` and `/api/network/wifi/connect` endpoints with loopback/origin checks, an additional user-action header for POST, serialized Wi-Fi actions, validated SSIDs/passwords, and secret-free result/error payloads. Passwords are passed to `nmcli --ask` on stdin, not CLI arguments, logs or OpenRF storage. Actual Pi NetworkManager/polkit behaviors still need hardware testing.
+- Electron native shell can now start and stop its **owned** OpenRF Python backend, or attach to an already running matching local version without terminating it. Added explicit SIGTERM-to-graceful-shutdown handling. Added `electron-builder` `.deb` metadata and `x64`/`arm64` build scripts. **No prebuilt Electron binary or tested `.deb` is shipped** with this source ZIP; final installer dependencies and ARM64 behavior remain outstanding.
+- Added backend mocked-NetworkManager, HTTP consent and frontend quick-access tests plus optional shell lifecycle tests. No change to RF measurement semantics or database migrations. See `docs/RELEASE_0.2.152_TESTS.md`.
+
 ## OpenRF v0.2.151 — Live browser tabs, Pi Chromium shell and offline trip map catalog (2026-11-20)
 
 - Fixed the browser tab-switching regression: each open tab now retains its own live isolated HTTPS preview while switching tabs or OpenRF pages. Closed tabs release their frames; an app restart restores the tab addresses but never silently loads external websites.

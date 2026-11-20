@@ -1,11 +1,11 @@
 # Optional full in-window browser on Raspberry Pi / Linux
 
-This optional OpenRF shell uses **Electron's Chromium engine and isolated `WebContentsView` tabs** to render external websites inside the Web Browser workspace. It is *not* the standard OpenRF web app's restricted iframe, and it does not alter the Linux Python backend or require a Wi-Fi account. It does **not** ship an Electron executable.
+This optional OpenRF shell uses **Electron's Chromium engine and isolated `WebContentsView` tabs** to render external websites inside the Web Browser workspace. It is *not* the standard OpenRF web app's restricted iframe. Since v0.2.152, opening the shell first checks the loopback API, and starts/stops its **own Python backend** if needed. It does **not** ship an Electron executable in the source ZIP.
 
 ## Installation (when you have the Raspberry Pi or Linux desktop)
 
 1. Use **64-bit Raspberry Pi OS with a graphical desktop** or a supported Linux desktop. Install Python 3.11+ and Node.js/npm (Node 20+ for this launcher). Electron distributes Linux ARM64 binaries, but the exact Pi OS libraries, display server, GPU stack, memory and touch behavior must be tested on your board.
-2. Launch OpenRF **on loopback only** in terminal 1:
+2. Optional: Launch OpenRF **on loopback only** yourself first:
 
    ```bash
    cd /path/to/OpenRF/project
@@ -14,20 +14,20 @@ This optional OpenRF shell uses **Electron's Chromium engine and isolated `WebCo
 
    In the normal checkout on WSL, use `cd /mnt/c/projects/OpenRF && python3 -m openrf` instead.
 
-3. With Wi-Fi/internet available **once**, install optional Electron dependencies in terminal 2 (this downloads a Chromium-based binary):
+3. With Wi-Fi/internet available **once**, install optional Electron dependencies (this downloads a Chromium-based binary):
 
    ```bash
    cd /path/to/OpenRF/project/tools/openrf-electron
    npm install --no-save electron
    ```
 
-4. Start the shell after OpenRF is already running:
+4. Start the shell, whether or not the Python server is already running:
 
    ```bash
    OPENRF_URL=http://127.0.0.1:8765/ npm start
    ```
 
-   For fullscreen kiosk testing set `OPENRF_KIOSK=1` before `npm start`. Use the actual loopback port reported by OpenRF if it differs from 8765. Never bind OpenRF to a public/LAN interface to make the shell connect.
+   For fullscreen kiosk testing set `OPENRF_KIOSK=1` before `npm start`. The shell will attach to an existing **v0.2.152** OpenRF backend on that port, or start its own copy via `python3 -m openrf` with the packaged/source Python files. On exit it stops **only the process it owns**. If an older OpenRF server is still running on 8765, stop the old server with Ctrl+C before launching the newer shell. Use the actual loopback port reported by OpenRF if it differs from 8765. Never bind OpenRF to a public/LAN interface to make the shell connect.
 
 5. Open **Web Browser** in the shell, enter a public website, press **Go**, then switch tabs. Pages run in their own Chromium surfaces within the OpenRF browser area. The side menu and emergency navigation remain part of OpenRF. **Closing a tab** closes its Chromium surface.
 
@@ -43,6 +43,24 @@ This optional OpenRF shell uses **Electron's Chromium engine and isolated `WebCo
 ## Field validation still required
 
 On Raspberry Pi OS verify installation, graphics acceleration, touch keyboard, 1280×800 layout, Wi-Fi loss/reconnect, memory use, thermal throttling, power draw, button targets, status of all OpenRF sections after switching away from Browser, and multi-tab load/close behavior. These are **not verified by the source tests**. The Raspberry Pi hardware purchase is still pending.
+
+## Debian package build preparation (not yet a validated release installer)
+
+The shell's `package.json` now includes local `electron-builder` configuration for a `.deb` package with the Python `openrf/` source and static assets as Electron extra resources, and the OpenRF icon/desktop launcher metadata. Builds are architecture-specific:
+
+```bash
+cd /path/to/OpenRF/project/tools/openrf-electron
+npm install --no-save electron electron-builder
+npm run build:deb:x64
+# On native 64-bit Raspberry Pi OS or a configured Linux ARM64 build environment:
+npm run build:deb:arm64
+```
+
+This requires build-time Node/npm downloads and a suitable Linux build environment. **No `.deb` is shipped with the source ZIP**; package dependencies, desktop menu, auto-start, Pi ARM64 executable, upgrade behavior and install/uninstall must be validated before distribution. Python 3.11+ is still needed at runtime, and the Debian package will need an explicit system dependency declaration after hardware validation. Do not redistribute this scaffold as an already verified one-click installer.
+
+## Wi-Fi quick panel on the Pi
+
+The icon next to Messages opens a local NetworkManager-only Wi-Fi panel. Status is a read-only check; **Find nearby networks** explicitly scans; choosing a compatible WPA personal/open network and tapping Connect explicitly changes the Linux network. Passwords are handed to `nmcli --ask` on standard input and are not saved by OpenRF. NetworkManager itself can remember a connection according to OS settings. WSL usually cannot manage the Windows built-in Wi-Fi radio from Ubuntu; use Windows network settings until compatible Linux-visible hardware is connected. Enterprise/EAP, WEP and hidden networks require system network settings. Live Pi connection tests are still pending.
 
 ### Official implementation references
 

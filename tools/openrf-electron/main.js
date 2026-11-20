@@ -1,10 +1,11 @@
 'use strict';
-/* v0.2.151 optional Raspberry Pi / Linux Chromium-based OpenRF window.
+/* v0.2.152 optional Raspberry Pi / Linux Chromium-based OpenRF window.
    OpenRF's loopback UI is trusted; remote websites are NOT. They use separate
    sandboxed WebContentsViews without Node, preload, local API access or permissions. */
 const path=require('node:path');
 const {app,BrowserWindow,WebContentsView,ipcMain,session}=require('electron');
 const {isPublicWebUrl,isSafeRemoteRequest,parseLocalAppUrl,safeBounds}=require('./security');
+const {ensureBackend,stopBackend,rootFor}=require('./backend');
 
 const LOCAL_URL=parseLocalAppUrl(process.env.OPENRF_URL||'http://127.0.0.1:8765/');
 const MAX_TABS=8;
@@ -109,5 +110,11 @@ async function createWindow(){
 }
 
 ipcMain.handle('openrf-browser:action',handle);
-app.whenReady().then(createWindow).catch(error=>{console.error('OpenRF native shell:',error.message);app.quit();});
+app.whenReady().then(async ()=>{
+  await ensureBackend({url:LOCAL_URL,
+    projectRoot:rootFor(process.resourcesPath,__dirname),
+    python:process.env.OPENRF_PYTHON||'python3'});
+  await createWindow();
+}).catch(error=>{console.error('OpenRF native shell:',error.message);stopBackend();app.quit();});
+app.on('before-quit',stopBackend);
 app.on('window-all-closed',()=>app.quit());

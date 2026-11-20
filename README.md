@@ -1,5 +1,11 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.152 — Wi-Fi quick access and Linux desktop installer groundwork
+
+- **Wi-Fi icon beside Messages:** On all OpenRF pages, tap the new Wi-Fi symbol in the header to see the Linux device's NetworkManager connection, manually list nearby named networks, and explicitly connect to a chosen open or WPA-personal network. No background scans or connection attempts; WSL without a Linux Wi-Fi interface clearly says unsupported. Enterprise/EAP, WEP and hidden SSIDs remain system-settings tasks. Passwords go to `nmcli --ask` on stdin, are cleared from the form, and are not saved to OpenRF. NetworkManager may save the device connection per OS policy. Connection success does not independently verify internet access.
+- **Electron starts OpenRF:** The optional Linux/WSL desktop shell now checks loopback `/api/health`. If OpenRF v0.2.152 is already running, it attaches without stopping that service. Otherwise it launches `python3 -m openrf` with bundled/source Python modules, and on shell quit stops only its own child. A conflicting older server produces an error rather than attaching to the wrong version. Python handles an owned SIGTERM with graceful HTTP server shutdown. This is a source-tested launcher, not yet a Raspberry Pi hardware-verified service.
+- **`.deb` build preparation:** `tools/openrf-electron/package.json` now describes architecture-specific `x64` and `arm64` Debian package builds with the OpenRF app source, icon and Chromium shell included as resources. A distributable `.deb` is **not part of this source ZIP** and has not been installed/validated on Raspberry Pi. Build-time Electron/electron-builder still need to be downloaded, and final package dependencies must be verified. See [native shell and package setup](docs/NATIVE_BROWSER_PI.md) and [v0.2.152 release checks](docs/RELEASE_0.2.152_TESTS.md).
+
 ## v0.2.151 — Live browser tabs, optional Chromium shell, and Saved Trips & Maps
 
 - **Browser tabs now stay loaded:** The browser workspace keeps a separate live, sandboxed iframe for each tab, so switching tabs or navigating to a different OpenRF page no longer forces you to press Go again. Closing a tab stops that page. After restarting OpenRF, saved addresses/bookmarks still restore without silently reconnecting to websites.
