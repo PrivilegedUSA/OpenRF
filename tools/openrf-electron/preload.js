@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('openrfNativeBrowser',Object.freeze({
   available:true,
   // Presence only. Never expose the credential itself to the web UI.
   locationProviderConfigured:Boolean(process.env.GOOGLE_API_KEY),
+  // Read-only, on-demand resource snapshot for App Settings; no paths or PIDs.
+  runtime:()=>action('runtime'),
   open:(tabId,url,bounds)=>action('open',tabId,url,bounds),
   select:(tabId,bounds)=>action('select',tabId,'',bounds),
   resize:bounds=>action('resize',0,'',bounds),

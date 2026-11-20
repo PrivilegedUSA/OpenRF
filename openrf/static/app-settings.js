@@ -1,4 +1,4 @@
-/* OpenRF v0.2.149 — standalone, read-only device settings and field preflight. */
+/* OpenRF v0.2.155 — standalone device settings, field preflight and local shell metrics. */
 (() => {
   'use strict';
   const $=id=>document.getElementById(id);
@@ -45,6 +45,29 @@
       $('app-storage-detail').textContent='Linux did not provide a usable filesystem capacity for OpenRF local data. No storage size was estimated.';
     }
     return reading;
+  }
+  const native=window.openrfNativeBrowser?.available &&
+    typeof window.openrfNativeBrowser.runtime==='function'?window.openrfNativeBrowser:null;
+  let nativeBusy=false;
+  function renderNative(reading){
+    if(reading?.kind!=='OPENRF_NATIVE_RUNTIME' || reading?.read_only!==true || reading?.unit!=='KiB')
+      throw Error('Unexpected native resource response');
+    const showKiB=value=>Number.isSafeInteger(value)&&value>=0?bytes(value*1024):'—';
+    $('app-native-working').textContent=showKiB(reading.process_working_sets_kib);
+    $('app-native-available').textContent=showKiB(reading.system_available_kib);
+    $('app-native-processes').textContent=Number.isSafeInteger(reading.process_count)?String(reading.process_count):'—';
+    $('app-native-tabs').textContent=Number.isSafeInteger(reading.open_browser_tabs)?String(reading.open_browser_tabs):'—';
+    const cpu=Number.isFinite(reading.cpu_sample_percent)&&reading.cpu_sample_percent>=0?
+      ` Electron CPU sample: ${reading.cpu_sample_percent.toFixed(1)}% across its processes (interval-dependent).`:'';
+    $('app-native-detail').textContent=`Local Electron reading · ${reading.backend_owned?'Python backend started by this window':'Python backend already running'}.${cpu} Browser tabs stay loaded until closed. Refresh after opening or closing tabs to compare.`;
+  }
+  async function refreshNative(){
+    if(!native||nativeBusy)return;
+    nativeBusy=true;$('app-native-refresh').disabled=true;
+    $('app-native-detail').textContent='Reading local desktop shell resources…';
+    try{renderNative(await native.runtime());}
+    catch(error){$('app-native-detail').textContent=`Desktop shell resource reading unavailable: ${error.message}`;}
+    finally{nativeBusy=false;$('app-native-refresh').disabled=false;}
   }
   let storageBusy=false,fieldBusy=false;
   async function refreshStorage(){
@@ -107,7 +130,9 @@
   }
   $('app-storage-refresh').addEventListener('click',refreshStorage);
   $('app-field-check').addEventListener('click',checkField);
-  document.addEventListener('openrf:settings-shown',refreshStorage);
-  if($('page-settings').classList.contains('active'))refreshStorage();
-  window.OpenRFAppSettings=Object.freeze({refreshStorage,checkField,renderStorage});
+  if(native){$('app-native-runtime').hidden=false;
+    $('app-native-refresh').addEventListener('click',refreshNative);}
+  document.addEventListener('openrf:settings-shown',()=>{refreshStorage();refreshNative();});
+  if($('page-settings').classList.contains('active')){refreshStorage();refreshNative();}
+  window.OpenRFAppSettings=Object.freeze({refreshStorage,checkField,renderStorage,refreshNative});
 })();

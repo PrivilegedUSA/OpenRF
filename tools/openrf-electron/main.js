@@ -1,22 +1,27 @@
 'use strict';
-/* v0.2.152 optional Raspberry Pi / Linux Chromium-based OpenRF window.
+/* v0.2.155 optional Raspberry Pi / Linux Chromium-based OpenRF window.
    OpenRF's loopback UI is trusted; remote websites are NOT. They use separate
    sandboxed WebContentsViews without Node, preload, local API access or permissions. */
 const path=require('node:path');
 const {app,BrowserWindow,WebContentsView,ipcMain,session}=require('electron');
 const {isPublicWebUrl,isSafeRemoteRequest,parseLocalAppUrl,safeBounds}=require('./security');
 const {ensureBackend,stopBackend,rootFor}=require('./backend');
+const {runtimeMetrics}=require('./runtime-metrics');
 
 const LOCAL_URL=parseLocalAppUrl(process.env.OPENRF_URL||'http://127.0.0.1:8765/');
 const MAX_TABS=8;
-let win=null,activeId=null,lastBounds=null;
+let win=null,activeId=null,lastBounds=null,backendOwned=false;
 const views=new Map();
 const blank={x:0,y:0,width:0,height:0};
 
 function display(){
   if(!win||win.isDestroyed())return;
   for(const [id,view] of views){
-    view.setBounds(id===activeId&&lastBounds?lastBounds:blank);
+    const visible=Boolean(id===activeId&&lastBounds);
+    // True visibility (not just 0x0 bounds) lets Chromium throttle background
+    // tabs while preserving each page's DOM, session and history in memory.
+    view.setVisible(visible);
+    if(visible)view.setBounds(lastBounds);
   }
 }
 function tell(channel,detail){if(win&&!win.isDestroyed())win.webContents.send(channel,detail);}
@@ -35,8 +40,9 @@ function openView(id){
     {id,text:'Downloads are blocked in the embedded Chromium shell. Use a full external browser to save files.'});});
   const view=new WebContentsView({webPreferences:{session:isolated,
     sandbox:true,nodeIntegration:false,contextIsolation:true,webSecurity:true,
-    javascript:true,allowRunningInsecureContent:false}});
+    javascript:true,backgroundThrottling:true,allowRunningInsecureContent:false}});
   view.setBounds(blank);
+  view.setVisible(false);
   view.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   view.webContents.on('will-navigate',(event,url)=>{if(!isPublicWebUrl(url))event.preventDefault();});
   const location=(_event,url)=>{if(isPublicWebUrl(url))tell('openrf-browser:location',{id,url});};
@@ -44,6 +50,9 @@ function openView(id){
   view.webContents.on('did-navigate-in-page',location);
   view.webContents.on('did-fail-load',(_event,code,description,_url,isMainFrame)=>{
     if(isMainFrame&&code!==-3)tell('openrf-browser:status',{id,text:`Chromium could not open this page (${description}). Check Wi-Fi or try another URL.`});
+  });
+  view.webContents.on('render-process-gone',(_event,details)=>{
+    tell('openrf-browser:status',{id,text:`This Chromium tab stopped (${details.reason}). Reload it or close the tab. OpenRF's map and saved data are unaffected.`});
   });
   win.contentView.addChildView(view);
   views.set(id,view);
@@ -54,7 +63,8 @@ async function handle(event,request){
      !event.senderFrame?.url.startsWith(LOCAL_URL))throw Error('Only OpenRF local UI can control the native browser');
   if(!request||typeof request!=='object')throw Error('Invalid browser request');
   const {kind,tabId,url,bounds}=request;
-  if(!['open','select','resize','hide','close','back','forward','reload'].includes(kind))throw Error('Unknown browser command');
+  if(!['open','select','resize','hide','close','back','forward','reload','runtime'].includes(kind))throw Error('Unknown browser command');
+  if(kind==='runtime')return runtimeMetrics({app,electronProcess:process,openTabs:views.size,backendOwned});
   if(kind==='hide'){activeId=null;display();return {ok:true};}
   if(kind==='resize'){
     const valid=safeBounds(bounds,win.getContentSize());
@@ -96,7 +106,8 @@ async function createWindow(){
   win=new BrowserWindow({width:1280,height:800,minWidth:600,minHeight:420,
     backgroundColor:'#0b1620',autoHideMenuBar:true,show:false,
     webPreferences:{preload:path.join(__dirname,'preload.js'),
-      nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true}});
+      nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,
+      backgroundThrottling:true}});
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   win.webContents.on('will-navigate',(event,url)=>{if(!url.startsWith(LOCAL_URL))event.preventDefault();});
   win.on('closed',()=>{
@@ -109,12 +120,24 @@ async function createWindow(){
   win.show();
 }
 
-ipcMain.handle('openrf-browser:action',handle);
-app.whenReady().then(async ()=>{
-  await ensureBackend({url:LOCAL_URL,
-    projectRoot:rootFor(process.resourcesPath,__dirname),
-    python:process.env.OPENRF_PYTHON||'python3'});
-  await createWindow();
-}).catch(error=>{console.error('OpenRF native shell:',error.message);stopBackend();app.quit();});
+// A second shell instance wastes memory and can race the same loopback port.
+// Focus the first window; never parse or execute second-instance arguments.
+if(!app.requestSingleInstanceLock())app.quit();
+else{
+  app.on('second-instance',()=>{
+    if(win&&!win.isDestroyed()){
+      if(win.isMinimized())win.restore();
+      win.show();win.focus();
+    }
+  });
+  ipcMain.handle('openrf-browser:action',handle);
+  app.whenReady().then(async ()=>{
+    const backend=await ensureBackend({url:LOCAL_URL,
+      projectRoot:rootFor(process.resourcesPath,__dirname),
+      python:process.env.OPENRF_PYTHON||'python3'});
+    backendOwned=backend.owned;
+    await createWindow();
+  }).catch(error=>{console.error('OpenRF native shell:',error.message);stopBackend();app.quit();});
+}
 app.on('before-quit',stopBackend);
 app.on('window-all-closed',()=>app.quit());

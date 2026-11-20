@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.154">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.155">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -23,11 +23,11 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/map-elevation.js?v=0.2.151"></script>
   <script defer src="/static/battery-status.js?v=0.2.151"></script>
-  <script defer src="/static/wifi-quick.js?v=0.2.154"></script>
+  <script defer src="/static/wifi-quick.js?v=0.2.155"></script>
   <script defer src="/static/route-elevation.js?v=0.2.151"></script>
   <script defer src="/static/trip-map.js?v=0.2.151"></script>
-  <script defer src="/static/app.js?v=0.2.154"></script>
-  <script defer src="/static/app-settings.js?v=0.2.151"></script>
+  <script defer src="/static/app.js?v=0.2.155"></script>
+  <script defer src="/static/app-settings.js?v=0.2.155"></script>
   <script defer src="/static/browser-workspace.js?v=0.2.151"></script>
   <script defer src="/static/saved-trips.js?v=0.2.151"></script>
   <script defer src="/static/emergency-tabs.js?v=0.2.151"></script>
@@ -60,7 +60,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.154</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.155</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -181,6 +181,19 @@
           <div class="app-storage-track" id="app-storage-track" role="progressbar" aria-label="Device storage used" aria-valuemin="0" aria-valuemax="100" aria-valuetext="Storage not checked"><div id="app-storage-fill"></div></div>
           <div class="button-line"><button class="btn outline" id="app-storage-refresh" type="button">Refresh storage</button></div>
           <p id="app-storage-detail" class="muted small" role="status" aria-live="polite">Waiting for a read-only Linux storage check.</p>
+        </div>
+        <div class="panel" id="app-native-runtime" hidden>
+          <div class="panel-title"><h3>Desktop shell resources</h3><span class="pill">ELECTRON · READ ONLY</span></div>
+          <p class="muted small">A quick measurement of this OpenRF window and its embedded browser processes. Use this to compare idle, map and multi-tab usage on your actual Raspberry Pi. No data is uploaded or recorded.</p>
+          <div class="app-storage-numbers app-native-metrics">
+            <div><span>Process working sets (approx.)</span><strong id="app-native-working">—</strong></div>
+            <div><span>Available device memory</span><strong id="app-native-available">—</strong></div>
+            <div><span>Electron processes</span><strong id="app-native-processes">—</strong></div>
+            <div><span>Loaded browser tabs</span><strong id="app-native-tabs">—</strong></div>
+          </div>
+          <div class="button-line"><button class="btn outline" id="app-native-refresh" type="button">Refresh resource reading</button></div>
+          <p id="app-native-detail" class="muted small" role="status" aria-live="polite">Open this page in the Electron desktop shell to inspect its resource use.</p>
+          <p class="muted small">Process working sets can count shared memory more than once. They do not equal OpenRF's unique RAM use; the Python backend and operating system are separate. Inactive browser tabs stay loaded for quick switching but are hidden and background-throttled.</p>
         </div>
         <div class="panel app-field-preflight" id="app-field-preflight">
           <div class="panel-title"><h3>Offline field readiness</h3><span class="pill">PREFLIGHT · NOT CERTIFICATION</span></div>

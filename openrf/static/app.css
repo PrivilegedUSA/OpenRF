@@ -2097,6 +2097,8 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
 .app-storage-numbers>div{background:#0d2934;border:1px solid #30525b;border-radius:9px;padding:12px;min-width:0}
 .app-storage-numbers span{display:block;font-size:11px;color:#96b5c1;margin-bottom:8px}
 .app-storage-numbers strong{font-size:clamp(16px,2vw,24px);line-height:1.2;overflow-wrap:anywhere;color:#c5f7e9;font-variant-numeric:tabular-nums}
+.app-native-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+#app-native-runtime[hidden]{display:none!important}
 .app-storage-track{height:13px;background:#071a24;border:1px solid #31525b;border-radius:30px;overflow:hidden}
 .app-storage-track>div{height:100%;width:0;background:#39cbb7;transition:width .18s ease}
 .app-device-storage:has(#app-storage-status-pill[data-level="warning"]) .app-storage-track>div{background:#eead58}

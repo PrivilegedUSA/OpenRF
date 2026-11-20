@@ -1,4 +1,4 @@
-/* v0.2.154 — WebGL-free map sources and compact desktop sidebar. */
+/* v0.2.155 — WebGL-free map sources and compact desktop sidebar. */
 'use strict';
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -36,5 +36,5 @@ assert(!picker.includes('startMap()'), 'Selecting raster sources must not force 
 assert(css.includes('.sidebar .nav .nav-btn .nav-label{display:block;width:auto;'), 'Desktop menu label overrides old 18px span sizing');
 assert(css.includes('font-size:14px;font-weight:650;line-height:1.25;white-space:nowrap'), 'Long menu labels stay compact on one line');
 assert(css.includes('#map.raster-mode .raster-notice{pointer-events:auto;'), 'No-WebGL map choice buttons are clickable');
-assert(html.includes('FIELD CONSOLE · 0.2.154'), 'Release version appears in sidebar');
-console.log('PASS v0.2.154 no-WebGL offline/online raster selection, attribution affordance and one-line sidebar labels');
+assert(html.includes('FIELD CONSOLE · 0.2.155'), 'Release version appears in sidebar');
+console.log('PASS v0.2.155 no-WebGL offline/online raster selection, attribution affordance and one-line sidebar labels');

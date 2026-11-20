@@ -1,3 +1,10 @@
+## OpenRF v0.2.155 — native browser backgrounding and shell measurements (2026-11-20)
+
+- Kept the Electron `WebContentsView` experience inside OpenRF. Inactive websites are now explicitly hidden with `View.setVisible(false)` and preserve Chromium background throttling while retaining live DOM/navigation state for fast tab switching. No external Chromium kiosk is introduced or required.
+- Added a single-instance Electron lock: duplicate shell launches focus the existing window, helping avoid competing backends and duplicate Chromium process trees. A crashed external renderer now surfaces a reload/close status; it cannot crash the main OpenRF Python application by itself.
+- Added an Electron-only App Settings card for **on-demand**, local process working-set (approximate), available system memory, loaded browser-tab and Chromium process counts, and CPU interval samples. Never sends readings off-device or opens a website. Working-set sums may double-count shared pages and exclude Python/OS memory; Pi RAM, power and thermal behavior are not yet hardware-verified.
+- Added test coverage for resource reporting, hidden live tab behavior, single-instance code contract and native-only UI. No new Python/Node runtime dependencies, API endpoints, SQLite migrations, RF measurements, map source changes or automatic scanning. See `docs/RELEASE_0.2.155_TESTS.md`.
+
 ## OpenRF v0.2.154 — continuous raster panning and manual location diagnostics (2026-11-20)
 
 - Corrected Web Mercator wrap in the no-WebGL renderer: independent tile image nodes are now keyed by unwrapped world column, while the requested XYZ address wraps. The camera clamps vertical panning at polar bounds so wide, zoomed-out maps do not reveal avoidable coordinate-grid gaps.

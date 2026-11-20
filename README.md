@@ -1,5 +1,11 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.155 — Electron shell efficiency and measurement
+
+- **In-window browser retained:** The native Chromium browser continues to live inside OpenRF, with no extra browser window or kiosk launcher. On tab changes or leaving the Browser page, Electron now explicitly hides inactive `WebContentsView`s and enables normal background timer/animation throttling. Live tabs keep their history and loaded pages; reopening a tab does not automatically navigate again.
+- **No duplicate native shell:** A second Electron launch brings the existing app window forward instead of starting a duplicate backend/Chromium window. Embedded tab rendering failures now show an actionable reload/close message without restarting OpenRF.
+- **Read-only resources:** App Settings in Electron now shows on-demand process working-set totals, available OS memory, Chromium process count, tab count and sampled CPU. Measurements are approximate, not unique RAM usage; Python backend usage is separate. Plain localhost browser sessions remain unchanged and do not display this native-only panel. See [v0.2.155 release verification](docs/RELEASE_0.2.155_TESTS.md).
+
 ## v0.2.154 — continuous map panning, quiet fallback and honest location status
 
 - **Map stays filled while panning:** The WebGL-free raster renderer now repeats ordinary image tiles at the world boundary using separate display elements and clamps vertical movement at the Web Mercator polar edges. Dragging the zoomed-out USGS map should pan across continuous images instead of sliding the entire image away to reveal a grid.

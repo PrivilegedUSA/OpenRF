@@ -1,7 +1,7 @@
 {
   "name": "openrf-native-shell",
   "private": true,
-  "version": "0.2.154",
+  "version": "0.2.155",
   "description": "Chromium-based OpenRF Linux desktop shell and optional Debian packaging",
   "main": "main.js",
   "scripts": {
@@ -13,7 +13,7 @@
     "appId": "org.openrf.fieldconsole",
     "productName": "OpenRF",
     "asar": true,
-    "files": ["main.js", "preload.js", "backend.js", "security.js", "package.json"],
+    "files": ["main.js", "preload.js", "backend.js", "runtime-metrics.js", "security.js", "package.json"],
     "extraResources": [{
       "from": "../../openrf",
       "to": "project/openrf",
