@@ -1,3 +1,9 @@
+## OpenRF v0.2.142 — Emergency tab switching without viewport jumps (2026-11-19)
+
+- Removed an unconditional `scrollIntoView` call from Emergency tab activation. Changing among Dashboard, SOS & Check-ins, Radio & Messages, Plans & References, and Backup & Data no longer deliberately moves the document to the tab row.
+- Kept keyboard focus on the selected tab with `preventScroll`, and preserved the explicit jump to a specific field when using Dashboard quick-access shortcuts (as opposed to ordinary tab switching).
+- Added a JavaScript regression that simulates a scrolled page and asserts click, keyboard, programmatic, and return-to-Dashboard tab changes leave that position alone. **386 Python tests and 108 JavaScript test scripts passed.** No changes to emergency data, send safety gates or offline behavior. See `docs/RELEASE_0.2.142_TESTS.md`.
+
 ## OpenRF v0.2.141 — Emergency tabs functional, dashboard order and clean tab buttons (2026-11-19)
 
 - Fixed the root cause of **nonfunctional Emergency tabs in v0.2.140**: the local server's explicit static JavaScript allowlist omitted `emergency-tabs.js`. The script received HTTP 404, so the tab buttons rendered but the original full Emergency page—including Encrypted emergency data backup—never got reorganized. Added the file to the narrow allowlist and covered actual same-origin GETs in server tests.

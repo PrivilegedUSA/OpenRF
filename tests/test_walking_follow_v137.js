@@ -1,5 +1,5 @@
 'use strict';
-// v0.2.141: opt-in, real-fix pedestrian follow; keep driving-only guidance gated.
+// v0.2.142: opt-in, real-fix pedestrian follow; keep driving-only guidance gated.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
@@ -40,7 +40,7 @@ assert.throws(()=>guide.locate(walking,...walking.origin),/verified road route/,
   'Existing vehicle GPS matching remains driving-only by default');
 
 assert.match(html,/id="map-directions-walk-start"[^>]*>Start walking navigation/);
-assert.match(html,/route_guidance\.js\?v=0\.2\.141/,'Browser must load new walking guidance helper');
+assert.match(html,/route_guidance\.js\?v=0\.2\.142/,'Browser must load new walking guidance helper');
 assert.match(css,/#page-map\.navigation-walking \.map-follow-hud/);
 assert.match(css,/#map-directions-walk-start/,'Walking Start reuses bundled Font Awesome arrow');
 
@@ -133,4 +133,4 @@ $('map-directions-walk-start').on_click();
 assert.equal(watches,priorWatches,'Direct-line fallback refuses live follow');
 assert.equal(state.navFollowId,null);
 assert.equal(typeof watchError,'function');
-console.log('PASS v0.2.141 walking follow: start-only permission, real GPS, accuracy, off-route, stale, stop, direct-line guard');
+console.log('PASS v0.2.142 walking follow: start-only permission, real GPS, accuracy, off-route, stale, stop, direct-line guard');

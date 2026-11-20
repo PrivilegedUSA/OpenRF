@@ -1,4 +1,4 @@
-/* OpenRF v0.2.140 — emergency tools organized without changing any forms or records. */
+/* OpenRF v0.2.142 — emergency tabs switch in place without forced page scrolling. */
 (() => {
   'use strict';
   const root=document.getElementById('page-emergency');
@@ -53,7 +53,7 @@
   else dash.append(shortcuts);
   tabs.after(container);
 
-  function activate(key,{focusTab=false,scroll=false}={}){
+  function activate(key,{focusTab=false}={}){
     if(!panels.has(key))return;
     for(let i=0;i<keys.length;i++){
       const current=keys[i],selected=current===key;
@@ -62,10 +62,10 @@
       buttons[i].tabIndex=selected?0:-1;
     }
     if(focusTab)buttons[keys.indexOf(key)].focus({preventScroll:true});
-    if(scroll)tabs.scrollIntoView?.({block:'start'});
   }
   for(const [index,button] of buttons.entries()){
-    button.addEventListener('click',()=>activate(keys[index],{scroll:true}));
+    // A tab click changes content only; never move the document to the tab row.
+    button.addEventListener('click',()=>activate(keys[index]));
     button.addEventListener('keydown',event=>{
       let next;
       if(event.key==='ArrowRight')next=(index+1)%keys.length;
@@ -79,10 +79,10 @@
   shortcuts.addEventListener('click',event=>{
     const action=event.target.closest('[data-emergency-open]');
     if(!action)return;
-    activate(action.dataset.emergencyOpen,{scroll:true});
+    activate(action.dataset.emergencyOpen);
     const focus=document.getElementById(action.dataset.emergencyFocus);
     focus?.focus?.({preventScroll:true});
     focus?.scrollIntoView?.({block:'center',behavior:'auto'});
   });
-  window.OpenRFEmergencyTabs=Object.freeze({open:key=>activate(key,{scroll:true}),current:()=>keys.find(key=>!panels.get(key).hidden)});
+  window.OpenRFEmergencyTabs=Object.freeze({open:key=>activate(key),current:()=>keys.find(key=>!panels.get(key).hidden)});
 })();

@@ -24,5 +24,5 @@ assert(js.includes('new ResizeObserver(updateDirectionsStickyOffset)') &&
   js.includes("for(const id of ['map-directions-summary','map-directions-actions'])") &&
   js.includes('if(node)directionsResizeObserver.observe(node);'),
   'Dynamic resize updates sticky offset only for present header elements');
-assert(html.includes('FIELD CONSOLE · 0.2.141'),'Version updated');
+assert(html.includes('FIELD CONSOLE · 0.2.142'),'Version updated');
 console.log('PASS v0.2.76 aligned navigation sheets, fixed exports and single scroll area');

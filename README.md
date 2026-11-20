@@ -1,5 +1,11 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.142 — Emergency tabs stay in place
+
+- **Emergency tab buttons now switch content without automatically scrolling the page to the tab bar.** This applies to Dashboard, SOS & Check-ins, Radio & Messages, Plans & References, and Backup & Data, including keyboard and programmatic tab changes.
+- Dashboard **Quick access** buttons still intentionally reveal their chosen field; the five navigation tabs do not. All existing emergency forms, the persistent immediate-danger warning, and private stored records are unchanged.
+- See [v0.2.142 verification](docs/RELEASE_0.2.142_TESTS.md) for tests and installation.
+
 ## v0.2.141 — Emergency tabs repair
 
 - **Fixes the v0.2.140 Emergency regression:** The new tab buttons could highlight but not actually switch sections because `emergency-tabs.js` was missing from the loopback server's permitted static files. The new breadcrumb GPS-follow math script was blocked for the same reason; both are now served, with HTTP tests.
