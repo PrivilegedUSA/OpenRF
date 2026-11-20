@@ -2608,3 +2608,47 @@ body:not(.map-workspace) .map-altimeter{display:none!important}
        (min-width:901px) and (min-height:851px){
   body.map-workspace .topbar .menu-toggle{display:none!important}
 }
+
+/* v0.2.150 — opt-in browser workspace. The iframe is sandboxed and may be
+   refused by the destination; the operator can open a normal browser tab. */
+.browser-page{min-width:0}
+.browser-shell{display:flex;flex-direction:column;gap:12px;min-width:0;padding:13px}
+.browser-tabbar{display:flex;gap:8px;align-items:stretch;min-width:0}
+.browser-tabs{display:flex;flex:1 1 auto;min-width:0;gap:6px;overflow-x:auto;scrollbar-width:thin;padding:1px 1px 5px}
+.browser-tab{display:flex;align-items:stretch;flex:0 0 146px;min-width:0;max-width:185px;border:1px solid #355765;border-radius:8px;background:#102935;color:#b8d6d9;overflow:hidden}
+.browser-tab.active{border-color:#31bba8;background:#19494c;color:#e3fff8;box-shadow:inset 0 -2px #31c9b2}
+.browser-tab-select{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;background:transparent;border:0;color:inherit;font-size:12px;font-weight:700;padding:9px 6px 9px 11px;cursor:pointer}
+.browser-tab-close{flex:0 0 33px;background:transparent;border:0;color:inherit;font-size:18px;cursor:pointer}
+.browser-tab-select:hover,.browser-tab-close:hover{background:#2a535b}
+.browser-tabbar>#browser-tab-add{flex:0 0 42px;min-height:42px;font-size:21px;padding:5px}
+.browser-toolbar{display:flex;align-items:stretch;gap:7px;flex-wrap:wrap;min-width:0}
+.browser-navigation{display:flex;flex:0 0 auto;gap:5px}
+.browser-navigation button{min-width:38px;min-height:42px;border:1px solid #355765;border-radius:7px;background:#15313d;color:#b8ebdf;font-size:18px;cursor:pointer}
+.browser-navigation button:disabled{opacity:.45;cursor:not-allowed}
+.browser-navigation button:not(:disabled):hover{background:#24545a}
+.browser-toolbar #browser-address{flex:1 1 220px;min-width:0;min-height:42px;max-width:none}
+.browser-toolbar .btn{min-height:42px;white-space:nowrap}
+.browser-toolbar #browser-open-external[aria-disabled="true"]{opacity:.45;pointer-events:none}
+.browser-status-line{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 14px;min-width:0;font-size:11px;line-height:1.45;color:#9ebcc5}
+.browser-status-line #browser-status{color:#b6e3dc;overflow-wrap:anywhere}
+.browser-viewport{position:relative;min-width:0;height:clamp(310px,55vh,640px);min-height:310px;border:1px solid #355766;border-radius:10px;background:#091a24;overflow:hidden}
+.browser-viewport #browser-preview{display:block;position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff}
+.browser-viewport #browser-preview[hidden],.browser-viewport #browser-placeholder[hidden]{display:none!important}
+.browser-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:100%;max-width:620px;margin:auto;padding:30px 26px;text-align:center;color:#c1dcdd;box-sizing:border-box}
+.browser-placeholder-icon{font-size:36px;color:#4ad8c0;line-height:1}
+.browser-placeholder h3{font-size:16px;margin:4px 0}
+.browser-placeholder p{line-height:1.5;margin:3px 0;font-size:12px}
+.browser-footbar{display:grid;gap:9px;min-width:0}
+.browser-bookmark-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;color:#c3e6e1;font-size:12px}
+.browser-bookmarks{display:flex;gap:8px;flex-wrap:wrap;min-height:25px}
+.browser-bookmark{display:flex;min-width:0;max-width:240px;border:1px solid #355966;border-radius:7px;overflow:hidden;background:#132e3a}
+.browser-bookmark button{border:0;background:transparent;color:#bdece4;cursor:pointer}
+.browser-bookmark-open{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:8px 10px;font-size:12px}
+.browser-bookmark-remove{min-width:30px;font-size:18px}
+.browser-bookmark button:hover{background:#25535a}
+.browser-security-note{margin:0!important;line-height:1.5}
+@media(max-width:720px){.browser-shell{padding:10px;gap:9px}.browser-navigation{width:100%;justify-content:space-between}
+  .browser-navigation button{flex:1 1 auto}.browser-toolbar #browser-address{flex:1 1 100%}
+  .browser-toolbar #browser-go,.browser-toolbar #browser-open-external{flex:1 1 140px;justify-content:center}
+  .browser-viewport{height:clamp(290px,47vh,570px)}.browser-tab{flex-basis:126px}
+  .browser-placeholder{padding:18px 12px}}

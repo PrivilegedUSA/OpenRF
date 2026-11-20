@@ -10,7 +10,7 @@ for(const key of ['dashboard','sos','radio','plans','device']){
   assert(html.includes(`aria-controls="emergency-tab-panel-${key}"`));
 }
 assert(html.indexOf('class="panel emergency-notice"')<html.indexOf('id="emergency-tabs"'));
-assert.match(html,/emergency-tabs\.js\?v=0\.2\.149/);
+assert.match(html,/emergency-tabs\.js\?v=0\.2\.150/);
 assert.match(css,/emergency-tab-panel\[hidden\]\{display:none!important\}/);
 assert.match(css,/background:transparent;border:0;border-radius:0;box-shadow:none;backdrop-filter:none\}/,
   'Five independent tab buttons should have no outer tray card');

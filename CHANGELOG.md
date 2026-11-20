@@ -1,3 +1,9 @@
+## OpenRF v0.2.150 — Optional web browser workspace (2026-11-20)
+
+- Added a **Web Browser** sidebar page with a compact 7-inch-friendly tab strip, website/search field, entered-address navigation, bookmarks, an honest network-status label and a normal **Full browser** link. Tabs and bookmarks persist locally (bounded to 8 and 24 respectively). Restored tabs never automatically contact third-party sites.
+- Added an opt-in sandboxed HTTPS preview with no same-origin or top-navigation grant and no referrer. Framing is best-effort; many sites refuse it and require opening the separate full browser. Only publicly named HTTP(S) sites can be entered; schemes, credentials, local names and numeric hosts are blocked. OpenRF does not provide an HTML proxy, external page API, silent download manager or Pi-native browser engine in this release.
+- Extended the loopback server's static-file allowlist and Content Security Policy for HTTPS frames while preserving its Host check, X-Frame-Options DENY and other existing controls. Added Node interaction/security tests and loopback HTTP header/access tests. See `docs/RELEASE_0.2.150_TESTS.md`; no schema migration or new required Python dependency.
+
 ## OpenRF v0.2.149 — Trip-specific offline topographic and satellite map packs (2026-11-20)
 
 - Added a compact **Download map for this trip** section directly beneath local walking/driving directions. Operators can select USGS topo or satellite imagery, a 0.5/1/2-mile corridor on each side and zoom 9–11, 9–12 or 9–13. Preview estimates actual candidate XYZ tiles along the sampled route (not an entire rectangular bounding box), an illustrative download size, and source/corridor details. It is read-only, local-only and never requests live GPS or external imagery until explicit consent.

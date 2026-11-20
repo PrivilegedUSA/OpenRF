@@ -20,8 +20,8 @@ class ApiTests(unittest.TestCase):
         for name,marker in [('emergency-tabs.js',b'OpenRFEmergencyTabs'),
                             ('breadcrumb_follow.js',b'OpenRFBreadcrumbFollow')]:
             with self.subTest(asset=name):
-                self.assertIn(f'/static/{name}?v=0.2.149'.encode(),html)
-                code,body=self.call('GET',f'/static/{name}?v=0.2.149')
+                self.assertIn(f'/static/{name}?v=0.2.150'.encode(),html)
+                code,body=self.call('GET',f'/static/{name}?v=0.2.150')
                 self.assertEqual(code,200)
                 self.assertIn(marker,body)
         self.assertEqual(self.call('GET','/static/not-permitted.js')[0],404)
@@ -456,7 +456,7 @@ class ApiTests(unittest.TestCase):
     def test_health_static_hardware_and_exports(self):
         s,data=self.call('GET','/api/health')
         self.assertEqual(s,200)
-        self.assertEqual(data['version'],'0.2.149')
+        self.assertEqual(data['version'],'0.2.150')
         for path in ('/','/static/app.css','/static/app.js','/static/history-analysis.js','/static/route_guidance.js','/static/spectrum.js','/static/spectrum-analysis.js','/static/sdr-history.js','/api/export.csv','/api/export.geojson'):
             status,_=self.call('GET',path)
             self.assertEqual(status,200,path)

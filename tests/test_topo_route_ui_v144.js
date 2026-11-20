@@ -12,7 +12,7 @@ for(const id of ['area-topo-start','area-topo-cancel','area-topo-name','area-top
   'map-route-elevation-chart','map-elevation-status']){
   assert(html.includes(`id="${id}"`),`Missing ${id}`);
 }
-assert(html.includes('/static/route-elevation.js?v=0.2.149'));
+assert(html.includes('/static/route-elevation.js?v=0.2.150'));
 assert(app.includes("api('/api/maps/topographic/start','POST'"));
 assert(app.includes('candidate_tiles>96'));
 assert(app.includes("api('/api/maps/topographic/cancel','POST'"));

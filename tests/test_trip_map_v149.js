@@ -11,7 +11,7 @@ const ids=['map-trip-offline','map-trip-source','map-trip-corridor','map-trip-de
   'map-trip-name','map-trip-estimate','map-trip-estimate-status','map-trip-start',
   'map-trip-cancel','map-trip-confirm','map-trip-download-status'];
 for(const id of ids)assert(html.includes(`id="${id}"`),`Missing trip control ${id}`);
-assert(html.includes('/static/trip-map.js?v=0.2.149'));
+assert(html.includes('/static/trip-map.js?v=0.2.150'));
 assert(html.includes('Road/trail routing graphs are NOT downloaded'));
 assert(html.indexOf('id="map-trip-offline"')>html.indexOf('id="map-route-offline-coverage"'));
 assert(app.includes('window.OpenRFTripMaps?.init('));

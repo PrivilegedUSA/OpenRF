@@ -1,5 +1,11 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.150 — Optional internet browser workspace
+
+- **Web Browser sidebar page:** When internet access is available, open the new optional browser workspace. Enter a public website address or search phrase, use up to eight address tabs, Back/Forward/Reload/Home, and save up to 24 bookmarks. These addresses and bookmarks persist only in the local browser profile; there is no sign-in, external sync, or OpenRF database migration. No website is contacted merely by opening OpenRF, visiting the browser page, or restoring saved tabs.
+- **Isolated site preview + full browser:** **Go** attempts a restricted HTTPS preview *only for sites that permit embedding*. Sites with frame restrictions, interactive logins, and downloads generally need **Full browser**, which opens the requested site in a normal separate browser tab. This is an intentionally limited browser workspace, **not yet a full embedded Chromium/WebView**. Back/Forward tracks the addresses entered in OpenRF, not clicks inside an embedded website. See [v0.2.150 verification](docs/RELEASE_0.2.150_TESTS.md).
+- **Safety and offline behavior:** Only explicitly entered public HTTP(S) website names or user-initiated searches are allowed; localhost, private numeric/device addresses, filesystem and script schemes are refused. The OpenRF server does **not** proxy external websites. Its loopback Host guard, response protections, RF data privacy, map tools and offline workflows remain in place. The network label reflects the browser's reported online/offline state, not a verified Wi-Fi/internet connection. On Raspberry Pi, a future native Chromium kiosk integration will be needed for full in-window browsing.
+
 ## v0.2.149 — Download a private map corridor for a planned trip
 
 - **Map directions → Download map for this trip:** After planning an actual local walking or driving route, expand this new section to choose **USGS Topographic** or **USGS Satellite**, a **½ / 1 / 2-mile** buffer on each side, and Compact/Standard/Detailed raster zoom. **Estimate trip map** calculates bounded XYZ tile slots entirely on the local server, with illustrative disk-size range. No external requests or current-position permission occur during preview. A route change invalidates the estimate.
