@@ -1,4 +1,4 @@
-"""v0.2.146 opt-in 3DEP model data, offline reuse, validity and privacy tests."""
+"""v0.2.147 opt-in 3DEP model data, offline reuse, validity and privacy tests."""
 import json
 import tempfile
 import threading

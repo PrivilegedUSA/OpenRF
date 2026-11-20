@@ -7,7 +7,7 @@ const css=fs.readFileSync('openrf/static/app.css','utf8');
 const app=fs.readFileSync('openrf/static/app.js','utf8');
 const script=fs.readFileSync('openrf/static/battery-status.js','utf8');
 
-assert(html.includes('/static/battery-status.js?v=0.2.146'));
+assert(html.includes('/static/battery-status.js?v=0.2.147'));
 assert(html.includes('id="device-battery"'));
 assert(css.includes('.device-battery[data-battery="critical"]'));
 for(const id of ['area-hgt-file','area-hgt-source','area-hgt-import','area-hgt-installed','area-hgt-remove'])
@@ -42,4 +42,4 @@ assert.equal(value.textContent,'—');
 assert.equal(window.OpenRFDeviceBattery.apply({battery:{batteries:[{},{}]}}),false);
 assert.equal(value.textContent,'—','Do not merge unrelated battery capacities');
 assert.equal(typeof periodic,'function');
-console.log('PASS v0.2.146 battery unknown/real states, offline terrain UI and raster-warning gating');
+console.log('PASS v0.2.147 battery unknown/real states, offline terrain UI and raster-warning gating');

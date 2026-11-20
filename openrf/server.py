@@ -56,7 +56,8 @@ from .emergency_packs import STARTER_PACK
 from .emergency_sos import compose_draft
 from .emergency_protocol import compose as compose_checkin_frame, compose_ack, parse as parse_checkin_frame
 from .emergency_dashboard import build_dashboard
-from .device_survival import report as device_survival_report, power_status as device_power_status
+from .device_survival import (report as device_survival_report, power_status as device_power_status,
+                              storage_status as device_storage_status)
 from .emergency_backup import create as make_emergency_backup, inspect as inspect_emergency_backup, available as backup_crypto_available
 from .restore import exclusive_lock as restore_exclusive_lock
 from .breadcrumbs import BreadcrumbStore
@@ -215,6 +216,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200,device_survival_report(self.server.repository.path))
         if path == '/api/device/power':
             return self._json(200,device_power_status())
+        if path == '/api/device/storage':
+            if urlparse(self.path).query:
+                return self._error(400,'Storage status accepts no query parameters')
+            return self._json(200,device_storage_status(self.server.repository.path))
         if path == '/api/emergency/backup/status':
             return self._json(200,{'available':backup_crypto_available(),
                 'max_database_bytes':16*1024*1024,'restore_available':False,
@@ -661,7 +666,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, raw, 'text/csv; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.csv"'})
         if path in ('/', '/index.html'):
             file = STATIC_DIR / 'index.html'
-        elif path in ('/static/app.css', '/static/app.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
             file = STATIC_DIR / Path(path).name
         elif path == '/static/offline-trails.js':
             file = STATIC_DIR / 'offline-trails.js'

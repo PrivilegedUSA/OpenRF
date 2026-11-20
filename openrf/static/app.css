@@ -2078,6 +2078,41 @@ body.map-workspace .topbar .messages-header-button{width:42px;height:42px}
 }
 #page-map .map-directions-follow-actions .btn:disabled{opacity:.55;cursor:not-allowed}
 
+/* v0.2.147 — separate App Settings workspace and storage/readiness cards. */
+.sidebar .sidebar-bottom .sidebar-settings-btn{
+  position:relative;display:flex;align-items:center;gap:8px;width:100%;min-height:44px;
+  margin:0 0 13px;padding:10px 12px;text-align:left;
+  border:1px solid #2a4751;border-radius:9px;background:#102631;color:#b7d5dc;
+  font-size:14px;font-weight:700;
+}
+.sidebar .sidebar-bottom .sidebar-settings-btn .nav-icon{flex:0 0 24px;width:24px;font-size:21px}
+.sidebar .sidebar-bottom .sidebar-settings-btn .nav-label{flex:1 1 auto;font-size:14px}
+.sidebar .sidebar-bottom .sidebar-settings-btn.active{border-color:#32635d;background:#163b42;color:#c2fff3}
+.sidebar .sidebar-bottom .sidebar-settings-btn:hover{background:#173943}
+#page-settings{min-width:0}
+#page-settings .panel{margin-bottom:16px}
+#page-settings .panel-title{flex-wrap:wrap}
+#page-settings .panel-title h3{font-size:16px}
+.app-storage-numbers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0 12px}
+.app-storage-numbers>div{background:#0d2934;border:1px solid #30525b;border-radius:9px;padding:12px;min-width:0}
+.app-storage-numbers span{display:block;font-size:11px;color:#96b5c1;margin-bottom:8px}
+.app-storage-numbers strong{font-size:clamp(16px,2vw,24px);line-height:1.2;overflow-wrap:anywhere;color:#c5f7e9;font-variant-numeric:tabular-nums}
+.app-storage-track{height:13px;background:#071a24;border:1px solid #31525b;border-radius:30px;overflow:hidden}
+.app-storage-track>div{height:100%;width:0;background:#39cbb7;transition:width .18s ease}
+.app-device-storage:has(#app-storage-status-pill[data-level="warning"]) .app-storage-track>div{background:#eead58}
+#app-storage-status-pill[data-level="warning"]{color:#ffd188;border-color:#937247}
+#app-storage-status-pill[data-level="unknown"]{color:#a4bcc6}
+.app-field-results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:13px 0}
+.app-field-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 8px;align-content:start;
+  border:1px solid #30535c;border-radius:9px;padding:12px;min-width:0;background:#0c2530}
+.app-field-row strong{font-size:13px;color:#d9f3f1}
+.app-field-state{font-size:9px;font-weight:800;letter-spacing:.6px;color:#89d4c5;white-space:nowrap}
+.app-field-row[data-level="attention"]{border-color:#967143}
+.app-field-row[data-level="attention"] .app-field-state{color:#ffd188}
+.app-field-row[data-level="unknown"] .app-field-state{color:#9fb7c1}
+.app-field-row p{grid-column:1/-1;margin:2px 0 0;font-size:11px;color:#a9c2c9;overflow-wrap:anywhere}
+@media(max-width:650px){.app-storage-numbers,.app-field-results{grid-template-columns:1fr}}
+
 /* v0.2.146 — altitude is a map overlay, not a clock/status-bar item.
    It floats just above the lower-right settings/add/layers row and stays
    clear of the bottom-left map credits and survey/demo legend. */

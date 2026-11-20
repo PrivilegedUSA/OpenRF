@@ -10,7 +10,7 @@ for(const key of ['dashboard','sos','radio','plans','device']){
   assert(html.includes(`aria-controls="emergency-tab-panel-${key}"`));
 }
 assert(html.indexOf('class="panel emergency-notice"')<html.indexOf('id="emergency-tabs"'));
-assert.match(html,/emergency-tabs\.js\?v=0\.2\.146/);
+assert.match(html,/emergency-tabs\.js\?v=0\.2\.147/);
 assert.match(css,/emergency-tab-panel\[hidden\]\{display:none!important\}/);
 assert.match(css,/background:transparent;border:0;border-radius:0;box-shadow:none;backdrop-filter:none\}/,
   'Five independent tab buttons should have no outer tray card');
@@ -87,4 +87,4 @@ assert.equal(window.scrollY,637,'Programmatic tab switching must not scroll');
 els.get('dashboard').handlers.click();
 assert.equal(window.scrollY,637,'Switching back to Dashboard must not scroll');
 assert.equal(window.OpenRFEmergencyTabs.current(),'dashboard');
-console.log('PASS v0.2.146 accessible emergency tabs, dashboard, quick tools and original form ownership');
+console.log('PASS v0.2.147 accessible emergency tabs, dashboard, quick tools and original form ownership');

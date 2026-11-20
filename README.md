@@ -1,5 +1,12 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.147 — App Settings, honest device storage and field readiness
+
+- **Separate App Settings page:** A dedicated **App Settings** button now sits near the bottom of the left sidebar, apart from Map Settings. It opens its own full-width workspace and works with the existing drawer/sidebar navigation. Its selection is remembered within the browser session, just like the other pages.
+- **Read-only device storage:** Settings shows **Free / Used / Total** space and a progress bar for the **filesystem containing OpenRF's local database** (which normally also holds its local maps). OpenRF reads Linux filesystem metadata; it does not scan files, delete anything or upload usage. **WSL may report the Windows drive** rather than a future Pi SD card. A space warning appears below 1 GiB free or 10% free; unavailable readings stay **—**, never 0.
+- **Offline field readiness:** A manual **Check field readiness** action displays separate checks for local Valhalla, offline visual map packages, imported HGT terrain count, Linux battery report, storage and GPS/route limitations. It makes local, read-only requests only. A responding routing service does **not** prove route coverage or navigability; GPS is **not requested** by this check. Actual field readiness still needs user verification.
+- Reuses existing offline navigation checks and power telemetry without extra drivers, new required dependencies, automatic external traffic or SQLite migrations. The bottom-right Map Settings and map tools remain unchanged. See [v0.2.147 verification](docs/RELEASE_0.2.147_TESTS.md).
+
 ## v0.2.146 — Map altitude overlay and sensible sidebar close behavior
 
 - **Map altitude moved:** The same GPS-reported **ALTITUDE / feet** badge now floats near the **lower-right map edge**, directly above the bottom-right settings/add/layers controls. It is no longer in the clock/battery/emergency header. The reading and all existing GPS freshness, accuracy and unknown (`— ft`) checks are unchanged; this is **device altitude**, not offline contour terrain height. The badge stays on the map only, with its source/uncertainty tooltip preserved.

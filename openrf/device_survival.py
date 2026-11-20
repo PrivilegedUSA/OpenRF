@@ -61,20 +61,36 @@ def power_status(*, power_root=Path('/sys/class/power_supply')):
             'note':'Battery percentage is Linux-reported when available. No battery in WSL is not 0%; device runtime and safe-shutdown support are unknown.'}
 
 
-def report(database_path, *, power_root=Path('/sys/class/power_supply'), disk_usage=shutil.disk_usage):
-    path=Path(database_path)
-    power=_battery(Path(power_root))
+def _storage(path, disk_usage):
+    """Filesystem containing private OpenRF data, not necessarily the Pi SD card."""
     storage={'state':'UNAVAILABLE','free_bytes':None,'total_bytes':None,'percent_free':None}
     try:
         directory=path.parent
         usage=disk_usage(directory)
+        if type(usage.total) is not int or type(usage.free) is not int or not 0<=usage.free<=usage.total or usage.total==0:
+            return storage
         free_percent=100*usage.free/usage.total if usage.total else None
         level='LOW_SPACE' if usage.free<1024**3 or (free_percent is not None and free_percent<10) else 'OK'
         storage={'state':'OS_REPORTED','free_bytes':usage.free,'total_bytes':usage.total,
-                 'percent_free':round(free_percent,1) if free_percent is not None else None,
+                 'used_bytes':usage.total-usage.free,'percent_free':round(free_percent,1) if free_percent is not None else None,
                  'warning_level':level}
     except (OSError, ValueError, ZeroDivisionError):
         pass
+    return storage
+
+
+def storage_status(database_path, *, disk_usage=shutil.disk_usage):
+    """Lightweight read-only host filesystem stats; no recursive size walk."""
+    return {'collected_utc':datetime.now(timezone.utc).isoformat(timespec='seconds'),
+            'read_only':True,'scope':'filesystem-containing-openrf-data',
+            'storage':_storage(Path(database_path),disk_usage),
+            'note':'Linux/WSL-reported filesystem capacity containing OpenRF local data. This may be a Windows drive, SD card or external disk; it is not a count of OpenRF files and does not measure all attached drives.'}
+
+
+def report(database_path, *, power_root=Path('/sys/class/power_supply'), disk_usage=shutil.disk_usage):
+    path=Path(database_path)
+    power=_battery(Path(power_root))
+    storage=_storage(path,disk_usage)
     db={'state':'NOT_FOUND','quick_check':'NOT_RUN'}
     if path.is_file():
         try:

@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.146">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.147">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -18,29 +18,30 @@
   <script defer src="/static/sdr-history.js?v=0.2.76"></script>
   <script defer src="/static/survey_map.js?v=0.2.76"></script>
   <script defer src="/static/navigation.js?v=0.2.76"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.146"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.147"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/map-elevation.js?v=0.2.146"></script>
-  <script defer src="/static/battery-status.js?v=0.2.146"></script>
-  <script defer src="/static/route-elevation.js?v=0.2.146"></script>
-  <script defer src="/static/app.js?v=0.2.146"></script>
-  <script defer src="/static/emergency-tabs.js?v=0.2.146"></script>
-  <script defer src="/static/breadcrumb_follow.js?v=0.2.146"></script>
-  <script defer src="/static/field-breadcrumbs.js?v=0.2.146"></script>
-  <script defer src="/static/offline-trails.js?v=0.2.146"></script>
-  <script defer src="/static/emergency.js?v=0.2.146"></script>
-  <script defer src="/static/emergency-library.js?v=0.2.146"></script>
-  <script defer src="/static/emergency-sos.js?v=0.2.146"></script>
-  <script defer src="/static/emergency-handoff.js?v=0.2.146"></script>
-  <script defer src="/static/emergency-teams.js?v=0.2.146"></script>
-  <script defer src="/static/emergency-checkins.js?v=0.2.146"></script>
-  <script defer src="/static/emergency-inbox.js?v=0.2.146"></script>
-  <script defer src="/static/emergency-protocol.js?v=0.2.146"></script>
-  <script defer src="/static/emergency-dashboard.js?v=0.2.146"></script>
-  <script defer src="/static/emergency-survival.js?v=0.2.146"></script>
-  <script defer src="/static/emergency-backup.js?v=0.2.146"></script>
-  <script defer src="/static/field-calendar.js?v=0.2.146"></script>
+  <script defer src="/static/map-elevation.js?v=0.2.147"></script>
+  <script defer src="/static/battery-status.js?v=0.2.147"></script>
+  <script defer src="/static/route-elevation.js?v=0.2.147"></script>
+  <script defer src="/static/app.js?v=0.2.147"></script>
+  <script defer src="/static/app-settings.js?v=0.2.147"></script>
+  <script defer src="/static/emergency-tabs.js?v=0.2.147"></script>
+  <script defer src="/static/breadcrumb_follow.js?v=0.2.147"></script>
+  <script defer src="/static/field-breadcrumbs.js?v=0.2.147"></script>
+  <script defer src="/static/offline-trails.js?v=0.2.147"></script>
+  <script defer src="/static/emergency.js?v=0.2.147"></script>
+  <script defer src="/static/emergency-library.js?v=0.2.147"></script>
+  <script defer src="/static/emergency-sos.js?v=0.2.147"></script>
+  <script defer src="/static/emergency-handoff.js?v=0.2.147"></script>
+  <script defer src="/static/emergency-teams.js?v=0.2.147"></script>
+  <script defer src="/static/emergency-checkins.js?v=0.2.147"></script>
+  <script defer src="/static/emergency-inbox.js?v=0.2.147"></script>
+  <script defer src="/static/emergency-protocol.js?v=0.2.147"></script>
+  <script defer src="/static/emergency-dashboard.js?v=0.2.147"></script>
+  <script defer src="/static/emergency-survival.js?v=0.2.147"></script>
+  <script defer src="/static/emergency-backup.js?v=0.2.147"></script>
+  <script defer src="/static/field-calendar.js?v=0.2.147"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
   <script defer src="/static/mesh.js?v=0.2.104"></script>
   <script defer src="/static/reticulum.js?v=0.2.104"></script>
@@ -55,7 +56,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.146</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.147</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -77,6 +78,7 @@
         <button class="nav-btn" data-page="hardware"><span class="nav-icon" aria-hidden="true">▤</span><span class="nav-label">Hardware</span></button>
       </nav>
       <div class="sidebar-bottom">
+        <button class="nav-btn sidebar-settings-btn" data-page="settings" type="button"><span class="nav-icon" aria-hidden="true">⚙</span><span class="nav-label">App Settings</span></button>
         <div class="status-chip"><span class="dot green"></span> Local server connected</div>
         <div class="status-chip"><span class="dot amber"></span> RF capture not configured</div>
         <p>Local-first · No account · No uploads</p>
@@ -114,6 +116,25 @@
         <button type="button" id="menu-toggle" class="menu-toggle" aria-label="Open navigation menu" aria-controls="main-sidebar" aria-expanded="false"><span aria-hidden="true">☰</span></button>
       </header>
       <div id="flash" class="flash" role="status" aria-live="polite" hidden></div>
+      <section class="page" id="page-settings" aria-label="Application and device settings">
+        <div class="section-heading"><div><h2>App settings</h2><p>Device information and offline preparation, separate from map-specific settings. Everything is read-only unless a control explicitly says otherwise.</p></div><span class="pill">LOCAL · PRIVATE</span></div>
+        <div class="panel app-device-storage" id="app-device-storage">
+          <div class="panel-title"><h3>Device storage</h3><span class="pill" id="app-storage-status-pill">NOT CHECKED</span></div>
+          <p class="muted small">Space available on the filesystem containing OpenRF's private database and maps. On Windows/WSL this may describe your Windows drive, not the future Raspberry Pi SD card. No files are scanned, deleted or uploaded.</p>
+          <div class="app-storage-numbers"><div><span>Free space</span><strong id="app-storage-free">—</strong></div><div><span>Used space</span><strong id="app-storage-used">—</strong></div><div><span>Total capacity</span><strong id="app-storage-total">—</strong></div></div>
+          <div class="app-storage-track" id="app-storage-track" role="progressbar" aria-label="Device storage used" aria-valuemin="0" aria-valuemax="100" aria-valuetext="Storage not checked"><div id="app-storage-fill"></div></div>
+          <div class="button-line"><button class="btn outline" id="app-storage-refresh" type="button">Refresh storage</button></div>
+          <p id="app-storage-detail" class="muted small" role="status" aria-live="polite">Waiting for a read-only Linux storage check.</p>
+        </div>
+        <div class="panel app-field-preflight" id="app-field-preflight">
+          <div class="panel-title"><h3>Offline field readiness</h3><span class="pill">PREFLIGHT · NOT CERTIFICATION</span></div>
+          <p class="muted small">Check local map packages, road routing, optional terrain data, battery reporting and storage before heading out. This does not request GPS permission, start navigation, test actual route coverage or contact an online service.</p>
+          <div class="button-line"><button class="btn primary" id="app-field-check" type="button">Check field readiness</button></div>
+          <p id="app-field-status" class="muted small" role="status" aria-live="polite">Not checked yet.</p>
+          <div id="app-field-results" class="app-field-results" role="list" aria-label="Local device field checks"></div>
+          <p class="muted small">A reachable router cannot prove that a specific route works. GPS accuracy and road/trail access require separate checks. Battery levels depend on your actual Linux driver and power board.</p>
+        </div>
+      </section>
       <section class="page" id="page-emergency" aria-label="Offline emergency planning">
         <div class="section-heading"><div><h2>Emergency readiness</h2><p>Private, offline planning tools. No SOS has been sent and no emergency delivery service is connected.</p></div><span class="pill">LOCAL ONLY</span></div>
         <div class="panel emergency-notice"><strong>In immediate danger?</strong><p>Use official emergency channels (such as 911 in the US) when available. An OpenRF SOS draft does not contact rescuers.</p></div>

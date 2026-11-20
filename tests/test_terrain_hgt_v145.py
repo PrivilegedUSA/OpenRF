@@ -1,4 +1,4 @@
-"""v0.2.146: operator imported terrain is local, bounded and not GNSS."""
+"""v0.2.147: operator imported terrain is local, bounded and not GNSS."""
 import io
 import struct
 import tempfile

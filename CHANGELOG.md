@@ -1,3 +1,10 @@
+## OpenRF v0.2.147 — Standalone application settings and honest field readiness (2026-11-20)
+
+- Added **App Settings** in the permanent sidebar footer and compact navigation drawer, separate from Map Settings, with normal page title/visibility/session behavior. Added an accessible, full-width Settings workspace.
+- Added a lightweight read-only `/api/device/storage` endpoint, sharing the existing Linux disk usage logic with Emergency device diagnostics. Reports free, used and total bytes for the filesystem containing OpenRF local data. Never infers a separate Pi drive while WSL uses Windows storage. Includes low-space warnings, unknown states and local-only HTTP safeguards; no recursive user-file scans, cleanup, or stored telemetry.
+- Added a visually compact storage meter and manual **Offline field readiness** checklist for local Valhalla reachability, installed offline vector/raster maps, imported HGT tiles, battery gauge, free storage and untested GPS/route coverage. Reuses the existing offline-navigation/power/map APIs and does not start GPS, touch RF hardware or contact an external service. Local availability is labeled *reported*, never a certified trip-ready verdict.
+- Added backend storage bounds/unknown/loopback HTTP tests and frontend markup, gauge, navigation and consent-safe preflight tests. **409 Python tests and 113 JavaScript test scripts passed**, plus JS syntax checks. No DB schema migration or required packages. See `docs/RELEASE_0.2.147_TESTS.md` for verification and next priority.
+
 ## OpenRF v0.2.146 — Map altitude overlay and responsive sidebar close (2026-11-20)
 
 - Moved the one existing, accuracy-guarded GPS ALTITUDE badge out of the map header into the map viewport. It floats above the lower-right settings/add/layers row, clear of the left-side credits and survey legend. Clock, battery and Emergency stay in the header. The existing altitude controller, UTC freshness handling, vertical accuracy, GPS source labels and unknown value behavior remain intact.

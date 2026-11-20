@@ -12,7 +12,7 @@ for(const id of ['area-topo-start','area-topo-cancel','area-topo-name','area-top
   'map-route-elevation-chart','map-elevation-status']){
   assert(html.includes(`id="${id}"`),`Missing ${id}`);
 }
-assert(html.includes('/static/route-elevation.js?v=0.2.146'));
+assert(html.includes('/static/route-elevation.js?v=0.2.147'));
 assert(app.includes("api('/api/maps/topographic/start','POST'"));
 assert(app.includes('candidate_tiles>96'));
 assert(app.includes("api('/api/maps/topographic/cancel','POST'"));
@@ -38,4 +38,4 @@ assert.deepEqual(Array.from(sampled.at(-1)),coordinates.at(-1));
 assert(sampled[6][0]>-120 && sampled[6][0]<=-119.99);
 const repeat=util.sample(coordinates);
 assert.deepEqual(JSON.stringify(sampled),JSON.stringify(repeat));
-console.log('PASS v0.2.146 topo download controls, route sampling, compact altitude and open-sidebar hamburger');
+console.log('PASS v0.2.147 topo download controls, route sampling, compact altitude and open-sidebar hamburger');
