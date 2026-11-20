@@ -99,7 +99,7 @@ class VectorHttpTests(unittest.TestCase):
             self.assertIn('https://basemap.nationalmap.gov',headers['Content-Security-Policy'])
             self.assertEqual(self.get(f'/api/vector/styles/{name}.json?offline=1')[0],503)
         self.assertEqual(self.get('/api/vector/styles/other.json')[0],404)
-        code,script,_=self.get('/static/map-elevation.js?v=0.2.150')
+        code,script,_=self.get('/static/map-elevation.js?v=0.2.151')
         self.assertEqual(code,200)
         self.assertIn(b'OpenRFMapElevation',script)
 

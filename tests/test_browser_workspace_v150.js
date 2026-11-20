@@ -1,5 +1,5 @@
 'use strict';
-/* v0.2.150: browser workspace remains opt-in, private and sandboxed. */
+/* v0.2.151: browser workspace remains opt-in, private and sandboxed. */
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
@@ -7,13 +7,13 @@ const html=fs.readFileSync('openrf/static/index.html','utf8');
 const script=fs.readFileSync('openrf/static/browser-workspace.js','utf8');
 const app=fs.readFileSync('openrf/static/app.js','utf8');
 const css=fs.readFileSync('openrf/static/app.css','utf8');
-const ids=['page-browser','browser-tabs','browser-tab-add','browser-address-form',
+const ids=['page-browser','browser-viewport','browser-tabs','browser-tab-add','browser-address-form',
   'browser-address','browser-back','browser-forward','browser-reload','browser-home',
   'browser-go','browser-open-external','browser-network-status','browser-status',
   'browser-preview','browser-placeholder','browser-bookmark-add','browser-bookmarks'];
 for(const id of ids)assert(html.includes(`id="${id}"`),`Missing ${id}`);
 assert(html.includes('data-page="browser"'));
-assert(html.includes('/static/browser-workspace.js?v=0.2.150'));
+assert(html.includes('/static/browser-workspace.js?v=0.2.151'));
 assert(html.includes('sandbox="allow-scripts allow-forms"'));
 assert(html.includes('referrerpolicy="no-referrer"'));
 assert(html.includes('rel="noopener noreferrer"'));
@@ -27,8 +27,10 @@ class FakeElement {
   constructor(tag='div'){
     this.tagName=tag;this.children=[];this.listeners={};this.attributes={};
     this.textContent='';this.className='';this.hidden=false;this.disabled=false;
-    this.value='';this.href='';this.tabIndex=0;this.src='about:blank';
+    this.value='';this.href='';this.tabIndex=0;this._src='about:blank';this.srcSets=0;
   }
+  set src(value){this._src=value;this.srcSets++;}
+  get src(){return this._src;}
   addEventListener(name,fn){(this.listeners[name]??=[]).push(fn);}
   dispatch(name,event={}){for(const fn of this.listeners[name]||[])fn({preventDefault(){},...event});}
   append(...items){this.children.push(...items);}
@@ -36,6 +38,7 @@ class FakeElement {
   setAttribute(name,val){this.attributes[name]=String(val);}
   getAttribute(name){return this.attributes[name]??null;}
   removeAttribute(name){delete this.attributes[name];if(name==='href')this.href='';}
+  remove(){this.removed=true;}
   focus(){}
 }
 const elements=Object.fromEntries(ids.map(id=>[id,new FakeElement()]));
@@ -90,6 +93,16 @@ assert.equal(elements['browser-tabs'].children.length,2);
 go('https://www.openstreetmap.org');
 assert.equal(browser.current(),'https://www.openstreetmap.org/');
 assert.equal(elements['browser-bookmarks'].children.length,1);
+const frame2=elements['browser-viewport'].children[0];
+assert.equal(frame2.src,'https://www.openstreetmap.org/');
+const before1=elements['browser-preview'].srcSets,before2=frame2.srcSets;
+elements['browser-tabs'].children[0].children[0].dispatch('click');
+assert.equal(browser.current(),'http://example.com/news');
+assert.equal(elements['browser-preview'].srcSets,before1,'Switching tabs never reloads the old iframe');
+elements['browser-tabs'].children[1].children[0].dispatch('click');
+assert.equal(browser.current(),'https://www.openstreetmap.org/');
+assert.equal(frame2.srcSets,before2,'Switching back keeps the live website document');
+assert.equal(frame2.hidden,false);
 const saved=memory.get('openrf.browser.workspace.v1');
 assert(saved && JSON.parse(saved).tabs.length===2);
 // A fresh process restores only addresses/bookmarks, without contacting sites.
@@ -109,4 +122,4 @@ elements2['browser-address'].value='http://127.0.0.1:2947';
 elements2['browser-address-form'].dispatch('submit');
 assert.match(elements2['browser-status'].textContent,/rejected/);
 assert.equal(window2.OpenRFBrowserWorkspace.current(),'https://www.openstreetmap.org/');
-console.log('PASS v0.2.150 opt-in browser tabs/bookmarks, restored session, sandbox and URL boundaries');
+console.log('PASS v0.2.151 opt-in browser tabs/bookmarks, restored session, sandbox and URL boundaries');

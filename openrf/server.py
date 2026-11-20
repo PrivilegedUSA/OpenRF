@@ -416,6 +416,19 @@ class Handler(BaseHTTPRequestHandler):
                                     'storage': 'local-raster-mbtiles',
                                     'downloads_enabled': True, 'imports_enabled': True, 'max_import_bytes': MAX_IMPORT_BYTES,
                                     'topographic_download': 'explicit-bounded-usgs-region-only'})
+        if path == '/api/maps/catalog':
+            if urlparse(self.path).query:
+                return self._error(400, 'Offline map catalog accepts no query options')
+            try:
+                maps = available_maps(self.server.map_directory)
+                areas = list_areas(self.server.map_directory)
+            except AreaError as exc:
+                return self._error(409, str(exc))
+            return self._json(200, {'maps': maps, 'area_plans': areas,
+                'package_count': len(maps), 'total_bytes': sum(item['size_bytes'] for item in maps),
+                'local_only': True, 'read_only': True, 'bounds_verified': False,
+                'routing_graph_included': False,
+                'notice': 'Bounds and sources are package-declared. An installed raster does not verify continuous route tiles, trail access, Valhalla graph coverage, or GNSS.'})
         if path == '/api/terrain/tiles':
             return self._json(200,{'tiles':list_terrain_tiles(self.server.terrain_directory),
                                    'format':'SRTM-compatible-HGT','local_only':True})
@@ -672,7 +685,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, raw, 'text/csv; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.csv"'})
         if path in ('/', '/index.html'):
             file = STATIC_DIR / 'index.html'
-        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/browser-workspace.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/trip-map.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/browser-workspace.js', '/static/saved-trips.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/trip-map.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
             file = STATIC_DIR / Path(path).name
         elif path == '/static/offline-trails.js':
             file = STATIC_DIR / 'offline-trails.js'

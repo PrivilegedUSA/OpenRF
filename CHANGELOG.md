@@ -1,3 +1,11 @@
+## OpenRF v0.2.151 — Live browser tabs, Pi Chromium shell and offline trip map catalog (2026-11-20)
+
+- Fixed the browser tab-switching regression: each open tab now retains its own live isolated HTTPS preview while switching tabs or OpenRF pages. Closed tabs release their frames; an app restart restores the tab addresses but never silently loads external websites.
+- Replaced the browser's Unicode Back, Forward, Refresh and Home symbols with consistent local Font Awesome Free 6.7.2 solid SVG icons, with accessible button names and no online font dependency.
+- Added an optional Chromium-based Electron shell using secured WebContentsViews for full websites inside the OpenRF Browser page. Remote content has separate in-memory sessions, blocked local addresses, denied device permissions, no Node/preload access, denied pop-ups and blocked downloads. Live native tab views remain mounted during tab switching. This is source/integration work; Electron installation and Raspberry Pi touchscreen/GPU execution are **not hardware-verified**. Standard WSL/browser operation has no new runtime dependency. See `docs/NATIVE_BROWSER_PI.md`.
+- Added **Trips & Maps** to the sidebar, with bounded local-only inventory of raster packages, declared type/source/coverage, size, zoom, saved area plan list, map activation and double-confirmed individual removal. The active map cannot be removed from the new UI; old Map settings controls remain. Classifications derive from local metadata and do not certify tile coverage or routes. Uses the existing `/api/maps` storage and DELETE safeguards plus a new read-only `/api/maps/catalog` endpoint.
+- Added backend catalog/classification tests, browser tab retention, native shell security/IPC/geometry contract checks and frontend inventory/filter/removal tests. No new Python package, SQLite schema migration, automatic network contact or private data upload. See `docs/RELEASE_0.2.151_TESTS.md`.
+
 ## OpenRF v0.2.150 — Optional web browser workspace (2026-11-20)
 
 - Added a **Web Browser** sidebar page with a compact 7-inch-friendly tab strip, website/search field, entered-address navigation, bookmarks, an honest network-status label and a normal **Full browser** link. Tabs and bookmarks persist locally (bounded to 8 and 24 respectively). Restored tabs never automatically contact third-party sites.

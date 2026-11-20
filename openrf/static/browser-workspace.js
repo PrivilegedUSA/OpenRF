@@ -1,5 +1,5 @@
 'use strict';
-/* v0.2.150 — small local browser workspace, not a third-party page proxy.
+/* v0.2.151 — per-tab live sandboxed previews, not a third-party page proxy.
    The isolated preview is best-effort. Full browsing uses the browser's own
    engine in a separate tab; OpenRF never downloads untrusted HTML through its
    Python loopback API or grants a website access to its investigation data. */
@@ -69,13 +69,69 @@
   const state=load();
   let nextId=Math.max(...state.tabs.map(t=>t.id))+1;
   const tabsEl=$('browser-tabs'),bookmarksEl=$('browser-bookmarks');
-  const address=$('browser-address'),frame=$('browser-preview');
+  const address=$('browser-address'),baseFrame=$('browser-preview');
+  const viewport=$('browser-viewport');
+  const native=window.openrfNativeBrowser?.available?window.openrfNativeBrowser:null;
+  const nativeOpened=new Set();
+  // Live frames stay mounted, with one isolated browsing context per open tab.
+  // Reopening the app restores addresses only; no preview automatically loads.
+  const views=new Map();
   const status=$('browser-status'),placeholder=$('browser-placeholder');
   const external=$('browser-open-external');
   const back=$('browser-back'),forward=$('browser-forward'),reload=$('browser-reload');
 
   const active=()=>state.tabs.find(tab=>tab.id===state.active)||state.tabs[0];
   const current=()=>active().history[active().index]||'';
+  function nativeBounds(){
+    const rect=viewport.getBoundingClientRect();
+    return {x:rect.left,y:rect.top,width:rect.width,height:rect.height};
+  }
+  function nativeCall(method,...args){
+    if(!native)return;
+    try{Promise.resolve(native[method](...args)).catch(error=>{
+      status.textContent=`Native Chromium: ${error.message}`;
+    });}catch(error){status.textContent=`Native Chromium: ${error.message}`;}
+  }
+  function syncNative(){
+    if(!native)return;
+    const visible=$('page-browser').classList.contains('active')&&nativeOpened.has(active().id);
+    if(visible)nativeCall('select',active().id,nativeBounds());
+    else nativeCall('hide');
+  }
+  function viewFor(tab){
+    if(views.has(tab.id))return views.get(tab.id);
+    const freeBase=![...views.values()].some(view=>view.frame===baseFrame);
+    const frame=freeBase?baseFrame:document.createElement('iframe');
+    if(!freeBase){
+      frame.className='browser-preview-frame';
+      frame.setAttribute('title','Isolated preview of selected website');
+      frame.setAttribute('sandbox','allow-scripts allow-forms');
+      frame.setAttribute('referrerpolicy','no-referrer');
+      frame.setAttribute('loading','lazy');
+      frame.src='about:blank';frame.hidden=true;viewport.append(frame);
+    }
+    const view={frame,loadedUrl:''};views.set(tab.id,view);return view;
+  }
+  function clearView(tab){
+    const view=views.get(tab.id);if(!view)return;
+    view.frame.hidden=true;
+    if(view.loadedUrl)view.frame.src='about:blank';
+    view.loadedUrl='';
+  }
+  function discardView(tab){
+    const view=views.get(tab.id);if(!view)return;
+    clearView(tab);views.delete(tab.id);
+    if(view.frame!==baseFrame)view.frame.remove();
+  }
+  function visibleView(){
+    const view=viewFor(active());
+    const visible=native?nativeOpened.has(active().id):Boolean(view.loadedUrl&&view.loadedUrl===current());
+    for(const [id,other] of views)other.frame.hidden=!(visible&&id===state.active);
+    if(native)for(const other of views.values())other.frame.hidden=true;
+    placeholder.hidden=visible;
+    syncNative();
+    return visible;
+  }
   function save(){
     try{window.localStorage?.setItem(STORAGE_KEY,JSON.stringify({version:1,
       tabs:state.tabs,active:state.active,bookmarks:state.bookmarks}));}catch(_){}
@@ -105,6 +161,8 @@
       const close=node('button','×','browser-tab-close');close.type='button';close.title='Close tab';
       close.setAttribute('aria-label',`Close ${select.textContent}`);
       close.addEventListener('click',()=>{
+        if(nativeOpened.has(tab.id)){nativeOpened.delete(tab.id);nativeCall('close',tab.id);}
+        discardView(tab); // A closed tab stops contacting its website.
         if(state.tabs.length===1){tab.history=[];tab.index=-1;}
         else{state.tabs=state.tabs.filter(item=>item.id!==tab.id);
           if(state.active===tab.id)state.active=state.tabs[0].id;}
@@ -129,13 +187,24 @@
     }
   }
   function showPreview(url){
-    if(!url){frame.hidden=true;frame.src='about:blank';placeholder.hidden=false;
+    const view=viewFor(active());
+    if(native){
+      if(!url){
+        if(nativeOpened.has(active().id)){nativeOpened.delete(active().id);nativeCall('close',active().id);}
+        visibleView();status.textContent='New tab. Nothing is loaded until you enter a website.';return;
+      }
+      nativeOpened.add(active().id);
+      visibleView();nativeCall('open',active().id,url,nativeBounds());
+      status.textContent='Opened in the in-window Chromium engine. Tabs stay loaded; pop-ups, device access and downloads are restricted.';
+      return;
+    }
+    if(!url){clearView(active());visibleView();
       status.textContent='New tab. Nothing is loaded until you choose a website.';return;}
     if(!url.startsWith('https://')){
-      frame.hidden=true;frame.src='about:blank';placeholder.hidden=false;
+      clearView(active());visibleView();
       status.textContent='HTTP websites cannot be shown in the restricted preview. Use Full browser.';return;
     }
-    frame.hidden=false;placeholder.hidden=true;frame.src=url;
+    view.loadedUrl=url;visibleView();view.frame.src=url;
     status.textContent='Trying an isolated website preview. If the site refuses embedding or login, use Full browser. This is not a full browser engine.';
   }
   function refresh(preview){
@@ -149,8 +218,11 @@
     $('browser-bookmark-add').disabled=!url;
     renderTabs();renderBookmarks();
     if(preview)showPreview(url);
-    else{frame.hidden=true;frame.src='about:blank';placeholder.hidden=false;
-      status.textContent=url?'Saved address restored. Choose Go to preview, or Full browser for normal browsing.':'New tab. Nothing has been loaded.';}
+    else{
+      const visible=visibleView();
+      status.textContent=visible?'Previously opened preview is still loaded in this tab. Close the tab to stop it.':
+        url?'Saved address restored. Choose Go to preview, or Full browser for normal browsing.':'New tab. Nothing has been loaded.';
+    }
   }
   function navigate(url){
     const safe=validatedUrl(url),tab=active();
@@ -172,14 +244,25 @@
     const tab={id:nextId++,history:[],index:-1};state.tabs.push(tab);state.active=tab.id;
     save();refresh(false);address.focus({preventScroll:true});
   });
-  back.addEventListener('click',()=>{if(active().index>0){active().index--;save();refresh(true);}});
-  forward.addEventListener('click',()=>{if(active().index<active().history.length-1){active().index++;save();refresh(true);}});
-  reload.addEventListener('click',()=>{if(current())showPreview(current());});
+  back.addEventListener('click',()=>{
+    if(native&&nativeOpened.has(active().id)){nativeCall('back',active().id);return;}
+    if(active().index>0){active().index--;save();refresh(true);}
+  });
+  forward.addEventListener('click',()=>{
+    if(native&&nativeOpened.has(active().id)){nativeCall('forward',active().id);return;}
+    if(active().index<active().history.length-1){active().index++;save();refresh(true);}
+  });
+  reload.addEventListener('click',()=>{if(current()){
+    if(native&&nativeOpened.has(active().id))nativeCall('reload',active().id);
+    else showPreview(current());
+  }});
   $('browser-home').addEventListener('click',()=>{
     const tab=active();tab.history=tab.history.slice(0,tab.index+1);
     if(tab.history[tab.index]!=='')tab.history.push('');
     if(tab.history.length>MAX_HISTORY)tab.history.shift();
-    tab.index=tab.history.length-1;save();refresh(false);
+    tab.index=tab.history.length-1;clearView(tab);
+    if(nativeOpened.has(tab.id)){nativeOpened.delete(tab.id);nativeCall('close',tab.id);}
+    save();refresh(false);
   });
   $('browser-bookmark-add').addEventListener('click',()=>{
     const url=current();if(!url)return;
@@ -190,9 +273,34 @@
   });
   external.addEventListener('click',event=>{
     if(!current()){event.preventDefault();return;}
+    if(native){event.preventDefault();showPreview(current());return;}
     status.textContent='Opened in a separate full-browser tab. That browser manages downloads and internal page history.';
   });
-  document.addEventListener('openrf:browser-shown',()=>{network();});
+  if(native){
+    external.textContent='Full page';
+    $('browser-placeholder-info').textContent='Enter a website or search phrase. This Raspberry Pi/Linux shell opens full websites in an isolated Chromium view directly in this area. Your OpenRF field data stays separate.';
+    $('browser-security-note').textContent='Native Chromium pages stay loaded when switching tabs and support normal link navigation and browser history. Camera, microphone, location permissions, pop-ups and downloads are blocked in this first hardware-ready shell. Closing a tab stops its website. Addresses restore on restart without loading websites automatically.';
+    native.onLocation(({id,url})=>{
+      const tab=state.tabs.find(item=>item.id===id);
+      if(!tab||!nativeOpened.has(id))return;
+      let safe;try{safe=validatedUrl(url);}catch(_){return;}
+      const currentUrl=tab.history[tab.index];
+      if(currentUrl!==safe){
+        const prior=tab.history.lastIndexOf(safe);
+        if(prior>=0)tab.index=prior;
+        else{tab.history=tab.history.slice(0,tab.index+1);tab.history.push(safe);
+          if(tab.history.length>MAX_HISTORY)tab.history.shift();
+          tab.index=tab.history.length-1;}
+      }
+      save();if(tab.id===state.active)refresh(false);
+    });
+    native.onStatus(({id,text})=>{if(id===state.active&&typeof text==='string')status.textContent=text.slice(0,400);});
+    window.addEventListener('resize',syncNative);
+    window.addEventListener('scroll',syncNative,{passive:true});
+    if(typeof ResizeObserver!=='undefined')new ResizeObserver(syncNative).observe(viewport);
+  }
+  document.addEventListener('openrf:browser-shown',()=>{network();syncNative();});
+  document.addEventListener('openrf:browser-hidden',()=>{if(native)nativeCall('hide');});
   window.addEventListener('online',network);window.addEventListener('offline',network);
   network();refresh(false); // No external website loads when OpenRF starts.
   window.OpenRFBrowserWorkspace=Object.freeze({normalizeAddress,validatedUrl,current:()=>current()});

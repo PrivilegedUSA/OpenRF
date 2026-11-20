@@ -10,7 +10,7 @@ const widget=fs.readFileSync('openrf/static/map-elevation.js','utf8');
 for(const kind of ['default','satellite','topographic']){
   assert(html.includes(`name="map-basemap" value="${kind}"`),`Missing ${kind} base-map choice`);
 }
-assert(html.includes('/static/map-elevation.js?v=0.2.150'));
+assert(html.includes('/static/map-elevation.js?v=0.2.151'));
 assert(html.includes('id="map-altimeter-value"'));
 assert(css.includes('map-basemap-options'));
 assert(css.includes('body:not(.map-workspace) .map-altimeter'));

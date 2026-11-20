@@ -7,7 +7,7 @@ const css=fs.readFileSync('openrf/static/app.css','utf8');
 const app=fs.readFileSync('openrf/static/app.js','utf8');
 const script=fs.readFileSync('openrf/static/battery-status.js','utf8');
 
-assert(html.includes('/static/battery-status.js?v=0.2.150'));
+assert(html.includes('/static/battery-status.js?v=0.2.151'));
 assert(html.includes('id="device-battery"'));
 assert(css.includes('.device-battery[data-battery="critical"]'));
 for(const id of ['area-hgt-file','area-hgt-source','area-hgt-import','area-hgt-installed','area-hgt-remove'])

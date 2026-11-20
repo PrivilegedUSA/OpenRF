@@ -1,4 +1,4 @@
-"""v0.2.150: browser workspace is served locally with isolated web previews."""
+"""v0.2.151: browser workspace is served locally with isolated web previews."""
 import tempfile
 import threading
 import unittest
@@ -26,7 +26,7 @@ class BrowserWorkspaceHTTPTests(unittest.TestCase):
                     conn.close()
                     return data
 
-                status, source, headers = get('/static/browser-workspace.js?v=0.2.150')
+                status, source, headers = get('/static/browser-workspace.js?v=0.2.151')
                 self.assertEqual(status, 200)
                 self.assertIn(b'openrf.browser.workspace.v1', source)
                 self.assertEqual(headers['X-Frame-Options'], 'DENY')
@@ -35,7 +35,7 @@ class BrowserWorkspaceHTTPTests(unittest.TestCase):
                 self.assertIn("connect-src 'self'", headers['Content-Security-Policy'])
                 status, html, _ = get('/')
                 self.assertEqual(status, 200)
-                self.assertIn(b'/static/browser-workspace.js?v=0.2.150', html)
+                self.assertIn(b'/static/browser-workspace.js?v=0.2.151', html)
                 self.assertIn(b'sandbox="allow-scripts allow-forms"', html)
                 self.assertIn(b'rel="noopener noreferrer"', html)
                 self.assertEqual(get('/static/browser-workspace.js', 'evil.example')[0], 403)

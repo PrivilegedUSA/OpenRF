@@ -90,11 +90,32 @@ def _inspect_map(path: Path, map_id: str) -> dict:
             raise MapNotFound('MBTiles sample tile is missing or does not match image format')
     except (sqlite3.Error, OSError) as exc:
         raise MapNotFound('Cannot read MBTiles sample image') from exc
+    # These markers describe *package-declared* origin, never verified route
+    # coverage. Imported MBTiles could contain arbitrary metadata.
+    origin = str(metadata.get('openrf_source') or '')
+    if origin == 'USGS explicit route-corridor preparation' and metadata.get('openrf_trip_tiles'):
+        package_kind = 'TRIP_CORRIDOR'
+        source_label = 'USGS Topographic' if 'topographic' in str(metadata.get('name','')).lower() else (
+            'USGS Satellite' if 'satellite' in str(metadata.get('name','')).lower() else 'USGS imagery (declared)')
+    elif metadata.get('openrf_area_id'):
+        package_kind, source_label = 'REGION_DOWNLOAD', 'USGS Topographic (declared)'
+    elif metadata.get('openrf_source_map'):
+        package_kind, source_label = 'REGION_SUBSET', 'Local raster subset (declared)'
+    else:
+        package_kind, source_label = 'IMPORTED', 'Imported raster package'
+    try:
+        declared_tiles = int(metadata.get('openrf_trip_tiles')) if package_kind == 'TRIP_CORRIDOR' else None
+        if declared_tiles is not None and not 1 <= declared_tiles <= 384:
+            declared_tiles = None
+    except (TypeError, ValueError):
+        declared_tiles = None
     # No absolute file system path, private location, or untrusted attribution HTML.
     return {'id': map_id, 'name': str(metadata.get('name') or map_id)[:120],
             'format': fmt, 'minzoom': minzoom, 'maxzoom': maxzoom,
             'bounds': bounds, 'attribution': str(metadata.get('attribution') or '')[:240],
-            'size_bytes': path.stat().st_size}
+            'size_bytes': path.stat().st_size,
+            'package_kind': package_kind, 'source_label': source_label,
+            'declared_tile_count': declared_tiles}
 
 
 def map_info(folder: Path, map_id: str) -> dict:
