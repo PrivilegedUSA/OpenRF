@@ -10,7 +10,7 @@ for(const key of ['dashboard','sos','radio','plans','device']){
   assert(html.includes(`aria-controls="emergency-tab-panel-${key}"`));
 }
 assert(html.indexOf('class="panel emergency-notice"')<html.indexOf('id="emergency-tabs"'));
-assert.match(html,/emergency-tabs\.js\?v=0\.2\.144/);
+assert.match(html,/emergency-tabs\.js\?v=0\.2\.145/);
 assert.match(css,/emergency-tab-panel\[hidden\]\{display:none!important\}/);
 assert.match(css,/background:transparent;border:0;border-radius:0;box-shadow:none;backdrop-filter:none\}/,
   'Five independent tab buttons should have no outer tray card');
@@ -55,10 +55,12 @@ vm.runInNewContext(script,{document,window,console});
 assert.equal(window.OpenRFEmergencyTabs.current(),'dashboard');
 const content=tabs.next;
 const pane=key=>content.children.find(item=>item.id===`emergency-tab-panel-${key}`);
-assert.equal(pane('dashboard').children[0].id,'emergency-ops-panel',
-  'Operations snapshot must be the first dashboard card');
-assert.equal(pane('dashboard').children[1].id,'emergency-survival-panel',
-  'Departure and power checks come directly after operations');
+assert.equal(pane('dashboard').children[0].className,'emergency-quick-access',
+  'Quick access must be immediately below the emergency tab row');
+assert.equal(pane('dashboard').children[1].id,'emergency-ops-panel',
+  'Operations snapshot follows the quick-access actions');
+assert.equal(pane('dashboard').children[2].id,'emergency-survival-panel',
+  'Departure and power checks follow operations');
 assert(pane('sos').children.some(n=>n.id==='checkin'));
 assert(pane('radio').children.some(n=>n.id==='handoff'));
 assert.equal(pane('device').children[0].id,'emergency-backup-panel');
@@ -85,4 +87,4 @@ assert.equal(window.scrollY,637,'Programmatic tab switching must not scroll');
 els.get('dashboard').handlers.click();
 assert.equal(window.scrollY,637,'Switching back to Dashboard must not scroll');
 assert.equal(window.OpenRFEmergencyTabs.current(),'dashboard');
-console.log('PASS v0.2.144 accessible emergency tabs, dashboard, quick tools and original form ownership');
+console.log('PASS v0.2.145 accessible emergency tabs, dashboard, quick tools and original form ownership');

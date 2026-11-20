@@ -21,6 +21,8 @@ from .map_areas import (list_areas, get_area, save_area, remove_area, area_geojs
 from .tile_archive import import_xyz_zip, TileArchiveError, MAX_ZIP_BYTES
 from .topographic_download import TopographicJobs, TopoError
 from .route_elevation import profile as terrain_profile, ElevationError
+from .terrain_hgt import (list_tiles as list_terrain_tiles, install as import_terrain_hgt,
+                          remove as remove_terrain_hgt, TerrainError, SIZES as HGT_SIZES)
 from . import vector_maps
 from .hardware import status_report, enumerate_serial_ports, serial_port_diagnostics
 from .readiness import readiness_report
@@ -54,7 +56,7 @@ from .emergency_packs import STARTER_PACK
 from .emergency_sos import compose_draft
 from .emergency_protocol import compose as compose_checkin_frame, compose_ack, parse as parse_checkin_frame
 from .emergency_dashboard import build_dashboard
-from .device_survival import report as device_survival_report
+from .device_survival import report as device_survival_report, power_status as device_power_status
 from .emergency_backup import create as make_emergency_backup, inspect as inspect_emergency_backup, available as backup_crypto_available
 from .restore import exclusive_lock as restore_exclusive_lock
 from .breadcrumbs import BreadcrumbStore
@@ -211,6 +213,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.server.reticulum_manager.status()))
         if path == '/api/emergency/device-readiness':
             return self._json(200,device_survival_report(self.server.repository.path))
+        if path == '/api/device/power':
+            return self._json(200,device_power_status())
         if path == '/api/emergency/backup/status':
             return self._json(200,{'available':backup_crypto_available(),
                 'max_database_bytes':16*1024*1024,'restore_available':False,
@@ -405,6 +409,9 @@ class Handler(BaseHTTPRequestHandler):
                                     'storage': 'local-raster-mbtiles',
                                     'downloads_enabled': True, 'imports_enabled': True, 'max_import_bytes': MAX_IMPORT_BYTES,
                                     'topographic_download': 'explicit-bounded-usgs-region-only'})
+        if path == '/api/terrain/tiles':
+            return self._json(200,{'tiles':list_terrain_tiles(self.server.terrain_directory),
+                                   'format':'SRTM-compatible-HGT','local_only':True})
         if path == '/api/maps/topographic/status':
             return self._json(200, {'download': self.server.topo_jobs.status()})
         if path.startswith('/api/maps/') and '/tiles/' in path:
@@ -654,7 +661,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, raw, 'text/csv; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.csv"'})
         if path in ('/', '/index.html'):
             file = STATIC_DIR / 'index.html'
-        elif path in ('/static/app.css', '/static/app.js', '/static/map-elevation.js', '/static/route-elevation.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
             file = STATIC_DIR / Path(path).name
         elif path == '/static/offline-trails.js':
             file = STATIC_DIR / 'offline-trails.js'
@@ -671,6 +678,23 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host() or not self._allowed_origin():
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
+        if path == '/api/terrain/import':
+            if self.headers.get('Content-Type','').lower().split(';')[0]!='application/octet-stream':
+                return self._error(415,'Select a local .hgt terrain file')
+            try:declared=int(self.headers.get('Content-Length','0'))
+            except ValueError:return self._error(400,'Invalid HGT upload length')
+            if declared not in HGT_SIZES:
+                self.close_connection=True
+                return self._error(413,'Only raw 1201×1201 or 3601×3601 SRTM-compatible HGT files are accepted')
+            try:
+                installed=import_terrain_hgt(self.server.terrain_directory,
+                    self.headers.get('X-OpenRF-Terrain-Name',''),
+                    unquote(self.headers.get('X-OpenRF-Terrain-Source','')),
+                    self.rfile,declared,self.server.terrain_lock)
+                return self._json(201,installed)
+            except (TerrainError,OSError) as exc:
+                self.close_connection=True
+                return self._error(400,str(exc))
         if path.startswith('/api/maps/areas/') and path.endswith('/import-xyz'):
             # Locally selected raster tile ZIP only. Never fetch provider URLs,
             # download tiles, or accept arbitrary target paths from the client.
@@ -1158,7 +1182,8 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError('Terrain profile requires only sampled route points and explicit online permission')
                 try:
                     data = terrain_profile(self.server.map_directory, body['points'],
-                                           body['allow_online'], self.server.elevation_lock)
+                                           body['allow_online'], self.server.elevation_lock,
+                                           terrain_folder=self.server.terrain_directory)
                     return self._json(200, {'profile': data})
                 except ElevationError as exc:
                     return self._error(422, str(exc), 'terrain_elevation_unavailable')
@@ -1319,6 +1344,10 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host() or not self._allowed_origin():
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
+        if path.startswith('/api/terrain/tiles/') and path.count('/')==4:
+            try:return self._json(200,remove_terrain_hgt(self.server.terrain_directory,
+                                    path.rsplit('/',1)[-1],self.server.terrain_lock))
+            except TerrainError as exc:return self._error(404,str(exc))
         if path.startswith('/api/emergency/outbox/'):
             ident=path.rsplit('/',1)[-1]
             if not ident.isascii() or not ident.isdecimal() or len(ident)>10:
@@ -1423,6 +1452,8 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.trail_store = TrailStore(repository.path.parent / 'imported-trails.sqlite3')
     server.map_directory = repository.path.parent / 'maps'
     server.map_lock = threading.Lock()
+    server.terrain_directory = server.map_directory / 'terrain-hgt'
+    server.terrain_lock = threading.Lock()
     server.topo_jobs = TopographicJobs(server.map_directory, server.map_lock)
     server.elevation_lock = threading.Lock()
     server.map_asset_directory = repository.path.parent / 'assets'

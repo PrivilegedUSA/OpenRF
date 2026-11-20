@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.144">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.145">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -18,28 +18,29 @@
   <script defer src="/static/sdr-history.js?v=0.2.76"></script>
   <script defer src="/static/survey_map.js?v=0.2.76"></script>
   <script defer src="/static/navigation.js?v=0.2.76"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.144"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.145"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/map-elevation.js?v=0.2.144"></script>
-  <script defer src="/static/route-elevation.js?v=0.2.144"></script>
-  <script defer src="/static/app.js?v=0.2.144"></script>
-  <script defer src="/static/emergency-tabs.js?v=0.2.144"></script>
-  <script defer src="/static/breadcrumb_follow.js?v=0.2.144"></script>
-  <script defer src="/static/field-breadcrumbs.js?v=0.2.144"></script>
-  <script defer src="/static/offline-trails.js?v=0.2.144"></script>
-  <script defer src="/static/emergency.js?v=0.2.144"></script>
-  <script defer src="/static/emergency-library.js?v=0.2.144"></script>
-  <script defer src="/static/emergency-sos.js?v=0.2.144"></script>
-  <script defer src="/static/emergency-handoff.js?v=0.2.144"></script>
-  <script defer src="/static/emergency-teams.js?v=0.2.144"></script>
-  <script defer src="/static/emergency-checkins.js?v=0.2.144"></script>
-  <script defer src="/static/emergency-inbox.js?v=0.2.144"></script>
-  <script defer src="/static/emergency-protocol.js?v=0.2.144"></script>
-  <script defer src="/static/emergency-dashboard.js?v=0.2.144"></script>
-  <script defer src="/static/emergency-survival.js?v=0.2.144"></script>
-  <script defer src="/static/emergency-backup.js?v=0.2.144"></script>
-  <script defer src="/static/field-calendar.js?v=0.2.144"></script>
+  <script defer src="/static/map-elevation.js?v=0.2.145"></script>
+  <script defer src="/static/battery-status.js?v=0.2.145"></script>
+  <script defer src="/static/route-elevation.js?v=0.2.145"></script>
+  <script defer src="/static/app.js?v=0.2.145"></script>
+  <script defer src="/static/emergency-tabs.js?v=0.2.145"></script>
+  <script defer src="/static/breadcrumb_follow.js?v=0.2.145"></script>
+  <script defer src="/static/field-breadcrumbs.js?v=0.2.145"></script>
+  <script defer src="/static/offline-trails.js?v=0.2.145"></script>
+  <script defer src="/static/emergency.js?v=0.2.145"></script>
+  <script defer src="/static/emergency-library.js?v=0.2.145"></script>
+  <script defer src="/static/emergency-sos.js?v=0.2.145"></script>
+  <script defer src="/static/emergency-handoff.js?v=0.2.145"></script>
+  <script defer src="/static/emergency-teams.js?v=0.2.145"></script>
+  <script defer src="/static/emergency-checkins.js?v=0.2.145"></script>
+  <script defer src="/static/emergency-inbox.js?v=0.2.145"></script>
+  <script defer src="/static/emergency-protocol.js?v=0.2.145"></script>
+  <script defer src="/static/emergency-dashboard.js?v=0.2.145"></script>
+  <script defer src="/static/emergency-survival.js?v=0.2.145"></script>
+  <script defer src="/static/emergency-backup.js?v=0.2.145"></script>
+  <script defer src="/static/field-calendar.js?v=0.2.145"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
   <script defer src="/static/mesh.js?v=0.2.104"></script>
   <script defer src="/static/reticulum.js?v=0.2.104"></script>
@@ -54,7 +55,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.144</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.145</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -94,6 +95,10 @@
             <p id="field-calendar-details" class="muted small" role="status"></p>
             <button type="button" class="btn ghost" id="field-calendar-today">Today</button>
           </div>
+        </div>
+        <div id="device-battery" class="device-battery" data-battery="unavailable" role="status" aria-live="off" title="Battery status unavailable: no Linux battery gauge has been reported.">
+          <span class="device-battery-label">BATTERY</span>
+          <div class="device-battery-reading"><svg viewBox="0 0 24 14" aria-hidden="true"><rect x="1" y="1" width="19" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="21" y="4" width="2" height="6" rx="1" fill="currentColor"/><rect id="device-battery-fill" x="3" y="3" width="0" height="8" rx="1" fill="currentColor"/></svg><strong id="device-battery-value">—</strong></div>
         </div>
         <div id="map-altimeter" class="map-altimeter" role="status" aria-live="off" title="Altitude is unavailable until a fresh GPS fix reports it; altitude reference and vertical uncertainty vary by device.">
           <span class="map-altimeter-label">ALTITUDE</span><strong id="map-altimeter-value">— ft</strong>
@@ -356,7 +361,7 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
 </div></details>
 
 
-<details id="map-directions-review" class="map-directions-review" hidden><summary id="map-directions-summary">Directions · planned road route</summary><div id="map-directions-actions" class="map-directions-actions" role="group" aria-label="Export directions"><button type="button" class="btn outline" id="map-print-directions">Print</button><button type="button" class="btn outline" id="map-save-directions-html">Save HTML</button><button type="button" class="btn outline" id="map-save-directions-json">Save JSON</button></div><div class="map-directions-follow-actions"><button type="button" class="btn primary" id="map-directions-start" disabled>Start navigation</button></div><div class="map-walking-follow-actions" id="map-walking-follow-actions" hidden><button type="button" class="btn primary" id="map-directions-walk-start" disabled>Start walking navigation</button></div><div class="map-directions-body"><p class="small muted" id="map-directions-intro">Tap a turn to avoid its mapped road point for this trip or future trips. Recalculate afterward. Signs and legal access rules take priority; no live traffic feed.</p><details class="route-elevation-panel" id="map-route-elevation"><summary>Route elevation profile</summary><p class="muted small">Estimated ground elevation from USGS 3DEP, not live GPS height. Check a previously prepared profile offline, or explicitly sample your planned route online. Preparation sends up to 13 points along this route to USGS.</p><div class="button-line"><button class="btn outline mini" type="button" id="map-elevation-cached">View saved profile</button><button class="btn primary mini" type="button" id="map-elevation-prepare">Prepare online</button></div><div id="map-route-elevation-chart" class="route-elevation-chart" role="group" aria-label="Terrain profile" hidden></div><p class="muted small" id="map-elevation-status" role="status">No profile requested yet.</p></details><ol id="map-directions-list"></ol><p class="small muted" id="map-directions-note">Saved HTML works offline after downloading. JSON includes route coordinates and should be kept private.</p></div></details>
+<details id="map-directions-review" class="map-directions-review" hidden><summary id="map-directions-summary">Directions · planned road route</summary><div id="map-directions-actions" class="map-directions-actions" role="group" aria-label="Export directions"><button type="button" class="btn outline" id="map-print-directions">Print</button><button type="button" class="btn outline" id="map-save-directions-html">Save HTML</button><button type="button" class="btn outline" id="map-save-directions-json">Save JSON</button></div><div class="map-directions-follow-actions"><button type="button" class="btn primary" id="map-directions-start" disabled>Start navigation</button></div><div class="map-walking-follow-actions" id="map-walking-follow-actions" hidden><button type="button" class="btn primary" id="map-directions-walk-start" disabled>Start walking navigation</button></div><div class="map-directions-body"><p class="small muted" id="map-directions-intro">Tap a turn to avoid its mapped road point for this trip or future trips. Recalculate afterward. Signs and legal access rules take priority; no live traffic feed.</p><details class="route-elevation-panel" id="map-route-elevation"><summary>Route elevation profile</summary><p class="muted small">Estimated ground elevation, not live GPS height. Use a saved USGS profile or imported HGT terrain completely offline. Optional online preparation sends up to 13 route points to USGS only with your confirmation.</p><div class="button-line"><button class="btn outline mini" type="button" id="map-elevation-cached">View offline profile</button><button class="btn primary mini" type="button" id="map-elevation-prepare">Prepare online</button></div><div id="map-route-elevation-chart" class="route-elevation-chart" role="group" aria-label="Terrain profile" hidden></div><p class="muted small" id="map-elevation-status" role="status">No profile requested yet.</p></details><ol id="map-directions-list"></ol><p class="small muted" id="map-directions-note">Saved HTML works offline after downloading. JSON includes route coordinates and should be kept private.</p></div></details>
 <section id="map-route-choices" class="map-route-choices" hidden aria-label="Available road routes">
  <div class="route-choice-head"><strong>Choose a route</strong><button type="button" id="route-choice-close" aria-label="Hide route choices">×</button></div>
  <div class="route-choice-scroll">
@@ -629,6 +634,16 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
               <label class="switchline"><input type="checkbox" id="area-topo-confirm"> I want to download this area from USGS to my device. USGS receives the requested tile coordinates.</label>
               <div class="button-line"><button type="button" id="area-topo-start" class="btn primary" disabled>Download topo region</button><button type="button" id="area-topo-cancel" class="btn outline" disabled>Cancel</button></div>
               <p id="area-topo-status" class="muted small" role="status" aria-live="polite">Select a saved area to prepare offline topography.</p>
+            </div>
+            <div class="area-terrain-import" aria-label="Install local HGT terrain heights">
+              <h3>Offline elevation data for routes <span class="pill">OPTIONAL HGT</span></h3>
+              <p class="muted small">Import a legally obtained, uncompressed SRTM-compatible <code>N38W121.hgt</code> file (1° area, 1- or 3-arc-second grid). Unlike contour-image tiles, HGT has numeric modeled terrain heights for offline route profiles. Data accuracy, vertical datum and source provenance are not verified by OpenRF; missing/void areas show gaps. Files remain private and are never uploaded to USGS.</p>
+              <label>Local terrain .hgt file<input class="field" id="area-hgt-file" type="file" accept=".hgt"></label>
+              <label>Data source / provenance<input class="field" id="area-hgt-source" maxlength="120" placeholder="e.g. NASA SRTM v3 downloaded via Earthdata"></label>
+              <div class="button-line"><button type="button" class="btn outline" id="area-hgt-import">Import offline terrain tile</button><button type="button" class="btn outline" id="area-hgt-refresh">Refresh terrain tiles</button></div>
+              <label>Installed terrain tiles<select class="field" id="area-hgt-installed"><option value="">No HGT tiles installed</option></select></label>
+              <button type="button" class="btn danger-outline" id="area-hgt-remove" disabled>Remove selected terrain tile</button>
+              <p class="muted small" id="area-hgt-status" role="status" aria-live="polite">No terrain data import attempted. Planned routes can still use previously cached USGS elevation profiles.</p>
             </div>
             <h3>Build a smaller map from an installed package</h3>
             <p class="muted small">This copies only tiles already present in a local raster MBTiles source; it never downloads tiles. You must have permission to make derivatives. Sources remain untouched. Missing tiles stay missing.</p>

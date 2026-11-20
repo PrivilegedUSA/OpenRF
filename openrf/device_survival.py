@@ -49,6 +49,18 @@ def _battery(root):
             'warning':'Linux battery readings are uncalibrated kernel reports, not a validated OpenRF battery gauge. Runtime is unknown.'}
 
 
+def power_status(*, power_root=Path('/sys/class/power_supply')):
+    """A lightweight read-only endpoint for the persistent header indicator.
+
+    Compatible future UPS/battery HAT drivers can expose capacity via the
+    Linux power_supply interface. No GPIO writes, control, or guessed runtime.
+    """
+    return {'collected_utc':datetime.now(timezone.utc).isoformat(timespec='seconds'),
+            'read_only':True,'source':'linux-sysfs-power-supply',
+            'battery':_battery(Path(power_root)),
+            'note':'Battery percentage is Linux-reported when available. No battery in WSL is not 0%; device runtime and safe-shutdown support are unknown.'}
+
+
 def report(database_path, *, power_root=Path('/sys/class/power_supply'), disk_usage=shutil.disk_usage):
     path=Path(database_path)
     power=_battery(Path(power_root))

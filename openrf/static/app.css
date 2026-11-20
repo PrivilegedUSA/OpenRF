@@ -2495,12 +2495,32 @@ body:not(.map-workspace) .topbar .menu-toggle{flex-shrink:0}
 .map-altimeter strong{font-size:13px;white-space:nowrap;line-height:1.25}
 .map-altimeter[data-altitude="unavailable"] strong{color:#9ab4bc}
 body:not(.map-workspace) .map-altimeter{display:none!important}
+.device-battery{box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;flex:0 0 auto;min-width:75px;height:44px;min-height:44px;max-height:44px;padding:5px 8px;
+  border:1px solid #315360;border-radius:9px;background:#102b36ee;color:#d7f6f1;
+  font-variant-numeric:tabular-nums;pointer-events:auto}
+.device-battery-label{font-size:8px;font-weight:850;letter-spacing:.8px;color:#8dcaba}
+.device-battery-reading{display:flex;align-items:center;gap:5px;line-height:1.25}
+.device-battery-reading svg{width:22px;height:14px;flex-shrink:0}
+.device-battery-reading strong{font-size:13px;white-space:nowrap}
+.device-battery[data-battery="unavailable"]{color:#8ca7ac}
+.device-battery[data-battery="low"]{color:#f5c674;border-color:#986e3d}
+.device-battery[data-battery="critical"]{color:#ff9690;border-color:#c45a53}
+.device-battery[data-battery="charging"]{color:#42dfbc}
+@media(max-width:480px){.device-battery{min-width:48px;padding:3px 5px}
+  .device-battery-label{display:none}.device-battery-reading{gap:3px}.device-battery-reading svg{width:17px}
+  .device-battery-reading strong{font-size:11px}}
 @media(max-width:480px){body.map-workspace .map-altimeter{min-width:74px;padding:4px 5px}
   body.map-workspace .map-altimeter strong{font-size:12px}}
 .area-topo-download{margin:15px 0;padding:13px;border:1px solid #34606a;border-radius:9px;background:#10303b88}
 .area-topo-download h3{margin:0 0 7px}
 .area-topo-download label:not(.switchline){display:grid;gap:6px;margin:8px 0}
 .area-topo-download .switchline{display:flex;align-items:flex-start;gap:8px;margin:12px 0}
+.area-terrain-import{margin:15px 0;padding:13px;border:1px solid #34606a;border-radius:9px;background:#10303b88}
+.area-terrain-import h3{margin:0 0 7px}
+.area-terrain-import label{display:grid;gap:6px;margin:8px 0;font-size:12px;color:#c9e5e3;font-weight:700}
+.area-terrain-import .button-line{display:flex;gap:8px;flex-wrap:wrap;margin:11px 0}
+.area-terrain-import .button-line .btn{flex:1 1 190px}
 .route-elevation-panel{margin:12px 0;border:1px solid #345a63;border-radius:9px;padding:9px;background:#102b35}
 .route-elevation-panel summary{cursor:pointer;color:#adf4e6;font-weight:800;font-size:12px}
 .route-elevation-panel p{margin:9px 0;line-height:1.5}

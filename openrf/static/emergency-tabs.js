@@ -49,8 +49,9 @@
       <button type="button" data-emergency-open="radio" data-emergency-focus="emergency-handoff-draft">Radio handoff</button>
       <button type="button" data-emergency-open="dashboard" data-emergency-focus="emergency-survival-refresh">Device readiness</button>
     </div>`;
-  if(survival)survival.after(shortcuts);
-  else dash.append(shortcuts);
+  // The dashboard's four one-tap actions must be reachable immediately,
+  // before operations statistics, device checks and longer readiness cards.
+  dash.prepend(shortcuts);
   tabs.after(container);
 
   function activate(key,{focusTab=false}={}){

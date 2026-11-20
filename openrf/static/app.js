@@ -1361,7 +1361,7 @@ function visibleVectorBasemapFeatures(){
   if(!state.map || !state.mapReady)return false;
   try{
     if(state.baseMap==='satellite' || state.baseMap==='topographic')
-      return state.map.isSourceLoaded('openrf-usgs-basemap')===true;
+      return state.mapRasterTileSeen===true || state.map.isSourceLoaded('openrf-usgs-basemap')===true;
     const layers=(state.map.getStyle()?.layers||[])
       .filter(layer=>layer.source==='openmaptiles' && layer.type!=='background')
       .map(layer=>layer.id);
@@ -1387,8 +1387,12 @@ function checkVectorBasemap(attempt,styleUrl){
     return;
   }
   if(state.baseMap==='satellite' || state.baseMap==='topographic'){
-    showVectorBasemapNotice('The USGS '+(state.baseMap==='satellite'?'imagery':'topographic')+
-      ' tiles have not loaded. This layer needs internet access and U.S. coverage. Choose Default to return to OpenRF offline-capable maps.');
+    // isSourceLoaded() is false while *any* raster tile is outstanding, even
+    // when the viewport already contains many usable tiles. Only a real
+    // relevant tile failure with no successfully loaded raster tile can warn.
+    if(state.mapRasterTileFailed && !state.mapRasterTileSeen)
+      showVectorBasemapNotice('USGS '+(state.baseMap==='satellite'?'imagery':'topographic')+
+        ' tile requests failed and no tiles have finished loading yet. Check connectivity or choose Default; the map will recover if tiles arrive.');
     return;
   }
   // The style.load event is not proof that the actual source tiles loaded.
@@ -1469,6 +1473,8 @@ function startMap() {
   state.mapOfflineRecoveryTried=false;
   state.mapBasemapVisible=false;
   state.mapSourceWarningShown=false;
+  state.mapRasterTileSeen=false;
+  state.mapRasterTileFailed=false;
   state.mapRegionalFramePending=state.mapVectorOffline && state.mapVectorPreference==='offline';
   if (!window.maplibregl) { const view = state.preferredView; state.preferredView = null; return startRasterMap('MapLibre JavaScript did not load. The installed regional vector map needs MapLibre/WebGL. Using coordinate fallback.', view); }
   const attempt = ++state.mapAttempt;
@@ -1497,6 +1503,8 @@ function startMap() {
       syncWalkingPathOverlay();
       state.mapBasemapVisible=false;
       state.mapSourceWarningShown=false;
+      state.mapRasterTileSeen=false;
+      state.mapRasterTileFailed=false;
       if(state.mapRegionalFramePending){state.mapRegionalFramePending=false;frameInstalledRegion();}
       installMarkerLayer();
       window.OpenRFCameras?.installVector(state.map);
@@ -1505,6 +1513,19 @@ function startMap() {
       renderAreaOverlay();renderNavigationOverlay();applyNavigationFit();
       const url=openrfMapStyleUrl();
       setTimeout(()=>checkVectorBasemap(attempt,url),9000);
+    });
+    // A raster tile content event is stronger evidence of a working USGS
+    // basemap than MapLibre's all-tiles-finished flag, which also counts
+    // outstanding/offscreen requests during ordinary pans and zooms.
+    state.map.on('sourcedata',event=>{
+      if((state.baseMap!=='satellite' && state.baseMap!=='topographic') ||
+         event.sourceId!=='openrf-usgs-basemap' ||
+         event.sourceDataType!=='content' || !event.coord)return;
+      state.mapRasterTileSeen=true;
+      state.mapBasemapVisible=true;
+      state.mapRasterTileFailed=false;
+      state.mapSourceWarningShown=false;
+      $('map-error').hidden=true;
     });
     state.map.on('idle',()=>{
       if(!state.mapBasemapVisible && visibleVectorBasemapFeatures()){
@@ -1557,6 +1578,13 @@ function startMap() {
       // NOT a WebGL failure, and must never destroy the whole vector renderer.
       const source=String(evt.sourceId||evt.error?.sourceId||'');
       const msg=String(evt.error?.message||evt.error||'');
+      if(state.baseMap==='satellite' || state.baseMap==='topographic'){
+        if(source==='openrf-usgs-basemap' || /basemap\.nationalmap\.gov|USGSTopo|USGSImageryOnly/i.test(msg)){
+          state.mapRasterTileFailed=true;
+          setTimeout(()=>checkVectorBasemap(attempt,openrfMapStyleUrl()),4000);
+        }
+        return;
+      }
       const tileIssue=source==='openmaptiles' ||
         /tiles\.openfreemap\.org|\/api\/vector\/tiles\/|failed to fetch|abort(ed)?/i.test(msg);
       if(!state.mapBasemapVisible && !state.mapSourceWarningShown){
@@ -2374,6 +2402,55 @@ $('area-topo-cancel').addEventListener('click',()=>runAction(async()=>{
   $('area-topo-status').textContent='Cancelling download after the current tile; no incomplete package will be published.';
 }));
 pollTopoDownload().catch(()=>{});
+// Import local numeric terrain explicitly. These .hgt files are never sent to
+// a remote provider; only the loopback OpenRF server receives the file.
+async function refreshTerrainTiles(){
+  const response=await api('/api/terrain/tiles');
+  const tiles=Array.isArray(response.tiles)?response.tiles:[];
+  const select=$('area-hgt-installed'),previous=select.value;
+  select.replaceChildren(new Option('Select an installed terrain tile',''));
+  for(const tile of tiles)
+    select.add(new Option(`${tile.name} · ${tile.resolution_arcseconds} arc-second · ${tile.source}`,tile.name));
+  select.value=tiles.some(tile=>tile.name===previous)?previous:'';
+  $('area-hgt-remove').disabled=!select.value;
+  $('area-hgt-status').textContent=tiles.length?
+    `${tiles.length} locally installed HGT tile(s). Terrain height data is operator supplied and unverified.`:
+    'No local HGT terrain tiles installed. Saved USGS profiles can still be used offline.';
+}
+$('area-hgt-refresh').addEventListener('click',()=>runAction(refreshTerrainTiles));
+$('area-hgt-installed').addEventListener('change',()=>{
+  $('area-hgt-remove').disabled=!$('area-hgt-installed').value;
+});
+$('area-hgt-import').addEventListener('click',()=>runAction(async()=>{
+  const file=$('area-hgt-file').files?.[0],source=$('area-hgt-source').value.trim();
+  if(!file)throw Error('Choose an uncompressed .hgt terrain file first.');
+  if(!/^[NS]\d{2}[EW]\d{3}\.hgt$/i.test(file.name))throw Error('File must be named like N38W121.hgt.');
+  if(![1201*1201*2,3601*3601*2].includes(file.size))throw Error('HGT must contain exactly 1201×1201 or 3601×3601 16-bit heights.');
+  if(source.length<3||source.length>120)throw Error('Enter the terrain dataset source (3–120 characters).');
+  if(!confirm(`Import ${file.name} (${(file.size/1048576).toFixed(1)} MiB) into OpenRF's local private terrain directory? Verify the dataset license and provenance first. No external upload.`))return;
+  const button=$('area-hgt-import');button.disabled=true;
+  $('area-hgt-status').textContent=`Importing ${file.name} locally…`;
+  try{
+    const response=await fetch('/api/terrain/import',{method:'POST',headers:{
+      'Content-Type':'application/octet-stream','X-OpenRF-Terrain-Name':file.name,
+      'X-OpenRF-Terrain-Source':encodeURIComponent(source)},body:file});
+    const result=await response.json();
+    if(!response.ok)throw Error(result.error||`HGT import failed (${response.status})`);
+    await refreshTerrainTiles();
+    $('area-hgt-installed').value=result.tile.name;
+    $('area-hgt-remove').disabled=false;
+    $('area-hgt-status').textContent=`Imported ${result.tile.name} (${result.tile.resolution_arcseconds} arc-second HGT). New routes inside this tile can show offline terrain profiles. Source not independently verified.`;
+    $('area-hgt-file').value='';
+  }finally{button.disabled=false;}
+}));
+$('area-hgt-remove').addEventListener('click',()=>runAction(async()=>{
+  const name=$('area-hgt-installed').value;
+  if(!name)throw Error('Select an installed terrain tile first.');
+  if(!confirm(`Permanently remove local HGT terrain tile ${name}? Previously saved USGS profiles and map image tiles remain.`))return;
+  await api(`/api/terrain/tiles/${encodeURIComponent(name)}`,'DELETE');
+  await refreshTerrainTiles();
+}));
+refreshTerrainTiles().catch(err=>{$('area-hgt-status').textContent=`Terrain inventory unavailable: ${err.message}`;});
 $('area-plan-choose').addEventListener('click',()=>{
   if (!state.map && !state.rasterMap) startMap();
   if (state.navPicking) {state.navPicking=false;syncDestinationPickMode();}
@@ -2904,19 +2981,20 @@ async function loadRouteTerrainProfile(allowOnline){
   if(allowOnline && !confirm('Send 13 sampled locations along this planned route to USGS 3DEP for terrain elevations? This uses internet; the result is cached privately for offline reuse.'))return;
   const status=$('map-elevation-status'),chart=$('map-route-elevation-chart');
   $('map-elevation-cached').disabled=true;$('map-elevation-prepare').disabled=true;
-  status.textContent=allowOnline?'Preparing terrain elevations via USGS (may take a minute)…':'Checking saved terrain profile locally…';
+  status.textContent=allowOnline?'Checking offline terrain first, then USGS if required…':'Checking saved or imported terrain profiles locally…';
   try{
     const response=await api('/api/navigation/elevation-profile','POST',{points,allow_online:allowOnline});
     if(current!==state.navPreview)return;
     const profile=response.profile;
     if(profile.status==='not_prepared'){
       chart.hidden=true;
-      status.textContent='No profile stored for this route. Connect to internet and choose Prepare online if you wish.';
+      status.textContent='No saved or imported terrain heights cover this route. Import a matching HGT tile, or choose Prepare online if you wish.';
       return;
     }
     const range=elevation.draw(chart,profile,Number(current.distance_miles));
     chart.hidden=!range;
-    status.textContent=range?`${profile.status==='cached'?'Saved offline profile':'Profile prepared and saved'} · ${range.minFeet.toLocaleString()}–${range.maxFeet.toLocaleString()} ft terrain elevation · ${profile.available_points}/${profile.sample_points} samples${profile.partial?' (incomplete coverage)':''}. USGS 3DEP modeled terrain; not GPS altitude or a surveyed safety grade.`:'USGS supplied too few usable terrain heights.';
+    const sourceLabel=profile.status==='cached'?'Saved offline USGS profile':profile.status==='local_terrain'?'Imported offline HGT profile (unverified source)':'USGS profile prepared and saved';
+    status.textContent=range?`${sourceLabel} · ${range.minFeet.toLocaleString()}–${range.maxFeet.toLocaleString()} ft terrain elevation · ${profile.available_points}/${profile.sample_points} samples${profile.partial?' (incomplete coverage)':''}. Modeled terrain, not GPS altitude, verified trail clearance or a surveyed safety grade.`:'Too few usable terrain heights to draw a profile.';
   }catch(err){
     if(current===state.navPreview)status.textContent=`Terrain profile unavailable: ${err.message}. This does not affect route directions.`;
   }finally{

@@ -106,7 +106,8 @@ def _write(folder, data):
         stage.unlink(missing_ok=True)
 
 
-def profile(folder: Path, points, allow_online: bool, lock: threading.Lock, fetch=fetch_height):
+def profile(folder: Path, points, allow_online: bool, lock: threading.Lock, fetch=fetch_height,
+            *, terrain_folder: Path | None = None):
     clean = _validated(points)
     if type(allow_online) is not bool:
         raise ElevationError('The online-preparation choice must be true or false')
@@ -117,8 +118,17 @@ def profile(folder: Path, points, allow_online: bool, lock: threading.Lock, fetc
         cache = _read(folder)
         if key in cache:
             return {'status': 'cached', **cache[key]}
+        if terrain_folder is not None:
+            from .terrain_hgt import sample_route
+            heights=sample_route(terrain_folder,clean)
+            available=sum(h is not None for h in heights)
+            if available>=2:
+                return {'status':'local_terrain','elevations_m':heights,
+                        'available_points':available,'sample_points':len(heights),
+                        'partial':available!=len(heights),'source_verified':False,
+                        'source':'Imported SRTM-compatible HGT terrain (operator source unverified; not GPS altitude)'}
         if not allow_online:
-            return {'status': 'not_prepared', 'message': 'No stored elevation profile for this exact sampled route. Prepare while online if desired.'}
+            return {'status': 'not_prepared', 'message': 'No cached profile or locally installed HGT terrain covers this route. Import a compatible HGT tile or prepare online if desired.'}
         samples = []
         for lon, lat in clean:
             try:
