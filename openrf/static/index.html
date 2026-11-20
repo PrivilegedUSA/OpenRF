@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.145">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.146">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -18,29 +18,29 @@
   <script defer src="/static/sdr-history.js?v=0.2.76"></script>
   <script defer src="/static/survey_map.js?v=0.2.76"></script>
   <script defer src="/static/navigation.js?v=0.2.76"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.145"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.146"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/map-elevation.js?v=0.2.145"></script>
-  <script defer src="/static/battery-status.js?v=0.2.145"></script>
-  <script defer src="/static/route-elevation.js?v=0.2.145"></script>
-  <script defer src="/static/app.js?v=0.2.145"></script>
-  <script defer src="/static/emergency-tabs.js?v=0.2.145"></script>
-  <script defer src="/static/breadcrumb_follow.js?v=0.2.145"></script>
-  <script defer src="/static/field-breadcrumbs.js?v=0.2.145"></script>
-  <script defer src="/static/offline-trails.js?v=0.2.145"></script>
-  <script defer src="/static/emergency.js?v=0.2.145"></script>
-  <script defer src="/static/emergency-library.js?v=0.2.145"></script>
-  <script defer src="/static/emergency-sos.js?v=0.2.145"></script>
-  <script defer src="/static/emergency-handoff.js?v=0.2.145"></script>
-  <script defer src="/static/emergency-teams.js?v=0.2.145"></script>
-  <script defer src="/static/emergency-checkins.js?v=0.2.145"></script>
-  <script defer src="/static/emergency-inbox.js?v=0.2.145"></script>
-  <script defer src="/static/emergency-protocol.js?v=0.2.145"></script>
-  <script defer src="/static/emergency-dashboard.js?v=0.2.145"></script>
-  <script defer src="/static/emergency-survival.js?v=0.2.145"></script>
-  <script defer src="/static/emergency-backup.js?v=0.2.145"></script>
-  <script defer src="/static/field-calendar.js?v=0.2.145"></script>
+  <script defer src="/static/map-elevation.js?v=0.2.146"></script>
+  <script defer src="/static/battery-status.js?v=0.2.146"></script>
+  <script defer src="/static/route-elevation.js?v=0.2.146"></script>
+  <script defer src="/static/app.js?v=0.2.146"></script>
+  <script defer src="/static/emergency-tabs.js?v=0.2.146"></script>
+  <script defer src="/static/breadcrumb_follow.js?v=0.2.146"></script>
+  <script defer src="/static/field-breadcrumbs.js?v=0.2.146"></script>
+  <script defer src="/static/offline-trails.js?v=0.2.146"></script>
+  <script defer src="/static/emergency.js?v=0.2.146"></script>
+  <script defer src="/static/emergency-library.js?v=0.2.146"></script>
+  <script defer src="/static/emergency-sos.js?v=0.2.146"></script>
+  <script defer src="/static/emergency-handoff.js?v=0.2.146"></script>
+  <script defer src="/static/emergency-teams.js?v=0.2.146"></script>
+  <script defer src="/static/emergency-checkins.js?v=0.2.146"></script>
+  <script defer src="/static/emergency-inbox.js?v=0.2.146"></script>
+  <script defer src="/static/emergency-protocol.js?v=0.2.146"></script>
+  <script defer src="/static/emergency-dashboard.js?v=0.2.146"></script>
+  <script defer src="/static/emergency-survival.js?v=0.2.146"></script>
+  <script defer src="/static/emergency-backup.js?v=0.2.146"></script>
+  <script defer src="/static/field-calendar.js?v=0.2.146"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
   <script defer src="/static/mesh.js?v=0.2.104"></script>
   <script defer src="/static/reticulum.js?v=0.2.104"></script>
@@ -55,7 +55,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.145</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.146</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -99,9 +99,6 @@
         <div id="device-battery" class="device-battery" data-battery="unavailable" role="status" aria-live="off" title="Battery status unavailable: no Linux battery gauge has been reported.">
           <span class="device-battery-label">BATTERY</span>
           <div class="device-battery-reading"><svg viewBox="0 0 24 14" aria-hidden="true"><rect x="1" y="1" width="19" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="21" y="4" width="2" height="6" rx="1" fill="currentColor"/><rect id="device-battery-fill" x="3" y="3" width="0" height="8" rx="1" fill="currentColor"/></svg><strong id="device-battery-value">—</strong></div>
-        </div>
-        <div id="map-altimeter" class="map-altimeter" role="status" aria-live="off" title="Altitude is unavailable until a fresh GPS fix reports it; altitude reference and vertical uncertainty vary by device.">
-          <span class="map-altimeter-label">ALTITUDE</span><strong id="map-altimeter-value">— ft</strong>
         </div>
         <button type="button" id="header-emergency-shortcut" class="header-emergency-shortcut" data-page="emergency" aria-label="Open Emergency readiness" title="Emergency readiness — opens the page, does not send an SOS"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5 22 20H2L12 2.5Z"/><path d="M12 8.5v5.5"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></svg></button>
         <div class="header-messages-menu" id="header-messages-menu">
@@ -290,6 +287,9 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
       <section class="page active" id="page-map">
         <div class="section-heading map-first-heading"><div><h2>Survey map</h2></div></div>
         <div class="map-wrap"><div id="map"></div><svg id="navigation-preview-overlay" class="navigation-preview-overlay" aria-hidden="true" preserveAspectRatio="none"></svg><div id="navigation-preview-label" class="navigation-preview-label" hidden>DIRECT LINE · NOT A ROAD ROUTE</div>
+        <div id="map-altimeter" class="map-altimeter" role="status" aria-live="off" tabindex="0" title="Altitude is unavailable until a fresh GPS fix reports it; altitude reference and vertical uncertainty vary by device.">
+          <span class="map-altimeter-label">ALTITUDE</span><strong id="map-altimeter-value">— ft</strong>
+        </div>
         <div class="map-destination-panel is-collapsed" id="map-destination-panel">
         <div class="map-search-header"><strong>Destination search</strong><button type="button" id="map-search-toggle" class="map-search-toggle" aria-controls="map-destination-form" aria-expanded="false" aria-label="Open destination search"><span class="map-search-icon" aria-hidden="true">⌕</span><span class="map-search-caption">Where to?</span><span class="map-search-chevron" aria-hidden="true">▾</span></button></div>
         <form id="map-destination-form" class="map-destination-form" hidden autocomplete="off" aria-label="Find a destination and get directions">

@@ -22,7 +22,7 @@ assert(!follow.assessFix(fix(38.101,-120.5,45), 'pedestrian').ok);
 assert(follow.assessFix(fix(38.101,-120.5,45), 'auto').ok);
 assert(!follow.assessFix(fix(38.101,-120.5,9,now-14000),'auto',now).ok);
 assert.match(html,/id="map-breadcrumb-follow-hud"/);
-assert.match(html,/breadcrumb_follow\.js\?v=0\.2\.145/);
+assert.match(html,/breadcrumb_follow\.js\?v=0\.2\.146/);
 assert.match(app,/OpenRFPrepareTrackBacktrack/);
 assert.match(app,/stopFollow\?\./);
 
@@ -83,5 +83,5 @@ function press(id,track){
   assert(el('map-breadcrumb-follow-hud').hidden);
   assert(!window.OpenRFBreadcrumbs.snapshot().following);
   assert(requests.every(item=>item.startsWith('GET ')),'GPS backtrack must never write tracked positions');
-  console.log('PASS v0.2.145 reverse-track GPS quality, distance, off-track and private stop lifecycle');
+  console.log('PASS v0.2.146 reverse-track GPS quality, distance, off-track and private stop lifecycle');
 })().catch(error=>{console.error(error);process.exitCode=1;});

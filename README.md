@@ -1,5 +1,11 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.146 — Map altitude overlay and sensible sidebar close behavior
+
+- **Map altitude moved:** The same GPS-reported **ALTITUDE / feet** badge now floats near the **lower-right map edge**, directly above the bottom-right settings/add/layers controls. It is no longer in the clock/battery/emergency header. The reading and all existing GPS freshness, accuracy and unknown (`— ft`) checks are unchanged; this is **device altitude**, not offline contour terrain height. The badge stays on the map only, with its source/uncertainty tooltip preserved.
+- **Desktop sidebar X removed:** On wide/fine-pointer layouts, including the target **1280×800** 7-inch development layout when using a mouse, the permanent left navigation no longer shows an ineffective close X. At the actual **900px compact breakpoint**, or the existing short/coarse-pointer touchscreen drawer breakpoint, its X remains available to close the drawer. The right-hand map hamburger remains hidden whenever the left sidebar is already visible.
+- No new permissions, network requests, saved data changes, required dependencies or database migration. See [v0.2.146 verification](docs/RELEASE_0.2.146_TESTS.md).
+
 ## v0.2.145 — Reliable map alerts, battery gauge, local terrain and emergency shortcuts
 
 - **Emergency → Dashboard:** Four **Quick access** buttons now appear immediately under the Dashboard/SOS/Radio/Plans/Backup tabs, ahead of the statistics and readiness cards. They open the same local drafts/forms as before; nothing is sent automatically.

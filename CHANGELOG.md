@@ -1,3 +1,9 @@
+## OpenRF v0.2.146 — Map altitude overlay and responsive sidebar close (2026-11-20)
+
+- Moved the one existing, accuracy-guarded GPS ALTITUDE badge out of the map header into the map viewport. It floats above the lower-right settings/add/layers row, clear of the left-side credits and survey legend. Clock, battery and Emergency stay in the header. The existing altitude controller, UTC freshness handling, vertical accuracy, GPS source labels and unknown value behavior remain intact.
+- Hid the sidebar's nonfunctional X when the sidebar is always open, including 1280×800 with a fine pointer. Retained the close button only at the exact CSS/JavaScript compact-drawer breakpoints (≤900px or short 901–1400px coarse-pointer devices). No JavaScript routing or drawer event handlers changed.
+- Added a release-specific layout contract covering badge parent placement, tooltip pointer access, desktop X visibility and compact drawer X preservation. **406 Python tests and 112 JavaScript test scripts passed**, including both syntax checks. No SQLite migration or new external dependency. See `docs/RELEASE_0.2.146_TESTS.md` for test results and limits.
+
 ## OpenRF v0.2.145 — Emergency quick actions, reliable raster status, battery and offline HGT route elevations (2026-11-20)
 
 - Moved the four Emergency Dashboard **Quick access** actions directly below its five tab buttons so SOS, check-in, handoff and device readiness are visible immediately, without scrolling. All original events, focus targets and safe draft-only behavior are retained.
