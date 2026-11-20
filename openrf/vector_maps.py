@@ -19,7 +19,13 @@ ROOT = Path(__file__).resolve().parent / 'resources'
 BUNDLED = ROOT / 'amador-calaveras.mbtiles'
 FONTS = ROOT / 'fonts' / 'Noto Sans Regular'
 BBOX = [-121.25, 37.95, -119.70, 38.95]
-STYLE_NAMES = ('dark', 'light')
+STYLE_NAMES = ('dark', 'light', 'satellite', 'topographic')
+USGS_BASEMAPS = {
+    'satellite': ('USGS Imagery Only', 'USGSImageryOnly',
+                  'Imagery © USGS The National Map · USDA NAIP'),
+    'topographic': ('USGS Topographic', 'USGSTopo',
+                    'Topographic map © USGS The National Map · 3DEP · OpenStreetMap contributors'),
+}
 MAX_TILE_SIZE = 8 * 1024 * 1024
 
 
@@ -68,6 +74,19 @@ def status():
 
 def style(name: str, *, offline=False) -> dict:
     if name not in STYLE_NAMES: raise ValueError('Unknown style')
+    if name in USGS_BASEMAPS:
+        if offline:
+            raise ValueError('Satellite and topographic base maps need internet; select Default for installed offline vectors')
+        title, service, attribution = USGS_BASEMAPS[name]
+        return {'version':8, 'name':f'OpenRF · {title}',
+                'metadata':{'openrf:integrated':True, 'openrf:offline':False,
+                            'openrf:external':'USGS The National Map', 'openrf:basemap':name},
+                'sources':{'openrf-usgs-basemap':{
+                    'type':'raster',
+                    'tiles':[f'https://basemap.nationalmap.gov/arcgis/rest/services/{service}/MapServer/tile/{{z}}/{{y}}/{{x}}'],
+                    'tileSize':256,'attribution':attribution}},
+                'layers':[{'id':'openrf-usgs-raster','type':'raster','source':'openrf-usgs-basemap',
+                           'paint':{'raster-opacity':1}}]}
     with (ROOT / f'openrf-{name}.json').open(encoding='utf-8') as f:
         definition=json.load(f)
     # These placeholders were only for the stand-alone preview. Never duplicate

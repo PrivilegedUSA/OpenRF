@@ -2475,3 +2475,26 @@ body:not(.map-workspace) .topbar .menu-toggle{flex-shrink:0}
 .offline-trail-entry-actions .btn{min-height:36px;padding:6px 10px;white-space:normal}
 @media(max-width:580px){.offline-trail-entry-title{flex-direction:column}
   .offline-trail-entry-actions .btn{flex:1 1 42%}}
+
+/* v0.2.143: compact, touch-friendly base-map selection and live-only altitude. */
+#page-map .map-basemap-picker{display:grid;gap:8px;margin:0 0 14px;padding-bottom:13px;
+  border-bottom:1px solid #2d4a53}
+#page-map .map-basemap-picker>strong{font-size:12px;color:#c9f7ed}
+#page-map .map-basemap-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+#page-map .map-basemap-options label{display:flex;align-items:center;justify-content:center;gap:5px;
+  padding:8px 5px;min-height:45px;min-width:0;border:1px solid #3c6370;border-radius:8px;
+  font-size:11px;font-weight:750;color:#c0d7da;background:#122c35;cursor:pointer;white-space:normal}
+#page-map .map-basemap-options label:has(input:checked){background:#174b50;border-color:#34c9b1;color:#d6fff5}
+#page-map .map-basemap-options label:focus-within{outline:2px solid #8de8da;outline-offset:2px}
+#page-map .map-basemap-options input{flex:0 0 14px;width:14px;height:14px;margin:0;accent-color:#34c9b1}
+#page-map #map-basemap-note{display:block;min-height:29px;font-size:10px;line-height:1.45;color:#9ebac5}
+.map-altimeter{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1px;
+  min-width:86px;min-height:44px;padding:4px 8px;border:1px solid #315360;border-radius:9px;
+  background:#102b36ee;color:#d7f6f1;font-variant-numeric:tabular-nums;pointer-events:none}
+.map-altimeter-label{font-size:8px;font-weight:850;letter-spacing:.9px;color:#8dcaba}
+.map-altimeter strong{font-size:13px;white-space:nowrap;line-height:1.25}
+.map-altimeter small{font-size:9px;color:#9abbbd;white-space:nowrap}
+.map-altimeter[data-altitude="unavailable"] strong{color:#9ab4bc}
+body:not(.map-workspace) .map-altimeter{display:none!important}
+@media(max-width:480px){body.map-workspace .map-altimeter{min-width:74px;padding:4px 5px}
+  body.map-workspace .map-altimeter strong{font-size:12px}}

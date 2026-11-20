@@ -1,5 +1,11 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.143 — Map styles, topography and real GPS altitude
+
+- **Map → Layers → Base map** now offers **Default**, **Satellite**, and **Topographic**. Default retains the existing OpenRF dark/light vectors and optional installed regional offline tiles. Satellite loads USGS Imagery Only aerial tiles; Topographic loads USGS Topo tiles with contour lines and shaded relief. Both USGS styles are optional **online-only** and intended primarily for U.S. coverage; they do not install or cache imagery offline.
+- A small **ALTITUDE** indicator sits between the map clock and the Emergency shortcut. It displays feet from a *fresh, actually reported* browser GPS altitude or opt-in local gpsd 3D fix, including the supplied vertical uncertainty when available. Missing or stale altitude shows **— ft**, never a fabricated value. Mean-sea-level and ellipsoidal height are explicitly distinguished when the receiver tells us which it is; this is not a surveyed ground elevation.
+- Satellite/topographic selections send the **viewed map tile area** to the USGS service, not raw RF findings or GPS logs. Default is always selected on a new app load, preserving the offline-first startup. See [v0.2.143 verification](docs/RELEASE_0.2.143_TESTS.md).
+
 ## v0.2.142 — Emergency tabs stay in place
 
 - **Emergency tab buttons now switch content without automatically scrolling the page to the tab bar.** This applies to Dashboard, SOS & Check-ins, Radio & Messages, Plans & References, and Backup & Data, including keyboard and programmatic tab changes.

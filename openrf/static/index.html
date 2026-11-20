@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.142">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.143">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -18,26 +18,27 @@
   <script defer src="/static/sdr-history.js?v=0.2.76"></script>
   <script defer src="/static/survey_map.js?v=0.2.76"></script>
   <script defer src="/static/navigation.js?v=0.2.76"></script>
-  <script defer src="/static/route_guidance.js?v=0.2.142"></script>
+  <script defer src="/static/route_guidance.js?v=0.2.143"></script>
   <script defer src="/static/navigation_health.js?v=0.2.76"></script>
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
-  <script defer src="/static/app.js?v=0.2.142"></script>
-  <script defer src="/static/emergency-tabs.js?v=0.2.142"></script>
-  <script defer src="/static/breadcrumb_follow.js?v=0.2.142"></script>
-  <script defer src="/static/field-breadcrumbs.js?v=0.2.142"></script>
-  <script defer src="/static/offline-trails.js?v=0.2.142"></script>
-  <script defer src="/static/emergency.js?v=0.2.142"></script>
-  <script defer src="/static/emergency-library.js?v=0.2.142"></script>
-  <script defer src="/static/emergency-sos.js?v=0.2.142"></script>
-  <script defer src="/static/emergency-handoff.js?v=0.2.142"></script>
-  <script defer src="/static/emergency-teams.js?v=0.2.142"></script>
-  <script defer src="/static/emergency-checkins.js?v=0.2.142"></script>
-  <script defer src="/static/emergency-inbox.js?v=0.2.142"></script>
-  <script defer src="/static/emergency-protocol.js?v=0.2.142"></script>
-  <script defer src="/static/emergency-dashboard.js?v=0.2.142"></script>
-  <script defer src="/static/emergency-survival.js?v=0.2.142"></script>
-  <script defer src="/static/emergency-backup.js?v=0.2.142"></script>
-  <script defer src="/static/field-calendar.js?v=0.2.142"></script>
+  <script defer src="/static/map-elevation.js?v=0.2.143"></script>
+  <script defer src="/static/app.js?v=0.2.143"></script>
+  <script defer src="/static/emergency-tabs.js?v=0.2.143"></script>
+  <script defer src="/static/breadcrumb_follow.js?v=0.2.143"></script>
+  <script defer src="/static/field-breadcrumbs.js?v=0.2.143"></script>
+  <script defer src="/static/offline-trails.js?v=0.2.143"></script>
+  <script defer src="/static/emergency.js?v=0.2.143"></script>
+  <script defer src="/static/emergency-library.js?v=0.2.143"></script>
+  <script defer src="/static/emergency-sos.js?v=0.2.143"></script>
+  <script defer src="/static/emergency-handoff.js?v=0.2.143"></script>
+  <script defer src="/static/emergency-teams.js?v=0.2.143"></script>
+  <script defer src="/static/emergency-checkins.js?v=0.2.143"></script>
+  <script defer src="/static/emergency-inbox.js?v=0.2.143"></script>
+  <script defer src="/static/emergency-protocol.js?v=0.2.143"></script>
+  <script defer src="/static/emergency-dashboard.js?v=0.2.143"></script>
+  <script defer src="/static/emergency-survival.js?v=0.2.143"></script>
+  <script defer src="/static/emergency-backup.js?v=0.2.143"></script>
+  <script defer src="/static/field-calendar.js?v=0.2.143"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
   <script defer src="/static/mesh.js?v=0.2.104"></script>
   <script defer src="/static/reticulum.js?v=0.2.104"></script>
@@ -52,7 +53,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.142</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.143</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true">⌖</span><span class="nav-label">Map</span></button>
@@ -92,6 +93,9 @@
             <p id="field-calendar-details" class="muted small" role="status"></p>
             <button type="button" class="btn ghost" id="field-calendar-today">Today</button>
           </div>
+        </div>
+        <div id="map-altimeter" class="map-altimeter" role="status" aria-live="off" title="Altitude is unavailable until a fresh GPS fix reports it; altitude reference and vertical uncertainty vary by device.">
+          <span class="map-altimeter-label">ALTITUDE</span><strong id="map-altimeter-value">— ft</strong><small id="map-altimeter-detail">GPS unavailable</small>
         </div>
         <button type="button" id="header-emergency-shortcut" class="header-emergency-shortcut" data-page="emergency" aria-label="Open Emergency readiness" title="Emergency readiness — opens the page, does not send an SOS"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5 22 20H2L12 2.5Z"/><path d="M12 8.5v5.5"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></svg></button>
         <div class="header-messages-menu" id="header-messages-menu">
@@ -410,6 +414,15 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
           <button type="button" id="map-survey-toggle" class="map-survey-toggle" aria-expanded="false" aria-controls="map-survey-panel" aria-label="Layers and scan" title="Layers and wireless survey"><span class="map-scan-symbol" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2-9 5 9 5 9-5-9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg></span><span id="map-layer-count" class="layer-count" hidden>0</span></button>
           <section id="map-survey-panel" class="map-survey-panel" aria-label="Observation and camera map layers" hidden>
             <div class="map-sheet-head"><div><strong>Map layers</strong><small>Observations and camera locations</small></div><button type="button" class="map-sheet-close" id="map-survey-close" aria-label="Close map layers">×</button></div>
+            <div class="map-basemap-picker" role="group" aria-label="Choose base map">
+              <strong>Base map</strong>
+              <div class="map-basemap-options">
+                <label><input type="radio" name="map-basemap" value="default" checked> Default</label>
+                <label><input type="radio" name="map-basemap" value="satellite"> Satellite</label>
+                <label><input type="radio" name="map-basemap" value="topographic"> Topographic</label>
+              </div>
+              <small id="map-basemap-note" role="status">Default OpenRF map · online worldwide or installed offline region.</small>
+            </div>
             <div class="map-layer-options" role="group" aria-label="Show saved survey categories">
               <label><input type="checkbox" data-map-kind="WIFI" checked> <i class="layer-dot wifi"></i> Wi-Fi</label>
               <label><input type="checkbox" data-map-kind="BLE" checked> <i class="layer-dot ble"></i> BLE</label>
@@ -453,7 +466,7 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
               </details>
               <div id="camera-selected" class="small muted" hidden></div>
             </section>
-            <div class="map-sheet-tools" aria-label="Map controls"><button type="button" class="btn outline" id="map-geolocate-sheet">⌖ My location</button><button type="button" class="btn outline" id="map-style-sheet">Change style</button><button type="button" class="btn outline" id="map-mode-sheet">Offline / online</button><label class="switchline"><input type="checkbox" id="show-demo-map-sheet"> Show DEMO</label></div>
+            <div class="map-sheet-tools" aria-label="Map controls"><button type="button" class="btn outline" id="map-geolocate-sheet">⌖ My location</button><button type="button" class="btn outline" id="map-style-sheet">OpenRF light / dark</button><button type="button" class="btn outline" id="map-mode-sheet">Offline / online</button><label class="switchline"><input type="checkbox" id="show-demo-map-sheet"> Show DEMO</label></div>
             <div class="map-metric-controls" aria-label="Map observation filters">
               <label for="map-metric-mode">Marker colors<select class="field" id="map-metric-mode"><option value="kind">By observation category</option><option value="rssi">Recorded RSSI (dBm)</option><option value="quality">Wi-Fi quality (%)</option></select></label>
               <label for="map-survey-age">Saved records<select class="field" id="map-survey-age"><option value="all">All dates</option><option value="day">Last 24 hours</option><option value="week">Last 7 days</option><option value="month">Last 30 days</option></select></label>

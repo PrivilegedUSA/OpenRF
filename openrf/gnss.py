@@ -61,6 +61,19 @@ def parse_tpv(tpv: dict, *, now: datetime | None = None) -> dict:
         'heading_degrees': _finite(tpv.get('track'), 0, 360),
         'saved': False,
     }
+    # A 2D fix cannot report reliable height. gpsd distinguishes mean-sea-level
+    # altitude (altMSL) from ellipsoidal height (altHAE); never silently mix them.
+    if tpv['mode'] == 3:
+        altitude = _finite(tpv.get('altMSL'), -500, 9000)
+        reference = 'msl'
+        if altitude is None:
+            altitude = _finite(tpv.get('altHAE'), -500, 9000)
+            reference = 'ellipsoid'
+        if altitude is not None:
+            result['altitude_m'] = round(altitude, 2)
+            result['altitude_reference'] = reference
+            vertical_error = _finite(tpv.get('epv'), 0, 10000)
+            result['vertical_accuracy_m'] = round(vertical_error, 2) if vertical_error is not None else None
     result['status'] = 'fix' if accuracy is not None else 'no_accuracy'
     if accuracy is None:
         result['message'] = 'Fix present but the receiver did not report horizontal accuracy; guidance cannot use it.'

@@ -78,5 +78,5 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,20));
   assert.deepEqual(Array.from(calls.at(-1).coords),[-120.5,38.1]);
   assert(el('breadcrumb-status').textContent.includes('New route planned'));
   assert(events.includes('openrf:breadcrumbs-state'));
-  console.log('PASS v0.2.142 driving/walking breadcrumb mode, return-to-start request, map controls and 1280x800 spacing');
+  console.log('PASS v0.2.143 driving/walking breadcrumb mode, return-to-start request, map controls and 1280x800 spacing');
 })().catch(error=>{console.error(error);process.exitCode=1;});

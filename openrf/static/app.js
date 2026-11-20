@@ -28,6 +28,9 @@ state.navPickKind='destination';
 state.navPickedOrigin=null;
 state.mapVectorPreference=rememberedVectorPreference();
 state.mapOfflineRecoveryTried=false;
+// Satellite/topographic imagery is opt-in and online-only; reopening OpenRF
+// always starts on the existing map, which can use installed regional data.
+state.baseMap='default';
 window.OpenRFMapReadOnly = () => state.map;
 document.addEventListener('openrf:checkin-map-requested',()=>showPage('map'));
 state.mapStartupError=null;
@@ -1260,7 +1263,37 @@ function exportComparisonCsv() {
 // map needs no external JavaScript library and never requests OSM public tiles.
 // A user-provided, licensed MBTiles raster basemap is optional.
 function openrfMapStyleUrl() {
+  if(state.baseMap==='satellite' || state.baseMap==='topographic')
+    return `/api/vector/styles/${state.baseMap}.json`;
   return `/api/vector/styles/${state.style === 'light' ? 'light' : 'dark'}.json${state.mapVectorOffline ? '?offline=1' : ''}`;
+}
+function updateBaseMapPicker(){
+  for(const option of document.querySelectorAll('#map-survey-panel input[name="map-basemap"]'))
+    option.checked=option.value===state.baseMap;
+  const note=$('map-basemap-note');
+  if(note)note.textContent=state.baseMap==='satellite'?
+    'USGS aerial imagery · online, U.S. only. Tile requests expose the viewed map area; no GPS logs are uploaded.':
+    state.baseMap==='topographic'?
+    'USGS contours and relief · online, mainly U.S. coverage. Tile requests expose the viewed area; no offline topo pack yet.':
+    state.mapVectorOffline?'Default OpenRF · installed regional vector tiles, available offline.':
+    'Default OpenRF · worldwide online map, auto-selects installed regional maps when available.';
+  updateOfflineAttribution();
+}
+function selectBaseMap(next){
+  if(!['default','satellite','topographic'].includes(next) || next===state.baseMap)return;
+  state.baseMap=next;
+  state.mapBasemapVisible=false;state.mapSourceWarningShown=false;
+  $('map-error').hidden=true;
+  updateBaseMapPicker();
+  if(state.map){
+    state.mapReady=false;
+    state.map.setStyle(openrfMapStyleUrl());
+  }else if(state.rasterMap){
+    state.preferredView={center:[...state.rasterMap.center],zoom:state.rasterMap.zoom};
+    state.rasterMap.stop();state.rasterMap=null;
+    $('map').replaceChildren();$('map').classList.remove('raster-mode','raster-dark');
+    startMap();
+  }
 }
 function regionalVectorReady(){
   return state.vectorStatus?.ready===true && state.vectorStatus?.fonts_ready===true;
@@ -1282,7 +1315,7 @@ function preferLocalVectorsAtBrowserFix(lon,lat){
   $('map-vector-status').textContent=useLocal ?
     'AUTO · using installed regional OpenRF vector tiles near your browser location. Outside the area, local roads are not included.' :
     'AUTO · outside local map coverage; using worldwide online OpenRF vectors when internet is available.';
-  if(state.map){
+  if(state.map && state.baseMap!=='satellite' && state.baseMap!=='topographic'){
     state.mapReady=false;
     try{state.map.setStyle(openrfMapStyleUrl());}
     catch(error){
@@ -1303,7 +1336,7 @@ async function refreshOpenRFVectorMapStatus() {
       `Regional offline vector unavailable: ${s.error || 'Map or glyph resources missing'}. Online OpenRF styles remain selectable.`;
     if (!(s.ready && s.fonts_ready) && state.mapVectorOffline) {
       state.mapVectorOffline=false;
-      if(state.map) state.map.setStyle(openrfMapStyleUrl());
+      if(state.map && state.baseMap!=='satellite' && state.baseMap!=='topographic') state.map.setStyle(openrfMapStyleUrl());
     }
   } catch(err) {$('map-vector-status').textContent=`Map assets status unavailable: ${err.message}`;}
   updateOpenRFVectorButtons();
@@ -1311,6 +1344,7 @@ async function refreshOpenRFVectorMapStatus() {
 function updateOpenRFVectorButtons(){
   $('map-vector-source').textContent=state.mapVectorOffline ? 'Use online vectors' : 'Use offline regional vectors';
   $('map-style').textContent=state.style==='dark' ? 'OpenRF Light' : 'OpenRF Dark';
+  updateBaseMapPicker();
 }
 function showVectorBasemapNotice(message){
   const box=$('map-error');
@@ -1326,6 +1360,8 @@ function showVectorBasemapNotice(message){
 function visibleVectorBasemapFeatures(){
   if(!state.map || !state.mapReady)return false;
   try{
+    if(state.baseMap==='satellite' || state.baseMap==='topographic')
+      return state.map.isSourceLoaded('openrf-usgs-basemap')===true;
     const layers=(state.map.getStyle()?.layers||[])
       .filter(layer=>layer.source==='openmaptiles' && layer.type!=='background')
       .map(layer=>layer.id);
@@ -1350,6 +1386,11 @@ function checkVectorBasemap(attempt,styleUrl){
     $('map-error').hidden=true;
     return;
   }
+  if(state.baseMap==='satellite' || state.baseMap==='topographic'){
+    showVectorBasemapNotice('The USGS '+(state.baseMap==='satellite'?'imagery':'topographic')+
+      ' tiles have not loaded. This layer needs internet access and U.S. coverage. Choose Default to return to OpenRF offline-capable maps.');
+    return;
+  }
   // The style.load event is not proof that the actual source tiles loaded.
   // A failed remote source used to leave a silent, featureless background.
   if(!state.mapVectorOffline && tryOfflineVectorRecovery(attempt,true))return;
@@ -1360,6 +1401,7 @@ function checkVectorBasemap(attempt,styleUrl){
 function tryOfflineVectorRecovery(attempt,allowLoadedStyle=false){
   if(attempt===state.mapAttempt && state.mapOfflineRecoveryTried && state.mapVectorOffline && !state.mapReady)return true;
   if(attempt!==state.mapAttempt || !state.map || (state.mapReady && !allowLoadedStyle) || state.rasterMap ||
+    state.baseMap==='satellite' || state.baseMap==='topographic' ||
     state.mapVectorOffline || state.mapOfflineRecoveryTried || !regionalVectorReady() ||
     state.mapVectorPreference==='online')return false;
   state.mapOfflineRecoveryTried=true;
@@ -1519,7 +1561,8 @@ function startMap() {
         /tiles\.openfreemap\.org|\/api\/vector\/tiles\/|failed to fetch|abort(ed)?/i.test(msg);
       if(!state.mapBasemapVisible && !state.mapSourceWarningShown){
         state.mapSourceWarningShown=true;
-        showVectorBasemapNotice(tileIssue ?
+        showVectorBasemapNotice((state.baseMap==='satellite' || state.baseMap==='topographic') ?
+          'USGS imagery/topographic tile request failed. This optional style is online-only. Select Default in Layers to use OpenRF maps.' : tileIssue ?
           (state.mapVectorOffline ?
             'A regional map tile request did not complete. Keeping the vector map open while the remaining installed tiles load.' :
             'An online map tile request did not complete. Keeping the vector map open; the installed regional map can be tried if needed.') :
@@ -1636,6 +1679,7 @@ function locateMap(manual = false) {
       status.textContent = 'Browser returned invalid coordinates. Map remains available manually.'; return;
     }
     state.browserLocation = {lat, lon, accuracy, capturedAt: Date.now()};
+    globalThis.window?.OpenRFMapElevation?.update(pos);
     preferLocalVectorsAtBrowserFix(lon,lat);
     if (!state.navOriginManual) {
       $('nav-start-lat').value=lat.toFixed(7);
@@ -1823,6 +1867,8 @@ function pixelWorld(x, y, zoom) {
 }
 function startRasterMap(reason, view = null) {
   if (state.rasterMap) return;
+  state.baseMap='default'; // Coordinate fallback cannot display USGS raster sources.
+  updateBaseMapPicker();
   $('map-error').hidden = true;
   const root = $('map');
   root.classList.add('raster-mode');
@@ -2044,14 +2090,19 @@ async function runAction(fn, fallback='Could not complete operation') {
 function updateOfflineAttribution() {
   const local = $('offline-map-attribution');
   const online = $('online-map-credits');
-  const offlineActive = !!state.rasterMap || !!state.mapVectorOffline;
-  const text = state.mapVectorOffline && !state.rasterMap ?
+  const external=!state.rasterMap && (state.baseMap==='satellite' || state.baseMap==='topographic');
+  const offlineActive = !!state.rasterMap || (!!state.mapVectorOffline && !external);
+  const text = external ?
+      state.baseMap==='satellite' ?
+        'USGS Imagery Only: © USGS The National Map · USDA NAIP and other imagery partners. Online U.S. imagery; not an offline package.' :
+        'USGS Topographic: © USGS The National Map · 3DEP · OpenStreetMap contributors. Online terrain, contours and relief; not an offline package.' :
+    state.mapVectorOffline && !state.rasterMap ?
       'Regional OpenRF vector map: © OpenStreetMap contributors · Geofabrik · OpenMapTiles-style schema. Local Amador / Calaveras coverage only.' : state.offlineMap
     ? `Local package: ${state.offlineMap.name}. ${state.offlineMap.attribution || 'Attribution not specified in package; verify source license.'}`
     : 'Offline coordinate grid: no basemap data.';
-  local.hidden = !offlineActive;
+  local.hidden = !(offlineActive || external);
   local.textContent = text;
-  online.hidden = offlineActive;
+  online.hidden = offlineActive || external;
 }
 // Offline map files are operator-supplied and live outside the Git repository.
 // Selecting one never causes internet downloads or saves a GPS position.
@@ -3359,6 +3410,7 @@ async function freshNavigationOrigin() {
     throw Error('New browser position was invalid or stale. Choose From → Change in Where to? to set a starting point.');
   }
   state.browserLocation={lat:latitude,lon:longitude,accuracy,capturedAt:Date.now()};
+  globalThis.window?.OpenRFMapElevation?.update(position);
   updateBrowserLocationMarker();
   return [longitude,latitude];
 }
@@ -4102,6 +4154,7 @@ $('nav-use-location').addEventListener('click',()=>{
     $('nav-start-query').value='';
     $('map-origin-query').value='';
     state.browserLocation={lat:latitude,lon:longitude,accuracy,capturedAt:Date.now()};
+    globalThis.window?.OpenRFMapElevation?.update(pos);
     updateBrowserLocationMarker();
     $('nav-start-lat').value=latitude.toFixed(7);$('nav-start-lon').value=longitude.toFixed(7);
     if(state.navPreview || state.navRouteChoices)resetRouteForNewDestination();
@@ -4465,6 +4518,7 @@ function followWalkingPosition(pos){
   setNavigationSignalState(accuracy<=35?'precise':'approximate',accuracy,recovered);
   state.navFollowLastPosition=pos;
   state.browserLocation={lat,lon,accuracy,capturedAt:Date.now(),source:pos.origin==='gpsd'?'gpsd':'browser',source_device:pos.source_device||null};
+  globalThis.window?.OpenRFMapElevation?.update(pos);
   updateBrowserLocationMarker();
   const precise=accuracy<=35;
   const cameraNote=$('map-follow-camera-note');
@@ -4605,6 +4659,7 @@ function followPosition(pos){
   setNavigationSignalState(accuracy<=75?'precise':'approximate',accuracy,recovered);
   state.navFollowLastPosition=pos; // In-memory only; discarded on Stop.
   state.browserLocation={lat,lon,accuracy,capturedAt:Date.now(),source:pos.origin==='gpsd'?'gpsd':'browser',source_device:pos.source_device||null};
+  globalThis.window?.OpenRFMapElevation?.update(pos);
   updateBrowserLocationMarker();
   const precise=accuracy<=75,usableMap=accuracy<=1000;
   const moving=Number.isFinite(speed)&&speed>1.4;
@@ -4733,7 +4788,9 @@ async function pollLocalNavigationGnss(){
     state.navGnssLast=Date.now();
     followPosition({origin:'gpsd',source_device:fix.source_device,timestamp,coords:{
       latitude:fix.latitude,longitude:fix.longitude,accuracy:fix.accuracy_m,
-      heading:fix.heading_degrees,speed:fix.speed_mps}});
+      heading:fix.heading_degrees,speed:fix.speed_mps,
+      altitude:fix.altitude_m,altitudeAccuracy:fix.vertical_accuracy_m,
+      altitudeReference:fix.altitude_reference}});
   }catch(_err){ /* local gpsd unavailable: browser geolocation remains the fallback */ }
   finally{state.navGnssBusy=false;}
 }
@@ -5062,8 +5119,13 @@ $('field-plan-form').addEventListener('submit',e=>{
   });
 });
 $('show-demo-map').addEventListener('change',e => {state.showDemo = e.target.checked;$('show-demo-map-sheet').checked=e.target.checked;updateMap();renderMapSurveyPanel();});
+for(const option of document.querySelectorAll('#map-survey-panel input[name="map-basemap"]')){
+  option.addEventListener('change',()=>{if(option.checked)selectBaseMap(option.value);});
+}
 $('map-style').addEventListener('click',()=>{
+  state.baseMap='default';
   state.style = state.style==='dark'?'light':'dark';
+  updateBaseMapPicker();
   if (state.map) {state.mapReady=false;state.map.setStyle(openrfMapStyleUrl());}
   if (state.rasterMap) {$('map').classList.toggle('raster-dark',state.style==='dark');}
   $('map-style').textContent=state.style==='dark'?'OpenRF Light':'OpenRF Dark';
@@ -5074,6 +5136,7 @@ $('map-vector-source').addEventListener('click',()=>{
     return;
   }
   state.mapVectorOffline=!state.mapVectorOffline;
+  state.baseMap='default';
   state.mapRegionalFramePending=state.mapVectorOffline;
   state.mapVectorPreference=state.mapVectorOffline?'offline':'online';
   rememberVectorPreference(state.mapVectorPreference);
@@ -5097,7 +5160,7 @@ $('map-style-sheet').addEventListener('click',()=>$('map-style').click());
 $('map-mode-sheet').addEventListener('click',()=>$('map-mode').click());
 $('show-demo-map-sheet').addEventListener('change',e=>{ $('show-demo-map').checked=e.target.checked;$('show-demo-map').dispatchEvent(new Event('change')); });
 $('map-mode').addEventListener('click',()=>{
-  if (!state.rasterMap) {switchToRasterMap('Offline raster/coordinate mode selected.');return;}
+  if (!state.rasterMap) {state.baseMap='default';updateBaseMapPicker();switchToRasterMap('Offline raster/coordinate mode selected.');return;}
   state.preferredView={center:[...state.rasterMap.center],zoom:state.rasterMap.zoom};
   state.rasterMap.stop();
   state.rasterMap=null;

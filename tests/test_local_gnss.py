@@ -35,6 +35,20 @@ class FakeSocket:
 
 
 class GnssParsing(unittest.TestCase):
+    def test_reported_altitudes_require_3d_fix_and_explicit_reference(self):
+        now=datetime(2026,11,12,18,0,tzinfo=UTC)
+        msl=parse_tpv(tpv(now,altMSL=1450.5,altHAE=1476.2,epv=12.4),now=now)
+        self.assertEqual(msl['altitude_m'],1450.5)
+        self.assertEqual(msl['altitude_reference'],'msl')
+        self.assertEqual(msl['vertical_accuracy_m'],12.4)
+        ellipsoid=parse_tpv(tpv(now,altHAE=1476.2),now=now)
+        self.assertEqual(ellipsoid['altitude_reference'],'ellipsoid')
+        self.assertEqual(ellipsoid['altitude_m'],1476.2)
+        self.assertIsNone(ellipsoid['vertical_accuracy_m'])
+        for reading in (tpv(now,mode=2,altMSL=1450.5),tpv(now,altMSL=float('nan')),
+                        tpv(now,altMSL=99999)):
+            self.assertNotIn('altitude_m',parse_tpv(reading,now=now))
+
     def test_valid_gnss_fix_preserves_source_utc_age_units_and_accuracy(self):
         now = datetime(2026,11,12,18,0,tzinfo=UTC)
         result = parse_tpv(tpv(now, time=(now-timedelta(seconds=2)).isoformat()),now=now)

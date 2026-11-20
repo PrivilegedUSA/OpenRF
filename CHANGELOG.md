@@ -1,3 +1,9 @@
+## OpenRF v0.2.143 — Selectable satellite/topographic maps and GPS altitude (2026-11-20)
+
+- Added a three-way base-map picker at the top of the existing Map → Layers sheet: **Default** (existing offline-aware OpenRF vector style), **Satellite** (USGS The National Map Imagery Only) and **Topographic** (USGS Topo with contours/relief). Only explicit satellite/topographic selection contacts USGS; these layers are online U.S.-focused and do not silently become offline packages. Returning to Default restores the existing light/dark palette and selected offline-vector preference. Satellite/topographic map sources and attribution use narrowly approved service URLs and CSP permissions.
+- Added a compact map-header **ALTITUDE** status between the clock and Emergency shortcut. Shows feet from fresh browser-reported altitude, a local gpsd 3D fix while already following a route, or the existing opt-in GPS track recorder. The interface distinguishes reported MSL versus ellipsoid references and shows receiver-provided vertical uncertainty; unknown and stale readings display **— ft**. It does not infer height from coordinates, download a terrain model, or request additional GPS permissions.
+- Preserved privacy: no automatic external imagery requests, tile requests reveal only the viewed map region, and no GPS/RF records are sent to the USGS service. The default installed regional vector map remains available offline. Added backend MapLibre style/HTTP tests, GNSS altitude-source tests, frontend style-choice and stale-altitude tests. **389 Python tests and 109 JavaScript test scripts passed.** See `docs/RELEASE_0.2.143_TESTS.md`.
+
 ## OpenRF v0.2.142 — Emergency tab switching without viewport jumps (2026-11-19)
 
 - Removed an unconditional `scrollIntoView` call from Emergency tab activation. Changing among Dashboard, SOS & Check-ins, Radio & Messages, Plans & References, and Backup & Data no longer deliberately moves the document to the tab row.

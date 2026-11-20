@@ -15,6 +15,23 @@ from openrf.storage import Repository
 
 
 class VectorMapResources(unittest.TestCase):
+    def test_usgs_online_basemaps_are_explicit_raster_styles(self):
+        services={'satellite':'USGSImageryOnly','topographic':'USGSTopo'}
+        for choice,service in services.items():
+            with self.subTest(choice=choice):
+                definition=vector_maps.style(choice)
+                self.assertEqual(definition['version'],8)
+                self.assertEqual(definition['metadata']['openrf:basemap'],choice)
+                self.assertFalse(definition['metadata']['openrf:offline'])
+                source=definition['sources']['openrf-usgs-basemap']
+                self.assertEqual(source['type'],'raster')
+                self.assertEqual(source['tileSize'],256)
+                self.assertEqual(source['tiles'],[
+                    f'https://basemap.nationalmap.gov/arcgis/rest/services/{service}/MapServer/tile/{{z}}/{{y}}/{{x}}'])
+                self.assertIn('USGS',source['attribution'])
+                self.assertEqual(definition['layers'][0]['type'],'raster')
+                with self.assertRaises(ValueError):vector_maps.style(choice,offline=True)
+
     def test_approved_styles_exist_and_are_not_rewritten(self):
         for name in ('dark','light'):
             original=json.loads((vector_maps.ROOT/f'openrf-{name}.json').read_text())
@@ -73,6 +90,18 @@ class VectorHttpTests(unittest.TestCase):
         response=conn.getresponse();body=response.read()
         result=(response.status,body,dict(response.getheaders()))
         conn.close();return result
+
+    def test_optional_usgs_styles_and_browser_permissions(self):
+        for name in ('satellite','topographic'):
+            code,body,headers=self.get(f'/api/vector/styles/{name}.json')
+            self.assertEqual(code,200)
+            self.assertEqual(json.loads(body)['metadata']['openrf:basemap'],name)
+            self.assertIn('https://basemap.nationalmap.gov',headers['Content-Security-Policy'])
+            self.assertEqual(self.get(f'/api/vector/styles/{name}.json?offline=1')[0],503)
+        self.assertEqual(self.get('/api/vector/styles/other.json')[0],404)
+        code,script,_=self.get('/static/map-elevation.js?v=0.2.143')
+        self.assertEqual(code,200)
+        self.assertIn(b'OpenRFMapElevation',script)
 
     def test_offline_status_styles_glyphs_tiles_and_security(self):
         status,raw,_=self.get('/api/vector/status')

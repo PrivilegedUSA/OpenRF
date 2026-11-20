@@ -127,6 +127,7 @@
     let payload;
     try { payload = validPosition(position); }
     catch(error) { status(`Position skipped: ${errorMessage(error)}. Track remains on.`); return; }
+    window.OpenRFMapElevation?.update(position);
     const id = recordingId;
     uploadBusy = true;
     try {
@@ -157,6 +158,7 @@
       const firstFix = await new Promise((resolve,reject) => navigator.geolocation.getCurrentPosition(resolve,reject,
         {enableHighAccuracy:true,maximumAge:0,timeout:16000}));
       const first = validPosition(firstFix);
+      window.OpenRFMapElevation?.update(firstFix);
       if (document.hidden || !guard()) throw Error('Recording canceled; navigation stopped or tab hidden');
       const started = await api(endpoint,'POST',{label,travel_mode:mode});
       const id = started.session.id;
@@ -283,6 +285,7 @@
       hud.classList.add('is-offtrack');return;
     }
     liveFix=quality;
+    window.OpenRFMapElevation?.update(position);
     const match=helper.closest(followGeometry.points,quality);
     const threshold=helper.threshold(followMode,quality.accuracy_m);
     const off=match.offtrack_m>threshold;
