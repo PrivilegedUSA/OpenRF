@@ -11,7 +11,7 @@ const retic=fs.readFileSync('openrf/static/reticulum.js','utf8');
 const css=fs.readFileSync('openrf/static/app.css','utf8');
 
 const nav=html.match(/<nav class="nav">([\s\S]*?)<\/nav>/)?.[1]||'';
-assert(nav.indexOf('data-page="map"')>=0 && nav.indexOf('data-page="map"')<nav.indexOf('data-page="overview"'));
+assert(nav.indexOf('data-page="overview"')>=0 && nav.indexOf('data-page="overview"')<nav.indexOf('data-page="map"'));
 assert(html.includes('<section class="page active" id="page-map"'));
 assert(html.includes('<section class="page" id="page-overview"'));
 assert(html.includes('id="mesh-header-button" aria-label="Choose message inbox"'));

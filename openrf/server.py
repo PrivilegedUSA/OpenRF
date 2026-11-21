@@ -152,7 +152,7 @@ class Handler(BaseHTTPRequestHandler):
             max_size = 180000  # One Base64-encoded 128 KiB LXMF attachment.
         if request_path == '/api/reticulum/files/send':
             max_size = 2850000  # Explicit Base64-encoded 2 MiB Resource transfer.
-        if request_path == '/api/weather/import/csv':
+        if request_path in ('/api/weather/import/csv', '/api/weather/import/weewx'):
             max_size = 190000  # At most 160 kB UTF-8 text plus JSON escaping.
         if request_path == '/api/bluetooth/send':
             max_size = 2850000  # Explicit Base64-encoded 2 MiB Classic RFCOMM file.
@@ -423,7 +423,7 @@ class Handler(BaseHTTPRequestHandler):
                 limit = int(params.get('limit', ['500'])[0])
                 return self._json(200, {'station_id': station_id, 'days': days,
                                         'readings': self.server.weather_store.readings(station_id, days, limit),
-                                        'units': 'SI', 'data_origin': 'MANUAL_OR_IMPORTED_HISTORICAL'})
+                                        'units': 'SI', 'data_origin': 'SOURCE_TAGGED_LOCAL_WEATHER_ARCHIVE'})
             except (ValueError, WeatherError) as exc:
                 return self._error(400, str(exc))
         if path == '/api/maps/areas':
@@ -903,6 +903,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(201, {'reading': self.server.weather_store.add_manual(body)})
             if path == '/api/weather/import/csv':
                 return self._json(201, self.server.weather_store.import_csv(body))
+            if path == '/api/weather/import/weewx':
+                return self._json(201, self.server.weather_store.import_weewx_csv(body))
+            if path == '/api/weather/ecowitt/read':
+                receipt = self.server.weather_store.read_ecowitt(body)
+                return self._json(201 if receipt['saved'] else 200, {'reading': receipt})
             if not isinstance(body, dict):
                 raise ValueError('Expected a JSON object')
             if path in ('/api/network/wifi/scan', '/api/network/wifi/connect'):

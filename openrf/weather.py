@@ -1,8 +1,7 @@
-"""Local-first weather archive. No hardware is probed and no readings are inferred.
+"""Local-first weather archive and explicitly requested local gateway snapshots.
 
-v0.2.169 supports operator-entered records and explicitly selected historical
-CSV imports. Future hardware adapters can supply independently verified samples
-through a separate trusted ingestion path, not by spoofing the browser API.
+No weather device is probed on startup and no background collection occurs.
+Ecowitt LAN values are gateway-*reported*, not hardware-verified.
 """
 from __future__ import annotations
 
@@ -14,6 +13,8 @@ import threading
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+from .weather_ecowitt import EcowittError, fetch_livedata, private_gateway_ip
 
 
 FIELDS = {
@@ -116,7 +117,8 @@ class WeatherStore:
                     station_id INTEGER NOT NULL REFERENCES weather_stations(id),
                     observed_at_utc TEXT NOT NULL,
                     recorded_at_utc TEXT NOT NULL,
-                    source_kind TEXT NOT NULL CHECK(source_kind IN ('MANUAL', 'IMPORTED_HISTORICAL')),
+                    source_kind TEXT NOT NULL CHECK(source_kind IN ('MANUAL', 'IMPORTED_HISTORICAL', 'ECOWITT_GATEWAY_REPORTED')),
+                    source_device TEXT NOT NULL DEFAULT '',
                     temperature_c REAL,
                     humidity_pct REAL,
                     pressure_hpa REAL,
@@ -131,6 +133,34 @@ class WeatherStore:
                 CREATE INDEX IF NOT EXISTS idx_weather_station_time
                     ON weather_readings(station_id, observed_at_utc DESC, id DESC);
             ''')
+            old_sql = db.execute("SELECT sql FROM sqlite_master WHERE name='weather_readings' AND type='table'").fetchone()[0]
+            if 'ECOWITT_GATEWAY_REPORTED' not in old_sql:
+                # Preserve every existing record when broadening the CHECK constraint.
+                # This upgrade is transactional and does not touch other OpenRF tables.
+                db.execute('''CREATE TABLE weather_readings_v170 (
+                    id INTEGER PRIMARY KEY,
+                    station_id INTEGER NOT NULL REFERENCES weather_stations(id),
+                    observed_at_utc TEXT NOT NULL, recorded_at_utc TEXT NOT NULL,
+                    source_kind TEXT NOT NULL CHECK(source_kind IN
+                        ('MANUAL', 'IMPORTED_HISTORICAL', 'ECOWITT_GATEWAY_REPORTED')),
+                    source_device TEXT NOT NULL DEFAULT '',
+                    temperature_c REAL, humidity_pct REAL, pressure_hpa REAL,
+                    wind_speed_mps REAL, wind_gust_mps REAL, wind_direction_deg REAL,
+                    rain_interval_mm REAL, uv_index REAL, solar_wm2 REAL,
+                    UNIQUE(station_id, observed_at_utc, source_kind)
+                )''')
+                db.execute('''INSERT INTO weather_readings_v170
+                    (id,station_id,observed_at_utc,recorded_at_utc,source_kind,
+                     temperature_c,humidity_pct,pressure_hpa,wind_speed_mps,
+                     wind_gust_mps,wind_direction_deg,rain_interval_mm,uv_index,solar_wm2)
+                    SELECT id,station_id,observed_at_utc,recorded_at_utc,source_kind,
+                     temperature_c,humidity_pct,pressure_hpa,wind_speed_mps,
+                     wind_gust_mps,wind_direction_deg,rain_interval_mm,uv_index,solar_wm2
+                    FROM weather_readings''')
+                db.execute('DROP TABLE weather_readings')
+                db.execute('ALTER TABLE weather_readings_v170 RENAME TO weather_readings')
+                db.execute('''CREATE INDEX idx_weather_station_time
+                    ON weather_readings(station_id, observed_at_utc DESC, id DESC)''')
 
     @staticmethod
     def _station_id(value):
@@ -173,15 +203,16 @@ class WeatherStore:
             total = db.execute('SELECT COUNT(*) FROM weather_readings').fetchone()[0]
         return {'stations': self.stations(), 'reading_count': total,
                 'automatic_collection': False, 'connected_devices': 0,
-                'implemented_inputs': ['MANUAL', 'IMPORTED_HISTORICAL'],
-                'future_adapters': ['Ecowitt local gateway', 'WeeWX local archive',
+                'implemented_inputs': ['MANUAL', 'IMPORTED_HISTORICAL', 'ECOWITT_ON_DEMAND_LAN'],
+                'on_demand_adapters': ['Ecowitt local HTTP (manual action only)'],
+                'future_adapters': ['WeeWX local archive',
                                     'rtl_433 receiver', 'USB serial sensor'],
                 'hardware_status': 'NOT_CONFIGURED',
-                'message': 'No weather receivers are started or probed by OpenRF.'}
+                'message': 'No receivers are started, discovered or polled by OpenRF on its own.'}
 
-    def _insert(self, db, station_id, at, source, values, recorded_at):
-        keys = ('station_id', 'observed_at_utc', 'recorded_at_utc', 'source_kind', *FIELDS)
-        payload = (station_id, at, recorded_at, source, *(values[key] for key in FIELDS))
+    def _insert(self, db, station_id, at, source, values, recorded_at, source_device=''):
+        keys = ('station_id', 'observed_at_utc', 'recorded_at_utc', 'source_kind', 'source_device', *FIELDS)
+        payload = (station_id, at, recorded_at, source, source_device, *(values[key] for key in FIELDS))
         cursor = db.execute('INSERT OR IGNORE INTO weather_readings (' + ','.join(keys) +
                             ') VALUES (' + ','.join('?' for _ in keys) + ')', payload)
         return cursor.rowcount == 1
@@ -201,6 +232,36 @@ class WeatherStore:
         return {'station_id': station_id, 'observed_at_utc': at, 'recorded_at_utc': now,
                 'source_kind': 'MANUAL', **values}
 
+    def read_ecowitt(self, body):
+        """Only an explicit operator request can fetch, and optionally save, a reading."""
+        if not isinstance(body, dict) or set(body) != {'station_id', 'gateway_ip', 'save'}:
+            raise WeatherError('Choose station_id, private-LAN gateway_ip and save (true/false).')
+        station_id = self._station_id(body['station_id'])
+        if not isinstance(body['save'], bool):
+            raise WeatherError('Save choice must be true or false.')
+        try:
+            ip = private_gateway_ip(body['gateway_ip'])
+        except EcowittError as exc:
+            raise WeatherError(str(exc)) from exc
+        with self._connect() as db:
+            self._exists(db, station_id)
+        try:
+            values = normalize_measurements(fetch_livedata(ip))
+        except EcowittError as exc:
+            raise WeatherError(str(exc)) from exc
+        at = utc_now()  # Receipt timestamp, NOT an inferred device observation timestamp.
+        result = {'station_id': station_id, 'observed_at_utc': at, 'recorded_at_utc': at,
+                  'timestamp_basis': 'OPENRF_RECEIVED_AT_UTC',
+                  'source_kind': 'ECOWITT_GATEWAY_REPORTED', 'source_device': ip,
+                  'hardware_verified': False, 'saved': False, **values}
+        if body['save']:
+            with self._connect() as db:
+                self._exists(db, station_id)
+                if not self._insert(db, station_id, at, result['source_kind'], values, at, ip):
+                    raise WeatherError('A gateway reading was already saved at this UTC second. Try again shortly.')
+            result['saved'] = True
+        return result
+
     def import_csv(self, body):
         if not isinstance(body, dict) or set(body) != {'station_id', 'csv_text'}:
             raise WeatherError('CSV import requires station_id and csv_text only.')
@@ -211,7 +272,7 @@ class WeatherStore:
         try:
             rows = csv.DictReader(io.StringIO(raw.lstrip('\ufeff'), newline=''), strict=True)
             headers = rows.fieldnames
-            if not headers or len(headers) != len(set(headers)) or 'observed_at_utc' not in headers or set(headers) - (set(CSV_FIELDS) | {'station_id', 'source_kind'}):
+            if not headers or len(headers) != len(set(headers)) or 'observed_at_utc' not in headers or set(headers) - (set(CSV_FIELDS) | {'station_id', 'source_kind', 'source_device'}):
                 raise WeatherError('CSV needs observed_at_utc and only the supported measurement headers.')
             if not set(headers).intersection(FIELDS):
                 raise WeatherError('CSV must include at least one measurement column.')
@@ -236,6 +297,89 @@ class WeatherStore:
         return {'station_id': station_id, 'imported': imported,
                 'duplicates': len(prepared) - imported, 'total_rows': len(prepared),
                 'source_kind': 'IMPORTED_HISTORICAL'}
+
+    def import_weewx_csv(self, body):
+        """Import user-selected WeeWX archive CSV, converting each row's usUnits.
+
+        WeeWX systems: US=1, METRIC=16, METRICWX=17. `rain` is the
+        archive *interval* amount; `rainRate` and cumulative totals are ignored.
+        No WeeWX service or device is contacted by this import.
+        """
+        if not isinstance(body, dict) or set(body) != {'station_id', 'csv_text'}:
+            raise WeatherError('WeeWX import requires station_id and csv_text only.')
+        station_id = self._station_id(body['station_id'])
+        raw = body['csv_text']
+        if not isinstance(raw, str) or len(raw.encode('utf-8')) > MAX_IMPORT_BYTES:
+            raise WeatherError('WeeWX CSV must be UTF-8 text at most 160 kB.')
+        mapping = {'outTemp': 'temperature_c', 'outHumidity': 'humidity_pct',
+                   'barometer': 'pressure_hpa', 'windSpeed': 'wind_speed_mps',
+                   'windGust': 'wind_gust_mps', 'windDir': 'wind_direction_deg',
+                   'rain': 'rain_interval_mm', 'UV': 'uv_index', 'radiation': 'solar_wm2'}
+        try:
+            reader = csv.DictReader(io.StringIO(raw.lstrip('\ufeff'), newline=''), strict=True)
+            headers = reader.fieldnames
+            if (not headers or len(headers) != len(set(headers)) or len(headers) > 80
+                    or any(not key or len(key) > 64 for key in headers)
+                    or not {'dateTime', 'usUnits'} <= set(headers)
+                    or not set(mapping).intersection(headers)):
+                raise WeatherError('WeeWX CSV needs dateTime, usUnits and an archive measurement column.')
+            prepared = []
+            for row in reader:
+                if len(prepared) >= MAX_IMPORT_ROWS:
+                    raise WeatherError('Import at most 500 WeeWX rows per file.')
+                if None in row or any(value is None for value in row.values()):
+                    raise WeatherError('WeeWX CSV has missing or extra columns.')
+                try:
+                    unit_code = int(row['usUnits'])
+                    if unit_code not in (1, 16, 17) or str(unit_code) != row['usUnits']:
+                        raise ValueError('unit')
+                    epoch = int(row['dateTime'])
+                    if str(epoch) != row['dateTime']:
+                        raise ValueError('epoch')
+                    observed = datetime.fromtimestamp(epoch, tz=timezone.utc).isoformat()
+                except (ValueError, OverflowError, OSError) as exc:
+                    raise WeatherError('WeeWX dateTime must be Unix seconds and usUnits 1, 16 or 17.') from exc
+                at = normalize_time(observed)
+                converted = {}
+                for column, field in mapping.items():
+                    value = row.get(column, '').strip()
+                    if not value:
+                        continue
+                    if value.lower() in ('none', 'null', 'nan'):
+                        continue  # WeeWX missing sensor value, never a measured zero.
+                    try:
+                        number = float(value)
+                    except ValueError as exc:
+                        raise WeatherError('Invalid WeeWX numeric value in ' + column) from exc
+                    if unit_code == 1:
+                        if column == 'outTemp':
+                            number = (number - 32) * 5 / 9
+                        elif column in ('windSpeed', 'windGust'):
+                            number /= 2.2369362921
+                        elif column == 'barometer':
+                            number *= 33.8638866667
+                        elif column == 'rain':
+                            number *= 25.4
+                    elif unit_code == 16:
+                        if column in ('windSpeed', 'windGust'):
+                            number /= 3.6
+                        elif column == 'rain':
+                            number *= 10  # METRIC rain is in cm, not mm.
+                    converted[field] = number
+                prepared.append((at, normalize_measurements(converted)))
+        except (csv.Error, UnicodeError) as exc:
+            raise WeatherError('Invalid WeeWX CSV format.') from exc
+        if not prepared:
+            raise WeatherError('WeeWX CSV contains no usable observations.')
+        now, imported = utc_now(), 0
+        with self._connect() as db:
+            self._exists(db, station_id)
+            for at, values in prepared:
+                imported += self._insert(db, station_id, at, 'IMPORTED_HISTORICAL', values,
+                                         now, 'WeeWX archive CSV')
+        return {'station_id': station_id, 'imported': imported,
+                'duplicates': len(prepared) - imported, 'total_rows': len(prepared),
+                'source_kind': 'IMPORTED_HISTORICAL', 'source_device': 'WeeWX archive CSV'}
 
     def readings(self, station_id, days=7, limit=500):
         station_id = self._station_id(station_id)
@@ -264,8 +408,8 @@ class WeatherStore:
                               (station_id, MAX_EXPORT_ROWS)).fetchall()
         buffer = io.StringIO(newline='')
         writer = csv.writer(buffer, lineterminator='\r\n')
-        writer.writerow(('station_id', 'source_kind', *CSV_FIELDS))
+        writer.writerow(('station_id', 'source_kind', 'source_device', *CSV_FIELDS))
         for row in reversed(rows):
-            writer.writerow((station_id, row['source_kind'], row['observed_at_utc'],
+            writer.writerow((station_id, row['source_kind'], row['source_device'], row['observed_at_utc'],
                              *(row[key] if row[key] is not None else '' for key in FIELDS)))
         return buffer.getvalue().encode('utf-8')

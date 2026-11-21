@@ -1,4 +1,4 @@
-/* OpenRF v0.2.169 — offline weather archive; no sensor discovery or automatic I/O. */
+/* OpenRF v0.2.170 — offline weather archive, explicit Ecowitt LAN reads only. */
 (() => {
   'use strict';
   const el = id => document.getElementById(id);
@@ -68,7 +68,7 @@
     return option;
   }
   function syncSelectors(force=false) {
-    const ids=['weather-dashboard-station','weather-manual-station','weather-import-station','weather-history-station'];
+    const ids=['weather-dashboard-station','weather-manual-station','weather-import-station','weather-weewx-station','weather-history-station','weather-gateway-station'];
     for (const id of ids) {
       const select=el(id), prior=select.value;
       select.replaceChildren(option('','Select a station'));
@@ -140,7 +140,7 @@
     el('weather-station-count').textContent=String(state.stations.length);
     el('weather-reading-count').textContent=String(result.reading_count||0);
     el('weather-hardware-badge').textContent='NO LIVE SENSOR';
-    el('weather-dashboard-status').textContent='No physical weather receiver is configured. All values below are saved, explicitly entered or imported history—never an automatic live scan.';
+    el('weather-dashboard-status').textContent='No physical weather receiver is configured. Values below are saved records, including optional user-requested gateway snapshots—not an automatic live scan.';
     syncSelectors();renderStationList();await renderOverview();
     if(state.active==='history')await loadHistory();
   }
@@ -148,6 +148,37 @@
   el('weather-open-sensors').addEventListener('click',()=>setTab('sensors'));
   el('weather-dashboard-station').addEventListener('change',e=>setStation(e.target.value));
   el('weather-history-station').addEventListener('change',e=>setStation(e.target.value));
+
+  let readingGateway=false;
+  async function readGateway(save) {
+    if(readingGateway)return;
+    const ip=el('weather-gateway-ip').value.trim(),stationId=Number(el('weather-gateway-station').value);
+    const message=el('weather-gateway-status'),preview=el('weather-gateway-preview');
+    if(!stationId||!ip){message.textContent='Select a saved station and enter its gateway IPv4 address first.';return;}
+    readingGateway=true;
+    el('weather-gateway-test').disabled=true;el('weather-gateway-save').disabled=true;
+    preview.hidden=true;preview.textContent='';message.textContent=`Requesting one local Ecowitt read from ${ip}…`;
+    try{
+      const result=await request('/api/weather/ecowitt/read',{station_id:stationId,gateway_ip:ip,save});
+      const reading=result.reading;
+      const summary=[
+        ['Temperature',reading.temperature_c,toF,'°F'],
+        ['Humidity',reading.humidity_pct,v=>v,'%'],
+        ['Wind',reading.wind_speed_mps,toMph,'mph'],
+        ['Gust',reading.wind_gust_mps,toMph,'mph'],
+        ['Pressure',reading.pressure_hpa,v=>v,'hPa'],
+        ['UV index',reading.uv_index,v=>v,''],
+      ].filter(([,value])=>value!==null&&value!==undefined)
+        .map(([label,value,convert,unit])=>`${label}: ${format(convert(value),1,unit?' '+unit:'')}`);
+      preview.textContent=`GATEWAY REPORTED · NOT HARDWARE VERIFIED · ${ip}\nOpenRF received at ${stamp(reading.observed_at_utc)} UTC\n${summary.join(' · ')}\n${save?'Saved to local history.':'Preview only — not saved.'}`;
+      preview.hidden=false;
+      message.textContent=save?'Saved one Ecowitt gateway-reported reading to local history. No ongoing connection or polling.':'Read one gateway response for preview. Nothing was saved or scheduled.';
+      if(save){await refresh();setStation(stationId);}
+    }catch(error){message.textContent=error.message;}
+    finally{readingGateway=false;el('weather-gateway-test').disabled=false;el('weather-gateway-save').disabled=false;}
+  }
+  el('weather-gateway-test').addEventListener('click',()=>readGateway(false));
+  el('weather-gateway-save').addEventListener('click',()=>readGateway(true));
 
   el('weather-add-station').addEventListener('submit',async event=>{
     event.preventDefault();
@@ -196,6 +227,18 @@
       const outcome=await request('/api/weather/import/csv',{station_id:stationId,csv_text:text});
       form.reset();await refresh();setStation(stationId);
       status(`Imported ${outcome.imported} HISTORICAL rows (${outcome.duplicates} duplicate rows skipped). No live sensor connection was made.`);
+    }catch(error){status(error.message,true);}finally{button.disabled=false;}
+  });
+  el('weather-weewx-form').addEventListener('submit',async event=>{
+    event.preventDefault();
+    const stationId=Number(el('weather-weewx-station').value),file=el('weather-weewx-file').files?.[0];
+    if(!stationId||!file){status('Select a local station and a WeeWX archive CSV file.',true);return;}
+    if(file.size>160000){status('WeeWX CSV must be at most 160 kB.',true);return;}
+    const form=event.currentTarget,button=form.querySelector('button[type="submit"]');button.disabled=true;
+    try{
+      const result=await request('/api/weather/import/weewx',{station_id:stationId,csv_text:await file.text()});
+      form.reset();await refresh();setStation(stationId);
+      status(`Imported ${result.imported} WeeWX HISTORICAL rows (${result.duplicates} duplicate rows skipped). All units normalized to SI. No device connected.`);
     }catch(error){status(error.message,true);}finally{button.disabled=false;}
   });
   el('weather-csv-example').addEventListener('click',()=>{
@@ -247,7 +290,9 @@
     if(!state.readings.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=6;td.textContent='No saved readings for the selected time period.';tr.append(td);table.append(tr);return;}
     for(const row of state.readings.slice(-60).reverse()){
       const tr=document.createElement('tr');
-      const parts=[`${stamp(row.observed_at_utc)} UTC`,row.source_kind,
+      const origin=row.source_kind==='ECOWITT_GATEWAY_REPORTED'
+        ? `ECOWITT GATEWAY REPORTED · UNVERIFIED · ${row.source_device||'unknown gateway'}` : row.source_kind;
+      const parts=[`${stamp(row.observed_at_utc)} UTC`,origin,
         format(metricValue(row,'temperature_c'),1,' °F'),format(metricValue(row,'wind_speed_mps'),1,' mph'),
         format(row.humidity_pct,1,' %'),format(metricValue(row,'rain_interval_mm'),2,' in')];
       for(const part of parts){const td=document.createElement('td');td.textContent=part;tr.append(td);}
@@ -263,7 +308,7 @@
       const data=await request(`/api/weather/readings?station_id=${station}&days=${days}&limit=1000`);
       if(epoch!==state.historyEpoch)return;
       state.readings=data.readings||[];
-      el('weather-history-status').textContent=`${state.readings.length} saved readings in this view · manual/imported historical only · maximum latest 1,000 rows`;
+      el('weather-history-status').textContent=`${state.readings.length} saved readings in this view · origin-tagged, gateway records not hardware-verified · maximum latest 1,000 rows`;
       drawChart();renderTable();
     }catch(error){if(epoch===state.historyEpoch)el('weather-history-status').textContent=error.message;}
   }

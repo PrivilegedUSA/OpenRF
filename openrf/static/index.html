@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.169">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.170">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -23,11 +23,11 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/map-elevation.js?v=0.2.151"></script>
   <script defer src="/static/battery-status.js?v=0.2.151"></script>
-  <script defer src="/static/wifi-quick.js?v=0.2.169"></script>
+  <script defer src="/static/wifi-quick.js?v=0.2.170"></script>
   <script defer src="/static/route-elevation.js?v=0.2.151"></script>
   <script defer src="/static/trip-map.js?v=0.2.151"></script>
-  <script defer src="/static/app.js?v=0.2.169"></script>
-  <script defer src="/static/app-settings.js?v=0.2.169"></script>
+  <script defer src="/static/app.js?v=0.2.170"></script>
+  <script defer src="/static/app-settings.js?v=0.2.170"></script>
   <script defer src="/static/browser-workspace.js?v=0.2.151"></script>
   <script defer src="/static/saved-trips.js?v=0.2.151"></script>
   <script defer src="/static/emergency-tabs.js?v=0.2.151"></script>
@@ -47,19 +47,19 @@
   <script defer src="/static/emergency-backup.js?v=0.2.151"></script>
   <script defer src="/static/field-calendar.js?v=0.2.151"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.169"></script>
-  <script defer src="/static/meshcore.js?v=0.2.169"></script>
-  <script defer src="/static/messaging-tabs.js?v=0.2.169"></script>
-  <script defer src="/static/weather.js?v=0.2.169"></script>
-  <script defer src="/static/reticulum.js?v=0.2.169"></script>
-  <script defer src="/static/reticulum-files.js?v=0.2.169"></script>
-  <script defer src="/static/bluetooth-files.js?v=0.2.169"></script>
-  <script defer src="/static/reticulum-tabs.js?v=0.2.169"></script>
+  <script defer src="/static/mesh.js?v=0.2.170"></script>
+  <script defer src="/static/meshcore.js?v=0.2.170"></script>
+  <script defer src="/static/messaging-tabs.js?v=0.2.170"></script>
+  <script defer src="/static/weather.js?v=0.2.170"></script>
+  <script defer src="/static/reticulum.js?v=0.2.170"></script>
+  <script defer src="/static/reticulum-files.js?v=0.2.170"></script>
+  <script defer src="/static/bluetooth-files.js?v=0.2.170"></script>
+  <script defer src="/static/reticulum-tabs.js?v=0.2.170"></script>
   <script defer src="/static/mesh_connections.js?v=0.2.104"></script>
   <script defer src="/static/wifi_halow.js?v=0.2.104"></script>
   <script defer src="/static/field_network.js?v=0.2.104"></script>
   <script defer src="/static/field_hotspot.js?v=0.2.104"></script>
-  <script defer src="/static/hardware-tabs.js?v=0.2.169"></script>
+  <script defer src="/static/hardware-tabs.js?v=0.2.170"></script>
   <script defer src="/static/offline_readiness.js?v=0.2.104"></script>
   <script defer src="/static/camera-layers.js?v=0.2.114"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
@@ -67,16 +67,10 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.169</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.170</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
-        <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15M15 6v15"/></svg></span><span class="nav-label">Map</span></button>
         <button class="nav-btn" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
-        <button class="nav-btn" data-page="emergency"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 22 20H2L12 2.5Z"/><path d="M12 8.5v5.5"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></svg></span><span class="nav-label">Emergency</span></button>
-        <button class="nav-btn" data-page="scanner"><span class="nav-icon" aria-hidden="true">≋</span><span class="nav-label">Analysis</span></button>
-        <button class="nav-btn" data-page="spectrum" aria-label="Signal viewer: spectrum and waterfall"><span class="nav-icon" aria-hidden="true">▥</span><span class="nav-label">Signal Viewer</span></button>
-        <button class="nav-btn" data-page="radio"><span class="nav-icon" aria-hidden="true">◉</span><span class="nav-label">Radio Receiver</span></button>
-        <button class="nav-btn" data-page="weather" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2M5.6 5.6 7 7M3 12h2M17 7l1.4-1.4M13 9a4 4 0 0 0-6 3"/><path d="M7 19h11a4 4 0 0 0 .2-8A6.5 6.5 0 0 0 5.6 13a3.1 3.1 0 0 0 1.4 6Z"/></svg></span><span class="nav-label">Weather Station</span></button>
         <div class="nav-group" id="messages-nav-group">
           <button class="nav-btn nav-parent" type="button" id="messages-nav-toggle" aria-expanded="false" aria-controls="messages-nav-subpages"><span class="nav-icon" aria-hidden="true">✉</span><span class="nav-label">Messages</span><span class="nav-chevron" aria-hidden="true">▾</span></button>
           <div class="nav-subpages" id="messages-nav-subpages" hidden>
@@ -85,12 +79,18 @@
             <button class="nav-btn nav-subpage" id="meshcore-nav-item" data-page="meshcore" type="button"><span class="nav-label">MeshCore</span><span class="mesh-unread-badge mesh-nav-unread" id="meshcore-nav-unread" hidden>0</span></button>
           </div>
         </div>
+        <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15M15 6v15"/></svg></span><span class="nav-label">Map</span></button>
+        <button class="nav-btn" data-page="emergency"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 22 20H2L12 2.5Z"/><path d="M12 8.5v5.5"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></svg></span><span class="nav-label">Emergency</span></button>
+        <button class="nav-btn" data-page="scanner"><span class="nav-icon" aria-hidden="true">≋</span><span class="nav-label">Analysis</span></button>
+        <button class="nav-btn" data-page="spectrum" aria-label="Signal viewer: spectrum and waterfall"><span class="nav-icon" aria-hidden="true">▥</span><span class="nav-label">Signal Viewer</span></button>
+        <button class="nav-btn" data-page="radio"><span class="nav-icon" aria-hidden="true">◉</span><span class="nav-label">Radio Receiver</span></button>
         <button class="nav-btn" data-page="hamradio"><span class="nav-icon" aria-hidden="true">♫</span><span class="nav-label">Ham Radio</span></button>
-        <button class="nav-btn" data-page="discoveries"><span class="nav-icon" aria-hidden="true">◈</span><span class="nav-label">Saved</span></button>
-        <button class="nav-btn" data-page="trips" type="button"><span class="nav-icon" aria-hidden="true">▧</span><span class="nav-label">Trips &amp; Maps</span></button>
-        <button class="nav-btn" data-page="browser" type="button"><span class="nav-icon" aria-hidden="true">◎</span><span class="nav-label">Web Browser</span></button>
         <button class="nav-btn" data-page="sessions"><span class="nav-icon" aria-hidden="true">◷</span><span class="nav-label">Sessions</span></button>
         <button class="nav-btn" data-page="hardware"><span class="nav-icon" aria-hidden="true">▤</span><span class="nav-label">Hardware</span></button>
+        <button class="nav-btn" data-page="browser" type="button"><span class="nav-icon" aria-hidden="true">◎</span><span class="nav-label">Web Browser</span></button>
+        <button class="nav-btn" data-page="weather" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2M5.6 5.6 7 7M3 12h2M17 7l1.4-1.4M13 9a4 4 0 0 0-6 3"/><path d="M7 19h11a4 4 0 0 0 .2-8A6.5 6.5 0 0 0 5.6 13a3.1 3.1 0 0 0 1.4 6Z"/></svg></span><span class="nav-label">Weather Station</span></button>
+        <button class="nav-btn" data-page="trips" type="button"><span class="nav-icon" aria-hidden="true">▧</span><span class="nav-label">Trips &amp; Maps</span></button>
+        <button class="nav-btn" data-page="discoveries"><span class="nav-icon" aria-hidden="true">◈</span><span class="nav-label">Saved</span></button>
       </nav>
       <div class="sidebar-bottom">
         <button class="nav-btn sidebar-settings-btn" data-page="settings" type="button"><span class="nav-icon" aria-hidden="true">⚙</span><span class="nav-label">App Settings</span></button>
@@ -158,7 +158,7 @@
         <div class="panel trip-library-section"><h3>Before the trip</h3><p class="muted small">Even a downloaded trip raster map can contain gaps. Confirm actual route tile coverage, an installed Valhalla road or walking graph, battery/GNSS health, and applicable access rules separately. Numeric HGT terrain data and offline routes are not included in these raster packs. Navigation route geometry is not stored by the trip download.</p><button class="btn outline" id="trip-library-readiness" type="button">Open device readiness</button></div>
       </section>
       <section class="page weather-page" id="page-weather" aria-label="Offline weather station hub">
-        <div class="section-heading"><div><h2>Weather Station</h2><p>One local hub for permanent home stations and portable field sensors. Only operator-entered and imported historical measurements are supported so far.</p></div><span class="pill">OFFLINE · LOCAL HISTORY</span></div>
+        <div class="section-heading"><div><h2>Weather Station</h2><p>Local observations, historical records and user-requested reads from supported LAN gateways. Nothing connects or collects automatically.</p></div><span class="pill">OFFLINE · LOCAL HISTORY</span></div>
         <div class="weather-tabs" role="tablist" aria-label="Weather station tools">
           <button class="weather-tab" id="weather-tab-dashboard" type="button" role="tab" aria-selected="true" aria-controls="weather-panel-dashboard" tabindex="0" data-weather-tab="dashboard">Dashboard</button>
           <button class="weather-tab" id="weather-tab-sensors" type="button" role="tab" aria-selected="false" aria-controls="weather-panel-sensors" tabindex="-1" data-weather-tab="sensors">Stations &amp; Sensors</button>
@@ -178,7 +178,7 @@
             <div class="weather-metric"><span>Humidity</span><strong id="weather-humidity">—</strong><small id="weather-humidity-meta">No recorded value</small></div>
             <div class="weather-metric"><span>Rainfall · interval</span><strong id="weather-rain">—</strong><small id="weather-rain-meta">No recorded value</small></div>
           </div>
-          <p class="small muted weather-disclaimer">These values come only from saved observations and may be old. Every reading retains its station, observation time, units and MANUAL or IMPORTED/HISTORICAL origin. No current conditions, forecast or live connection is inferred.</p>
+          <p class="small muted weather-disclaimer">These values come only from saved observations and may be old. Every reading retains its station, timestamps, units and origin. Ecowitt LAN snapshots are marked GATEWAY REPORTED / UNVERIFIED with OpenRF's fetch time, not the sensor's measurement time. No live connection or forecast is inferred.</p>
         </section>
         <section class="weather-tab-panel" id="weather-panel-sensors" role="tabpanel" aria-labelledby="weather-tab-sensors" hidden>
           <div class="panel weather-section">
@@ -190,6 +190,18 @@
               <button type="submit" class="btn primary">Add local station</button>
             </form>
             <p class="small muted">A station here is a local record, not a claimed connection. Existing hardware brands and protocols will require separately implemented, verified adapters.</p>
+          </div>
+          <div class="panel weather-section">
+            <div class="panel-title"><h3>Ecowitt local gateway</h3><span class="pill">ON-DEMAND · READ ONLY</span></div>
+            <p class="small muted">For compatible Ecowitt gateways exposing the manufacturer's HTTP <code>/get_livedata_info</code> API. Enter the gateway's private-LAN IPv4 address yourself. OpenRF makes <strong>one outbound local read only when you tap a button</strong>; it never searches the network, opens a listener, schedules polls or changes gateway settings. Gateway data and device identity are <strong>not hardware-verified</strong>.</p>
+            <div class="weather-gateway-grid">
+              <label>Save under station<select class="field" id="weather-gateway-station"><option value="">Select a station</option></select></label>
+              <label>Gateway IPv4 address<input class="field" id="weather-gateway-ip" type="text" inputmode="decimal" maxlength="15" placeholder="192.168.1.50" autocomplete="off" spellcheck="false"></label>
+            </div>
+            <div class="button-line weather-gateway-actions"><button class="btn outline" id="weather-gateway-test" type="button">Read once · preview only</button><button class="btn primary" id="weather-gateway-save" type="button">Read once &amp; save</button></div>
+            <p id="weather-gateway-status" class="small muted" role="status" aria-live="polite">No gateway requests made. Compatible hardware and sensor accuracy require physical testing.</p>
+            <div id="weather-gateway-preview" class="weather-gateway-preview" hidden></div>
+            <p class="small muted">The response's arrival time is recorded by OpenRF; it is not proof of when the remote sensor measured anything. Outdoor temperature, humidity, wind, pressure and UV are mapped when present. Cumulative rain totals are intentionally not mislabeled as interval rain. Pi and WSL must be able to reach that LAN IP.</p>
           </div>
           <div class="panel weather-section">
             <h3>Record a manual observation</h3>
@@ -217,6 +229,16 @@
             </form>
             <div class="button-line"><button type="button" class="btn outline" id="weather-csv-example">Download blank CSV template</button></div>
             <p class="small muted">A compatible file is not evidence that the listed weather data was physically measured. No files are uploaded to any online service.</p>
+          </div>
+          <div class="panel weather-section">
+            <div class="panel-title"><h3>Import WeeWX archive CSV</h3><span class="pill">LOCAL FILE · HISTORICAL</span></div>
+            <p class="small muted">If your existing weather station logs to <strong>WeeWX</strong>, export its archive as UTF-8 CSV with Unix-seconds <code>dateTime</code>, numeric <code>usUnits</code> and available columns such as <code>outTemp</code>, <code>outHumidity</code>, <code>windSpeed</code>, <code>rain</code>, <code>barometer</code>. OpenRF converts WeeWX US (1), METRIC (16), and METRICWX (17) units to its SI history. This imports history only; it does not connect to WeeWX or copy its database.</p>
+            <form id="weather-weewx-form" class="weather-inline-form">
+              <label>Import into station<select class="field" id="weather-weewx-station" required><option value="">Select a station</option></select></label>
+              <label>WeeWX archive CSV<input class="field" id="weather-weewx-file" type="file" accept=".csv,text/csv" required></label>
+              <button class="btn outline" type="submit">Import WeeWX history</button>
+            </form>
+            <p class="small muted">Maximum 500 rows / 160 kB per action. Missing sensor values stay missing, and WeeWX interval <code>rain</code> is converted to the interval rainfall field. Every imported row is labeled IMPORTED/HISTORICAL and no automatic communication starts.</p>
           </div>
           <p id="weather-sensors-status" class="small muted" role="status" aria-live="polite">Create a station to begin recording and importing weather observations.</p>
         </section>

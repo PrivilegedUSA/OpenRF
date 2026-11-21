@@ -9,7 +9,7 @@ const app=fs.readFileSync('openrf/static/app.js','utf8');
 const code=fs.readFileSync('openrf/static/weather.js','utf8');
 assert(html.includes('data-page="weather"'));
 assert(html.includes('id="page-weather"'));
-assert(html.includes('/static/weather.js?v=0.2.169'));
+assert(html.includes('/static/weather.js?v=0.2.170'));
 assert(app.includes("'weather','messages'"));
 assert(app.includes("'openrf:weather-shown'"));
 assert(css.includes('.weather-tab-panel[hidden]'));
@@ -55,6 +55,13 @@ async function fetchMock(path,options={}){
     return response({reading});
   }
   if(path==='/api/weather/import/csv')return response({imported:1,duplicates:0,total_rows:1});
+  if(path==='/api/weather/import/weewx')return response({imported:1,duplicates:0,total_rows:1});
+  if(path==='/api/weather/ecowitt/read'){
+    const reading={observed_at_utc:'2026-11-21T12:00:30Z',source_kind:'ECOWITT_GATEWAY_REPORTED',
+      source_device:body.gateway_ip,temperature_c:20,wind_speed_mps:4,humidity_pct:45,saved:body.save};
+    if(body.save){rows=[reading];stations[0].reading_count=1;}
+    return response({reading});
+  }
   throw Error('Unexpected mock endpoint '+path);
 }
 const context={
@@ -110,6 +117,25 @@ async function test(){
   assert.equal(get('weather-tab-dashboard').attributes['aria-selected'],'true');
   assert.equal(get('weather-tab-dashboard').focusOptions.preventScroll,true);
   assert.equal(calls.filter(call=>call.options.method==='POST').length,2,'Only deliberate user submits write data');
-  console.log('PASS v0.2.169 weather workspace, explicit station/manual actions, labels, archive and tabs');
+  context.window.OpenRFWeather.openTab('sensors');
+  get('weather-gateway-station').value='1';
+  get('weather-gateway-ip').value='192.168.1.40';
+  await get('weather-gateway-test').events.click();
+  const preview=calls.find(call=>call.path==='/api/weather/ecowitt/read');
+  assert(preview,'Gateway read occurs only after button click');
+  assert.equal(JSON.parse(preview.options.body).save,false);
+  assert(get('weather-gateway-preview').textContent.includes('NOT HARDWARE VERIFIED'));
+  assert(get('weather-gateway-status').textContent.includes('Nothing was saved'));
+  await get('weather-gateway-save').events.click();
+  assert.equal(JSON.parse(calls.filter(call=>call.path==='/api/weather/ecowitt/read').at(-1).options.body).save,true);
+  assert(get('weather-gateway-preview').textContent.includes('Saved to local history'));
+
+  get('weather-weewx-station').value='1';
+  get('weather-weewx-file').files=[{size:80,text:async()=>
+    'dateTime,usUnits,outTemp\n1795219200,17,20\n'}];
+  await get('weather-weewx-form').events.submit({preventDefault(){},currentTarget:get('weather-weewx-form')});
+  assert(calls.some(call=>call.path==='/api/weather/import/weewx'));
+  assert(get('weather-sensors-status').textContent.includes('WeeWX HISTORICAL'));
+  console.log('PASS v0.2.170 weather: manual, Ecowitt preview/save, WeeWX import, no auto-collection');
 }
 test().catch(error=>{console.error(error);process.exitCode=1;});
