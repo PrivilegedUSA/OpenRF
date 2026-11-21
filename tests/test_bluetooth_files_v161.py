@@ -1,4 +1,4 @@
-"""v0.2.162 simulated paired Bluetooth Classic file exchange; no radio required."""
+"""v0.2.163 simulated paired Bluetooth Classic file exchange; no radio required."""
 import base64
 from http.client import HTTPConnection
 from pathlib import Path

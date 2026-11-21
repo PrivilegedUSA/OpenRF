@@ -2792,7 +2792,7 @@ body.map-workspace .topbar .header-wifi-button{background:#0c2833e8;color:#a9e7d
 @media(max-width:780px){#page-reticulum .bluetooth-file-grid{grid-template-columns:1fr}}
 
 /* v0.2.162: Inbox-first Reticulum tabs; reused controls stay mounted. */
-#page-reticulum .reticulum-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;max-width:950px;margin:4px 0 14px}
+#page-reticulum .reticulum-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;max-width:950px;margin:4px 0 14px}
 #page-reticulum .reticulum-tabs>button{min-width:0;min-height:49px;padding:8px 7px;border:1px solid #214451;border-radius:9px;background:#102a35;color:#a9cbd0;display:flex;align-items:center;justify-content:center;gap:9px;font-size:12px;font-weight:750;position:relative}
 #page-reticulum .reticulum-tabs>button svg{flex:none;width:17px;height:17px;color:#58d6c6}
 #page-reticulum .reticulum-tabs>button:hover{border-color:#4daea5;background:#163943;color:#ecfff9}
@@ -2802,6 +2802,9 @@ body.map-workspace .topbar .header-wifi-button{background:#0c2833e8;color:#a9e7d
 #page-reticulum .reticulum-panel{margin-top:0}
 #page-reticulum .reticulum-tab-panel{min-width:0}
 #page-reticulum #reticulum-tab-panel-inbox>.mesh-inbox-header{border-top:0;margin-top:3px;padding-top:0}
+#page-reticulum #reticulum-tab-panel-inbox .reticulum-thread-browser{margin-top:12px}
+#page-reticulum #reticulum-tab-panel-contacts .reticulum-contacts-panel{margin-top:0}
+#page-reticulum #reticulum-tab-panel-dashboard .reticulum-history-panel{margin-top:18px}
 #page-reticulum .reticulum-tab-intro{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:13px}
 #page-reticulum .reticulum-tab-intro h3{margin:0;color:#d9f6f1;font-size:14px;flex-basis:100%}
 #page-reticulum .reticulum-tab-intro p{margin:0;font-size:11px;line-height:1.55;color:#99b7c0;max-width:690px}

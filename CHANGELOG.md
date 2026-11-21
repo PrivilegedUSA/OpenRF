@@ -1,3 +1,9 @@
+## OpenRF v0.2.163 — Reticulum tab service fix and cleaner Inbox (2026-11-21)
+
+- Fixed the root cause of v0.2.162's nonresponsive Reticulum tabs: the backend served the HTML but omitted `/static/reticulum-tabs.js` from its explicit allowlist, returning HTTP 404. Added that script and the also-previously-missing `/static/camera_alerts.js` to the static route allowlist.
+- Reticulum now opens a five-tab layout in the order **Dashboard, Inbox, Contacts, Connections, Files**. Separate Contacts and message-history controls from the message list, and keep Bluetooth Classic and Reticulum Resource transfer panels together under Files. Clicking a contact's Message action now opens Inbox; saving a new recipient opens Contacts. Preserve original DOM event listeners, explicit network consent, current drafts, and no automatic tab-scroll behavior.
+- New loopback HTTP regression test discovers and requests every JavaScript file referenced by the main HTML to catch missing allowlist entries. Existing DOM-mock tests verify tab selection, preservation, unread badges, keyboard navigation and contact routing. **458 Python tests and 132 JavaScript test files passed.** No new dependencies, SQLite migrations, backend radio features or LXST calling support. See `docs/RELEASE_0.2.163_TESTS.md`.
+
 ## OpenRF v0.2.162 — Inbox-first Reticulum tabs (2026-11-21)
 
 - Reorganized the Reticulum workspace into four responsive, keyboard-accessible tabs: **Inbox (default)**, **Dashboard**, **Connections** and **Files**. The message thread list, composer, contacts and optional private history are accessible without scrolling through TCP, HaLow and RNode configuration. The inbox tab shows an unread count when applicable.

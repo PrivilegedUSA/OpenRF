@@ -1,5 +1,11 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.163 — Reticulum tabs fixed and inbox simplified
+
+- **Working navigation:** The previous patch bundled `reticulum-tabs.js` but the local server returned HTTP 404 for it. The backend now serves the file, so tab clicks actually switch panels. An automated HTTP test checks that **every JavaScript resource referenced by the main page is served**, rather than trusting HTML and mock-DOM tests alone. This also fixes the previously blocked `camera_alerts.js` script.
+- **Dashboard first:** **Messages → Reticulum** now opens **Dashboard**, followed by **Inbox**, **Contacts**, **Connections** and **Files**. Dashboard keeps the Reticulum enable/stop controls, status, address, manual announcement and private history settings. The uncluttered Inbox focuses on the conversation list, message thread, voice note and attachment composer; Contacts has its own tab. Connections keeps TCP, HaLow and RNode setup. **Nearby Bluetooth file sharing is under Files**, next to Reticulum file transfer, even when Reticulum is off.
+- **Contact actions continue working:** From a message, **Save recipient** opens Contacts; **Message** from a saved contact opens the Inbox thread. Tabs use accessible buttons with keyboard arrows, don't reset message drafts, and don't themselves force page scrolling. No LXST, voice call, database migration or new permission was added. See [v0.2.163 release checks](docs/RELEASE_0.2.163_TESTS.md).
+
 ## v0.2.162 — Reticulum Inbox, Dashboard, Connections and Files tabs
 
 - **Messages → Reticulum now opens on Inbox.** Conversations and voice-note composition appear immediately without scrolling past radio/network settings. Four separate tabs group **Inbox**, **Dashboard**, **Connections** and **Files**. The Reticulum unread count is also shown on the Inbox tab. Tabs work with keyboard arrow/Home/End keys and switch without hash navigation or automatic page scrolling.

@@ -1,4 +1,4 @@
-/* OpenRF v0.2.162 — Reticulum inbox-first tabs; no optional calling stack. */
+/* OpenRF v0.2.163 — Served Reticulum tabs, dashboard first, minimal inbox. */
 (() => {
   'use strict';
   const root = document.getElementById('page-reticulum');
@@ -6,7 +6,7 @@
   const parent = document.getElementById('reticulum-panel');
   if (!root || !bar || !parent) return;
 
-  const names = ['inbox', 'dashboard', 'connections', 'files'];
+  const names = ['dashboard', 'inbox', 'contacts', 'connections', 'files'];
   const tabs = new Map();
   const panels = new Map();
   for (const name of names) {
@@ -18,7 +18,7 @@
     section.id = `reticulum-tab-panel-${name}`;
     section.setAttribute('role', 'tabpanel');
     section.setAttribute('aria-labelledby', button.id);
-    section.hidden = name !== 'inbox';
+    section.hidden = name !== 'dashboard';
     panels.set(name, section);
   }
 
@@ -26,6 +26,8 @@
   // LXMF, RNode, Bluetooth and contact listeners keep their state and nodes.
   const contents = [...parent.children];
   const categories = contents.map((element, index) => {
+    if (element.id === 'reticulum-contacts-panel') return 'contacts';
+    if (element.id === 'reticulum-history-panel' || index === contents.length - 1) return 'dashboard';
     if (index < 4 || element.querySelector('#reticulum-enable, #reticulum-announce, #reticulum-address') ||
         element.previousElementSibling?.querySelector('#reticulum-address')) return 'dashboard';
     if (element.matches('.reticulum-tcp-settings, #reticulum-halow-panel, #reticulum-rnode-panel, #reticulum-diagnostics-panel')) return 'connections';
@@ -34,17 +36,17 @@
   });
   for (let i = 0; i < contents.length; i++) panels.get(categories[i]).append(contents[i]);
 
-  const inbox = panels.get('inbox');
-  const inboxIntro = document.createElement('div');
-  inboxIntro.className = 'reticulum-tab-intro';
-  inboxIntro.innerHTML = '<p>Conversations, attachments and voice notes. Reticulum must be enabled to exchange messages.</p><button type="button" class="btn mini outline" data-reticulum-open="dashboard">Enable or check messaging</button>';
-  inbox.prepend(inboxIntro);
-
   const dashboard = panels.get('dashboard');
   const dashboardLinks = document.createElement('div');
   dashboardLinks.className = 'reticulum-tab-shortcuts';
-  dashboardLinks.innerHTML = '<button type="button" class="btn outline" data-reticulum-open="inbox">Open inbox</button><button type="button" class="btn outline" data-reticulum-open="connections">Connection settings</button><button type="button" class="btn outline" data-reticulum-open="files">File sharing</button>';
+  dashboardLinks.innerHTML = '<button type="button" class="btn outline" data-reticulum-open="inbox">Open inbox</button><button type="button" class="btn outline" data-reticulum-open="contacts">Contacts</button><button type="button" class="btn outline" data-reticulum-open="connections">Connection settings</button><button type="button" class="btn outline" data-reticulum-open="files">File sharing</button>';
   dashboard.append(dashboardLinks);
+
+  const contacts = panels.get('contacts');
+  const contactsIntro = document.createElement('div');
+  contactsIntro.className = 'reticulum-tab-intro';
+  contactsIntro.innerHTML = '<h3>Saved contacts</h3><p>Private nicknames for verified LXMF addresses. Select Message to open a conversation in Inbox.</p>';
+  contacts.prepend(contactsIntro);
 
   const connections = panels.get('connections');
   const connectionIntro = document.createElement('div');
@@ -69,6 +71,10 @@
       panels.get(key).hidden = !selected;
       tabs.get(key).setAttribute('aria-selected', String(selected));
       tabs.get(key).tabIndex = selected ? 0 : -1;
+    }
+    if (name === 'contacts') {
+      const addressBook = document.getElementById('reticulum-contacts-panel');
+      if (addressBook) addressBook.open = true;
     }
     // No hash navigation, focus stealing or scrollIntoView on a tab change.
     if (focus) tabs.get(name).focus({ preventScroll: true });
@@ -107,7 +113,7 @@
   const previous = document.getElementById('reticulum-inbox-unread')?.textContent || '';
   updateUnread(Number(/^\s*(\d+) unread\b/.exec(previous)?.[1] || 0));
 
-  activate('inbox');
+  activate('dashboard');
   window.OpenRFReticulumTabs = Object.freeze({
     open: name => activate(name),
     current: () => names.find(name => !panels.get(name).hidden)

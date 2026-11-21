@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.162">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.163">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -23,11 +23,11 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/map-elevation.js?v=0.2.151"></script>
   <script defer src="/static/battery-status.js?v=0.2.151"></script>
-  <script defer src="/static/wifi-quick.js?v=0.2.162"></script>
+  <script defer src="/static/wifi-quick.js?v=0.2.163"></script>
   <script defer src="/static/route-elevation.js?v=0.2.151"></script>
   <script defer src="/static/trip-map.js?v=0.2.151"></script>
-  <script defer src="/static/app.js?v=0.2.162"></script>
-  <script defer src="/static/app-settings.js?v=0.2.162"></script>
+  <script defer src="/static/app.js?v=0.2.163"></script>
+  <script defer src="/static/app-settings.js?v=0.2.163"></script>
   <script defer src="/static/browser-workspace.js?v=0.2.151"></script>
   <script defer src="/static/saved-trips.js?v=0.2.151"></script>
   <script defer src="/static/emergency-tabs.js?v=0.2.151"></script>
@@ -48,10 +48,10 @@
   <script defer src="/static/field-calendar.js?v=0.2.151"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
   <script defer src="/static/mesh.js?v=0.2.104"></script>
-  <script defer src="/static/reticulum.js?v=0.2.162"></script>
-  <script defer src="/static/reticulum-files.js?v=0.2.162"></script>
-  <script defer src="/static/bluetooth-files.js?v=0.2.162"></script>
-  <script defer src="/static/reticulum-tabs.js?v=0.2.162"></script>
+  <script defer src="/static/reticulum.js?v=0.2.163"></script>
+  <script defer src="/static/reticulum-files.js?v=0.2.163"></script>
+  <script defer src="/static/bluetooth-files.js?v=0.2.163"></script>
+  <script defer src="/static/reticulum-tabs.js?v=0.2.163"></script>
   <script defer src="/static/mesh_connections.js?v=0.2.104"></script>
   <script defer src="/static/wifi_halow.js?v=0.2.104"></script>
   <script defer src="/static/field_network.js?v=0.2.104"></script>
@@ -63,7 +63,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.162</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.163</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15M15 6v15"/></svg></span><span class="nav-label">Map</span></button>
@@ -958,8 +958,9 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
       <section class="page" id="page-reticulum" aria-label="Reticulum LXMF inbox and connection">
         <div class="section-heading"><div><h2>Reticulum</h2><p>Direct LXMF messages over an explicitly enabled LAN, TCP or supported RNode LoRa connection. Separate from Meshtastic radio conversations.</p></div><span class="pill">LXMF · LAN / TCP / RNODE</span></div>
         <div class="reticulum-tabs" id="reticulum-tabs" role="tablist" aria-label="Reticulum tools">
-          <button id="reticulum-tab-inbox" type="button" role="tab" aria-selected="true" aria-controls="reticulum-tab-panel-inbox" tabindex="0" data-reticulum-tab="inbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m3 7 9 6 9-6"/></svg><span>Inbox</span><small id="reticulum-tab-unread" hidden></small></button>
-          <button id="reticulum-tab-dashboard" type="button" role="tab" aria-selected="false" aria-controls="reticulum-tab-panel-dashboard" tabindex="-1" data-reticulum-tab="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Dashboard</span></button>
+          <button id="reticulum-tab-dashboard" type="button" role="tab" aria-selected="true" aria-controls="reticulum-tab-panel-dashboard" tabindex="0" data-reticulum-tab="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Dashboard</span></button>
+          <button id="reticulum-tab-inbox" type="button" role="tab" aria-selected="false" aria-controls="reticulum-tab-panel-inbox" tabindex="-1" data-reticulum-tab="inbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m3 7 9 6 9-6"/></svg><span>Inbox</span><small id="reticulum-tab-unread" hidden></small></button>
+          <button id="reticulum-tab-contacts" type="button" role="tab" aria-selected="false" aria-controls="reticulum-tab-panel-contacts" tabindex="-1" data-reticulum-tab="contacts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 20v-2a5.5 5.5 0 0 1 11 0v2"/><path d="M17 11a3 3 0 0 0 0-6M17.5 14a5 5 0 0 1 3 5v1"/></svg><span>Contacts</span></button>
           <button id="reticulum-tab-connections" type="button" role="tab" aria-selected="false" aria-controls="reticulum-tab-panel-connections" tabindex="-1" data-reticulum-tab="connections"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><path d="m7 11 10-5M7 13l10 5"/></svg><span>Connections</span></button>
           <button id="reticulum-tab-files" type="button" role="tab" aria-selected="false" aria-controls="reticulum-tab-panel-files" tabindex="-1" data-reticulum-tab="files"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></svg><span>Files</span></button>
         </div>

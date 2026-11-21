@@ -488,6 +488,7 @@
     box.scrollTop=nearTop?0:Math.max(0,previous+box.scrollHeight-oldHeight);
   }
   function prefillReply(sender){
+    if(typeof window!=='undefined')window.OpenRFReticulumTabs?.open?.('inbox');
     const recipient=el('reticulum-recipient');
     recipient.value=sender;
     if(el('reticulum-thread-view')&&threadAddress(sender)){
@@ -830,7 +831,6 @@
     el('reticulum-recipient').value=state.activeThread;
     updateControls();
     el('reticulum-save-recipient').click();
-    el('reticulum-contacts-panel').scrollIntoView({block:'nearest',behavior:'smooth'});
   });
   el('reticulum-conversation').addEventListener('change',()=>{
     el('reticulum-messages').scrollTop=0;
@@ -839,6 +839,7 @@
   el('reticulum-save-recipient').addEventListener('click',()=>{
     const address=el('reticulum-recipient').value.trim();
     if(!/^[0-9a-fA-F]{32}$/.test(address))return;
+    if(typeof window!=='undefined')window.OpenRFReticulumTabs?.open?.('contacts');
     el('reticulum-contacts-panel').open=true;
     const existing=state.contacts.find(item=>item.address===address.toLowerCase());
     el('reticulum-contact-form').reset();contactEditMode();

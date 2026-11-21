@@ -12,7 +12,7 @@ for(const id of ['bluetooth-file-panel','bluetooth-local-address','bluetooth-exp
   'bluetooth-arm','bluetooth-cancel','bluetooth-refresh','bluetooth-file-transfers',
   'bluetooth-file-notice','bluetooth-receive-state'])
   assert(html.includes(`id="${id}"`),`Missing Bluetooth UI ${id}`);
-assert(html.includes('/static/bluetooth-files.js?v=0.2.162'));
+assert(html.includes('/static/bluetooth-files.js?v=0.2.163'));
 assert(css.includes('.bluetooth-file-grid'));
 assert(server.includes("'/static/bluetooth-files.js'"));
 assert(server.includes("'X-OpenRF-Bluetooth-Consent'"));
@@ -80,5 +80,5 @@ const settle=()=>new Promise(resolve=>setTimeout(resolve,10));
   assert.equal(send.options.headers['X-OpenRF-Bluetooth-Consent'],'send');
   assert.equal(JSON.parse(send.options.body).data_base64,Buffer.from('12345678').toString('base64'));
   assert.equal(confirms,2,'Both receive and send require separate operator confirmation');
-  console.log('PASS v0.2.162 Bluetooth UI: opt-in, status-only open, exact paired address, send confirmation');
+  console.log('PASS v0.2.163 Bluetooth UI: opt-in, status-only open, exact paired address, send confirmation');
 })().catch(error=>{console.error(error);process.exitCode=1;});
