@@ -167,7 +167,7 @@ class WeatherStore:
                     ON weather_readings(station_id, observed_at_utc DESC, id DESC)''')
             current_sql = db.execute("SELECT sql FROM sqlite_master WHERE name='weather_readings' AND type='table'").fetchone()[0]
             if 'RTL433_RECEIVER_REPORTED' not in current_sql:
-                # v0.2.170 -> v0.2.173, retaining every historic reading and
+                # v0.2.170 -> v0.2.174, retaining every historic reading and
                 # allowing distinct physical sensor sources in one UTC second.
                 db.execute('''CREATE TABLE weather_readings_v171 (
                     id INTEGER PRIMARY KEY,
@@ -224,7 +224,7 @@ class WeatherStore:
                 db.execute('ALTER TABLE weather_readings_v172 RENAME TO weather_readings')
                 db.execute('''CREATE INDEX idx_weather_station_time
                     ON weather_readings(station_id, observed_at_utc DESC, id DESC)''')
-            # v0.2.173: session records are local, survive restarts, and cannot
+            # v0.2.174: session records are local, survive restarts, and cannot
             # silently resume an old weather-device connection.
             db.execute('''CREATE TABLE IF NOT EXISTS weather_recording_sessions (
                 id INTEGER PRIMARY KEY,
@@ -570,6 +570,39 @@ class WeatherStore:
                 FROM weather_recording_sessions s JOIN weather_stations w ON w.id=s.station_id
                 ORDER BY s.id DESC LIMIT ?''',(limit,)).fetchall()
         return [dict(row) for row in rows]
+
+    def compare_periods(self, station_id, days=7, metric='temperature_c', *, now=None):
+        """Compare *saved record samples* in two adjacent equal UTC windows.
+
+        An average of source-reported samples is not a calibrated climate
+        statistic; sparse/mixed sensor histories are not silently filled in.
+        """
+        station_id = self._station_id(station_id)
+        if type(days) is not int or days not in (1, 7, 30, 365):
+            raise WeatherError('Comparison period must be 1, 7, 30 or 365 days.')
+        if not isinstance(metric, str) or metric not in FIELDS:
+            raise WeatherError('Select a supported weather measurement to compare.')
+        end = (now or datetime.now(timezone.utc)).astimezone(timezone.utc).replace(microsecond=0)
+        begin = end - timedelta(days=days)
+        before = begin - timedelta(days=days)
+        def iso(value):
+            return value.isoformat().replace('+00:00', 'Z')
+        with self._connect() as db:
+            self._exists(db, station_id)
+            result = []
+            for lower, upper in ((begin, end), (before, begin)):
+                # Metric is selected from FIELDS, not interpolated user SQL.
+                row = db.execute(f'''SELECT COUNT(*) AS count, AVG({metric}) AS mean,
+                    MIN({metric}) AS minimum, MAX({metric}) AS maximum,
+                    MAX(observed_at_utc) AS latest_observed_at_utc
+                    FROM weather_readings WHERE station_id=?
+                    AND observed_at_utc>=? AND observed_at_utc<?
+                    AND {metric} IS NOT NULL''', (station_id, iso(lower), iso(upper))).fetchone()
+                result.append({'from_utc': iso(lower), 'to_utc': iso(upper), **dict(row)})
+        return {'station_id': station_id, 'days': days, 'metric': metric,
+                'units': 'SI', 'provenance': 'SAVED_SOURCE_TAGGED_SAMPLES_UNVERIFIED',
+                'current': result[0], 'previous': result[1],
+                'note': 'Record-level statistics; missing values ignored. Mixed sensor sources, sparse sampling and reports not independently verified.'}
 
     def export_csv(self, station_id):
         station_id = self._station_id(station_id)

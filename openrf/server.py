@@ -423,6 +423,16 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, self.server.weather_recorder.status())
         if path == '/api/weather/recording/sessions':
             return self._json(200, {'sessions': self.server.weather_recorder.sessions()})
+        if path == '/api/weather/compare':
+            params = parse_qs(urlparse(self.path).query, keep_blank_values=True)
+            if (set(params) != {'station_id', 'days', 'metric'} or
+                    any(len(values) != 1 for values in params.values())):
+                return self._error(400, 'Choose exactly one station, period and weather metric.')
+            try:
+                return self._json(200, self.server.weather_store.compare_periods(
+                    int(params['station_id'][0]), int(params['days'][0]), params['metric'][0]))
+            except (ValueError, WeatherError) as exc:
+                return self._error(400, str(exc))
         if path == '/api/weather/rtl433/status':
             if urlparse(self.path).query:
                 return self._error(400, 'Weather receiver status takes no query parameters.')

@@ -107,6 +107,26 @@ const menuButton = $('menu-toggle');
 const menuBackdrop = $('menu-backdrop');
 const mainSidebar = $('main-sidebar');
 let navigationOpen = false;
+// The nav is its own scroll container on wide/7-inch layouts. On narrow
+// drawer layouts the entire sidebar scrolls instead. Reveal the selected
+// button *inside that container*, never by scrolling the whole document.
+function revealSelectedSidebarPage(page) {
+  if (compactNavigation.matches && !navigationOpen) return;
+  const nav = mainSidebar.querySelector('.nav');
+  const selected = mainSidebar.querySelector(`.nav-btn[data-page="${page}"]`);
+  if (!nav || !selected || typeof selected.getBoundingClientRect !== 'function') return;
+  if (typeof nav.contains === 'function' && !nav.contains(selected)) return;
+  const scroller = nav.scrollHeight > nav.clientHeight + 2 ? nav : mainSidebar;
+  if (!scroller || scroller.scrollHeight <= scroller.clientHeight + 2 ||
+      typeof scroller.getBoundingClientRect !== 'function') return;
+  const viewport = scroller.getBoundingClientRect();
+  const selectedRect = selected.getBoundingClientRect();
+  const margin = 10;
+  if (selectedRect.top < viewport.top + margin)
+    scroller.scrollTop -= viewport.top + margin - selectedRect.top;
+  else if (selectedRect.bottom > viewport.bottom - margin)
+    scroller.scrollTop += selectedRect.bottom - viewport.bottom + margin;
+}
 function syncNavigation() {
   const compact = compactNavigation.matches;
   if (!compact) navigationOpen = false;
@@ -121,7 +141,10 @@ function setNavigationOpen(open, restoreFocus = true) {
   const wasOpen = navigationOpen;
   navigationOpen = !!open && compactNavigation.matches;
   syncNavigation();
-  if (navigationOpen) mainSidebar.querySelector('.nav-btn.active')?.focus();
+  if (navigationOpen) {
+    mainSidebar.querySelector('.nav-btn.active')?.focus({preventScroll:true});
+    revealSelectedSidebarPage(rememberedPage());
+  }
   else if (wasOpen && restoreFocus) menuButton.focus();
 }
 menuButton.addEventListener('click', () => setNavigationOpen(!navigationOpen));
@@ -440,6 +463,7 @@ function showPage(page, options = {}) {
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.toggle('active', el.dataset.page === page));
   if (page === 'messages' || page === 'reticulum' || page === 'meshcore') setMessagesSubpagesOpen(true);
   $('messages-nav-toggle').classList.toggle('active', page === 'messages' || page === 'reticulum' || page === 'meshcore');
+  revealSelectedSidebarPage(page);
   document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === `page-${page}`));
   const titles = {overview:'Field overview',emergency:'Emergency readiness',map:'Survey map',scanner:'Signal analysis',spectrum:'Spectrum & Waterfall',radio:'Radio receiver',weather:'Weather Station',messages:'Meshtastic messages',reticulum:'Reticulum messages',meshcore:'MeshCore messages',hamradio:'Ham radio channel lists',discoveries:'Saved discoveries',trips:'Trips & Maps',browser:'Web browser',sessions:'Investigations',hardware:'Hardware manager',settings:'App settings'};
   $('page-title').textContent = titles[page] || 'OpenRF'; $('page-crumb').textContent = page === 'messages' ? 'MESHTASTIC' : page.toUpperCase();

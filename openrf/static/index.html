@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.173">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.174">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -23,11 +23,11 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/map-elevation.js?v=0.2.151"></script>
   <script defer src="/static/battery-status.js?v=0.2.151"></script>
-  <script defer src="/static/wifi-quick.js?v=0.2.173"></script>
+  <script defer src="/static/wifi-quick.js?v=0.2.174"></script>
   <script defer src="/static/route-elevation.js?v=0.2.151"></script>
   <script defer src="/static/trip-map.js?v=0.2.151"></script>
-  <script defer src="/static/app.js?v=0.2.173"></script>
-  <script defer src="/static/app-settings.js?v=0.2.173"></script>
+  <script defer src="/static/app.js?v=0.2.174"></script>
+  <script defer src="/static/app-settings.js?v=0.2.174"></script>
   <script defer src="/static/browser-workspace.js?v=0.2.151"></script>
   <script defer src="/static/saved-trips.js?v=0.2.151"></script>
   <script defer src="/static/emergency-tabs.js?v=0.2.151"></script>
@@ -47,19 +47,19 @@
   <script defer src="/static/emergency-backup.js?v=0.2.151"></script>
   <script defer src="/static/field-calendar.js?v=0.2.151"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.173"></script>
-  <script defer src="/static/meshcore.js?v=0.2.173"></script>
-  <script defer src="/static/messaging-tabs.js?v=0.2.173"></script>
-  <script defer src="/static/weather.js?v=0.2.173"></script>
-  <script defer src="/static/reticulum.js?v=0.2.173"></script>
-  <script defer src="/static/reticulum-files.js?v=0.2.173"></script>
-  <script defer src="/static/bluetooth-files.js?v=0.2.173"></script>
-  <script defer src="/static/reticulum-tabs.js?v=0.2.173"></script>
+  <script defer src="/static/mesh.js?v=0.2.174"></script>
+  <script defer src="/static/meshcore.js?v=0.2.174"></script>
+  <script defer src="/static/messaging-tabs.js?v=0.2.174"></script>
+  <script defer src="/static/weather.js?v=0.2.174"></script>
+  <script defer src="/static/reticulum.js?v=0.2.174"></script>
+  <script defer src="/static/reticulum-files.js?v=0.2.174"></script>
+  <script defer src="/static/bluetooth-files.js?v=0.2.174"></script>
+  <script defer src="/static/reticulum-tabs.js?v=0.2.174"></script>
   <script defer src="/static/mesh_connections.js?v=0.2.104"></script>
   <script defer src="/static/wifi_halow.js?v=0.2.104"></script>
   <script defer src="/static/field_network.js?v=0.2.104"></script>
   <script defer src="/static/field_hotspot.js?v=0.2.104"></script>
-  <script defer src="/static/hardware-tabs.js?v=0.2.173"></script>
+  <script defer src="/static/hardware-tabs.js?v=0.2.174"></script>
   <script defer src="/static/offline_readiness.js?v=0.2.104"></script>
   <script defer src="/static/camera-layers.js?v=0.2.114"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
@@ -67,7 +67,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.173</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.174</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -172,6 +172,13 @@
             <label for="weather-dashboard-station">Station to view</label><select class="field" id="weather-dashboard-station"><option value="">Create a station under Stations &amp; Sensors</option></select>
             <div class="button-line"><button type="button" class="btn outline" id="weather-refresh">Refresh local records</button><button type="button" class="btn primary" id="weather-open-sensors">Set up a station</button></div>
           </div>
+          <div class="weather-metrics" aria-label="Last recorded weather readings (never automatically live)">
+            <div class="weather-metric"><span>Temperature</span><strong id="weather-temperature">—</strong><small id="weather-temperature-meta">No recorded value</small></div>
+            <div class="weather-metric"><span>Wind speed</span><strong id="weather-wind">—</strong><small id="weather-wind-meta">No recorded value</small></div>
+            <div class="weather-metric"><span>Humidity</span><strong id="weather-humidity">—</strong><small id="weather-humidity-meta">No recorded value</small></div>
+            <div class="weather-metric"><span>Rainfall · interval</span><strong id="weather-rain">—</strong><small id="weather-rain-meta">No recorded value</small></div>
+          </div>
+          <p class="small muted weather-disclaimer">These values come only from saved observations and may be old. Every reading retains its station, timestamps, units and origin. Ecowitt LAN snapshots are marked GATEWAY REPORTED / UNVERIFIED with OpenRF's fetch time, not the sensor's measurement time. No live connection or forecast is inferred.</p>
           <div class="panel weather-section">
             <div class="panel-title"><h3>Weather recording</h3><span class="pill" id="weather-recording-badge">STOPPED · OPT-IN</span></div>
             <p class="small muted">Start a bounded local recording session for one selected station and source. Ecowitt samples are gateway-reported, not sensor-time-verified. USB samples require a known OpenRF Weather Serial v1 sensor and skip stale/unknown-age responses. Recording does not resume after an app restart. No SDR listening, auto-discovery, or internet upload.</p>
@@ -186,13 +193,6 @@
             <div class="button-line"><button type="button" class="btn primary" id="weather-recording-start">Start recording</button><button type="button" class="btn outline" id="weather-recording-stop" disabled>Stop recording</button><button type="button" class="btn outline" id="weather-recording-refresh">Refresh recording status</button></div>
             <p id="weather-recording-status" class="small muted" role="status" aria-live="polite">Stopped. Nothing is being polled or saved automatically.</p>
           </div>
-          <div class="weather-metrics" aria-label="Last recorded weather readings (never automatically live)">
-            <div class="weather-metric"><span>Temperature</span><strong id="weather-temperature">—</strong><small id="weather-temperature-meta">No recorded value</small></div>
-            <div class="weather-metric"><span>Wind speed</span><strong id="weather-wind">—</strong><small id="weather-wind-meta">No recorded value</small></div>
-            <div class="weather-metric"><span>Humidity</span><strong id="weather-humidity">—</strong><small id="weather-humidity-meta">No recorded value</small></div>
-            <div class="weather-metric"><span>Rainfall · interval</span><strong id="weather-rain">—</strong><small id="weather-rain-meta">No recorded value</small></div>
-          </div>
-          <p class="small muted weather-disclaimer">These values come only from saved observations and may be old. Every reading retains its station, timestamps, units and origin. Ecowitt LAN snapshots are marked GATEWAY REPORTED / UNVERIFIED with OpenRF's fetch time, not the sensor's measurement time. No live connection or forecast is inferred.</p>
         </section>
         <section class="weather-tab-panel" id="weather-panel-sensors" role="tabpanel" aria-labelledby="weather-tab-sensors" hidden>
           <div class="panel weather-section">
@@ -298,6 +298,16 @@
               <label>Station<select class="field" id="weather-history-station"><option value="">Select a station</option></select></label>
               <label>Period<select class="field" id="weather-history-days"><option value="1">Last 24 hours</option><option value="7" selected>Last 7 days</option><option value="30">Last 30 days</option><option value="365">Last year</option><option value="0">All saved (latest 1,000)</option></select></label>
               <label>Measurement<select class="field" id="weather-history-metric"><option value="temperature_c">Temperature · °F</option><option value="wind_speed_mps">Wind · mph</option><option value="wind_gust_mps">Gust · mph</option><option value="humidity_pct">Humidity · %</option><option value="rain_interval_mm">Rain per interval · in</option><option value="rain_rate_mm_h">Rain rate · in/hr</option><option value="pressure_hpa">Pressure · hPa</option><option value="uv_index">UV index</option></select></label>
+            </div>
+            <label class="weather-compare-toggle"><input type="checkbox" id="weather-compare-enabled"> Compare this period with the previous equal period</label>
+            <div class="weather-compare-panel" id="weather-compare-panel" hidden>
+              <div class="weather-compare-grid">
+                <div class="weather-compare-stat"><span>Selected period · average</span><strong id="weather-compare-current">—</strong><small id="weather-compare-current-detail">No comparison yet</small></div>
+                <div class="weather-compare-stat"><span>Previous period · average</span><strong id="weather-compare-previous">—</strong><small id="weather-compare-previous-detail">No comparison yet</small></div>
+                <div class="weather-compare-stat"><span>Average difference</span><strong id="weather-compare-difference">—</strong><small id="weather-compare-difference-detail">Requires samples in both periods</small></div>
+              </div>
+              <p id="weather-compare-status" class="small muted" role="status" aria-live="polite">Choose a saved station to compare.</p>
+              <p class="small muted">Compares recorded sample averages, not a forecast or a validated climate statistic. Missing measurements are excluded. Sample spacing, source types and sensor accuracy may differ; rainfall amounts are <em>per sample</em>, not a daily total.</p>
             </div>
             <div class="weather-chart-wrap"><canvas id="weather-chart" width="880" height="260" role="img" aria-label="Historical observations trend. The readings table below contains the exact values.">Historical weather chart requires canvas support. Use the data table below.</canvas><p id="weather-chart-empty" class="small muted">No saved data for this period and metric.</p></div>
             <div class="weather-history-actions"><span id="weather-history-status" class="small muted" role="status" aria-live="polite">Choose a station to view history.</span><a id="weather-export" class="btn outline" href="#" download="openrf-weather-history.csv" aria-disabled="true" title="Exports up to 50,000 most recent saved records, even beyond the chart window">Export CSV · up to 50k</a></div>

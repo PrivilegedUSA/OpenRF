@@ -2,6 +2,12 @@
 
 OpenRF's original project source is licensed **GPL-3.0-or-later**; see the complete [GNU GPLv3 license text](LICENSE). Individually bundled or optional third-party components retain their own copyright and license notices.
 
+## v0.2.174 — Weather history comparisons and navigation/recording layout
+
+- **Remember the page in the sidebar:** After a refresh, the sidebar now scrolls its own navigation area enough to keep the restored active page (for example Weather Station) visible. The fix also applies when reopening the compact navigation drawer, including the planned 7-inch touchscreen layout, without scrolling the entire page or changing the remembered page choice.
+- **Weather dashboard order:** The temperature, wind, humidity and rainfall measurement cards are back directly under the Weather Hub summary. **Weather Recording** remains on the Dashboard but is now below these measurements and their provenance note, as requested. Start/Stop, recorded source selection, intervals and saved sessions work as before.
+- **Compare saved history:** Weather Station → History has a new opt-in **Compare this period** checkbox. For any supported weather metric it compares the selected 24-hour, 7-day, 30-day or 1-year period with the immediately preceding equal period, displaying both averages, minimums, maximums, sample counts and average difference. Comparisons include only saved, non-null measurements; they make no network/sensor requests and do not fabricate prior readings. Recorded rainfall here means amount per observation, not an accumulated daily total. See [v0.2.174 verification](docs/RELEASE_0.2.174_TESTS.md).
+
 ## v0.2.173 — User-started weather recording and local session history
 
 - **Start / Stop recording:** Weather Station → Dashboard now offers opt-in interval-based recording of an exact private-LAN Ecowitt gateway or a specifically identified OpenRF Weather Serial v1 USB sensor. Intervals are 1, 2, 5, 10 or 15 minutes. Nothing starts merely by opening Weather, and nothing resumes after a restart. Recording is bounded to 72 hours or 5,000 saved readings per session; three consecutive read failures stop the session.

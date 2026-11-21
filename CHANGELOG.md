@@ -1313,3 +1313,11 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Reconfirmed the v0.2.172 fix to old v0.2.169 GitHub Actions assertion expectations; tests and frontend cache keys follow current v0.2.173 packaging. See `docs/RELEASE_0.2.173_TESTS.md` for local test results and physical-verification limits.
 - **522 Python tests and 139 JavaScript suites passed locally**, including synthetic weather recorder start/stop, SQLite interruption recovery, exact USB selection, stale/duplicate suppression and MeshCore USB contention tests. Hardware and remote GitHub CI are unverified.
 
+## OpenRF v0.2.174 — Weather history comparisons, sidebar active-page visibility (2026-11-21)
+
+- Updated the existing page restoration logic so the sidebar's *own* scroll area reveals the selected page on refresh. Also adjusts the compact/drawer navigation when it opens. Selection no longer requires manually scrolling back down to Weather Station; the document itself is not scrolled to the sidebar. Added desktop, 7-inch style and compact sidebar scrolling regression tests.
+- Moved **Weather Recording** to the bottom of the Weather Dashboard, below the temperature/wind/humidity/rain cards and their provenance note, without removing any of the v0.2.173 recording capabilities.
+- Added an optional saved-weather period comparison on History: two adjacent, equally long UTC windows (1, 7, 30 or 365 days) with sample count, arithmetic average, minimum and maximum for the selected SI weather metric. Show source-appropriate display units, absolute mean difference and no-data states; exclude missing samples. This is local SQLite aggregation only. Results are not sensor-calibrated, not forecasts, and rainfall is per observation—not total precipitation.
+- Preserved the existing MeshCore/Reticulum/Meshtastic, navigation, map, radio, privacy, recorder, export and source history functions. Tests and release versions updated to v0.2.174. See `docs/RELEASE_0.2.174_TESTS.md` for reproducible checks and unverified field hardware.
+- **525 Python tests and 140 JavaScript suites passed locally**. No physical sensor samples, GPIO/serial permissions, touchscreen visual QA or post-update GitHub Actions outcome were verified.
+

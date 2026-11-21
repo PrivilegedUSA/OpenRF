@@ -49,6 +49,9 @@ async function fetchMock(path,options={}){
   if(path==='/api/weather/status')return response({stations,reading_count:rows.length,automatic_collection:recordingRunning,connected_devices:0,
     recording:{running:recordingRunning,session_id:recordingRunning?1:null,stopping:false}});
   if(path==='/api/weather/recording/sessions')return response({sessions:recordingSessions});
+  if(path.startsWith('/api/weather/compare?'))return response({metric:'temperature_c',days:7,
+    current:{count:2,mean:20,minimum:18,maximum:22},
+    previous:{count:1,mean:10,minimum:10,maximum:10}});
   if(path==='/api/weather/rtl433/status')return response({available:true,running:receiverRunning,
     run:receiverRun&&{...receiverRun,candidates:receiverRunning?[]:[{...receiverFixture,saved:receiverSaved}]}});
   if(path==='/api/weather/serial/ports')return response({ports:['ttyACM0'],diagnostics:[],automatic_connection:false});
@@ -170,6 +173,24 @@ async function test(){
   assert.equal(get('weather-export').href,'/api/weather/export.csv?station_id=1');
   assert.equal(get('weather-history-rows').children.length,1);
   assert.equal(get('weather-history-rows').children[0].children[1].textContent,'MANUAL');
+  assert(!calls.some(call=>call.path.startsWith('/api/weather/compare?')),
+    'History comparison is opt-in, never performed on initial tab display');
+  get('weather-compare-enabled').checked=true;
+  await get('weather-compare-enabled').events.change();
+  const comparison=calls.find(call=>call.path.startsWith('/api/weather/compare?'));
+  assert(comparison,'Enabling comparison explicitly loads saved sample statistics');
+  assert(comparison.path.includes('metric=temperature_c'));
+  assert.equal(get('weather-compare-current').textContent,'68.0 °F');
+  assert.equal(get('weather-compare-previous').textContent,'50.0 °F');
+  assert.equal(get('weather-compare-difference').textContent,'+18.0 °F');
+  get('weather-history-days').value='0';
+  const beforeAll=calls.filter(call=>call.path.startsWith('/api/weather/compare?')).length;
+  await get('weather-compare-enabled').events.change();
+  assert.equal(calls.filter(call=>call.path.startsWith('/api/weather/compare?')).length,beforeAll);
+  assert(get('weather-compare-status').textContent.includes('Choose a fixed period'));
+  get('weather-compare-enabled').checked=false;
+  await get('weather-compare-enabled').events.change();
+  get('weather-history-days').value='7';
   let prevented=false;
   get('weather-tab-history').events.keydown({key:'Home',preventDefault(){prevented=true;}});
   assert(prevented);
@@ -245,6 +266,8 @@ async function test(){
   assert.equal(get('weather-recording-sessions').children.length,1);
   await get('weather-recording-stop').events.click();
   assert.equal(get('weather-recording-badge').textContent,'STOPPED · OPT-IN');
-  console.log('PASS weather: on-demand sources, explicit scheduled recording, history and stop');
+  assert(html.indexOf('id="weather-rain"')<html.indexOf('<h3>Weather recording</h3>'),
+    'Weather Recording controls belong below the summary measurement cards');
+  console.log('PASS weather: on-demand sources, explicit recording, history comparison and card placement');
 }
 test().catch(error=>{console.error(error);process.exitCode=1;});

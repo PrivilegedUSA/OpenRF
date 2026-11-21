@@ -1,9 +1,9 @@
-/* OpenRF v0.2.173 weather hub — opt-in local recording and source-tagged history. */
+/* OpenRF v0.2.174 weather hub — opt-in local recording and source-tagged history. */
 (() => {
   'use strict';
   const el = id => document.getElementById(id);
   const groups = ['dashboard', 'sensors', 'history'];
-  const state = {stations:[], selected:null, readings:[], historyEpoch:0, overviewEpoch:0,
+  const state = {stations:[], selected:null, readings:[], historyEpoch:0, comparisonEpoch:0, overviewEpoch:0,
     active:'dashboard', latest:null, visible:false};
   const chart = el('weather-chart');
 
@@ -507,8 +507,42 @@
       table.append(tr);
     }
   }
+  async function loadComparison(){
+    const panel=el('weather-compare-panel'),enabled=!!el('weather-compare-enabled').checked;
+    const epoch=++state.comparisonEpoch;
+    panel.hidden=!enabled;
+    if(!enabled)return;
+    const station=state.selected,days=Number(el('weather-history-days').value);
+    const metricName=el('weather-history-metric').value,metric=fields[metricName];
+    for(const id of ['current','previous','difference'])el(`weather-compare-${id}`).textContent='—';
+    for(const id of ['current','previous','difference'])el(`weather-compare-${id}-detail`).textContent='No comparison yet';
+    if(!station){el('weather-compare-status').textContent='Create or select a station first.';return;}
+    if(![1,7,30,365].includes(days)){
+      el('weather-compare-status').textContent='Choose a fixed period (24 hours, 7 days, 30 days or 1 year). All saved cannot be compared to an equal window.';
+      return;
+    }
+    el('weather-compare-status').textContent='Comparing two equal periods of local archived readings…';
+    try{
+      const result=await request(`/api/weather/compare?station_id=${station}&days=${days}&metric=${encodeURIComponent(metricName)}`);
+      if(epoch!==state.comparisonEpoch)return;
+      const current=result.current,previous=result.previous;
+      const unit=metric.unit?` ${metric.unit}`:'';
+      const display=sample=>sample.count?format(metric.convert(sample.mean),1,unit):'—';
+      el('weather-compare-current').textContent=display(current);
+      el('weather-compare-previous').textContent=display(previous);
+      el('weather-compare-current-detail').textContent=`${current.count} samples · ${current.count?'low '+format(metric.convert(current.minimum),1)+', high '+format(metric.convert(current.maximum),1):'no measurements'}`;
+      el('weather-compare-previous-detail').textContent=`${previous.count} samples · ${previous.count?'low '+format(metric.convert(previous.minimum),1)+', high '+format(metric.convert(previous.maximum),1):'no measurements'}`;
+      if(current.count&&previous.count){
+        const delta=metric.convert(current.mean)-metric.convert(previous.mean);
+        el('weather-compare-difference').textContent=`${delta>0?'+':''}${format(delta,1,unit)}`;
+        el('weather-compare-difference-detail').textContent='Selected period minus previous period · sample averages';
+      }else el('weather-compare-difference-detail').textContent='Requires recorded measurements in both periods';
+      el('weather-compare-status').textContent=`${metric.title}: ${days} day${days===1?'':'s'} versus preceding ${days} day${days===1?'':'s'} · saved sample statistics only · mixed sources may be unverified`;
+    }catch(error){if(epoch===state.comparisonEpoch)el('weather-compare-status').textContent=error.message;}
+  }
   async function loadHistory() {
     const epoch=++state.historyEpoch,station=state.selected,days=Number(el('weather-history-days').value);
+    loadComparison();
     el('weather-export').setAttribute('aria-disabled',station?'false':'true');
     el('weather-export').href=station?`/api/weather/export.csv?station_id=${station}`:'#';
     if(!station){state.readings=[];drawChart();renderTable();el('weather-history-status').textContent='Create a station to view history.';return;}
@@ -521,7 +555,8 @@
     }catch(error){if(epoch===state.historyEpoch)el('weather-history-status').textContent=error.message;}
   }
   el('weather-history-days').addEventListener('change',loadHistory);
-  el('weather-history-metric').addEventListener('change',drawChart);
+  el('weather-history-metric').addEventListener('change',()=>{drawChart();loadComparison();});
+  el('weather-compare-enabled').addEventListener('change',loadComparison);
   el('weather-export').addEventListener('click',event=>{
     if(!state.selected){event.preventDefault();status('Create a station before exporting history.',true);}
   });
