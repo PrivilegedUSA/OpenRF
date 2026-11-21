@@ -1,5 +1,11 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.165 — Reticulum messages like a chat, with receipt updates
+
+- **Latest at the bottom:** Both Reticulum and Meshtastic conversations now sort oldest-to-newest by their reported UTC timestamps, not by database insertion order. Opening a Reticulum thread, switching to Inbox or opening Mesh messages shows the latest message; new messages keep the view at the bottom if you were already there, but won't yank you away from older texts while reading.
+- **Actual LXMF delivery statuses:** Outgoing messages register real LXMF delivery/failure callbacks. When the sending device receives an LXMF delivery confirmation, its message bubble changes from **Queued** to **Delivered**; confirmed failures show **Delivery failed**. The optional local message history retains these later state changes without replacing a confirmed receipt with an old queue record. Existing v0.2.164 queued records cannot be verified retroactively.
+- **Independent future MeshCore support:** MeshCore is a separate future transport, not silently added to the existing Meshtastic/Reticulum connections. A dedicated compatible LoRa companion radio (USB serial preferred) is the intended Raspberry Pi path; no MeshCore firmware or driver is bundled yet. See [MeshCore integration plan](docs/MESHCORE_INTEGRATION_PLAN.md) and [release checks](docs/RELEASE_0.2.165_TESTS.md).
+
 ## v0.2.164 — Reticulum Dashboard connections and working send feedback
 
 - **Connections consolidated:** Messages → Reticulum now has **Dashboard, Inbox, Contacts, Files**. TCP listener/peer, optional HaLow, RNode and diagnostics are grouped in collapsible **Connection settings** on the Dashboard. The main Enable/Disable control and LXMF address stay in easy reach; opening the sections never starts a radio or LAN listener.

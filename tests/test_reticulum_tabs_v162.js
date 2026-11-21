@@ -8,7 +8,7 @@ const vm = require('node:vm');
 const html = fs.readFileSync('openrf/static/index.html', 'utf8');
 const css = fs.readFileSync('openrf/static/app.css', 'utf8');
 const code = fs.readFileSync('openrf/static/reticulum-tabs.js', 'utf8');
-assert(html.includes('/static/reticulum-tabs.js?v=0.2.164'));
+assert(html.includes('/static/reticulum-tabs.js?v=0.2.165'));
 assert(css.includes('.reticulum-tab-panel[hidden]{display:none!important}'));
 assert(!/\.scrollIntoView\s*\(/.test(code), 'Tab changes must not scroll the page');
 
@@ -46,6 +46,7 @@ const bar = element('reticulum-tabs');
 const container = element('reticulum-panel');
 const btns = ['dashboard', 'inbox', 'contacts', 'files'].map(key => element(`reticulum-tab-${key}`));
 element('reticulum-tab-unread');
+element('reticulum-messages').scrollHeight = 480;
 element('reticulum-inbox-unread').textContent = '3 unread · review messages, then mark all read';
 const children = [
   element('title', 'panel-title'), element('intro'), element('reticulum-status'), element('reticulum-start-help'), element('reticulum-connection-brief'),
@@ -71,6 +72,11 @@ vm.runInNewContext(code, global);
 
 const sections = Object.fromEntries(['dashboard', 'inbox', 'contacts', 'files'].map(key => [key, container.children.find(item => item.id === `reticulum-tab-panel-${key}`)]));
 assert.equal(global.window.OpenRFReticulumTabs.current(), 'dashboard');
+btns[1].events.click();
+assert.equal(global.window.OpenRFReticulumTabs.current(), 'inbox');
+assert.equal(elements.get('reticulum-messages').scrollTop,480,
+  'Switching to Inbox starts with the newest message in view');
+btns[0].events.click();
 assert.equal(elements.get('reticulum-tab-unread').textContent, '3');
 assert.deepEqual(container.children.map(item => item.id), Object.values(sections).map(item => item.id));
 function contains(parent, child) { return parent === child || parent.children.some(item => contains(item, child)); }
@@ -118,4 +124,4 @@ assert(html.includes('id="reticulum-send-status"'), 'Send feedback is visible on
 const reticulum = fs.readFileSync('openrf/static/reticulum.js', 'utf8');
 assert(reticulum.includes("sendNote('Route discovery requested. Message NOT sent."));
 assert(reticulum.includes("sendNote('Queued in LXMF."));
-console.log('PASS v0.2.164: four Reticulum tabs, collapsed dashboard settings and visible Inbox send status');
+console.log('PASS v0.2.165: four Reticulum tabs, collapsed dashboard settings and visible Inbox send status');

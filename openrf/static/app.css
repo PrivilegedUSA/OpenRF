@@ -1725,8 +1725,8 @@ body.map-workspace.has-message-unread .topbar #mesh-header-button{display:inline
 #page-messages .message-read-actions .btn,#page-reticulum .message-read-actions .btn{min-height:31px;padding:5px 9px}
 #page-messages .message-read-actions .small,#page-reticulum .message-read-actions .small{min-width:0;overflow-wrap:anywhere}
 
-/* v0.2.93 — short, readable conversation bubbles without chat-style
-   delivery claims. The most recent event is at the top of each inbox. */
+/* Short, readable conversation bubbles; oldest first with latest below.
+   Delivery text is updated only when LXMF provides a verified result. */
 #page-messages .mesh-messages,#page-reticulum .mesh-messages{display:flex;flex-direction:column;gap:8px;min-width:0}
 #page-messages .mesh-message.message-bubble,#page-reticulum .mesh-message.message-bubble{
   width:fit-content;max-width:88%;min-width:0;padding:9px 11px;margin:0;

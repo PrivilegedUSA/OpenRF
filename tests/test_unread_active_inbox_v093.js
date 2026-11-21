@@ -10,8 +10,8 @@ const mesh=fs.readFileSync('openrf/static/mesh.js','utf8');
 const reticulum=fs.readFileSync('openrf/static/reticulum.js','utf8');
 for(const id of ['mesh-mark-read','reticulum-mark-read','mesh-inbox-unread','reticulum-inbox-unread'])
   assert(html.includes(`id="${id}"`));
-assert(mesh.includes("document.addEventListener('openrf:messages-shown',refresh);"));
-assert(reticulum.includes("document.addEventListener('openrf:reticulum-shown',refreshInbox);"));
+assert(mesh.includes("document.addEventListener('openrf:messages-shown',async()=>{"));
+assert(reticulum.includes("document.addEventListener('openrf:reticulum-shown',async()=>{"));
 assert(css.includes('body.map-workspace.has-message-unread .topbar .header-messages-menu{display:flex!important;'));
 
 function fixture(source,type,sessionStorage){

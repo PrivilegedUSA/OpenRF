@@ -1,4 +1,4 @@
-/* OpenRF v0.2.164 — Reticulum settings grouped under Dashboard. */
+/* OpenRF v0.2.165 — Reticulum settings grouped under Dashboard. */
 (() => {
   'use strict';
   const root = document.getElementById('page-reticulum');
@@ -88,6 +88,7 @@
 
   function activate(name, { focus = false } = {}) {
     if (!panels.has(name)) return;
+    const wasInbox = !panels.get('inbox').hidden;
     for (const key of names) {
       const selected = key === name;
       panels.get(key).hidden = !selected;
@@ -97,6 +98,10 @@
     if (name === 'contacts') {
       const addressBook = document.getElementById('reticulum-contacts-panel');
       if (addressBook) addressBook.open = true;
+    }
+    if (name === 'inbox' && !wasInbox) {
+      const messages = document.getElementById('reticulum-messages');
+      if (messages) messages.scrollTop = messages.scrollHeight;
     }
     // No hash navigation, focus stealing or scrollIntoView on a tab change.
     if (focus) tabs.get(name).focus({ preventScroll: true });

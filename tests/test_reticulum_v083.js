@@ -5,7 +5,7 @@ const js=fs.readFileSync('openrf/static/reticulum.js','utf8');
 for(const name of ['reticulum-panel','reticulum-enable','reticulum-disable',
   'reticulum-send','reticulum-address','reticulum-recipient','reticulum-messages'])
   assert(html.includes(`id="${name}"`),name);
-assert(html.includes('/static/reticulum.js?v=0.2.164'));
+assert(html.includes('/static/reticulum.js?v=0.2.165'));
 assert(js.includes('PATH_REQUESTED_NOT_SENT'));
 assert(js.includes("'/api/reticulum/start'"));
 assert(js.includes("'/api/reticulum/stop'"));

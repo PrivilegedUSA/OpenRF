@@ -10,8 +10,8 @@ assert(mesh.includes("el('mesh-reply-conversation').addEventListener('click'"));
 assert(mesh.includes('new TextEncoder().encode(el(\'mesh-text\').value).length'));
 assert(mesh.includes('count>180'));
 assert(mesh.includes('if(signature===lastRenderedSignature)return'));
-assert(mesh.includes('wasNearTop?0:Math.max(0,oldScroll+box.scrollHeight-oldHeight)'),
-  'Newest-first chat preserves the older-message reading position');
+assert(mesh.includes('box.scrollTop=wasNearBottom?box.scrollHeight:oldScroll'),
+  'Oldest-first chat preserves the older-message reading position');
 // UTF-8 byte count is deliberately not equivalent to JavaScript string length.
 assert.equal(new TextEncoder().encode('🙂'.repeat(46)).length,184);
 console.log('PASS v0.2.104 mesh composer and conversation UI checks');

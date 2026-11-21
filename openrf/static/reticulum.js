@@ -14,7 +14,7 @@
     return {receiveSequence:null,unread:0};
   }
   const state={enabled:false,busy:false,starting:false,available:false,polling:false,
-    contacts:[],messages:[],historyEnabled:false,editingContact:null,
+    contacts:[],messages:[],historyEnabled:false,editingContact:null,lastSentReceipt:null,
     activeThread:null,drafts:Object.create(null),attachment:null,attachmentPreviewUrl:null,
     halowEligible:[],...restoredUnread()};
   const maxAttachmentBytes=128*1024;
@@ -408,8 +408,8 @@
     el('reticulum-recipient').value=isNew?'':selected;
     el('reticulum-text').value=state.drafts[selected]||'';
     el('reticulum-conversation').value=isNew?'all':selected;
-    el('reticulum-messages').scrollTop=0;
     renderInbox(state.messages);
+    scrollToLatest();
     updateControls();
     el('reticulum-thread-view').scrollIntoView({block:'start',behavior:'smooth'});
   }
@@ -421,6 +421,10 @@
     el('reticulum-thread-browser').scrollIntoView({block:'start',behavior:'smooth'});
   }
   let lastThreadContentSignature='';
+  function scrollToLatest(){
+    const box=el('reticulum-messages');
+    if(box)box.scrollTop=box.scrollHeight;
+  }
   function renderInbox(rows){
     state.messages=Array.isArray(rows)?rows:[];
     renderConversationChoices();
@@ -432,18 +436,21 @@
       el('reticulum-thread-name').textContent=contact?.alias||`${state.activeThread.slice(0,8)}…`;
       el('reticulum-thread-save').hidden=Boolean(contact);
     }
-    // The worker inbox and saved SQLite history both arrive oldest-first.
-    // Reverse a copy AFTER filtering so repeated polls and conversations
-    // remain newest-first without mutating the canonical message order.
+    // Chat chronology runs oldest to newest, with the latest at the bottom.
+    // Older persisted entries can have been imported from a prior session;
+    // order by their actual UTC timestamps, not SQLite insertion order.
+    // JS stable sort preserves arrival order when timestamps are identical.
     const visible=(selected==='__new__'?[]:selected==='all'?state.messages:
-      state.messages.filter(row=>String(row.destination||'').toLowerCase()===selected)).slice().reverse();
+      state.messages.filter(row=>String(row.destination||'').toLowerCase()===selected)).slice().sort((left,right)=>{
+        const a=Date.parse(left.utc),b=Date.parse(right.utc);
+        return Number.isFinite(a)&&Number.isFinite(b)?a-b:0;
+      });
     const contentSignature=JSON.stringify([selected,visible,state.contacts]);
     if(contentSignature===lastThreadContentSignature)return;
     lastThreadContentSignature=contentSignature;
     const box=el('reticulum-messages');
     const previous=box.scrollTop;
-    const oldHeight=box.scrollHeight;
-    const nearTop=box.scrollTop<24;
+    const nearBottom=box.scrollHeight-box.scrollTop-box.clientHeight<=48;
     box.replaceChildren();
     if(!visible.length){const p=document.createElement('p');p.className='small muted';
       p.textContent=selected==='all'?'No LXMF messages in this inbox.':
@@ -456,6 +463,8 @@
       const content=document.createElement('p');content.textContent=String(message.text||'');
       const detail=document.createElement('small');
       const status=message.status==='RECEIVED_VALID_SIGNATURE'?'Received · valid LXMF signature':
+        message.status==='DELIVERED_LXMF'?'Delivered · LXMF receipt confirmed':
+        message.status==='FAILED_LXMF'?'Delivery failed · LXMF reported failure':
         message.status==='QUEUED_WITH_LXMF_NOT_DELIVERED'?'Queued with LXMF · delivery not confirmed':
         'Status unverified';
       detail.textContent=`${status} · ${friendlyMessageTime(message.utc)}`;
@@ -503,9 +512,9 @@
       }
       box.append(article);
     }
-    // The latest item is now at the top. Do not drag someone reading an older
-    // message back to the top during automatic inbox refreshes.
-    box.scrollTop=nearTop?0:Math.max(0,previous+box.scrollHeight-oldHeight);
+    // Follow new arrivals only if already near the latest message. Preserve
+    // scroll position while the operator is reading older chat history.
+    box.scrollTop=nearBottom?box.scrollHeight:previous;
   }
   function prefillReply(sender){
     if(typeof window!=='undefined')window.OpenRFReticulumTabs?.open?.('inbox');
@@ -515,8 +524,8 @@
       openThread(sender);
     }else if(el('reticulum-conversation')){
       el('reticulum-conversation').value=sender.toLowerCase();
-      el('reticulum-messages').scrollTop=0;
       renderInbox(state.messages);
+      scrollToLatest();
     }
     updateControls();
     el('reticulum-text').focus();
@@ -673,6 +682,16 @@
     try{const result=await request('/api/reticulum/messages');
       trackInbox(result);
       state.messages=Array.isArray(result.messages)?result.messages:[];
+      const last=state.lastSentReceipt;
+      if(last){
+        const updated=state.messages.find(row=>row.direction==='OUT'&&row.worker_id===last.worker_id&&
+          row.event_id===last.event_id);
+        if(updated&&updated.status!==last.reported){
+          if(updated.status==='DELIVERED_LXMF')sendNote('LXMF delivery confirmed by a receipt from the destination.');
+          else if(updated.status==='FAILED_LXMF')sendNote('LXMF reports this message failed to deliver.',true);
+          last.reported=updated.status;
+        }
+      }
       if(viewingMessages()){
         renderInbox(state.messages);
         if(state.historyEnabled)await refreshHistory();
@@ -858,8 +877,8 @@
     el('reticulum-save-recipient').click();
   });
   el('reticulum-conversation').addEventListener('change',()=>{
-    el('reticulum-messages').scrollTop=0;
     renderInbox(state.messages);
+    scrollToLatest();
   });
   el('reticulum-save-recipient').addEventListener('click',()=>{
     const address=el('reticulum-recipient').value.trim();
@@ -925,7 +944,10 @@
     state.unread=0;publishUnread();
     note('Reticulum messages marked as read on this tab.');
   });
-  document.addEventListener('openrf:reticulum-shown',refreshInbox);
+  document.addEventListener('openrf:reticulum-shown',async()=>{
+    await refreshInbox();
+    if(state.activeThread!==null)scrollToLatest();
+  });
   document.addEventListener('openrf:connections-changed',refreshStatus);
   el('reticulum-compose').addEventListener('submit',async event=>{
     event.preventDefault();
@@ -947,12 +969,22 @@
     }
     const result=await act('/api/reticulum/send',payload);
     if(!result){sendNote(el('reticulum-status').textContent||'The send attempt failed. Nothing was confirmed delivered.',true);return;}
+    if(Number.isSafeInteger(result.event_id)&&result.worker_id){
+      state.lastSentReceipt={event_id:result.event_id,worker_id:result.worker_id,
+        reported:result.status};
+    }
     if(result.status==='QUEUED_WITH_LXMF_NOT_DELIVERED'){
       el('reticulum-text').value='';updateControls();
       clearAttachment();
       if(state.activeThread!==null)state.drafts[state.activeThread]='';
       if(state.activeThread==='new')openThread(address);
       sendNote('Queued in LXMF. The recipient has NOT confirmed delivery.');
+    }else if(result.status==='DELIVERED_LXMF'){
+      el('reticulum-text').value='';updateControls();clearAttachment();
+      if(state.activeThread!==null)state.drafts[state.activeThread]='';
+      sendNote('LXMF delivery confirmed by a receipt from the destination.');
+    }else if(result.status==='FAILED_LXMF'){
+      sendNote('LXMF reports this message failed to deliver.',true);
     }else if(result.status==='PATH_REQUESTED_NOT_SENT'){
       sendNote('Route discovery requested. Message NOT sent. Wait for a path, then press Send again.');
     }else sendNote('Destination identity is not yet known. Message NOT sent. Try again after discovery.');

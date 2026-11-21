@@ -73,7 +73,9 @@ assert.equal(elements['reticulum-recipient'].value,a);
 assert.equal(elements['reticulum-recipient-label'].hidden,true,'No address field repeated for known thread');
 assert.equal(elements['reticulum-thread-save'].hidden,true,'Saved contact needs no Save button');
 assert.equal(elements['reticulum-messages'].children.length,2,'Thread filters other peers');
-assert.equal(elements['reticulum-messages'].children[0].children[1].textContent,'Last from phone');
+assert.equal(elements['reticulum-messages'].children[0].children[1].textContent,'First from phone');
+assert.equal(elements['reticulum-messages'].children[1].children[1].textContent,'Last from phone');
+assert.equal(elements['reticulum-messages'].scrollTop,300,'Opening a thread starts at the latest message');
 assert.equal(elements['reticulum-messages'].children[0].children.length,3,
   'Reply and Copy are no longer repeated under each received bubble');
 elements['reticulum-text'].value='Draft for Sideband';

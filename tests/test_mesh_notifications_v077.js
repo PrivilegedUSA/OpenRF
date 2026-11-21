@@ -26,7 +26,7 @@ assert(html.includes('id="mesh-header-button"')&&html.includes('id="mesh-header-
 assert(html.includes('id="mesh-nav-unread"')&&html.includes('id="mesh-global-announcer"'));
 assert(css.includes('body.map-workspace .topbar .messages-header-button'));
 assert(app.includes("new Event('openrf:messages-shown')"));
-assert(mesh.includes("document.addEventListener('openrf:messages-shown',refresh);"));
+assert(mesh.includes("document.addEventListener('openrf:messages-shown',async()=>{"));
 assert(!mesh.includes("document.addEventListener('openrf:radio-shown',refresh)"));
 assert(!mesh.includes('innerHTML'));
 

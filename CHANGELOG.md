@@ -1,3 +1,10 @@
+## OpenRF v0.2.165 — Reticulum chat chronology and delivery receipt callbacks (2026-11-21)
+
+- Reticulum and Meshtastic conversation bubbles now follow actual UTC chronology from oldest at the top to newest at the bottom, even when local history rows were inserted after an older message. Entering a Reticulum thread, selecting the Inbox tab or opening Mesh messages moves the conversation to the latest message; automatic polls follow only when near the bottom, preserving a manually scrolled position.
+- Outgoing LXMF messages now register explicit delivery/failure callbacks before queue submission, update their exact in-memory record by event ID, and preserve confirmed statuses in opt-in SQLite history. The UI distinguishes **Queued (unconfirmed)**, **Delivered (LXMF receipt)**, and **Delivery failed**. The Send status near the composer updates when a matching receipt arrives. HTTP 202 remains local request acceptance only.
+- A separate MeshCore integration plan documents the optional future USB serial companion-radio backend and explains that Meshtastic, MeshCore and Reticulum/RNode are distinct firmware/network transports. No hardware driver or automatic inter-network bridging was added. Existing v0.2.164 queued records remain unverified unless a new tracked send receives its own callback.
+- Added regression tests for oldest-to-newest ordering, scroll-follow semantics, callback isolation and persisted status transitions. **463 Python tests and 133 JavaScript test files passed.** No physical Reticulum delivery, RF radio, Pi device or MeshCore companion was available for a live test. See `docs/RELEASE_0.2.165_TESTS.md`.
+
 ## OpenRF v0.2.164 — Reticulum Dashboard consolidation and stamp-worker/send feedback fix (2026-11-21)
 
 - Removed the separate Connections tab. Dashboard now groups optional LAN/TCP, HaLow, RNode, and diagnostics in collapsed sections while preserving existing inputs and listeners. Reticulum still requires explicit Enable; all transport opt-ins retain their default-off values.

@@ -167,6 +167,10 @@ class AttachmentTests(unittest.TestCase):
             DIRECT=1
             def __init__(self,destination,source,content,title,**kwargs):
                 self.content=content;self.fields=kwargs.get('fields')
+            def register_delivery_callback(self,callback):
+                self.delivery_callback=callback
+            def register_failed_callback(self,callback):
+                self.failed_callback=callback
         fake_rns=types.SimpleNamespace(Reticulum=lambda **kwargs:object(),
             Identity=Identity,Destination=Destination,Transport=Transport)
         fake_lxmf=types.SimpleNamespace(LXMRouter=Router,LXMessage=Message,
@@ -184,7 +188,8 @@ class AttachmentTests(unittest.TestCase):
         def receive_next():
             command=next(pipe.commands)
             if command['action']=='attachment':
-                command['message']['id']=pipe.answers[-1]['messages'][0]['attachment']['id']
+                incoming=next(row for row in pipe.answers[-1]['messages'] if row['direction']=='IN')
+                command['message']['id']=incoming['attachment']['id']
             return command
         pipe.recv=receive_next
         with tempfile.TemporaryDirectory() as folder, patch.dict(sys.modules,{'RNS':fake_rns,'LXMF':fake_lxmf}):
@@ -193,8 +198,9 @@ class AttachmentTests(unittest.TestCase):
         self.assertEqual(sent[0].fields,{6:['png',PNG]})
         inbox=next(answer for answer in pipe.answers if 'messages' in answer)
         self.assertEqual(len(inbox['messages']),2)
-        self.assertEqual(inbox['messages'][0]['attachment']['filename'],'received-image.png')
-        self.assertTrue(inbox['messages'][0]['attachment']['available'])
+        incoming=next(row for row in inbox['messages'] if row['direction']=='IN')
+        self.assertEqual(incoming['attachment']['filename'],'received-image.png')
+        self.assertTrue(incoming['attachment']['available'])
         downloaded=next(answer for answer in pipe.answers if 'data' in answer)
         self.assertEqual(downloaded['data'],PNG)
 

@@ -1,4 +1,4 @@
-/* v0.2.164 — no-WebGL repeat tiles, polar edge clamp and one-shot GNSS. */
+/* v0.2.165 — no-WebGL repeat tiles, polar edge clamp and one-shot GNSS. */
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -62,5 +62,5 @@ async function checkGnss(mockFix){
   assert.equal(check.result.ok,false);assert.equal(check.applied,0,'Stale GNSS cannot center map');
   check=await checkGnss({status:'unavailable',message:'No local GNSS receiver'});
   assert.equal(check.result.ok,false);assert.equal(check.applied,0);
-  console.log('PASS v0.2.164 wrapped raster panning, loaded notice, opt-in/rejected stale GNSS');
+  console.log('PASS v0.2.165 wrapped raster panning, loaded notice, opt-in/rejected stale GNSS');
 })().catch(error=>{console.error(error);process.exitCode=1;});

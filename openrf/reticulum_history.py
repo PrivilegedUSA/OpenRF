@@ -197,7 +197,9 @@ class ReticulumLocalStore:
                     continue
             except UnicodeError:
                 continue
-            if not isinstance(status, str) or status not in ('RECEIVED_VALID_SIGNATURE','QUEUED_WITH_LXMF_NOT_DELIVERED'):
+            allowed = ('RECEIVED_VALID_SIGNATURE',) if direction == 'IN' else (
+                'QUEUED_WITH_LXMF_NOT_DELIVERED', 'DELIVERED_LXMF', 'FAILED_LXMF')
+            if not isinstance(status, str) or status not in allowed:
                 continue
             if not isinstance(timestamp, str) or not 1 <= len(timestamp) <= 50:
                 continue
@@ -225,6 +227,14 @@ class ReticulumLocalStore:
                  attachment_id,attachment_name,attachment_size,attachment_mime)
                 VALUES(?,?,?,?,?,?,?,?,?,?,?)''', accepted)
             inserted = db.total_changes-before
+            # Outbound delivery/failure callbacks can arrive after the initial
+            # INSERT. Persist only forward QUEUED -> terminal transitions; do
+            # not overwrite an actual receipt with a stale queued snapshot.
+            db.executemany('''UPDATE messages SET status=?
+                WHERE worker_id=? AND event_id=? AND direction='OUT'
+                  AND status='QUEUED_WITH_LXMF_NOT_DELIVERED' ''',
+                [(status,worker,event_id) for worker,event_id,direction,_,_,_,status,*_ in accepted
+                 if direction == 'OUT' and status in ('DELIVERED_LXMF','FAILED_LXMF')])
             db.execute('''DELETE FROM messages WHERE id IN (
                 SELECT id FROM messages ORDER BY id DESC LIMIT -1 OFFSET ?)''', (HISTORY_LIMIT,))
             return inserted
@@ -236,16 +246,16 @@ class ReticulumLocalStore:
         with closing(connection) as db:
             fields = {row[1] for row in db.execute('PRAGMA table_info(messages)')}
             extra = ',attachment_id,attachment_name,attachment_size,attachment_mime' if 'attachment_id' in fields else ''
-            rows = db.execute(f'''SELECT id,worker_id,direction,destination,body,utc,status{extra} FROM messages
+            rows = db.execute(f'''SELECT id,worker_id,event_id,direction,destination,body,utc,status{extra} FROM messages
                 ORDER BY id DESC LIMIT ?''', (HISTORY_LIMIT,)).fetchall()
             results=[]
             for row in reversed(rows):
-                ident,worker,direction,address,body,utc,status = row[:7]
-                item=dict(id=ident,worker_id=worker,direction=direction,destination=address,
+                ident,worker,event_id,direction,address,body,utc,status = row[:8]
+                item=dict(id=ident,worker_id=worker,event_id=event_id,direction=direction,destination=address,
                           text=body,utc=utc,status=status)
-                if len(row)>7 and row[7] is not None:
-                    item['attachment']={'id':row[7], 'filename':row[8], 'size':row[9],
-                                        'mime':row[10]}
+                if len(row)>8 and row[8] is not None:
+                    item['attachment']={'id':row[8], 'filename':row[9], 'size':row[10],
+                                        'mime':row[11]}
                 results.append(item)
             return results
 

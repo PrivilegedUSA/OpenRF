@@ -176,6 +176,10 @@
   function conversationKey(message){
     return `${message.node||'unknown node'}|${Number.isInteger(message.channel)?message.channel:'?'}`;
   }
+  function scrollMeshToLatest(){
+    const box=el('mesh-messages');
+    if(box)box.scrollTop=box.scrollHeight;
+  }
   function renderMessages(rows){
     latestRows=Array.isArray(rows)?rows:[];
     const selector=el('mesh-conversation'), selected=selector.value;
@@ -193,14 +197,18 @@
 
     const box=el('mesh-messages');
     const oldScroll=box.scrollTop;
-    const oldHeight=box.scrollHeight;
-    const wasNearTop=oldScroll<24;
+    const wasNearBottom=box.scrollHeight-oldScroll-box.clientHeight<=48;
     box.replaceChildren();
     if(!filtered.length){
       const p=document.createElement('p');p.className='small muted';
       p.textContent='No recorded messages in this conversation. A connected radio is required for actual messages.';box.append(p);return;
     }
-    for(const m of filtered.slice(-1000).reverse()){
+    // Present chronological text-message order, independent of any delayed
+    // persistence/import ordering in the backend.
+    for(const m of filtered.slice().sort((left,right)=>{
+      const a=Date.parse(left.received_at_utc),b=Date.parse(right.received_at_utc);
+      return Number.isFinite(a)&&Number.isFinite(b)?a-b:0;
+    }).slice(-1000)){
       const article=document.createElement('article');
       article.className=`mesh-message message-bubble ${m.direction==='IN'?'message-inbound':'message-outbound'}`;
       const title=document.createElement('div');title.className='mesh-message-head';
@@ -226,7 +234,7 @@
       }
       box.append(article);
     }
-    box.scrollTop=wasNearTop?0:Math.max(0,oldScroll+box.scrollHeight-oldHeight);
+    box.scrollTop=wasNearBottom?box.scrollHeight:oldScroll;
   }
   async function loadMessages(){
     if(state.polling)return;
@@ -250,8 +258,8 @@
     finally{state.busy=false;renderButtons();}
   }
   el('mesh-conversation').addEventListener('change',()=>{
-    el('mesh-messages').scrollTop=0;
     renderMessages(latestRows);
+    scrollMeshToLatest();
   });
   el('mesh-reply-conversation').addEventListener('click',()=>{
     const key=el('mesh-conversation').value;
@@ -319,7 +327,10 @@
     const count=event.detail?.count;
     if(Number.isSafeInteger(count)&&count>=0){state.reticulumUnread=count;renderUnread();}
   });
-  document.addEventListener('openrf:messages-shown',refresh);
+  document.addEventListener('openrf:messages-shown',async()=>{
+    await refresh();
+    scrollMeshToLatest();
+  });
   // A read-only inbox poll continues across pages, so the header can indicate
   // real incoming texts without an open message page. No auto-connection,
   // radio scanning or transmission is initiated by this timer.

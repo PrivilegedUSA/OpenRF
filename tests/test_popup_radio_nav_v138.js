@@ -37,5 +37,5 @@ for(const segment of ['M12 2.5 22 20H2L12 2.5Z','M12 8.5v5.5','cx="12" cy="17"']
   assert(nav.includes(segment) && header.includes(segment),`Same warning triangle in sidebar and header: ${segment}`);
 }
 assert.match(css, /\.sidebar \.nav-btn\[data-page="emergency"\] \.nav-icon svg/);
-assert.match(html, /FIELD CONSOLE · 0\.2\.164/);
+assert.match(html, /FIELD CONSOLE · 0\.2\.165/);
 console.log('PASS v0.2.149 destination action rows and padding, radio spacing, Signal Viewer, warning icon');

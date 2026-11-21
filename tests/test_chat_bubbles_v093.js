@@ -1,5 +1,5 @@
 'use strict';
-// Text-like message bubbles: incoming left, outgoing right, latest first.
+// Text-like message bubbles: incoming left, outgoing right, latest at bottom.
 // Status remains truthful: submission to a radio is not proof of delivery.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -44,7 +44,7 @@ const rows=[
 const messageBox=elements['mesh-messages'];
 const texts=()=>messageBox.children.map(item=>item.children[1].textContent);
 context.renderMessages(rows);
-assert.deepEqual(texts(),['New hello','Queued reply','Old hello'],'Mesh inbox newest first');
+assert.deepEqual(texts(),['Old hello','Queued reply','New hello'],'Mesh inbox oldest first');
 assert.match(messageBox.children[0].className,/message-inbound/);
 assert.match(messageBox.children[1].className,/message-outbound/);
 assert.match(messageBox.children[1].children[2].textContent,/delivery not confirmed/);
@@ -52,8 +52,8 @@ assert.deepEqual(rows.map(item=>item.text),['Old hello','Queued reply','New hell
   'UI does not mutate the backend message array');
 elements['mesh-conversation'].value='!aaaaaaaa|0';
 context.renderMessages(rows);
-assert.deepEqual(texts(),['Queued reply','Old hello'],'Per-peer mesh chat newest-first');
+assert.deepEqual(texts(),['Old hello','Queued reply'],'Per-peer mesh chat oldest-first');
 elements['mesh-conversation'].value='all';
 context.renderMessages(rows);
-assert.deepEqual(texts(),['New hello','Queued reply','Old hello']);
-console.log('PASS v0.2.104 mesh and Reticulum chat bubbles, newest-first conversations');
+assert.deepEqual(texts(),['Old hello','Queued reply','New hello']);
+console.log('PASS v0.2.165 mesh and Reticulum chat bubbles, newest at bottom');

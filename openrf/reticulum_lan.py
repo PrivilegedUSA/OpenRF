@@ -341,6 +341,19 @@ def _utc():
     return datetime.now(timezone.utc).isoformat(timespec='seconds')
 
 
+def _update_outbound_status(inbox, lock, event_id, status):
+    """Apply an LXMF callback only to its own still-queued outbound event."""
+    if status not in ('DELIVERED_LXMF', 'FAILED_LXMF'):
+        return False
+    with lock:
+        for record in reversed(inbox):
+            if (record.get('event_id') == event_id and record.get('direction') == 'OUT'
+                    and record.get('status') == 'QUEUED_WITH_LXMF_NOT_DELIVERED'):
+                record['status'] = status
+                return True
+    return False
+
+
 def reticulum_worker(pipe, data_root, options=None):
     """Child-process LXMF endpoint. Never imported or started automatically."""
     try:
@@ -388,6 +401,7 @@ def reticulum_worker(pipe, data_root, options=None):
                 if incoming:
                     received_count += 1
                 inbox.append({**record, 'event_id': event_sequence})
+                return event_sequence
 
         def receive(message):
             if getattr(message, 'signature_validated', False) is not True:
@@ -511,15 +525,30 @@ def reticulum_worker(pipe, data_root, options=None):
                     fields = outbound_fields(LXMF, attachment)
                 message = LXMF.LXMessage(destination, source, payload['text'], None,
                     fields=fields, desired_method=LXMF.LXMessage.DIRECT, include_ticket=True)
-                router.handle_outbound(message)
                 record = {'direction':'OUT', 'destination':payload['destination'],
                           'text':payload['text'], 'utc':_utc(),
                           'status':'QUEUED_WITH_LXMF_NOT_DELIVERED'}
                 if attachment:
                     with inbox_lock:
                         record['attachment'] = attachments.add(**attachment)
-                append_inbox(record)
-                pipe.send({'ok':True, 'status':'QUEUED_WITH_LXMF_NOT_DELIVERED'})
+                event_id = append_inbox(record)
+                # Router acceptance alone is not delivery. LXMF invokes these
+                # callbacks later when it has proof or has exhausted retries.
+                message.register_delivery_callback(lambda _msg, eid=event_id:
+                    _update_outbound_status(inbox, inbox_lock, eid, 'DELIVERED_LXMF'))
+                message.register_failed_callback(lambda _msg, eid=event_id:
+                    _update_outbound_status(inbox, inbox_lock, eid, 'FAILED_LXMF'))
+                try:
+                    router.handle_outbound(message)
+                except Exception:
+                    _update_outbound_status(inbox, inbox_lock, event_id, 'FAILED_LXMF')
+                    pipe.send({'ok':False, 'error':'LXMF rejected the outbound message; it was not queued.'})
+                    continue
+                with inbox_lock:
+                    current = next((row['status'] for row in reversed(inbox)
+                                    if row.get('event_id') == event_id),
+                                   'QUEUED_WITH_LXMF_NOT_DELIVERED')
+                pipe.send({'ok':True, 'status':current, 'event_id':event_id})
             else:
                 pipe.send({'ok':False, 'error':'Unrecognized local Reticulum command.'})
     except (EOFError, BrokenPipeError):
@@ -674,6 +703,8 @@ class ReticulumManager:
         with self._lock:
             if self._running():
                 result = self._command('messages')
+                for row in result.get('messages', []):
+                    row['worker_id'] = self._worker_id
                 self._sync_messages(result)
             else:
                 result = {'messages':[], 'receive_sequence':0, 'storage':'INACTIVE'}
@@ -763,7 +794,8 @@ class ReticulumManager:
 
     def send(self, payload):
         message = validate_message(payload)
-        return self._command('send',message)
+        result = self._command('send',message)
+        return {**result, 'worker_id':self._worker_id}
 
     def attachment(self, token):
         if not isinstance(token, str) or not re.fullmatch(r'[0-9a-f]{32}', token):
