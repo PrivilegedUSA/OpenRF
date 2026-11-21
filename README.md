@@ -1,5 +1,11 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.164 — Reticulum Dashboard connections and working send feedback
+
+- **Connections consolidated:** Messages → Reticulum now has **Dashboard, Inbox, Contacts, Files**. TCP listener/peer, optional HaLow, RNode and diagnostics are grouped in collapsible **Connection settings** on the Dashboard. The main Enable/Disable control and LXMF address stay in easy reach; opening the sections never starts a radio or LAN listener.
+- **Reticulum stamp subprocess fix:** The optional RNS/LXMF worker is an explicitly managed **non-daemon** child. Newer RNS builds spawn their own helpers to stamp path requests; Python forbids those subprocesses when the parent is daemonic. OpenRF still requests a graceful stop and reaps its own worker at shutdown.
+- **Send status beside Send:** Inbox now displays whether the local worker is processing a request, searching for a route (**NOT SENT**), queuing with LXMF (**NOT DELIVERED**), or returning an error. A local HTTP `202` alone does **not** prove a recipient received a message. Dashboard also identifies missing `rns`/`lxmf` packages and the exact server interpreter for startup troubleshooting. See [v0.2.164 release checks](docs/RELEASE_0.2.164_TESTS.md).
+
 ## v0.2.163 — Reticulum tabs fixed and inbox simplified
 
 - **Working navigation:** The previous patch bundled `reticulum-tabs.js` but the local server returned HTTP 404 for it. The backend now serves the file, so tab clicks actually switch panels. An automated HTTP test checks that **every JavaScript resource referenced by the main page is served**, rather than trusting HTML and mock-DOM tests alone. This also fixes the previously blocked `camera_alerts.js` script.

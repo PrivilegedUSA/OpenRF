@@ -1,3 +1,10 @@
+## OpenRF v0.2.164 — Reticulum Dashboard consolidation and stamp-worker/send feedback fix (2026-11-21)
+
+- Removed the separate Connections tab. Dashboard now groups optional LAN/TCP, HaLow, RNode, and diagnostics in collapsed sections while preserving existing inputs and listeners. Reticulum still requires explicit Enable; all transport opt-ins retain their default-off values.
+- Fixed the observed Python `AssertionError: daemonic processes are not allowed to have children` during `RNS.Stamps.job_linux_managed` path requests. The owned Reticulum worker is no longer daemonic, allowing RNS to create its own stamp helpers. The normal Stop, server shutdown, termination and reaping paths remain in place.
+- Moved send feedback into the visible Inbox composer. Distinguish path-discovery `PATH_REQUESTED_NOT_SENT`, LXMF acceptance `QUEUED_WITH_LXMF_NOT_DELIVERED`, unknown identity and request failures. HTTP 202 is not a delivery acknowledgement.
+- Missing optional package/startup diagnostics name the active Python executable. Added nested subprocess regression tests and adjusted four-tab UI tests. **460 Python tests and 132 JavaScript test files passed.** No radio hardware, real LXMF peer delivery, Bluetooth link, Pi installer, or live resource receipt was tested in this environment. See `docs/RELEASE_0.2.164_TESTS.md`.
+
 ## OpenRF v0.2.163 — Reticulum tab service fix and cleaner Inbox (2026-11-21)
 
 - Fixed the root cause of v0.2.162's nonresponsive Reticulum tabs: the backend served the HTML but omitted `/static/reticulum-tabs.js` from its explicit allowlist, returning HTTP 404. Added that script and the also-previously-missing `/static/camera_alerts.js` to the static route allowlist.

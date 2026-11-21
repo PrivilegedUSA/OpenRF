@@ -13,7 +13,7 @@
     }catch(_){/* Messaging remains functional with session storage denied. */}
     return {receiveSequence:null,unread:0};
   }
-  const state={enabled:false,busy:false,available:false,polling:false,
+  const state={enabled:false,busy:false,starting:false,available:false,polling:false,
     contacts:[],messages:[],historyEnabled:false,editingContact:null,
     activeThread:null,drafts:Object.create(null),attachment:null,attachmentPreviewUrl:null,
     halowEligible:[],...restoredUnread()};
@@ -60,6 +60,13 @@
     el('reticulum-status').textContent=message;
     el('reticulum-status').classList.toggle('error',error);
   };
+  function sendNote(message,error=false){
+    // Send lives on Inbox; Dashboard's status is hidden while composing.
+    // Keep actionable results beside the button for sighted and AT users.
+    const label=el('reticulum-send-status');
+    if(label){label.textContent=message;label.classList.toggle('error',error);}
+    note(message,error);
+  }
   async function request(path,payload){
     const settings=payload===undefined?{cache:'no-store'}:{method:'POST',cache:'no-store',
       headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)};
@@ -89,7 +96,10 @@
     el('reticulum-attachment-file').disabled=state.busy;
     el('reticulum-byte-count').textContent=`${count} / 1024 UTF-8 bytes${count>1024?' · too long':''}`;
     el('reticulum-byte-count').classList.toggle('error',count>1024);
-    el('reticulum-enable').disabled=state.enabled||state.busy||!state.available;
+    // Keep Enable actionable when dependencies are absent: its explicit POST
+    // then surfaces the precise local error instead of silently doing nothing.
+    el('reticulum-enable').disabled=state.enabled||state.busy;
+    el('reticulum-enable').textContent=state.starting?'Starting Reticulum…':'Enable LAN messaging';
     el('reticulum-tcp-enable').disabled=state.enabled||state.busy;
     const listenPort=el('reticulum-tcp-port');
     if(listenPort)listenPort.disabled=state.enabled||state.busy||!el('reticulum-tcp-enable').checked;
@@ -137,6 +147,16 @@
   function renderStatus(result){
     state.enabled=Boolean(result.enabled);
     state.available=Boolean(result.dependencies_available);
+    const help=el('reticulum-start-help');
+    if(help){
+      help.hidden=state.available;
+      if(!state.available){
+        const packages=(Array.isArray(result.missing_packages)&&result.missing_packages.length)
+          ?result.missing_packages.join(' and '):'rns and lxmf';
+        const python=result.python_executable||'the Python interpreter running OpenRF';
+        help.textContent=`Cannot start yet: ${packages} unavailable in OpenRF's active Python (${python}). Install the optional packages in that same Python environment, then restart the OpenRF backend. Another terminal or Electron runtime can use a different Python. Press Enable for the local startup error.`;
+      }else help.textContent='';
+    }
     // A temporary status disconnect must not erase an unread notification.
     // The first successful inbox poll will establish/reset its sequence.
     if(state.enabled)el('reticulum-tcp-enable').checked=Boolean(result.tcp_enabled);
@@ -760,13 +780,18 @@
     return options;
   }
   async function act(path,payload){
+    const starting=path==='/api/reticulum/start';
+    if(starting){
+      state.starting=true;
+      note('Starting the local Reticulum worker… This may take up to 20 seconds. Waiting for your LXMF address.');
+    }
     state.busy=true;updateControls();
     try{
       const result=await request(path,payload);
       await refreshStatus();
       return result;
     }catch(error){note(error.message,true);return null;}
-    finally{state.busy=false;updateControls();}
+    finally{state.busy=false;state.starting=false;updateControls();}
   }
   el('reticulum-enable').addEventListener('click',async()=>{
     let options;
@@ -905,6 +930,7 @@
   el('reticulum-compose').addEventListener('submit',async event=>{
     event.preventDefault();
     if(!state.enabled||state.busy||voicePending||voiceRecorder||el('reticulum-send').disabled)return;
+    sendNote('Submitting your message to the local Reticulum worker… Delivery is not confirmed.');
     const address=el('reticulum-recipient').value.trim().toLowerCase();
     const payload={destination:address,text:el('reticulum-text').value};
     if(state.attachment){
@@ -917,19 +943,19 @@
         for(let offset=0;offset<bytes.length;offset+=8192)
           binary+=String.fromCharCode(...bytes.subarray(offset,offset+8192));
         payload.attachment={filename:file.name,data_base64:btoa(binary)};
-      }catch(error){note(`Could not read selected file: ${error.message}`,true);return;}
+      }catch(error){sendNote(`Could not read selected file: ${error.message}`,true);return;}
     }
     const result=await act('/api/reticulum/send',payload);
-    if(!result)return;
+    if(!result){sendNote(el('reticulum-status').textContent||'The send attempt failed. Nothing was confirmed delivered.',true);return;}
     if(result.status==='QUEUED_WITH_LXMF_NOT_DELIVERED'){
       el('reticulum-text').value='';updateControls();
       clearAttachment();
       if(state.activeThread!==null)state.drafts[state.activeThread]='';
       if(state.activeThread==='new')openThread(address);
-      note('LXMF router accepted this message for delivery; recipient delivery is not confirmed.');
+      sendNote('Queued in LXMF. The recipient has NOT confirmed delivery.');
     }else if(result.status==='PATH_REQUESTED_NOT_SENT'){
-      note('Route requested, but message was NOT sent. Wait for discovery, then send again.');
-    }else note('Destination identity is not yet known. Nothing was sent.');
+      sendNote('Route discovery requested. Message NOT sent. Wait for a path, then press Send again.');
+    }else sendNote('Destination identity is not yet known. Message NOT sent. Try again after discovery.');
   });
   // The passive poll runs while messaging is enabled even when another page
   // is open. It never enables Reticulum, announces, sends or starts RF scans.

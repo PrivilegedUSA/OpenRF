@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import re
 import secrets
+import sys
 import threading
 
 from .reticulum_history import ReticulumLocalStore, ContactExistsError, ContactMissingError
@@ -560,7 +561,20 @@ class ReticulumManager:
         with self._lock:
             available = bool(self._deps())
             running = self._running()
+            missing = []
+            if not available:
+                # Report the interpreter running the *server*, not the shell
+                # or an unrelated Python where the operator installed rns.
+                for module, package in (('RNS', 'rns'), ('LXMF', 'lxmf')):
+                    try:
+                        found = importlib.util.find_spec(module) is not None
+                    except (ImportError, ValueError):
+                        found = False
+                    if not found:
+                        missing.append(package)
             return {'enabled':running, 'dependencies_available':available,
+                    'missing_packages':missing,
+                    'python_executable':sys.executable if not available else None,
                     'address':self._address if running else None,
                     'last_error':self._error,
                     'transport':'RETICULUM_AUTOINTERFACE_WITH_OPTIONAL_TCP_RNODE',
@@ -599,8 +613,13 @@ class ReticulumManager:
                                      'reticulum_dependencies_missing', 503)
             ctx = multiprocessing.get_context('spawn')
             parent, child = ctx.Pipe()
+            # Reticulum path-request stamps may launch their own short-lived
+            # multiprocessing workers. A daemonic OpenRF worker cannot start
+            # child processes (Python raises AssertionError at send time).
+            # The HTTP server owns this non-daemonic child and explicitly
+            # stops/reaps it in stop(), close() and server_close().
             process = (self._factory or ctx.Process)(
-                target=reticulum_worker, args=(child,str(self.data_root),options), daemon=True)
+                target=reticulum_worker, args=(child,str(self.data_root),options), daemon=False)
             process.start()
             child.close()
             self._process, self._pipe = process, parent

@@ -1,4 +1,4 @@
-/* OpenRF v0.2.163 — Served Reticulum tabs, dashboard first, minimal inbox. */
+/* OpenRF v0.2.164 — Reticulum settings grouped under Dashboard. */
 (() => {
   'use strict';
   const root = document.getElementById('page-reticulum');
@@ -6,7 +6,7 @@
   const parent = document.getElementById('reticulum-panel');
   if (!root || !bar || !parent) return;
 
-  const names = ['dashboard', 'inbox', 'contacts', 'connections', 'files'];
+  const names = ['dashboard', 'inbox', 'contacts', 'files'];
   const tabs = new Map();
   const panels = new Map();
   for (const name of names) {
@@ -28,9 +28,10 @@
   const categories = contents.map((element, index) => {
     if (element.id === 'reticulum-contacts-panel') return 'contacts';
     if (element.id === 'reticulum-history-panel' || index === contents.length - 1) return 'dashboard';
-    if (index < 4 || element.querySelector('#reticulum-enable, #reticulum-announce, #reticulum-address') ||
+    if (index < 2 || ['reticulum-status', 'reticulum-start-help', 'reticulum-connection-brief'].includes(element.id) ||
+        element.querySelector('#reticulum-enable, #reticulum-announce, #reticulum-address') ||
         element.previousElementSibling?.querySelector('#reticulum-address')) return 'dashboard';
-    if (element.matches('.reticulum-tcp-settings, #reticulum-halow-panel, #reticulum-rnode-panel, #reticulum-diagnostics-panel')) return 'connections';
+    if (element.matches('.reticulum-tcp-settings, #reticulum-halow-panel, #reticulum-rnode-panel, #reticulum-diagnostics-panel')) return 'dashboard';
     if (element.id === 'reticulum-files-panel') return 'files';
     return 'inbox';
   });
@@ -39,20 +40,41 @@
   const dashboard = panels.get('dashboard');
   const dashboardLinks = document.createElement('div');
   dashboardLinks.className = 'reticulum-tab-shortcuts';
-  dashboardLinks.innerHTML = '<button type="button" class="btn outline" data-reticulum-open="inbox">Open inbox</button><button type="button" class="btn outline" data-reticulum-open="contacts">Contacts</button><button type="button" class="btn outline" data-reticulum-open="connections">Connection settings</button><button type="button" class="btn outline" data-reticulum-open="files">File sharing</button>';
+  dashboardLinks.innerHTML = '<button type="button" class="btn outline" data-reticulum-open="inbox">Open inbox</button><button type="button" class="btn outline" data-reticulum-open="contacts">Contacts</button><button type="button" class="btn outline" data-reticulum-open="files">File sharing</button>';
   dashboard.append(dashboardLinks);
+
+  // Keep Reticulum's start/stop/address controls immediately accessible. All
+  // connection controls live further down on the same Dashboard, collapsed by
+  // default. Moving their original nodes retains every existing event handler.
+  const settings = document.createElement('section');
+  settings.className = 'reticulum-dashboard-settings';
+  settings.innerHTML = '<h3>Connection settings</h3><p class="small muted">Optional interfaces and diagnostics. Configure them before pressing Enable LAN messaging; nothing starts by opening these sections.</p>';
+  const tcp = document.createElement('details');
+  tcp.id = 'reticulum-tcp-details';
+  tcp.className = 'reticulum-diagnostics';
+  tcp.open = false;
+  tcp.innerHTML = '<summary>LAN &amp; TCP settings</summary>';
+  const tcpFields = document.querySelector('#reticulum-panel .reticulum-tcp-settings');
+  if (tcpFields) tcp.append(tcpFields);
+  settings.append(tcp);
+  for (const id of ['reticulum-halow-panel', 'reticulum-rnode-panel', 'reticulum-diagnostics-panel']) {
+    const detail = document.getElementById(id);
+    if (detail) {
+      detail.open = false;
+      settings.append(detail);
+    }
+  }
+  dashboard.append(settings);
+  const history = document.getElementById('reticulum-history-panel');
+  if (history) dashboard.append(history);
+  const finalNote = contents[contents.length - 1];
+  if (finalNote && finalNote.parentElement === dashboard) dashboard.append(finalNote);
 
   const contacts = panels.get('contacts');
   const contactsIntro = document.createElement('div');
   contactsIntro.className = 'reticulum-tab-intro';
   contactsIntro.innerHTML = '<h3>Saved contacts</h3><p>Private nicknames for verified LXMF addresses. Select Message to open a conversation in Inbox.</p>';
   contacts.prepend(contactsIntro);
-
-  const connections = panels.get('connections');
-  const connectionIntro = document.createElement('div');
-  connectionIntro.className = 'reticulum-tab-intro';
-  connectionIntro.innerHTML = '<h3>Network connections</h3><p>Configure local TCP, Wi-Fi HaLow or RNode interfaces before enabling Reticulum. Nothing starts automatically.</p>';
-  connections.prepend(connectionIntro);
 
   const files = panels.get('files');
   const bluetooth = document.getElementById('bluetooth-file-panel');
