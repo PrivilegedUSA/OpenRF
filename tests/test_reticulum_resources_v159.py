@@ -1,4 +1,4 @@
-"""v0.2.160: conservative Resource transfer, explicit receive gate and HTTP bounds."""
+"""v0.2.159: conservative Resource transfer, explicit receive gate and HTTP bounds."""
 import base64
 import hashlib
 from http.client import HTTPConnection

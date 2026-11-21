@@ -2762,7 +2762,7 @@ body.map-workspace .topbar .header-wifi-button{background:#0c2833e8;color:#a9e7d
   .topbar .header-wifi-panel{right:-53px;max-height:calc(100vh - 80px)}}
 @media(max-width:550px){.trip-library-metrics{grid-template-columns:1fr 1fr}.trip-library-metrics>div:last-child{grid-column:1/-1}
   .trip-library-section,.trip-library-overview{padding:12px}.trip-library-card{padding:12px}}
-/* v0.2.160: bounded, manually armed Reticulum Resource transfers. */
+/* v0.2.159: bounded, manually armed Reticulum Resource transfers. */
 .reticulum-resource-panel { margin:16px 0; }
 .reticulum-resource-panel > summary { cursor:pointer; }
 .reticulum-resource-panel label { display:block; min-width:0; margin:11px 0; }
@@ -2773,3 +2773,20 @@ body.map-workspace .topbar .header-wifi-button{background:#0c2833e8;color:#a9e7d
 .reticulum-file-row { display:flex; flex-wrap:wrap; gap:9px; align-items:center; justify-content:space-between; border:1px solid #2c505d; border-radius:8px; padding:10px; background:#0d2731; }
 .reticulum-file-info { display:grid; gap:3px; flex:1 1 190px; min-width:0; overflow-wrap:anywhere; }
 .reticulum-file-info small { font-size:11px; }
+/* v0.2.161: compact, opt-in Classic Bluetooth file exchange. */
+#page-reticulum .bluetooth-file-panel{margin-bottom:15px}
+#page-reticulum .bluetooth-file-panel>summary{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;cursor:pointer;font-weight:800;color:#cbf7ed;list-style:revert;min-height:34px}
+#page-reticulum .bluetooth-file-panel>summary .pill{margin-left:auto}
+#page-reticulum .bluetooth-file-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
+#page-reticulum .bluetooth-file-side{display:flex;flex-direction:column;gap:9px;min-width:0;padding:13px;background:#0b1b26;border:1px solid #294955;border-radius:9px}
+#page-reticulum .bluetooth-file-side h4{margin:0 0 3px;font-size:13px;color:#d1f2ee}
+#page-reticulum .bluetooth-file-side label{font-size:11px;color:#a7c3ce}
+#page-reticulum .bluetooth-file-side .button-line{margin-top:4px;gap:7px}
+#page-reticulum .bluetooth-file-side .btn{min-height:39px;white-space:normal;text-align:center}
+#page-reticulum #bluetooth-file-notice{overflow-wrap:anywhere}
+#page-reticulum #bluetooth-file-notice.error{color:#ffb2a4}
+#page-reticulum .bluetooth-file-transfers{margin-top:10px;display:grid;gap:8px}
+#page-reticulum .bluetooth-transfer-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px;border:1px solid #2b4a58;border-radius:7px;background:#0b1b26}
+#page-reticulum .bluetooth-transfer-row strong{font-size:12px;overflow-wrap:anywhere}
+#page-reticulum .bluetooth-transfer-row small{display:block;margin-top:5px;color:#9db7c4}
+@media(max-width:780px){#page-reticulum .bluetooth-file-grid{grid-template-columns:1fr}}

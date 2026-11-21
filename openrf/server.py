@@ -36,6 +36,7 @@ from .mesh import MeshManager, MeshError
 from .mesh import validate_send as validate_mesh_send
 from .reticulum_lan import ReticulumManager, ReticulumError, rnode_readiness
 from .reticulum_lan import validate_message as validate_lxmf_message
+from .bluetooth_files import BluetoothFileManager, BluetoothFileError
 from .mesh_connections import connection_report
 from .wifi_halow import status_report as halow_status_report
 from .halow_diagnostics import diagnostic_report as halow_diagnostic_report, HaLowDiagnosticError
@@ -90,6 +91,8 @@ class OpenRFHTTPServer(ThreadingHTTPServer):
             self.mesh_manager.close()
         if hasattr(self, 'reticulum_manager'):
             self.reticulum_manager.close()
+        if hasattr(self, 'bluetooth_file_manager'):
+            self.bluetooth_file_manager.close()
         if hasattr(self, 'sdr_captures'):
             self.sdr_captures.close()
         if hasattr(self,'recovery_lock'):
@@ -145,6 +148,8 @@ class Handler(BaseHTTPRequestHandler):
             max_size = 180000  # One Base64-encoded 128 KiB LXMF attachment.
         if request_path == '/api/reticulum/files/send':
             max_size = 2850000  # Explicit Base64-encoded 2 MiB Resource transfer.
+        if request_path == '/api/bluetooth/send':
+            max_size = 2850000  # Explicit Base64-encoded 2 MiB Classic RFCOMM file.
         if request_path == '/api/navigation/trails/import':
             max_size = 750000  # One explicitly chosen GPX file, capped again during parsing.
         if length < 1 or length > max_size:
@@ -595,6 +600,20 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200, self.server.reticulum_manager.files_status())
             except ReticulumError as exc:
                 return self._error(exc.status, str(exc), exc.code)
+        if path == '/api/bluetooth/status':
+            if urlparse(self.path).query:
+                return self._error(400, 'Bluetooth status accepts no query options')
+            return self._json(200, self.server.bluetooth_file_manager.status())
+        if path.startswith('/api/bluetooth/download/'):
+            token = path[len('/api/bluetooth/download/'):]
+            if urlparse(self.path).query:
+                return self._error(400, 'Bluetooth download accepts no query options')
+            try:
+                file = self.server.bluetooth_file_manager.download(token)
+                return self._send(200, file['data'], 'application/octet-stream', {
+                    'Content-Disposition': f"attachment; filename=\"openrf-bluetooth-file\"; filename*=UTF-8''{quote(file['filename'], safe='')}"})
+            except BluetoothFileError as exc:
+                return self._error(exc.status, str(exc), exc.code)
         if path.startswith('/api/reticulum/files/download/'):
             ident = path[len('/api/reticulum/files/download/'):]
             try:
@@ -719,7 +738,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, raw, 'text/csv; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.csv"'})
         if path in ('/', '/index.html'):
             file = STATIC_DIR / 'index.html'
-        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/browser-workspace.js', '/static/saved-trips.js', '/static/wifi-quick.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/trip-map.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/reticulum-files.js', '/static/camera-layers.js', '/static/chirp-import.js'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/browser-workspace.js', '/static/saved-trips.js', '/static/wifi-quick.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/trip-map.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/reticulum-files.js', '/static/bluetooth-files.js', '/static/camera-layers.js', '/static/chirp-import.js'):
             file = STATIC_DIR / Path(path).name
         elif path == '/static/offline-trails.js':
             file = STATIC_DIR / 'offline-trails.js'
@@ -864,6 +883,19 @@ class Handler(BaseHTTPRequestHandler):
                         return self._error(exc.status, str(exc), exc.code)
                 finally:
                     self.server.wifi_connection_lock.release()
+            if path.startswith('/api/bluetooth/'):
+                action = path[len('/api/bluetooth/'):]
+                if action not in ('arm', 'send', 'cancel', 'discard'):
+                    return self._error(404, 'Unknown Bluetooth file action')
+                if urlparse(self.path).query or self.headers.get('X-OpenRF-Bluetooth-Consent') != action:
+                    return self._error(403, 'Bluetooth file actions require an explicit local UI confirmation')
+                manager = self.server.bluetooth_file_manager
+                try:
+                    result = {'arm': manager.arm, 'send': manager.send,
+                              'cancel': manager.cancel, 'discard': manager.forget}[action](body)
+                    return self._json(202 if action == 'send' else 200, result)
+                except BluetoothFileError as exc:
+                    return self._error(exc.status, str(exc), exc.code)
             if path == '/api/emergency/packs/install':
                 return self._json(200, self.server.emergency_store.install_pack(body))
             if path == '/api/emergency/sos/draft':
@@ -1586,6 +1618,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.radio_receiver = RadioReceiver()
     server.mesh_manager = MeshManager(history_path=repository.path.parent / 'mesh-history.sqlite3')
     server.reticulum_manager = ReticulumManager(repository.path.parent / 'reticulum')
+    server.bluetooth_file_manager = BluetoothFileManager()
     server.hotspot_manager = HotspotManager(repository.path.parent / 'field-network')
     server.alpr_import_lock = threading.Lock()
     server.national_alpr_manager = national_alpr.UpdateManager(repository)

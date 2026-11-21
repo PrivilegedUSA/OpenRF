@@ -1,3 +1,9 @@
+## OpenRF v0.2.161 — Consent-based Bluetooth Classic peer file sharing (2026-11-20)
+
+- Added a **Nearby Bluetooth file sharing** section at the top of Messages → Reticulum, independent of enabling Reticulum. A trusted, paired Linux Bluetooth Classic device can explicitly receive one file for five minutes or send one file up to **2 MiB** on fixed OpenRF RFCOMM channel 22. The exact sender MAC must match the manually armed receiver. The UI requires separate confirmation for receiving and sending; opening the page does not scan or listen.
+- Implemented authenticated/encrypted RFCOMM security enforcement, bounded filename/header/content parsing, SHA-256 validation and a final receiver acknowledgement, one active operation, progress, cancellation, explicit received-file download/discard and no persistence of incoming bytes in SQLite. Capability errors distinguish unsupported WSL/Python/BlueZ hardware from a real connected peer. This private protocol is not OBEX or Bluetooth LE file exchange.
+- Added opt-in loopback HTTP endpoints and a separate frontend controller, 8 Python tests (including a two-peer fake-socket transfer with checksum acknowledgement and refused wrong peers), and 1 JavaScript UI consent test. **457 Python tests and 131 JavaScript suites passed.** No new required Python library, automatic radio operation, new database migration or physical Bluetooth/speaker/mic test. See `docs/BLUETOOTH_FILE_SHARING.md` and `docs/RELEASE_0.2.161_TESTS.md`.
+
 ## OpenRF v0.2.160 — Explicit short LXMF voice notes (Phase 2) (2026-11-20)
 
 - Added **Record / Stop / Discard voice note** controls to Reticulum message composition. A local 20-second timed browser `MediaRecorder` captures only following explicit user action and browser permission; an audio preview appears before the existing, separately confirmed **Send** action. Thread changes, discard, lost focus and recording errors stop the microphone without sending.

@@ -12,4 +12,4 @@ assert(map.includes('stroke="currentColor"'),'Map icon inherits active/idle nav 
 assert(map.includes('aria-hidden="true"'),'Decorative icon hidden from assistive tech');
 assert(!map.includes('⌖'),'Unsupported legacy map character removed');
 assert(css.includes('.sidebar .nav-btn[data-page="map"] .nav-icon svg{display:block;width:20px;height:20px;color:inherit}'));
-console.log('PASS v0.2.160 SVG sidebar map icon works without Unicode symbol font');
+console.log('PASS v0.2.161 SVG sidebar map icon works without Unicode symbol font');

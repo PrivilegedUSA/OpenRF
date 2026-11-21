@@ -1,5 +1,5 @@
 'use strict';
-/* v0.2.160: explicit, bounded RNS.Resource peer file transfer controls. */
+/* v0.2.159: explicit, bounded RNS.Resource peer file transfer controls. */
 (()=>{
   const el=id=>document.getElementById(id);
   if(!el('reticulum-files-panel'))return;

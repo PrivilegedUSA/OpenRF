@@ -4,11 +4,11 @@ const path=require('node:path');
 const {EventEmitter}=require('node:events');
 const {rootFor,checkHealth,ensureBackend,stopBackend,EXPECTED_VERSION}=
   require('../tools/openrf-electron/backend');
-assert.equal(EXPECTED_VERSION,'0.2.160');
+assert.equal(EXPECTED_VERSION,'0.2.161');
 const sourceDir=path.resolve('tools/openrf-electron');
 assert.equal(rootFor(null,sourceDir),path.resolve('.'));
 (async()=>{
-  const good=async()=>({ok:true,json:async()=>({status:'ok',version:'0.2.160'})});
+  const good=async()=>({ok:true,json:async()=>({status:'ok',version:'0.2.161'})});
   const old=async()=>({ok:true,json:async()=>({status:'ok',version:'0.2.151'})});
   const missing=async()=>{throw Error('not listening');};
   assert.equal((await checkHealth('http://127.0.0.1:8765/',good)).state,'ready');
@@ -31,5 +31,5 @@ assert.equal(rootFor(null,sourceDir),path.resolve('.'));
   assert.equal(result.owned,true);assert.equal(options.cwd,path.resolve('.'));
   assert.equal(options.stdio[0],'ignore');
   stopBackend();assert.equal(child.killed,true);
-  console.log('PASS v0.2.160 Electron attaches or starts owned loopback backend and stops only its child');
+  console.log('PASS v0.2.161 Electron attaches or starts owned loopback backend and stops only its child');
 })().catch(error=>{console.error(error);process.exitCode=1;});

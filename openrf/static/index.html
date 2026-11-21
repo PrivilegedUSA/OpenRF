@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.160">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.161">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -23,11 +23,11 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/map-elevation.js?v=0.2.151"></script>
   <script defer src="/static/battery-status.js?v=0.2.151"></script>
-  <script defer src="/static/wifi-quick.js?v=0.2.160"></script>
+  <script defer src="/static/wifi-quick.js?v=0.2.161"></script>
   <script defer src="/static/route-elevation.js?v=0.2.151"></script>
   <script defer src="/static/trip-map.js?v=0.2.151"></script>
-  <script defer src="/static/app.js?v=0.2.160"></script>
-  <script defer src="/static/app-settings.js?v=0.2.160"></script>
+  <script defer src="/static/app.js?v=0.2.161"></script>
+  <script defer src="/static/app-settings.js?v=0.2.161"></script>
   <script defer src="/static/browser-workspace.js?v=0.2.151"></script>
   <script defer src="/static/saved-trips.js?v=0.2.151"></script>
   <script defer src="/static/emergency-tabs.js?v=0.2.151"></script>
@@ -48,8 +48,9 @@
   <script defer src="/static/field-calendar.js?v=0.2.151"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
   <script defer src="/static/mesh.js?v=0.2.104"></script>
-  <script defer src="/static/reticulum.js?v=0.2.160"></script>
-  <script defer src="/static/reticulum-files.js?v=0.2.160"></script>
+  <script defer src="/static/reticulum.js?v=0.2.161"></script>
+  <script defer src="/static/reticulum-files.js?v=0.2.161"></script>
+  <script defer src="/static/bluetooth-files.js?v=0.2.161"></script>
   <script defer src="/static/mesh_connections.js?v=0.2.104"></script>
   <script defer src="/static/wifi_halow.js?v=0.2.104"></script>
   <script defer src="/static/field_network.js?v=0.2.104"></script>
@@ -61,7 +62,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.160</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.161</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15M15 6v15"/></svg></span><span class="nav-label">Map</span></button>
@@ -955,6 +956,31 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
       </section>
       <section class="page" id="page-reticulum" aria-label="Reticulum LXMF inbox and connection">
         <div class="section-heading"><div><h2>Reticulum</h2><p>Direct LXMF messages over an explicitly enabled LAN, TCP or supported RNode LoRa connection. Separate from Meshtastic radio conversations.</p></div><span class="pill">LXMF · LAN / TCP / RNODE</span></div>
+        <details class="panel bluetooth-file-panel" id="bluetooth-file-panel">
+          <summary><span>Nearby Bluetooth file sharing</span><span class="pill">PAIRED DEVICES · OFF BY DEFAULT</span></summary>
+          <p class="small muted">Send a private file directly between two <strong>OpenRF Linux devices</strong> over Bluetooth Classic RFCOMM, with no Wi-Fi, Reticulum or internet required. This is not BLE scanning or standard OBEX phone file transfer. Pair <em>and trust</em> each device using the Linux Bluetooth settings first; on WSL without a passed-through Bluetooth Classic adapter, sharing is unavailable.</p>
+          <p class="small muted">Your adapter address: <strong id="bluetooth-local-address">Checking…</strong> · Fixed OpenRF channel 22 · max 2 MiB per file. Share your address with the other device, and receive only from a sender you recognize. A connected link is not proof that a person reviewed a file.</p>
+          <div class="bluetooth-file-grid">
+            <div class="bluetooth-file-side">
+              <h4>Receive from a paired OpenRF</h4>
+              <label for="bluetooth-expected-peer">Exact sender Bluetooth address</label>
+              <input id="bluetooth-expected-peer" class="field" maxlength="17" placeholder="AA:BB:CC:DD:EE:FF" spellcheck="false" autocomplete="off">
+              <div class="button-line"><button type="button" class="btn primary" id="bluetooth-arm">Receive one file (5 min)</button><button type="button" class="btn outline" id="bluetooth-cancel">Stop / cancel</button></div>
+              <p id="bluetooth-receive-state" class="small muted">Receiving OFF. No Bluetooth listener is open.</p>
+            </div>
+            <form class="bluetooth-file-side" id="bluetooth-send-form">
+              <h4>Send to a paired OpenRF</h4>
+              <label for="bluetooth-destination">Exact receiver Bluetooth address</label>
+              <input id="bluetooth-destination" class="field" maxlength="17" placeholder="AA:BB:CC:DD:EE:FF" spellcheck="false" autocomplete="off" required>
+              <label for="bluetooth-file-picker">File (1 byte–2 MiB)</label>
+              <input id="bluetooth-file-picker" class="field" type="file" required>
+              <div class="button-line"><button class="btn primary" id="bluetooth-send" type="submit">Send Bluetooth file</button></div>
+            </form>
+          </div>
+          <p id="bluetooth-file-notice" class="small muted" role="status" aria-live="polite">Bluetooth is idle. Opening this panel never scans, pairs, listens or sends.</p>
+          <div class="button-line"><button type="button" class="btn mini outline" id="bluetooth-refresh">Refresh transfer status</button></div>
+          <div id="bluetooth-file-transfers" class="bluetooth-file-transfers" aria-label="Bluetooth file transfer status"></div>
+        </details>
         <div class="panel reticulum-panel" id="reticulum-panel">
           <div class="panel-title"><h3>Reticulum · Wi‑Fi/LAN messages</h3><span class="pill" id="reticulum-badge">OFF</span></div>
           <p class="small muted">Experimental, separate from Meshtastic. Reticulum and LXMF are optional Linux packages. Enabling starts local-network multicast discovery, which can be visible to other devices on your LAN; stopping ends the child process. No internet account required.</p>
