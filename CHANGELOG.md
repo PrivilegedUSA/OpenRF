@@ -1,3 +1,10 @@
+## OpenRF v0.2.167 — Unified messaging navigation (2026-11-21)
+
+- Renamed the former **Mesh messages** sidebar/header/page labels to **Meshtastic** so it cannot be confused with the independent **MeshCore** integration. Existing routes, IDs, API endpoints, saved message data and protocols are preserved.
+- Added the same **Dashboard / Inbox / Contacts** tab layout to Meshtastic and MeshCore as Reticulum's navigation: radio status/manual USB controls under Dashboard, chronological conversation controls under Inbox, and real protocol-specific contact lists under Contacts. Meshtastic's existing saved-node/nickname directory opens as a contact tab; MeshCore's directory is populated from Companion radio contacts and routes a selected contact to its chat. The original DOM forms are moved, not recreated, preserving event listeners and drafts.
+- Kept **Files** only where supported (Reticulum Resource transfers). Added accessible tab keyboard navigation, Inbox unread badges, touch-friendly styles, and automated DOM/markup tests. No protocol forwarding, background connections, new file transfer support or inferred online status was added.
+- **471 Python tests and 135 JavaScript suites passed locally**, along with Python compilation and JavaScript syntax checks. Live radios, WSL USB passthrough and Raspberry Pi touchscreen remain unverified. See `docs/RELEASE_0.2.167_TESTS.md`.
+
 ## OpenRF v0.2.166 — MeshCore Companion radio messaging foundation (2026-11-21)
 
 - Added independent **Messages → MeshCore** workspace, touchscreen-ready USB controls, actual radio contact list, read-only unknown-sender threads, and direct radio text composition. Chronological conversation bubbles open at the newest and follow new messages only if already near the bottom. Header/sidebar unread count integrates without merging Meshtastic, MeshCore or Reticulum conversations.

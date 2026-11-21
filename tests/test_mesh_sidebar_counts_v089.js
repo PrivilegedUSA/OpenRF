@@ -13,7 +13,7 @@ const meshChild=html.match(/id="mesh-nav-item"[^>]*>([\s\S]*?)<\/button>/)?.[1]|
 const reticChild=html.match(/id="reticulum-nav-item"[^>]*>([\s\S]*?)<\/button>/)?.[1]||'';
 assert(!parent.includes('mesh-nav-unread')&&!parent.includes('reticulum-nav-unread'),
   'The parent dropdown must not crowd the unread counter beside its arrow');
-assert(meshChild.includes('Mesh messages')&&meshChild.includes('id="mesh-nav-unread"'));
+assert(meshChild.includes('Meshtastic')&&meshChild.includes('id="mesh-nav-unread"'));
 assert(reticChild.includes('Reticulum')&&reticChild.includes('id="reticulum-nav-unread"'));
 assert(css.includes('.sidebar .nav-subpages .nav-subpage .mesh-nav-unread{'));
 assert(css.includes('display:inline-flex;align-items:center;justify-content:center;'),

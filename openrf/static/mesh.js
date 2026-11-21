@@ -42,7 +42,7 @@
     // there only while a real unread message needs attention.
     document.body.classList?.toggle?.('has-message-unread',count>0);
     for(const [id,label,value] of [
-      ['mesh-nav-item','Mesh messages',state.unread],
+      ['mesh-nav-item','Meshtastic',state.unread],
       ['reticulum-nav-item','Reticulum',reticulumUnread],
       ['meshcore-nav-item','MeshCore',meshcoreUnread]
     ]){
@@ -57,7 +57,13 @@
     const inboxCount=el('mesh-inbox-unread');
     if(inboxCount)inboxCount.textContent=state.unread
       ?`${state.unread} unread · review messages, then mark all read`
-      :'No unread mesh messages';
+      :'No unread Meshtastic messages';
+    const inboxBadge=el('meshtastic-tab-unread');
+    if(inboxBadge){
+      inboxBadge.hidden=state.unread===0;
+      inboxBadge.textContent=state.unread>99?'99+':String(state.unread);
+      el('meshtastic-tab-inbox')?.setAttribute('aria-label',state.unread?`Inbox, ${state.unread} unread`:'Inbox');
+    }
     persistUnread();
   }
   function persistUnread(){
@@ -165,6 +171,7 @@
         el('mesh-alias-node').value=item.id;
         el('mesh-alias-text').value=item.alias||'';
         el('mesh-destination').value=item.id;
+        window.OpenRFMessagingTabs?.meshtastic?.open('inbox');
       });
       box.append(button);
     }
@@ -296,13 +303,13 @@
     else note(enabled?'Local history enabled; future messages will be stored privately.':'Saved history deleted; future messages will stay in memory.');
   });
   el('mesh-clear-history').addEventListener('click',async ()=>{
-    if(!window.confirm('Clear all session and saved mesh messages on this device?'))return;
+    if(!window.confirm('Clear all session and saved Meshtastic messages on this device?'))return;
     const result=await run({},'/api/mesh/history/clear');
     if(result){state.unread=0;renderUnread();note('Mesh message history cleared.');}
   });
   el('mesh-mark-read').addEventListener('click',()=>{
     state.unread=0;renderUnread();
-    note('Mesh messages marked as read on this tab.');
+    note('Meshtastic messages marked as read.');
   });
   el('mesh-serial').addEventListener('change',renderButtons);
   el('mesh-connect').addEventListener('click',()=>run({port:el('mesh-serial').value},'/api/mesh/connect'));

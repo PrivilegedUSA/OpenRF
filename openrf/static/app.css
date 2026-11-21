@@ -2855,3 +2855,21 @@ body.map-workspace .topbar .header-wifi-button{background:#0c2833e8;color:#a9e7d
 #page-meshcore .meshcore-privacy-note{margin-top:16px;border-top:1px solid #315263;padding-top:13px}
 #page-meshcore .message-read-actions{gap:8px;flex-wrap:wrap;margin:7px 0}
 @media(max-width:550px){#page-meshcore .meshcore-controls .btn{flex:1 1 130px}#page-meshcore .mesh-messages{max-height:38dvh}#page-meshcore .meshcore-panel{padding:10px}}
+
+/* v0.2.167: same Dashboard / Inbox / Contacts navigation on both LoRa pages.
+   Mirrors Reticulum's visual tab treatment, with no horizontal scrollbar. */
+#page-messages .messaging-tabs,#page-meshcore .messaging-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;max-width:950px;margin:4px 0 14px}
+#page-messages .messaging-tabs>button,#page-meshcore .messaging-tabs>button{min-width:0;min-height:49px;padding:8px 7px;border:1px solid #214451;border-radius:9px;background:#102a35;color:#a9cbd0;display:flex;align-items:center;justify-content:center;gap:9px;font-size:12px;font-weight:750;position:relative}
+#page-messages .messaging-tabs>button svg,#page-meshcore .messaging-tabs>button svg{flex:none;width:17px;height:17px;color:#58d6c6}
+#page-messages .messaging-tabs>button:hover,#page-meshcore .messaging-tabs>button:hover{border-color:#4daea5;background:#163943;color:#ecfff9}
+#page-messages .messaging-tabs>button[aria-selected="true"],#page-meshcore .messaging-tabs>button[aria-selected="true"]{background:#17444a;color:#d8fff6;border-color:#39c9b5;box-shadow:inset 0 -3px 0 #36c9b4}
+#page-messages .messaging-tabs small:not([hidden]),#page-meshcore .messaging-tabs small:not([hidden]){display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;font-size:10px;font-weight:800;border-radius:10px;background:#36c8b2;color:#052229}
+#page-messages .messaging-tab-panel[hidden],#page-meshcore .messaging-tab-panel[hidden],#page-messages .messaging-tabs small[hidden],#page-meshcore .messaging-tabs small[hidden]{display:none!important}
+#page-messages .messaging-tab-panel,#page-meshcore .messaging-tab-panel{min-width:0}
+#page-messages .messaging-tab-panel>.mesh-inbox-header,#page-meshcore .messaging-tab-panel>.mesh-inbox-header{border-top:0;margin-top:2px;padding-top:0}
+#page-messages .messaging-tab-panel>#mesh-node-directory{margin-top:0}
+#page-meshcore #meshcore-contact-directory{min-width:0}
+#page-meshcore #meshcore-contact-directory .reticulum-tab-intro h3{margin:0;font-size:14px;color:#d9f6f1}
+#page-meshcore #meshcore-contact-directory .reticulum-tab-intro p{font-size:11px;color:#99b7c0}
+#page-meshcore #meshcore-contact-directory .meshcore-contact-list{max-height:55dvh}
+@media(max-width:550px){#page-messages .messaging-tabs,#page-meshcore .messaging-tabs{gap:5px}#page-messages .messaging-tabs>button,#page-meshcore .messaging-tabs>button{gap:5px;min-height:45px;padding:7px 2px;font-size:11px}#page-messages .messaging-tabs>button svg,#page-meshcore .messaging-tabs>button svg{width:15px;height:15px}}

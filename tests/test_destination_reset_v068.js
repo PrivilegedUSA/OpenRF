@@ -29,7 +29,7 @@ const draftStart=js.slice(js.indexOf("$('map-destination-query').addEventListene
 assert(!draftStart.includes('resetRouteForNewDestination()'),'typing a draft must preserve the previous route');
 assert.match(js,/function showMapAddressMatches\([\s\S]*?resetRouteForNewDestination\(\)/);
 assert.match(css,/#page-map \.map-picked-action\{box-sizing:border-box;left:9px;right:auto;width:min\(430px,calc\(100% - 71px\)\)/);
-assert(html.includes('FIELD CONSOLE · 0.2.166'));
+assert(html.includes('FIELD CONSOLE · 0.2.167'));
 (async()=>{
   const start=js.indexOf('async function planRoadRoute('),end=js.indexOf('async function freshNavigationOrigin()',start);
   assert(start>0&&end>start);

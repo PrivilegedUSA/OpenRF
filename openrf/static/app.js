@@ -441,8 +441,8 @@ function showPage(page, options = {}) {
   if (page === 'messages' || page === 'reticulum' || page === 'meshcore') setMessagesSubpagesOpen(true);
   $('messages-nav-toggle').classList.toggle('active', page === 'messages' || page === 'reticulum' || page === 'meshcore');
   document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === `page-${page}`));
-  const titles = {overview:'Field overview',emergency:'Emergency readiness',map:'Survey map',scanner:'Signal analysis',spectrum:'Spectrum & Waterfall',radio:'Radio receiver',messages:'Mesh messages',reticulum:'Reticulum messages',meshcore:'MeshCore messages',hamradio:'Ham radio channel lists',discoveries:'Saved discoveries',trips:'Trips & Maps',browser:'Web browser',sessions:'Investigations',hardware:'Hardware manager',settings:'App settings'};
-  $('page-title').textContent = titles[page] || 'OpenRF'; $('page-crumb').textContent = page.toUpperCase();
+  const titles = {overview:'Field overview',emergency:'Emergency readiness',map:'Survey map',scanner:'Signal analysis',spectrum:'Spectrum & Waterfall',radio:'Radio receiver',messages:'Meshtastic messages',reticulum:'Reticulum messages',meshcore:'MeshCore messages',hamradio:'Ham radio channel lists',discoveries:'Saved discoveries',trips:'Trips & Maps',browser:'Web browser',sessions:'Investigations',hardware:'Hardware manager',settings:'App settings'};
+  $('page-title').textContent = titles[page] || 'OpenRF'; $('page-crumb').textContent = page === 'messages' ? 'MESHTASTIC' : page.toUpperCase();
   // Page-specific headings are the one visible title on non-map workspaces.
   // The old topbar H1 is intentionally hidden; do not focus a hidden node.
   if (wasNavigationOpen) {

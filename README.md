@@ -1,5 +1,11 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.167 — Consistent messaging tabs
+
+- **Clear names:** The existing **Mesh messages** sidebar item and unread/header labels now say **Meshtastic**, distinct from **MeshCore** and **Reticulum**. Existing internal page IDs, APIs, and saved message history are unchanged.
+- **Shared layout:** **Messages → Meshtastic** and **Messages → MeshCore** now each offer **Dashboard**, **Inbox**, and **Contacts** tabs, styled like Reticulum. Dashboard holds manual USB connections and radio status; Inbox holds messages and the original compose controls; Contacts holds Meshtastic's saved-node directory or MeshCore's actual radio contacts. Selecting a contact opens its existing Inbox conversation. Reticulum retains **Dashboard, Inbox, Contacts, Files**—the other protocols do not gain fictitious file transfer.
+- **No new radio behavior:** Tabs reorganize existing live controls without connecting, transmitting, forwarding or changing the transport. Unread counts also appear on Inbox tabs. Hardware-specific send/ACK semantics and privacy behavior remain as in v0.2.166. See [v0.2.167 verification and manual checks](docs/RELEASE_0.2.167_TESTS.md).
+
 ## v0.2.166 — MeshCore USB Companion messaging (hardware test pending)
 
 - **Third messaging system:** Open **Messages → MeshCore** to view read-only Linux USB candidates, manually Connect/Disconnect a Companion-radio serial port, refresh its actual contacts, and exchange direct text with a selected radio contact. Messages show oldest at the top and newest at the bottom; a conversation opens at the latest text and follows only while near the bottom. Unread messages are marked read explicitly.

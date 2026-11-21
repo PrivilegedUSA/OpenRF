@@ -8,7 +8,7 @@ const app=fs.readFileSync('openrf/static/app.js','utf8');
 const server=fs.readFileSync('openrf/server.py','utf8');
 const code=fs.readFileSync('openrf/static/meshcore.js','utf8');
 assert(html.includes('id="meshcore-nav-item"')&&html.includes('data-page="meshcore"'));
-assert(html.includes('/static/meshcore.js?v=0.2.166'));
+assert(html.includes('/static/meshcore.js?v=0.2.167'));
 assert(app.includes("'meshcore'"));
 assert(server.includes("'/static/meshcore.js'"));
 assert(code.includes("'/api/meshcore/send'"));
@@ -48,4 +48,4 @@ assert.equal(box.scrollTop,500,'Follow newest when already close to the bottom')
 state.rows[1].delivery='NETWORK_ACK_REPORTED_NOT_READ';
 context.renderConversation();
 assert.match(box.children[2].children[1].textContent,/Network ACK reported/);
-console.log('PASS v0.2.166 MeshCore isolation, chat chronology, status and scroll follow');
+console.log('PASS v0.2.167 MeshCore isolation, chat chronology, status and scroll follow');

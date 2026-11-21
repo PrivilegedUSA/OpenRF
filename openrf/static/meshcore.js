@@ -32,6 +32,12 @@
     el('meshcore-mark-read').disabled=state.unread===0;
     el('meshcore-unread-label').textContent=state.unread
       ?`${state.unread} unread · review and mark all as read`:'No unread MeshCore messages';
+    const tabBadge=el('meshcore-tab-unread');
+    if(tabBadge){
+      tabBadge.hidden=state.unread===0;
+      tabBadge.textContent=state.unread>99?'99+':String(state.unread);
+      el('meshcore-tab-inbox')?.setAttribute('aria-label',state.unread?`Inbox, ${state.unread} unread`:'Inbox');
+    }
     try{window.sessionStorage?.setItem(sessionKey,JSON.stringify({sequence:state.sequence,unread:state.unread}));}catch(_){}
     document.dispatchEvent(new CustomEvent('openrf:meshcore-unread',{detail:{count:state.unread}}));
   }
@@ -94,6 +100,24 @@
     const signature=JSON.stringify([state.selected,Array.from(contacts.values()),state.rows.map(m=>[m.id,threadKey(m)])]);
     if(signature===state.lastContactSignature)return;
     state.lastContactSignature=signature;
+    const directory=el('meshcore-directory-list');
+    if(directory){
+      directory.replaceChildren();
+      if(!state.contacts.length){
+        const p=document.createElement('p');p.className='small muted';
+        p.textContent=state.connected?'This radio reports no saved contacts. Add them using a compatible MeshCore client, then Refresh on Dashboard.':'Connect a MeshCore Companion on Dashboard to load its saved contacts.';
+        directory.append(p);
+      }
+      for(const contact of state.contacts){
+        const button=document.createElement('button');button.type='button';
+        button.className='meshcore-contact-choice';
+        const title=document.createElement('strong');title.textContent=contact.name||`${contact.public_key.slice(0,12)}…`;
+        const detail=document.createElement('small');detail.textContent=`${contact.public_key.slice(0,20)}… · stored on radio · online unknown`;
+        button.append(title,detail);
+        button.addEventListener('click',()=>openThread(contact.public_key));
+        directory.append(button);
+      }
+    }
     const box=el('meshcore-contact-list');box.replaceChildren();
     const rows=[...contacts.values()].sort((a,b)=>{
       const last=key=>Math.max(0,...state.rows.filter(m=>threadKey(m)===key).map(m=>m.id));
@@ -155,6 +179,7 @@
     el('meshcore-send-status').textContent=key.startsWith('unknown:')?'Sender key not matched to a saved radio contact; reply unavailable until contact is identified.':
       'Radio acceptance is not a network ACK or proof someone read your message.';
     renderContacts();renderConversation(true);updateControls();
+    window.OpenRFMessagingTabs?.meshcore?.open('inbox');
   }
   function closeThread(){
     state.selected=null;

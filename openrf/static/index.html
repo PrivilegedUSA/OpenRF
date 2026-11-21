@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.166">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.167">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -23,11 +23,11 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/map-elevation.js?v=0.2.151"></script>
   <script defer src="/static/battery-status.js?v=0.2.151"></script>
-  <script defer src="/static/wifi-quick.js?v=0.2.166"></script>
+  <script defer src="/static/wifi-quick.js?v=0.2.167"></script>
   <script defer src="/static/route-elevation.js?v=0.2.151"></script>
   <script defer src="/static/trip-map.js?v=0.2.151"></script>
-  <script defer src="/static/app.js?v=0.2.166"></script>
-  <script defer src="/static/app-settings.js?v=0.2.166"></script>
+  <script defer src="/static/app.js?v=0.2.167"></script>
+  <script defer src="/static/app-settings.js?v=0.2.167"></script>
   <script defer src="/static/browser-workspace.js?v=0.2.151"></script>
   <script defer src="/static/saved-trips.js?v=0.2.151"></script>
   <script defer src="/static/emergency-tabs.js?v=0.2.151"></script>
@@ -47,12 +47,13 @@
   <script defer src="/static/emergency-backup.js?v=0.2.151"></script>
   <script defer src="/static/field-calendar.js?v=0.2.151"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.166"></script>
-  <script defer src="/static/meshcore.js?v=0.2.166"></script>
-  <script defer src="/static/reticulum.js?v=0.2.166"></script>
-  <script defer src="/static/reticulum-files.js?v=0.2.166"></script>
-  <script defer src="/static/bluetooth-files.js?v=0.2.166"></script>
-  <script defer src="/static/reticulum-tabs.js?v=0.2.166"></script>
+  <script defer src="/static/mesh.js?v=0.2.167"></script>
+  <script defer src="/static/meshcore.js?v=0.2.167"></script>
+  <script defer src="/static/messaging-tabs.js?v=0.2.167"></script>
+  <script defer src="/static/reticulum.js?v=0.2.167"></script>
+  <script defer src="/static/reticulum-files.js?v=0.2.167"></script>
+  <script defer src="/static/bluetooth-files.js?v=0.2.167"></script>
+  <script defer src="/static/reticulum-tabs.js?v=0.2.167"></script>
   <script defer src="/static/mesh_connections.js?v=0.2.104"></script>
   <script defer src="/static/wifi_halow.js?v=0.2.104"></script>
   <script defer src="/static/field_network.js?v=0.2.104"></script>
@@ -64,7 +65,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.166</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.167</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15M15 6v15"/></svg></span><span class="nav-label">Map</span></button>
@@ -76,7 +77,7 @@
         <div class="nav-group" id="messages-nav-group">
           <button class="nav-btn nav-parent" type="button" id="messages-nav-toggle" aria-expanded="false" aria-controls="messages-nav-subpages"><span class="nav-icon" aria-hidden="true">✉</span><span class="nav-label">Messages</span><span class="nav-chevron" aria-hidden="true">▾</span></button>
           <div class="nav-subpages" id="messages-nav-subpages" hidden>
-            <button class="nav-btn nav-subpage" id="mesh-nav-item" data-page="messages" type="button"><span class="nav-label">Mesh messages</span><span class="mesh-unread-badge mesh-nav-unread" id="mesh-nav-unread" hidden>0</span></button>
+            <button class="nav-btn nav-subpage" id="mesh-nav-item" data-page="messages" type="button"><span class="nav-label">Meshtastic</span><span class="mesh-unread-badge mesh-nav-unread" id="mesh-nav-unread" hidden>0</span></button>
             <button class="nav-btn nav-subpage" id="reticulum-nav-item" data-page="reticulum" type="button"><span class="nav-label">Reticulum</span><span class="mesh-unread-badge mesh-nav-unread" id="reticulum-nav-unread" hidden>0</span></button>
             <button class="nav-btn nav-subpage" id="meshcore-nav-item" data-page="meshcore" type="button"><span class="nav-label">MeshCore</span><span class="mesh-unread-badge mesh-nav-unread" id="meshcore-nav-unread" hidden>0</span></button>
           </div>
@@ -134,7 +135,7 @@
             <span class="messages-header-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><span class="mesh-unread-badge" id="mesh-header-unread" hidden>0</span></span>
           </button>
           <div class="header-messages-choices" id="header-messages-choices" role="group" aria-label="Choose message inbox" hidden>
-            <button type="button" data-page="messages">Mesh messages<span class="mesh-unread-badge" id="mesh-header-mesh-unread" hidden>0</span></button>
+            <button type="button" data-page="messages">Meshtastic<span class="mesh-unread-badge" id="mesh-header-mesh-unread" hidden>0</span></button>
             <button type="button" data-page="reticulum">Reticulum<span class="mesh-unread-badge" id="mesh-header-reticulum-unread" hidden>0</span></button>
             <button type="button" data-page="meshcore">MeshCore<span class="mesh-unread-badge" id="mesh-header-meshcore-unread" hidden>0</span></button>
           </div>
@@ -897,14 +898,19 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
         </div>
         <div class="panel radio-setup-panel"><h3>Linux receiver setup</h3><p class="small muted">Install the optional <code>rtl-sdr</code> utilities (for example <code>sudo apt install rtl-sdr</code> on Ubuntu), connect a compatible receive-only RTL-SDR and antenna, then test USB access in the same Ubuntu environment. WSL often requires explicit USB passthrough; the Windows built-in radio is not shared automatically.</p><p class="small muted">Short samples play only after recording completes. This version does not offer continuous live listening, scanning presets, transmitter controls, voice identification, audio logging or a promise of a received signal.</p><div class="button-line"><button class="btn outline" data-jump="hardware" type="button">Hardware readiness</button><button class="btn outline" data-jump="spectrum" type="button">Open Signal Viewer</button><button class="btn outline" data-jump="hamradio" type="button">Ham Radio channel lists</button></div></div>
       </section>
-      <section class="page" id="page-messages" aria-label="LoRa mesh messages and conversations">
-        <div class="section-heading"><div><h2>Messages</h2><p>Local-first Meshtastic texts and conversations. No internet connection or account is required.</p></div><span class="pill">MESH · USB RADIO</span></div>
+      <section class="page" id="page-messages" aria-label="Meshtastic messages and conversations">
+        <div class="section-heading"><div><h2>Meshtastic</h2><p>Local-first Meshtastic texts and conversations. No internet connection or account is required.</p></div><span class="pill">MESHTASTIC · USB RADIO</span></div>
+        <div class="messaging-tabs" id="meshtastic-tabs" role="tablist" aria-label="Meshtastic tools">
+          <button id="meshtastic-tab-dashboard" type="button" role="tab" aria-selected="true" aria-controls="meshtastic-tab-panel-dashboard" tabindex="0" data-meshtastic-tab="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Dashboard</span></button>
+          <button id="meshtastic-tab-inbox" type="button" role="tab" aria-selected="false" aria-controls="meshtastic-tab-panel-inbox" tabindex="-1" data-meshtastic-tab="inbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m3 7 9 6 9-6"/></svg><span>Inbox</span><small id="meshtastic-tab-unread" hidden></small></button>
+          <button id="meshtastic-tab-contacts" type="button" role="tab" aria-selected="false" aria-controls="meshtastic-tab-panel-contacts" tabindex="-1" data-meshtastic-tab="contacts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 20v-2a5.5 5.5 0 0 1 11 0v2"/><path d="M17 11a3 3 0 0 0 0-6M17.5 14a5 5 0 0 1 3 5v1"/></svg><span>Contacts</span></button>
+        </div>
         <div class="panel mesh-panel" id="mesh-panel" aria-label="LoRa mesh messaging">
-          <div class="panel-title"><h3>Mesh conversations</h3><span class="pill" id="mesh-link-badge">NOT CONNECTED</span></div>
-          <p id="mesh-status" class="small" role="status" aria-live="polite">No mesh node connected. No transmission has been attempted.</p>
-          <p class="small muted">Messages are from a connected Meshtastic USB radio only. Sending requires your action; received-node identity is unverified. There are no simulated chats or automatic network connections.</p>
-          <div class="mesh-inbox-header"><h4>Inbox</h4><span class="small muted" id="mesh-storage-label">Session · last 100</span></div>
-          <div class="button-line message-read-actions"><button type="button" class="btn mini outline" id="mesh-mark-read" disabled>Mark all as read</button><span id="mesh-inbox-unread" class="small muted" role="status">No unread mesh messages</span></div>
+          <div class="panel-title" id="mesh-dashboard-title"><h3>Meshtastic radio</h3><span class="pill" id="mesh-link-badge">NOT CONNECTED</span></div>
+          <p id="mesh-status" class="small" role="status" aria-live="polite">No Meshtastic node connected. No transmission has been attempted.</p>
+          <p class="small muted" id="mesh-dashboard-intro">Messages are from a connected Meshtastic USB radio only. Sending requires your action; received-node identity is unverified. There are no simulated chats or automatic network connections.</p>
+          <div class="mesh-inbox-header" id="mesh-inbox-heading"><h4>Inbox</h4><span class="small muted" id="mesh-storage-label">Session · last 100</span></div>
+          <div class="button-line message-read-actions" id="mesh-read-actions"><button type="button" class="btn mini outline" id="mesh-mark-read" disabled>Mark all as read</button><span id="mesh-inbox-unread" class="small muted" role="status">No unread Meshtastic messages</span></div>
           <details class="mesh-device-settings" id="mesh-node-directory">
             <summary>Node directory &amp; nicknames</summary>
             <p class="small muted">Contacts come from local conversations or nicknames you saved. These are not a live list of nearby radios.</p>
@@ -915,13 +921,13 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
             </div>
             <div class="button-line"><button type="button" class="btn outline" id="mesh-save-alias">Save nickname</button><span class="small muted">Blank nickname removes the saved label.</span></div>
           </details>
-          <div class="mesh-chat-grid">
+          <div class="mesh-chat-grid" id="mesh-chat-grid">
           <div class="mesh-conversation-column">
           <label class="mesh-conversation-select">Conversation
             <select class="field" id="mesh-conversation"><option value="all">All messages</option></select>
           </label>
           <div class="button-line"><button type="button" class="btn outline" id="mesh-reply-conversation" disabled>Reply to selected conversation</button></div>
-          <div id="mesh-messages" class="mesh-messages" role="log" aria-label="Received and submitted mesh text messages"><p class="small muted">No real mesh messages. Connect a compatible node to begin.</p></div>
+          <div id="mesh-messages" class="mesh-messages" role="log" aria-label="Received and submitted Meshtastic text messages"><p class="small muted">No Meshtastic messages. Connect a compatible node to begin.</p></div>
           </div>
           <div class="mesh-compose-column">
           <div class="mesh-inbox-header"><h4>Write a message</h4><span class="small muted">Direct node or channel broadcast</span></div>
@@ -931,7 +937,7 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
               <label for="mesh-channel">Configured channel<select class="field" id="mesh-channel"><option value="0">0 · Primary</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option></select></label>
             </div>
             <p id="mesh-destination-help" class="small muted">Use <code>^all</code> for channel broadcast, or <code>!1234abcd</code> for a direct node message. OpenRF cannot verify the other node is online.</p>
-            <label for="mesh-text">Message<textarea id="mesh-text" class="field" rows="3" placeholder="Type a short mesh message…" aria-describedby="mesh-byte-count" required></textarea></label>
+            <label for="mesh-text">Message<textarea id="mesh-text" class="field" rows="3" placeholder="Type a short Meshtastic message…" aria-describedby="mesh-byte-count" required></textarea></label>
             <p id="mesh-byte-count" class="small muted" role="status">0 / 180 UTF-8 bytes</p>
             <div class="button-line"><button id="mesh-send" class="btn primary" type="submit" disabled>Send via connected radio</button><span class="small muted">Maximum 180 UTF-8 bytes. Submitting to the radio does not prove recipient delivery.</span></div>
           </form>
@@ -948,7 +954,7 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
           <div class="button-line mesh-actions"><button type="button" id="mesh-connect" class="btn primary" disabled>Connect USB node</button><button type="button" id="mesh-disconnect" class="btn outline" disabled>Disconnect</button><button type="button" id="mesh-set-mode" class="btn outline">Apply OpenRF mode</button><button type="button" id="mesh-refresh" class="btn outline">Refresh</button></div>
           <p class="small muted">An ordinary Meshtastic <strong>CLIENT</strong> radio already rebroadcasts when appropriate. <strong>Relay-focused</strong> mode disables sending from this OpenRF screen; it does <em>not</em> change the radio firmware role or guarantee repeater coverage. The old Meshtastic REPEATER role is deprecated; infrastructure routing roles require deliberate site-specific configuration and testing.</p>
           </details>
-          <details class="mesh-device-settings mesh-history-settings">
+          <details class="mesh-device-settings mesh-history-settings" id="mesh-history-settings">
             <summary>Message storage &amp; privacy</summary>
           <div class="mesh-history-controls">
             <label><input id="mesh-save-history" type="checkbox"> Save message history locally (opt-in)</label>
@@ -960,8 +966,13 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
       </section>
       <section class="page" id="page-meshcore" aria-label="MeshCore Companion messaging">
         <div class="section-heading"><div><h2>MeshCore</h2><p>Private direct text messaging through an explicitly connected MeshCore USB Companion radio. Separate from Meshtastic and Reticulum.</p></div><span class="pill">MESHCORE · USB SERIAL</span></div>
+        <div class="messaging-tabs" id="meshcore-tabs" role="tablist" aria-label="MeshCore tools">
+          <button id="meshcore-tab-dashboard" type="button" role="tab" aria-selected="true" aria-controls="meshcore-tab-panel-dashboard" tabindex="0" data-meshcore-tab="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Dashboard</span></button>
+          <button id="meshcore-tab-inbox" type="button" role="tab" aria-selected="false" aria-controls="meshcore-tab-panel-inbox" tabindex="-1" data-meshcore-tab="inbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m3 7 9 6 9-6"/></svg><span>Inbox</span><small id="meshcore-tab-unread" hidden></small></button>
+          <button id="meshcore-tab-contacts" type="button" role="tab" aria-selected="false" aria-controls="meshcore-tab-panel-contacts" tabindex="-1" data-meshcore-tab="contacts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 20v-2a5.5 5.5 0 0 1 11 0v2"/><path d="M17 11a3 3 0 0 0 0-6M17.5 14a5 0 0 0 3 5v1"/></svg><span>Contacts</span></button>
+        </div>
         <div class="panel meshcore-panel" id="meshcore-panel">
-          <div class="panel-title"><h3>MeshCore Companion</h3><span class="pill" id="meshcore-link-badge">DISCONNECTED</span></div>
+          <div class="panel-title" id="meshcore-dashboard-title"><h3>MeshCore Companion</h3><span class="pill" id="meshcore-link-badge">DISCONNECTED</span></div>
           <p id="meshcore-status" class="small" role="status" aria-live="polite">No radio connected. Nothing is transmitting.</p>
           <details class="meshcore-device" id="meshcore-device-settings" open>
             <summary>USB radio connection</summary>
@@ -976,9 +987,9 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
             </div>
             <p class="small muted" id="meshcore-device-info">Firmware identity not verified. USB device and LoRa reachability are unknown.</p>
           </details>
-          <div class="mesh-inbox-header"><h4>Conversations</h4><span id="meshcore-storage" class="small muted">Session only · last 200 messages</span></div>
-          <div class="button-line message-read-actions"><button type="button" class="btn mini outline" id="meshcore-mark-read" disabled>Mark all as read</button><span id="meshcore-unread-label" class="small muted">No unread MeshCore messages</span></div>
-          <div class="meshcore-layout">
+          <div class="mesh-inbox-header" id="meshcore-inbox-heading"><h4>Conversations</h4><span id="meshcore-storage" class="small muted">Session only · last 200 messages</span></div>
+          <div class="button-line message-read-actions" id="meshcore-read-actions"><button type="button" class="btn mini outline" id="meshcore-mark-read" disabled>Mark all as read</button><span id="meshcore-unread-label" class="small muted">No unread MeshCore messages</span></div>
+          <div class="meshcore-layout" id="meshcore-layout">
             <div class="meshcore-thread-browser" id="meshcore-thread-browser">
               <p class="small muted">Radio contacts (not verified online). Choose one to open a conversation.</p>
               <div id="meshcore-contact-list" class="meshcore-contact-list"><p class="small muted">Connect a radio to load its contact list.</p></div>
@@ -993,7 +1004,8 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
               </form>
             </div>
           </div>
-          <p class="small muted meshcore-privacy-note">Only direct messages to contacts on your selected MeshCore radio are supported in this patch. No automatic network forwarding, broadcasts, channel messages, GPS sharing or message uploads. Text is kept in memory until server shutdown; it is not encrypted at rest because no persistent message history is created. A network ACK reports an acknowledged packet, not a human reading confirmation.</p>
+          <div id="meshcore-contact-directory"><div class="reticulum-tab-intro"><h3>Radio contacts</h3><p>Contacts read from the connected Companion radio, not a scan of nearby devices. Choose a contact to open Inbox.</p></div><div id="meshcore-directory-list" class="meshcore-contact-list"><p class="small muted">Connect a radio from Dashboard to load contacts.</p></div></div>
+          <p class="small muted meshcore-privacy-note" id="meshcore-privacy-note">Only direct messages to contacts on your selected MeshCore radio are supported in this patch. No automatic network forwarding, broadcasts, channel messages, GPS sharing or message uploads. Text is kept in memory until server shutdown; it is not encrypted at rest because no persistent message history is created. A network ACK reports an acknowledged packet, not a human reading confirmation.</p>
         </div>
       </section>
       <section class="page" id="page-reticulum" aria-label="Reticulum LXMF inbox and connection">
