@@ -975,7 +975,7 @@ python3 -m compileall -q openrf
 node tests/test_frontend.js
 ```
 
-Detailed architecture: `docs/ARCHITECTURE.md`. License selection is pending; do not publish the repository as reusable open-source code until an actual license is selected and all dependency terms have been reviewed.
+Detailed architecture: `docs/ARCHITECTURE.md`. OpenRF's original source is licensed under the **GNU GPL version 3 or (at your option) any later version** (`GPL-3.0-or-later`); see the repository-root `LICENSE` and `COPYRIGHT` files. External libraries, map data, fonts, artwork and other third-party assets retain their own licenses and attribution requirements.
 
 ## v0.2.1 layout/map fixes retained
 
