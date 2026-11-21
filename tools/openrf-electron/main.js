@@ -116,7 +116,9 @@ async function createWindow(){
   });
   win.on('resize',display);
   await win.loadURL(LOCAL_URL);
-  if(process.env.OPENRF_KIOSK==='1')win.setFullScreen(true);
+  // The installed .desktop entry launches a normal window. Kiosk fullscreen
+  // is opt-in (CLI or the Pi user's desktop autostart), never forced by .deb.
+  if(process.env.OPENRF_KIOSK==='1'||process.argv.includes('--openrf-kiosk'))win.setFullScreen(true);
   win.show();
 }
 

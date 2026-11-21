@@ -15,7 +15,9 @@
   }
   const state={enabled:false,busy:false,available:false,polling:false,
     contacts:[],messages:[],historyEnabled:false,editingContact:null,
-    activeThread:null,drafts:Object.create(null),halowEligible:[],...restoredUnread()};
+    activeThread:null,drafts:Object.create(null),attachment:null,attachmentPreviewUrl:null,
+    halowEligible:[],...restoredUnread()};
+  const maxAttachmentBytes=128*1024;
   const viewingMessages=()=>Boolean(el('page-reticulum')?.classList.contains('active'));
   function persistUnread(){
     try{
@@ -68,6 +70,20 @@
   function updateControls(){
     const count=new TextEncoder().encode(el('reticulum-text').value).length;
     const validAddress=/^[0-9a-fA-F]{32}$/.test(el('reticulum-recipient').value.trim());
+    const file=state.attachment;
+    const validFile=Boolean(file&&file.size>0&&file.size<=maxAttachmentBytes&&
+      file.name.length>0&&file.name.length<=100&&file.name!=='.'&&file.name!=='..'&&
+      !/[/\\\x00-\x1f\x7f]/.test(file.name));
+    const attachmentStatus=el('reticulum-attachment-status');
+    if(file){
+      attachmentStatus.textContent=`${file.name} · ${(file.size/1024).toFixed(1)} KiB${validFile?'':' · exceeds 128 KiB or invalid name'}`;
+      attachmentStatus.classList.toggle('error',!validFile);
+    }else{
+      attachmentStatus.textContent='One file up to 128 KiB · direct LXMF only · available during this session';
+      attachmentStatus.classList.toggle('error',false);
+    }
+    el('reticulum-attachment-remove').hidden=!file;
+    el('reticulum-attachment-file').disabled=state.busy;
     el('reticulum-byte-count').textContent=`${count} / 1024 UTF-8 bytes${count>1024?' · too long':''}`;
     el('reticulum-byte-count').classList.toggle('error',count>1024);
     el('reticulum-enable').disabled=state.enabled||state.busy||!state.available;
@@ -102,7 +118,7 @@
     if(!rnodeSelected)el('reticulum-transport-enable').checked=false;
     el('reticulum-disable').disabled=!state.enabled||state.busy;
     el('reticulum-announce').disabled=!state.enabled||state.busy;
-    el('reticulum-send').disabled=!state.enabled||state.busy||count===0||count>1024||!validAddress;
+    el('reticulum-send').disabled=!state.enabled||state.busy||(!count&&!validFile)||count>1024||!validAddress||(Boolean(file)&&!validFile);
     el('reticulum-save-recipient').disabled=!validAddress;
   }
   function renderStatus(result){
@@ -133,6 +149,15 @@
     const value=String(address||'').toLowerCase();
     const found=state.contacts.find(item=>item.address===value);
     return found?`${found.alias} (${value.slice(0,7)}…)`:String(address||'unknown');
+  }
+  function clearAttachment(){
+    state.attachment=null;
+    if(state.attachmentPreviewUrl && typeof URL!=='undefined')URL.revokeObjectURL(state.attachmentPreviewUrl);
+    state.attachmentPreviewUrl=null;
+    const file=el('reticulum-attachment-file');
+    if(file){file.value='';updateControls();}
+    const preview=el('reticulum-attachment-preview');
+    if(preview){preview.hidden=true;preview.removeAttribute('src');}
   }
   function friendlyMessageTime(value){
     const raw=String(value||'');
@@ -195,7 +220,7 @@
       const title=document.createElement('strong');title.textContent=label;
       const preview=document.createElement('span');preview.className='reticulum-thread-preview';
       preview.textContent=latest
-        ?`${latest.direction==='OUT'?'Queued: ':'Received: '}${String(latest.text||'').replace(/\s+/g,' ').slice(0,90)}`
+        ?`${latest.direction==='OUT'?'Queued: ':'Received: '}${String(latest.text||latest.attachment?.filename||'').replace(/\s+/g,' ').slice(0,90)}`
         :'No messages yet';
       info.append(title,preview);
       const when=document.createElement('span');when.className='reticulum-thread-date';
@@ -212,6 +237,7 @@
     const selected=address===null?'new':threadAddress(address);
     if(!selected)return;
     saveThreadDraft();
+    clearAttachment();
     state.activeThread=selected;
     el('reticulum-thread-browser').hidden=true;
     el('reticulum-thread-view').hidden=false;
@@ -232,7 +258,7 @@
     el('reticulum-thread-view').scrollIntoView({block:'start',behavior:'smooth'});
   }
   function backToConversations(){
-    saveThreadDraft();state.activeThread=null;
+    saveThreadDraft();clearAttachment();state.activeThread=null;
     el('reticulum-thread-view').hidden=true;
     el('reticulum-thread-browser').hidden=false;
     renderThreadList();
@@ -279,6 +305,26 @@
       detail.textContent=`${status} · ${friendlyMessageTime(message.utc)}`;
       detail.title=String(message.utc||'UTC unknown');
       article.append(heading,content,detail);
+      const attachment=message.attachment;
+      if(attachment&&/^[0-9a-f]{32}$/.test(attachment.id||'')){
+        const wrap=document.createElement('div');wrap.className='reticulum-message-attachment';
+        if(attachment.available!==false){
+          const attachmentUrl=`/api/reticulum/attachments/${attachment.id}`;
+          if(['image/png','image/jpeg','image/webp'].includes(attachment.mime)){
+            const thumbnail=document.createElement('img');thumbnail.src=attachmentUrl;
+            thumbnail.alt=`Attached image: ${attachment.filename}`;thumbnail.loading='lazy';
+            wrap.append(thumbnail);
+          }
+          const link=document.createElement('a');link.href=`${attachmentUrl}?download=1`;
+          link.textContent=`Download ${attachment.filename} (${Math.ceil(attachment.size/1024)} KiB)`;
+          link.className='small';wrap.append(link);
+        }else{
+          const expired=document.createElement('small');expired.className='muted';
+          expired.textContent=`${attachment.filename} · file expired when the session ended (metadata only)`;
+          wrap.append(expired);
+        }
+        article.append(wrap);
+      }
       // A received LXMF row stores the sender hash in `destination`. Never
       // offer a reply to an outgoing row or a malformed/untrusted address.
       const sender=String(message.destination||'').trim();
@@ -620,6 +666,20 @@
     }
   });
   el('reticulum-text').addEventListener('input',updateControls);
+  el('reticulum-attachment-file').addEventListener('change',event=>{
+    if(state.attachmentPreviewUrl)URL.revokeObjectURL(state.attachmentPreviewUrl);
+    state.attachmentPreviewUrl=null;
+    state.attachment=event.target.files?.[0]||null;
+    const preview=el('reticulum-attachment-preview');
+    preview.hidden=true;preview.removeAttribute('src');
+    if(state.attachment&&['image/png','image/jpeg','image/webp'].includes(state.attachment.type)&&
+       state.attachment.size<=maxAttachmentBytes){
+      state.attachmentPreviewUrl=URL.createObjectURL(state.attachment);
+      preview.src=state.attachmentPreviewUrl;preview.hidden=false;
+    }
+    updateControls();
+  });
+  el('reticulum-attachment-remove').addEventListener('click',clearAttachment);
   el('reticulum-new-thread').addEventListener('click',()=>{
     openThread(null);el('reticulum-recipient').focus();
   });
@@ -707,11 +767,24 @@
     event.preventDefault();
     if(!state.enabled||state.busy||el('reticulum-send').disabled)return;
     const address=el('reticulum-recipient').value.trim().toLowerCase();
-    const result=await act('/api/reticulum/send',{
-      destination:address,text:el('reticulum-text').value});
+    const payload={destination:address,text:el('reticulum-text').value};
+    if(state.attachment){
+      try{
+        const file=state.attachment;
+        if(file.size<1||file.size>maxAttachmentBytes||file.name.length>100)
+          throw Error('Choose one file of 1–128 KiB. Larger transfers will be added later.');
+        const bytes=new Uint8Array(await file.arrayBuffer());
+        let binary='';
+        for(let offset=0;offset<bytes.length;offset+=8192)
+          binary+=String.fromCharCode(...bytes.subarray(offset,offset+8192));
+        payload.attachment={filename:file.name,data_base64:btoa(binary)};
+      }catch(error){note(`Could not read selected file: ${error.message}`,true);return;}
+    }
+    const result=await act('/api/reticulum/send',payload);
     if(!result)return;
     if(result.status==='QUEUED_WITH_LXMF_NOT_DELIVERED'){
       el('reticulum-text').value='';updateControls();
+      clearAttachment();
       if(state.activeThread!==null)state.drafts[state.activeThread]='';
       if(state.activeThread==='new')openThread(address);
       note('LXMF router accepted this message for delivery; recipient delivery is not confirmed.');

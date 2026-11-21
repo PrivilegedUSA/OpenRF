@@ -63,5 +63,5 @@ vm.runInNewContext(settings,context);
   assert.equal(nodes['app-native-tabs'].textContent,'2');
   assert.match(nodes['app-native-detail'].textContent,/CPU sample: 4.5%/);
   assert(!nodes['app-native-refresh'].disabled);
-  console.log('PASS v0.2.156 on-demand local Electron metrics and kept-alive hidden native browser tabs');
+  console.log('PASS v0.2.159 on-demand local Electron metrics and kept-alive hidden native browser tabs');
 })().catch(error=>{console.error(error);process.exitCode=1;});

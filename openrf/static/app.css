@@ -1799,6 +1799,14 @@ body.map-workspace.has-message-unread .topbar #mesh-header-button{display:inline
 #page-reticulum .reticulum-thread-view .mesh-compose textarea{min-height:56px;max-height:110px;resize:vertical}
 #page-reticulum .reticulum-compose-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px}
 #page-reticulum .reticulum-compose-footer .btn{min-height:38px;min-width:86px}
+#page-reticulum .reticulum-attachment-compose{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin-top:9px}
+#page-reticulum .reticulum-attach-picker{display:inline-flex;align-items:center;cursor:pointer;margin:0}
+#page-reticulum .reticulum-attachment-compose .small{flex-basis:100%;line-height:1.4}
+#page-reticulum .reticulum-attachment-compose .error{color:#ffad91}
+#page-reticulum .reticulum-selected-preview:not([hidden]){display:block;max-width:220px;max-height:140px;object-fit:contain;border:1px solid #345766;border-radius:8px}
+#page-reticulum .reticulum-message-attachment{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin:7px 0}
+#page-reticulum .reticulum-message-attachment img{display:block;max-width:min(100%,260px);max-height:190px;object-fit:contain;border:1px solid #345766;border-radius:8px}
+#page-reticulum .reticulum-message-attachment a{overflow-wrap:anywhere}
 @media(max-width:500px){
   #page-reticulum .reticulum-thread-heading{gap:7px}
   #page-reticulum .reticulum-thread-identity{flex-basis:calc(100% - 150px)}
@@ -2745,3 +2753,14 @@ body.map-workspace .topbar .header-wifi-button{background:#0c2833e8;color:#a9e7d
   .topbar .header-wifi-panel{right:-53px;max-height:calc(100vh - 80px)}}
 @media(max-width:550px){.trip-library-metrics{grid-template-columns:1fr 1fr}.trip-library-metrics>div:last-child{grid-column:1/-1}
   .trip-library-section,.trip-library-overview{padding:12px}.trip-library-card{padding:12px}}
+/* v0.2.159: bounded, manually armed Reticulum Resource transfers. */
+.reticulum-resource-panel { margin:16px 0; }
+.reticulum-resource-panel > summary { cursor:pointer; }
+.reticulum-resource-panel label { display:block; min-width:0; margin:11px 0; }
+.reticulum-resource-panel input.field { margin-top:5px; width:100%; max-width:100%; min-width:0; }
+.reticulum-files-actions { display:flex; flex-wrap:wrap; gap:7px; margin:10px 0; }
+.reticulum-file-form { padding:11px; margin:13px 0; background:#0b2530; border:1px solid #2b535c; border-radius:9px; }
+.reticulum-file-transfers { display:grid; gap:7px; margin-top:10px; }
+.reticulum-file-row { display:flex; flex-wrap:wrap; gap:9px; align-items:center; justify-content:space-between; border:1px solid #2c505d; border-radius:8px; padding:10px; background:#0d2731; }
+.reticulum-file-info { display:grid; gap:3px; flex:1 1 190px; min-width:0; overflow-wrap:anywhere; }
+.reticulum-file-info small { font-size:11px; }

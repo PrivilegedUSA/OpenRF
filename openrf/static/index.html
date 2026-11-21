@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.156">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.159">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -23,11 +23,11 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/map-elevation.js?v=0.2.151"></script>
   <script defer src="/static/battery-status.js?v=0.2.151"></script>
-  <script defer src="/static/wifi-quick.js?v=0.2.156"></script>
+  <script defer src="/static/wifi-quick.js?v=0.2.159"></script>
   <script defer src="/static/route-elevation.js?v=0.2.151"></script>
   <script defer src="/static/trip-map.js?v=0.2.151"></script>
-  <script defer src="/static/app.js?v=0.2.156"></script>
-  <script defer src="/static/app-settings.js?v=0.2.156"></script>
+  <script defer src="/static/app.js?v=0.2.159"></script>
+  <script defer src="/static/app-settings.js?v=0.2.159"></script>
   <script defer src="/static/browser-workspace.js?v=0.2.151"></script>
   <script defer src="/static/saved-trips.js?v=0.2.151"></script>
   <script defer src="/static/emergency-tabs.js?v=0.2.151"></script>
@@ -48,7 +48,8 @@
   <script defer src="/static/field-calendar.js?v=0.2.151"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
   <script defer src="/static/mesh.js?v=0.2.104"></script>
-  <script defer src="/static/reticulum.js?v=0.2.104"></script>
+  <script defer src="/static/reticulum.js?v=0.2.159"></script>
+  <script defer src="/static/reticulum-files.js?v=0.2.159"></script>
   <script defer src="/static/mesh_connections.js?v=0.2.104"></script>
   <script defer src="/static/wifi_halow.js?v=0.2.104"></script>
   <script defer src="/static/field_network.js?v=0.2.104"></script>
@@ -60,7 +61,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.156</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.159</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15M15 6v15"/></svg></span><span class="nav-label">Map</span></button>
@@ -1028,6 +1029,30 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
           </label>
           <p class="small muted">This public destination is not your private identity key. The private key and LXMF runtime stay in OpenRF's local data folder, outside Git. This release does not automatically sync messages to OpenRF's Meshtastic inbox.</p>
           <div class="button-line"><button type="button" class="btn outline" id="reticulum-announce" disabled>Announce my address</button><span class="small muted">Only press when you want to advertise your destination on the LAN.</span></div>
+          <details class="reticulum-diagnostics reticulum-resource-panel" id="reticulum-files-panel">
+            <summary>Peer file transfer · up to 2 MiB (Reticulum Resource)</summary>
+            <p class="small muted">For larger files than chat attachments. Requires <strong>two OpenRF devices running this version</strong>, a path to the receiver's separate file address and explicit receiver permission. A transfer can be very slow over low-rate radio. Nothing is received or saved automatically.</p>
+            <label for="reticulum-file-my-address">My file address (different from LXMF chat)
+              <input id="reticulum-file-my-address" class="field" readonly spellcheck="false" value="Enable Reticulum first">
+            </label>
+            <div class="button-line reticulum-files-actions">
+              <button type="button" class="btn outline" id="reticulum-file-announce" disabled>Announce file address</button>
+              <button type="button" class="btn outline" id="reticulum-file-arm" disabled>Receive next file (5 min)</button>
+              <button type="button" class="btn outline" id="reticulum-file-disarm" disabled>Disarm receiving</button>
+            </div>
+            <p class="small muted" id="reticulum-file-window">Receiving is OFF. Anyone with your file address could offer a file while receiving is armed; only arm when expecting a trusted sender.</p>
+            <form id="reticulum-file-send-form" class="reticulum-file-form">
+              <label for="reticulum-file-destination">Recipient's <strong>file</strong> address (32 hex characters)
+                <input id="reticulum-file-destination" class="field" type="text" maxlength="32" spellcheck="false" autocomplete="off" placeholder="Use the peer's file address, not their LXMF address" required>
+              </label>
+              <label for="reticulum-file-picker">Select one file (1 byte–2 MiB)
+                <input id="reticulum-file-picker" class="field" type="file" required>
+              </label>
+              <div class="button-line"><button class="btn primary" id="reticulum-file-send" type="submit" disabled>Send file to peer</button><button class="btn outline" id="reticulum-file-refresh" type="button">Refresh transfers</button></div>
+            </form>
+            <p class="small muted" id="reticulum-file-notice" role="status" aria-live="polite">No file transfer requested. Incoming transfers are off.</p>
+            <div class="reticulum-file-transfers" id="reticulum-file-transfers"><p class="small muted">No transfers this session.</p></div>
+          </details>
           <details class="reticulum-diagnostics" id="reticulum-diagnostics-panel">
             <summary>Connection diagnostics · actual interfaces and peers</summary>
             <div class="button-line"><button type="button" class="btn outline" id="reticulum-diagnostics-refresh">Refresh connection details</button><span class="small muted">RNS-reported counters, not delivery proof.</span></div>
@@ -1074,7 +1099,13 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
               <form id="reticulum-compose" class="mesh-compose">
                 <label id="reticulum-recipient-label" for="reticulum-recipient">Recipient LXMF address<input id="reticulum-recipient" class="field" maxlength="32" autocomplete="off" spellcheck="false" placeholder="32-character hex address" required></label>
                 <div class="button-line reticulum-quick-contact" id="reticulum-quick-contact"><button id="reticulum-save-recipient" type="button" class="btn mini outline">Save recipient as contact</button></div>
-                <label for="reticulum-text">Message<textarea id="reticulum-text" class="field" rows="3" placeholder="Write a message…" required></textarea></label>
+                <label for="reticulum-text">Message<textarea id="reticulum-text" class="field" rows="3" placeholder="Write a message or attach a file…"></textarea></label>
+                <div class="reticulum-attachment-compose">
+                  <label for="reticulum-attachment-file" class="btn mini outline reticulum-attach-picker"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.4 11.6-8.9 8.9a6 6 0 0 1-8.5-8.5L13 3a4 4 0 0 1 5.7 5.7L9.8 17.6a2 2 0 0 1-2.8-2.8l8.2-8.2"/></svg> Attach photo or file<input id="reticulum-attachment-file" type="file" hidden></label>
+                  <button id="reticulum-attachment-remove" type="button" class="btn mini outline" hidden>Remove file</button>
+                  <span id="reticulum-attachment-status" class="small muted" role="status">One file up to 128 KiB · direct LXMF only · available during this session</span>
+                  <img id="reticulum-attachment-preview" class="reticulum-selected-preview" alt="Selected photograph preview" hidden>
+                </div>
                 <div class="reticulum-compose-footer"><span id="reticulum-byte-count" class="small muted">0 / 1024 UTF-8 bytes</span><button id="reticulum-send" class="btn primary" type="submit" disabled>Send</button></div>
               </form>
             </div>
@@ -1084,9 +1115,9 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
             <label class="reticulum-history-choice"><input type="checkbox" id="reticulum-save-history"> Save Reticulum messages on this device (opt-in)</label>
             <p id="reticulum-history-count" class="small muted">No saved history.</p>
             <div class="button-line"><button type="button" class="btn outline" id="reticulum-clear-history">Clear messages</button></div>
-            <p class="small muted">When enabled, this saves your current session and future LXMF messages in private local SQLite (up to 1,000). The text is <strong>not encrypted at rest</strong>. Disabling history deletes saved messages; contacts remain. Clear messages removes saved and current-session messages.</p>
+            <p class="small muted">When enabled, this saves your current session and future LXMF messages in private local SQLite (up to 1,000). The text and attachment names are <strong>not encrypted at rest</strong>. File bytes remain only in current-session memory unless you explicitly download them. Disabling history deletes saved message records; contacts remain. Clear messages removes saved and current-session messages.</p>
           </details>
-          <p class="small muted">If the recipient path isn't known, OpenRF will request it but won't claim that your message was sent. Try again after the path becomes available. LXMF queue acceptance is not delivery confirmation. No files or location data are sent.</p>
+          <p class="small muted">If the recipient path isn't known, OpenRF will request it but won't claim that your message was sent. Try again after the path becomes available. LXMF queue acceptance is not delivery confirmation. Attachments require explicit selection, are capped at 128 KiB for this phase, and may take a very long time over LoRa. Larger file transfers and voice messages are separate future phases. No location data is sent.</p>
         </div>
       </section>
       <section class="page" id="page-hamradio" aria-label="Ham radio channel memories">

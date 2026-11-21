@@ -1,3 +1,21 @@
+## OpenRF v0.2.159 — Peer Resource file transfers (Phase 1B) (2026-11-20)
+
+- Added a separate `openrf.files` Reticulum Resource destination with its own shareable/announced 32-character file address, distinct from LXMF chat. Two OpenRF v0.2.159 peers can explicitly send one file up to 2 MiB over an established RNS Link, with live reported progress, a cancel action and SHA-256 verification on receipt. Existing 128 KiB LXMF chat attachments are unchanged.
+- Receiver consent is OFF by default: users deliberately arm **one** incoming file for up to five minutes. Rejects unexpected Resource advertisements, oversized offers and invalid metadata; received content has a bounded session-only memory store and an explicit download button. No automatic permanent OpenRF file saving, camera/microphone, background network listener beyond the previously explicitly enabled Reticulum transport, or Wi-Fi scanning.
+- Added `/api/reticulum/files/*` loopback endpoints, a collapsible Peer file transfer section in Reticulum, and tests for authorization, bounds, checksum, cancellation and HTTP. Resource callback integration is simulated; actual Linux/Pi/RNode peer interoperability, transfer speed, timeout and radio airtime remain unverified. This is not Meshtastic file sending, unlimited rncp or voice chat.
+
+## OpenRF v0.2.158 — LXMF small photo and file attachments (2026-11-20)
+
+- Added a direct, explicit one-file attachment picker and local photo preview to Reticulum conversations. PNG/JPEG/WebP payloads send using the native LXMF `FIELD_IMAGE`; small PDFs and other files use `FIELD_FILE_ATTACHMENTS`, matching Sideband's published field format. Files are capped at 128 KiB for this initial direct-LXMF transport path.
+- Added bounded, ephemeral receive/send attachment storage in the optional Reticulum worker, safe download and image thumbnail endpoints, MIME sniffing, path-safe filename validation, and session-expired indication. Incoming file bytes are never persisted automatically; optional SQLite history stores filename/size metadata only. Old history databases migrate by adding optional columns without deleting contacts/messages.
+- Added mock LXMF peer, HTTP download, metadata migration and frontend regression tests. Verified source behavior without actual radio hardware or end-to-end peer delivery. No Meshtastic file transfer, general RNS.Resource transfer, voice memo or real-time calling yet.
+
+## OpenRF v0.2.157 — Linux Debian installers and opt-in Pi kiosk (2026-11-20)
+
+- Added pinned Electron 45.4.1 / electron-builder 26.18.1 Debian build workflow with packaged OpenRF server resources, desktop integration, Python runtime dependency, and shared-library dependencies. Packages are separate for amd64 Linux and ARM64 Raspberry Pi OS; Node/npm are build-only dependencies.
+- Added `pi-startup.py enable|disable|status` for Raspberry Pi OS labwc desktop autostart, scoped to one preserved managed stanza and never run at installation. Installed launcher responds to `--openrf-kiosk`. No root login, system service, background RF scan, altered database, or network listener exposure.
+- Added startup safety and package configuration tests and a Pi setup/runbook. Actual Pi OS install, GPS/GPU, power and touchscreen startup must still be tested on hardware. Project license and public maintainer URL/email must be finalized before public distribution.
+
 ## OpenRF v0.2.156 — sidebar map icon compatibility (2026-11-20)
 
 - Replaced the Map sidebar's missing-glyph Unicode character (`⌖`) with an inline folded-map SVG, sized and colored consistently with the existing sidebar Emergency SVG icon. This fixes the rectangle rendered on the user's Linux Electron laptop without adding an icon font dependency.
@@ -1192,4 +1210,5 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Bumped the route-helper browser cache key so an older JS file cannot reintroduce this fault after installation. Added an end-to-end JavaScript regression for a locally returned walking route, negative guards against walking GPS follow and static icon serving checks.
 - Repaired the **shared header on every non-map page**, including Emergency, Analysis, Spectrum, Messages, Radio, and Hardware: the existing in-page heading and description are the visible title, while the top utility row no longer repeats the title. The device-local clock sits in the utility flow alongside the status/shortcut controls instead of overlapping the middle status badges. Full-screen Map's overlay header is unchanged; keyboard menu focus now targets the visible page title.
 - This fixes the client-side mistaken rejection, not an absent Valhalla container or missing pedestrian graph coverage. The user must test the actual selected route with their installed graph; no local Docker daemon or real trail/GPS access was available to verify.
+
 

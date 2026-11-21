@@ -13,7 +13,7 @@ import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse, unquote, parse_qs
+from urllib.parse import urlparse, unquote, quote, parse_qs
 
 from . import __version__
 from .offline_maps import (available_maps, tile_bytes, import_map, remove_map,
@@ -141,6 +141,10 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get('Content-Length', '0'))
         request_path = urlparse(self.path).path
         max_size = 25*1024*1024 if request_path == '/api/emergency/backup/inspect' else (300000 if request_path == '/api/radio/profiles/import' else (200000 if request_path == '/api/emergency/packs/install' else (24576 if request_path == '/api/emergency/library' else 16384)))
+        if request_path == '/api/reticulum/send':
+            max_size = 180000  # One Base64-encoded 128 KiB LXMF attachment.
+        if request_path == '/api/reticulum/files/send':
+            max_size = 2850000  # Explicit Base64-encoded 2 MiB Resource transfer.
         if request_path == '/api/navigation/trails/import':
             max_size = 750000  # One explicitly chosen GPX file, capped again during parsing.
         if length < 1 or length > max_size:
@@ -576,6 +580,29 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200, self.server.reticulum_manager.messages())
             except ReticulumError as exc:
                 return self._error(exc.status, str(exc), exc.code)
+        if path.startswith('/api/reticulum/attachments/'):
+            token = path[len('/api/reticulum/attachments/'):]
+            try:
+                attachment = self.server.reticulum_manager.attachment(token)
+                name = attachment['filename']
+                disposition = 'attachment' if parse_qs(urlparse(self.path).query).get('download', ['0'])[0]=='1' else 'inline'
+                return self._send(200, attachment['data'], attachment['mime'], {
+                    'Content-Disposition': f"{disposition}; filename=\"openrf-attachment\"; filename*=UTF-8''{quote(name, safe='')}"})
+            except ReticulumError as exc:
+                return self._error(exc.status, str(exc), exc.code)
+        if path == '/api/reticulum/files/status':
+            try:
+                return self._json(200, self.server.reticulum_manager.files_status())
+            except ReticulumError as exc:
+                return self._error(exc.status, str(exc), exc.code)
+        if path.startswith('/api/reticulum/files/download/'):
+            ident = path[len('/api/reticulum/files/download/'):]
+            try:
+                file = self.server.reticulum_manager.files_download(ident)
+                return self._send(200, file['data'], 'application/octet-stream', {
+                    'Content-Disposition': f"attachment; filename=\"openrf-file\"; filename*=UTF-8''{quote(file['filename'], safe='')}"})
+            except ReticulumError as exc:
+                return self._error(exc.status, str(exc), exc.code)
         if path == '/api/reticulum/contacts':
             return self._json(200, self.server.reticulum_manager.contacts())
         if path == '/api/reticulum/history':
@@ -692,7 +719,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, raw, 'text/csv; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.csv"'})
         if path in ('/', '/index.html'):
             file = STATIC_DIR / 'index.html'
-        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/browser-workspace.js', '/static/saved-trips.js', '/static/wifi-quick.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/trip-map.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/camera-layers.js', '/static/chirp-import.js'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/browser-workspace.js', '/static/saved-trips.js', '/static/wifi-quick.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/trip-map.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/reticulum-files.js', '/static/camera-layers.js', '/static/chirp-import.js'):
             file = STATIC_DIR / Path(path).name
         elif path == '/static/offline-trails.js':
             file = STATIC_DIR / 'offline-trails.js'
@@ -1098,6 +1125,14 @@ class Handler(BaseHTTPRequestHandler):
                         return self._json(200, manager.announce(body))
                     if path == '/api/reticulum/send':
                         return self._json(202, manager.send(body))
+                    if path == '/api/reticulum/files/announce':
+                        return self._json(200, manager.files_announce(body))
+                    if path == '/api/reticulum/files/arm':
+                        return self._json(200, manager.files_arm(body))
+                    if path == '/api/reticulum/files/send':
+                        return self._json(202, manager.files_send(body))
+                    if path == '/api/reticulum/files/cancel':
+                        return self._json(200, manager.files_cancel(body))
                     if path == '/api/reticulum/contacts':
                         return self._json(200, manager.save_contact(body))
                     if path == '/api/reticulum/contacts/delete':

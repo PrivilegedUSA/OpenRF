@@ -17,6 +17,9 @@ import secrets
 import threading
 
 from .reticulum_history import ReticulumLocalStore, ContactExistsError, ContactMissingError
+from .reticulum_attachments import (SessionAttachmentBuffer, validate_browser_attachment,
+                                    lxmf_attachment, outbound_fields, MAX_ATTACHMENT_BYTES)
+from .reticulum_resources import ResourceSession, validate_resource_offer
 from .hardware import enumerate_serial_ports
 from .serial_diagnostics import serial_port_diagnostics
 from .wifi_halow import status_report as halow_status_report
@@ -138,13 +141,15 @@ def validate_tcp_peer(value):
 
 
 def validate_message(body):
-    if not isinstance(body, dict) or set(body) != {'destination', 'text'}:
-        raise ReticulumError('Provide destination and text only.', 'invalid_lxmf_message', 400)
+    if not isinstance(body, dict) or set(body) not in ({'destination', 'text'},
+                                                      {'destination', 'text', 'attachment'}):
+        raise ReticulumError('Provide destination, text and at most one selected attachment.',
+                             'invalid_lxmf_message', 400)
     destination, text = body['destination'], body['text']
     if not isinstance(destination, str) or not DESTINATION.fullmatch(destination):
         raise ReticulumError('LXMF address must be exactly 32 hexadecimal characters.',
                              'invalid_lxmf_destination', 400)
-    if not isinstance(text, str) or not text.strip() or any(ord(c)<32 and c not in '\n\t' for c in text):
+    if not isinstance(text, str) or (not text.strip() and 'attachment' not in body) or any(ord(c)<32 and c not in '\n\t' for c in text):
         raise ReticulumError('Enter readable message text.', 'invalid_lxmf_message', 400)
     try:
         size = len(text.encode('utf-8'))
@@ -153,7 +158,13 @@ def validate_message(body):
     if size > MESSAGE_BYTES:
         raise ReticulumError('Limit LXMF text to 1024 UTF-8 bytes for this first release.',
                              'invalid_lxmf_message', 400)
-    return {'destination': destination.lower(), 'text': text}
+    validated = {'destination': destination.lower(), 'text': text}
+    if 'attachment' in body:
+        try:
+            validated['attachment'] = validate_browser_attachment(body['attachment'])
+        except ValueError as exc:
+            raise ReticulumError(str(exc), 'invalid_lxmf_attachment', 400) from exc
+    return validated
 
 
 def validate_start(body):
@@ -362,8 +373,10 @@ def reticulum_worker(pipe, data_root, options=None):
         source = router.register_delivery_identity(identity, display_name='OpenRF')
         if source is None:
             raise RuntimeError('LXMF delivery destination could not be initialized.')
+        file_session = ResourceSession(RNS, identity)
         inbox = deque(maxlen=100)
         inbox_lock = threading.Lock()
+        attachments = SessionAttachmentBuffer()
         received_count = 0
         event_sequence = 0
 
@@ -383,8 +396,13 @@ def reticulum_worker(pipe, data_root, options=None):
                 address = message.source.hash.hex()
                 if not isinstance(content, str) or len(content.encode('utf-8'))>MESSAGE_BYTES:
                     return
-                append_inbox({'direction':'IN', 'destination':address,
-                              'text':content, 'utc':_utc(), 'status':'RECEIVED_VALID_SIGNATURE'},incoming=True)
+                record = {'direction':'IN', 'destination':address,
+                          'text':content, 'utc':_utc(), 'status':'RECEIVED_VALID_SIGNATURE'}
+                attachment = lxmf_attachment(getattr(message, 'fields', None), LXMF)
+                if attachment:
+                    with inbox_lock:
+                        record['attachment'] = attachments.add(**attachment)
+                append_inbox(record, incoming=True)
             except (AttributeError, UnicodeError, ValueError):
                 return
 
@@ -418,15 +436,62 @@ def reticulum_worker(pipe, data_root, options=None):
                 pipe.send(report)
             elif action == 'messages':
                 with inbox_lock:
-                    snapshot, sequence = list(inbox), received_count
+                    snapshot = []
+                    for record in inbox:
+                        item = dict(record)
+                        if item.get('attachment'):
+                            current = attachments.get(item['attachment']['id']) is not None
+                            item['attachment'] = {**item['attachment'], 'available':current}
+                        snapshot.append(item)
+                    sequence = received_count
                 pipe.send({'ok':True, 'messages':snapshot, 'receive_sequence':sequence,
                            'storage':'WORKER_MEMORY_AND_PRIVATE_LXMF_RUNTIME'})
             elif action == 'clear_messages':
                 with inbox_lock:
                     inbox.clear()
+                    attachments.clear()
                 pipe.send({'ok':True, 'cleared':True})
+            elif action == 'attachment':
+                token = command.get('message', {}).get('id') if isinstance(command.get('message'), dict) else None
+                with inbox_lock:
+                    item = attachments.get(token)
+                if item is None:
+                    pipe.send({'ok':False, 'error':'Attachment is no longer available in this session.'})
+                else:
+                    pipe.send({'ok':True, **item})
+            elif action == 'files_status':
+                pipe.send({'ok': True, **file_session.snapshot()})
+            elif action == 'files_announce':
+                pipe.send({'ok': True, **file_session.announce()})
+            elif action == 'files_arm':
+                try:
+                    payload = command.get('message')
+                    if not isinstance(payload, dict) or set(payload) != {'enabled'}:
+                        raise ValueError('Choose the explicit receive switch.')
+                    pipe.send({'ok': True, **file_session.arm(payload['enabled'])})
+                except ValueError as exc:
+                    pipe.send({'ok':False, 'error':str(exc)})
+            elif action == 'files_send':
+                try:
+                    pipe.send({'ok': True, **file_session.send(command['message'])})
+                except ValueError as exc:
+                    pipe.send({'ok':False, 'error':str(exc)})
+            elif action == 'files_cancel':
+                try:
+                    pipe.send({'ok': True, **file_session.cancel(command['message']['id'])})
+                except (ValueError, KeyError, TypeError) as exc:
+                    pipe.send({'ok':False, 'error':str(exc)})
+            elif action == 'files_download':
+                item = file_session.download(command.get('message',{}).get('id'))
+                pipe.send({'ok': bool(item), **item} if item else
+                          {'ok': False, 'error':'File is not available during this session.'})
             elif action == 'send':
-                payload = validate_message(command.get('message'))
+                # Validated in parent before IPC; already normalized bytes.
+                payload = command.get('message')
+                if not isinstance(payload, dict) or set(payload) not in ({'destination','text'},
+                                                                          {'destination','text','attachment'}):
+                    pipe.send({'ok':False, 'error':'Invalid outbound message.'})
+                    continue
                 target = bytes.fromhex(payload['destination'])
                 if not RNS.Transport.has_path(target):
                     RNS.Transport.request_path(target)
@@ -439,12 +504,20 @@ def reticulum_worker(pipe, data_root, options=None):
                     continue
                 destination = RNS.Destination(recipient, RNS.Destination.OUT,
                     RNS.Destination.SINGLE, 'lxmf', 'delivery')
+                attachment = payload.get('attachment')
+                fields = None
+                if attachment:
+                    fields = outbound_fields(LXMF, attachment)
                 message = LXMF.LXMessage(destination, source, payload['text'], None,
-                    desired_method=LXMF.LXMessage.DIRECT, include_ticket=True)
+                    fields=fields, desired_method=LXMF.LXMessage.DIRECT, include_ticket=True)
                 router.handle_outbound(message)
-                append_inbox({'direction':'OUT', 'destination':payload['destination'],
-                              'text':payload['text'], 'utc':_utc(),
-                              'status':'QUEUED_WITH_LXMF_NOT_DELIVERED'})
+                record = {'direction':'OUT', 'destination':payload['destination'],
+                          'text':payload['text'], 'utc':_utc(),
+                          'status':'QUEUED_WITH_LXMF_NOT_DELIVERED'}
+                if attachment:
+                    with inbox_lock:
+                        record['attachment'] = attachments.add(**attachment)
+                append_inbox(record)
                 pipe.send({'ok':True, 'status':'QUEUED_WITH_LXMF_NOT_DELIVERED'})
             else:
                 pipe.send({'ok':False, 'error':'Unrecognized local Reticulum command.'})
@@ -586,7 +659,17 @@ class ReticulumManager:
             else:
                 result = {'messages':[], 'receive_sequence':0, 'storage':'INACTIVE'}
             if self._store.history_enabled():
-                return {'messages':self._store.messages(),
+                saved = self._store.messages()
+                active_ids = {row['attachment']['id'] for row in result.get('messages', [])
+                              if isinstance(row.get('attachment'),dict) and
+                              row['attachment'].get('available') is True}
+                for row in saved:
+                    attachment = row.get('attachment')
+                    if attachment:
+                        attachment['available'] = bool(self._running() and
+                            row.get('worker_id') == self._worker_id and
+                            attachment['id'] in active_ids)
+                return {'messages':saved,
                         'receive_sequence':result['receive_sequence'],
                         'storage':'PRIVATE_LOCAL_SQLITE_OPT_IN','history_enabled':True}
             return {**result, 'history_enabled':False}
@@ -662,6 +745,61 @@ class ReticulumManager:
     def send(self, payload):
         message = validate_message(payload)
         return self._command('send',message)
+
+    def attachment(self, token):
+        if not isinstance(token, str) or not re.fullmatch(r'[0-9a-f]{32}', token):
+            raise ReticulumError('Invalid attachment identifier.', 'invalid_lxmf_attachment', 400)
+        try:
+            result = self._command('attachment', {'id':token})
+        except ReticulumError as exc:
+            if exc.code == 'reticulum_worker_failed':
+                raise ReticulumError('Attachment is no longer available in this session.',
+                                     'attachment_unavailable', 404) from exc
+            raise
+        if not isinstance(result.get('data'),bytes) or len(result['data'])>MAX_ATTACHMENT_BYTES:
+            raise ReticulumError('Attachment bytes are invalid.', 'attachment_unavailable', 404)
+        return result
+
+    def files_status(self):
+        if not self._running():
+            return {'enabled':False, 'file_address':None, 'receiving_armed_seconds':0,
+                    'transfers':[], 'bytes_in_memory':0, 'max_file_bytes':2*1024*1024}
+        return {'enabled':True, **self._command('files_status')}
+
+    def files_announce(self, payload):
+        if payload != {}:
+            raise ReticulumError('Announce requires an empty object.', 'invalid_file_command', 400)
+        return self._command('files_announce')
+
+    def files_arm(self, payload):
+        if not isinstance(payload,dict) or set(payload)!={'enabled'} or type(payload['enabled']) is not bool:
+            raise ReticulumError('Choose enabled true or false.', 'invalid_file_command', 400)
+        return self._command('files_arm',payload)
+
+    def files_send(self, payload):
+        try:
+            offer = validate_resource_offer(payload)
+        except ValueError as exc:
+            raise ReticulumError(str(exc), 'invalid_resource_offer', 400) from exc
+        return self._command('files_send',offer)
+
+    def files_cancel(self, payload):
+        if not isinstance(payload, dict) or set(payload)!={'id'} or not isinstance(payload['id'],str) or not re.fullmatch('[0-9a-f]{32}',payload['id']):
+            raise ReticulumError('Select a valid transfer ID.', 'invalid_file_command', 400)
+        return self._command('files_cancel',payload)
+
+    def files_download(self, ident):
+        if not isinstance(ident,str) or not re.fullmatch('[0-9a-f]{32}',ident):
+            raise ReticulumError('Invalid file ID.', 'invalid_file_id', 400)
+        try:
+            result = self._command('files_download',{'id':ident})
+        except ReticulumError as exc:
+            raise ReticulumError('Received file not available; it may have expired.',
+                                 'resource_unavailable', 404) from exc
+        data = result.get('data')
+        if not isinstance(data,bytes) or not 1<=len(data)<=2*1024*1024:
+            raise ReticulumError('Received file unavailable.', 'resource_unavailable', 404)
+        return result
 
     def announce(self, payload):
         if payload != {}:

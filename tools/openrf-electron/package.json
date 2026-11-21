@@ -1,29 +1,58 @@
 {
   "name": "openrf-native-shell",
   "private": true,
-  "version": "0.2.156",
+  "version": "0.2.159",
   "description": "Chromium-based OpenRF Linux desktop shell and optional Debian packaging",
+  "author": "OpenRF local build <openrf@localhost>",
+  "homepage": "https://github.com/topics/openrf",
+  "desktopName": "org.openrf.fieldconsole.desktop",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "build:deb": "electron-builder --linux deb",
     "build:deb:x64": "electron-builder --linux deb --x64",
     "build:deb:arm64": "electron-builder --linux deb --arm64"
+  },
+  "devDependencies": {
+    "electron": "45.4.1",
+    "electron-builder": "26.18.1"
   },
   "build": {
     "appId": "org.openrf.fieldconsole",
     "productName": "OpenRF",
     "asar": true,
     "files": ["main.js", "preload.js", "backend.js", "runtime-metrics.js", "security.js", "package.json"],
-    "extraResources": [{
-      "from": "../../openrf",
-      "to": "project/openrf",
-      "filter": ["**/*", "!**/__pycache__/**", "!**/*.pyc", "!**/.DS_Store"]
-    }],
+    "extraResources": [
+      {
+        "from": "../../openrf",
+        "to": "project/openrf",
+        "filter": ["**/*", "!**/__pycache__/**", "!**/*.pyc", "!**/.DS_Store"]
+      },
+      {"from": "pi-startup.py", "to": "pi-startup.py"}
+    ],
     "linux": {
       "category": "Utility",
       "icon": "../../openrf/static/assets/openrf-icon-512.png",
       "executableName": "openrf",
+      "syncDesktopName": true,
+      "desktop": {
+        "entry": {
+          "Name": "OpenRF",
+          "Comment": "Offline-first field console",
+          "Keywords": "radio;rf;mapping;offline;",
+          "Terminal": "false"
+        }
+      },
       "target": ["deb"]
+    },
+    "deb": {
+      "packageName": "openrf",
+      "synopsis": "Offline-first RF field console",
+      "depends": [
+        "libgtk-3-0", "libnotify4", "libnss3", "libxss1", "libxtst6",
+        "xdg-utils", "libatspi2.0-0", "libuuid1", "libsecret-1-0",
+        "python3 (>= 3.11)", "libasound2 | libasound2t64"
+      ]
     },
     "artifactName": "OpenRF-${version}-${arch}.${ext}"
   },

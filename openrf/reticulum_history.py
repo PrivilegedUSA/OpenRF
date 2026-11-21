@@ -83,9 +83,16 @@ class ReticulumLocalStore:
                         worker_id TEXT NOT NULL, event_id INTEGER NOT NULL,
                         direction TEXT NOT NULL, destination TEXT NOT NULL,
                         body TEXT NOT NULL, utc TEXT NOT NULL, status TEXT NOT NULL,
+                        attachment_id TEXT, attachment_name TEXT,
+                        attachment_size INTEGER, attachment_mime TEXT,
                         UNIQUE(worker_id, event_id)
                     );
                 ''')
+                columns = {row[1] for row in connection.execute('PRAGMA table_info(messages)')}
+                for name, column_type in (('attachment_id','TEXT'),('attachment_name','TEXT'),
+                                          ('attachment_size','INTEGER'),('attachment_mime','TEXT')):
+                    if name not in columns:
+                        connection.execute(f'ALTER TABLE messages ADD COLUMN {name} {column_type}')
         return connection
 
     def history_enabled(self):
@@ -194,14 +201,29 @@ class ReticulumLocalStore:
                 continue
             if not isinstance(timestamp, str) or not 1 <= len(timestamp) <= 50:
                 continue
-            accepted.append((worker_id, event_id, direction, address, content, timestamp, status))
+            attachment = row.get('attachment')
+            attachment_fields = (None, None, None, None)
+            if isinstance(attachment, dict) and {'id','filename','size','mime'}.issubset(attachment) and (
+                    set(attachment) - {'id','filename','size','mime'} <= {'available'}):
+                attachment_id, name, size, mime = (attachment.get('id'), attachment.get('filename'),
+                                                   attachment.get('size'), attachment.get('mime'))
+                if (isinstance(attachment_id, str) and re.fullmatch('[0-9a-f]{32}', attachment_id)
+                        and isinstance(name, str) and 1<=len(name)<=100
+                        and not any(ord(c)<32 or c in '/\\' for c in name)
+                        and type(size) is int and 1<=size<=128*1024
+                        and mime in ('image/png','image/jpeg','image/webp','application/octet-stream')):
+                    attachment_fields = (attachment_id, name, size, mime)
+            accepted.append((worker_id, event_id, direction, address, content, timestamp, status,
+                             *attachment_fields))
         if not accepted:
             return 0
         connection = self._connection(create=True)
         with closing(connection) as db, db:
             before = db.total_changes
             db.executemany('''INSERT OR IGNORE INTO messages
-                (worker_id,event_id,direction,destination,body,utc,status) VALUES(?,?,?,?,?,?,?)''', accepted)
+                (worker_id,event_id,direction,destination,body,utc,status,
+                 attachment_id,attachment_name,attachment_size,attachment_mime)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?)''', accepted)
             inserted = db.total_changes-before
             db.execute('''DELETE FROM messages WHERE id IN (
                 SELECT id FROM messages ORDER BY id DESC LIMIT -1 OFFSET ?)''', (HISTORY_LIMIT,))
@@ -212,10 +234,20 @@ class ReticulumLocalStore:
         if connection is None:
             return []
         with closing(connection) as db:
-            rows = db.execute('''SELECT id,direction,destination,body,utc,status FROM messages
+            fields = {row[1] for row in db.execute('PRAGMA table_info(messages)')}
+            extra = ',attachment_id,attachment_name,attachment_size,attachment_mime' if 'attachment_id' in fields else ''
+            rows = db.execute(f'''SELECT id,worker_id,direction,destination,body,utc,status{extra} FROM messages
                 ORDER BY id DESC LIMIT ?''', (HISTORY_LIMIT,)).fetchall()
-            return [dict(id=ident,direction=direction,destination=address,text=body,utc=utc,status=status)
-                    for ident,direction,address,body,utc,status in reversed(rows)]
+            results=[]
+            for row in reversed(rows):
+                ident,worker,direction,address,body,utc,status = row[:7]
+                item=dict(id=ident,worker_id=worker,direction=direction,destination=address,
+                          text=body,utc=utc,status=status)
+                if len(row)>7 and row[7] is not None:
+                    item['attachment']={'id':row[7], 'filename':row[8], 'size':row[9],
+                                        'mime':row[10]}
+                results.append(item)
+            return results
 
     def clear_messages(self):
         connection = self._connection()
