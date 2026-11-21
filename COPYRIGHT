@@ -1,0 +1,18 @@
+OpenRF
+Copyright (C) 2026 PrivilegedUSA
+
+SPDX-License-Identifier: GPL-3.0-or-later
+
+OpenRF's original source code is free software: you can redistribute it
+and/or modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation, either version 3 of the License,
+or (at your option) any later version.
+
+OpenRF is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See LICENSE for the full GNU GPL version 3 text.
+
+Separately licensed third-party libraries, fonts, maps, tiles, data, images
+and other assets retain their respective copyright and license terms. This
+notice does not relicense material owned by others. Review their license
+and attribution requirements before distributing packaged copies.
