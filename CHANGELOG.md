@@ -1,3 +1,17 @@
+## OpenRF v0.2.169 — Hardware navigation and spacing polish (2026-11-21)
+
+- Reorganized the existing **Hardware** page into **Dashboard / Radios & Networks / USB & Sensors / System** tabs, matching the established OpenRF messaging/Reticulum tab style. Moved original live DOM elements—never clones—so explicit radio/hotspot/USB actions, selected values, test results and event listeners are retained. Tabs switch without scrolling the page, changing network state, probing serial devices or starting background RF capture.
+- Added 16px vertical separation between the two Ham Radio panels, adjacent Sessions panels, and Hardware tab cards including the previously touching External USB Sensor and Operating Environment areas (now placed on separate tabs).
+- Added tab identity/keyboard navigation tests and a backend static asset check. Created a compatibility-focused ZIP32 Deflate release and documented download integrity checks for the reported Windows `Central Directory corrupt` error. The source v0.2.168 archive passed CRC checks locally; the user's `OpenRF-v0.2.168(1).zip` bytes were not available for inspection, so its exact failure cause is unverified.
+- **482 Python tests and 137 JavaScript suites passed locally**, plus compilation and syntax checks. Remaining 7-inch Pi/WSL physical layout checks: `docs/RELEASE_0.2.169_TESTS.md`.
+
+## OpenRF v0.2.168 — Offline weather station hub (2026-11-21)
+
+- Added **Weather Station** sidebar workspace with touch-friendly **Dashboard / Stations & Sensors / History** tabs. Works on Linux/WSL/Pi without weather hardware or network services and retains the existing map, radio, messaging and emergency features.
+- Added new local `WeatherStore` tables inside OpenRF's existing private SQLite database, isolated from RF observation provenance. Users can create named weather stations, enter explicitly sourced **MANUAL** measurements, and import up to 500 rows of bounded, timezone-aware **IMPORTED_HISTORICAL** CSV per action. All readings record source category, station identity, UTC observation/record times, and SI-unit values. Reject missing/invalid data and duplicate UTC-second/source readings rather than inventing sensor values.
+- Added local read-only history APIs, filterable chronological chart and table, conversion to familiar U.S. display units, and CSV export capped at the latest 50,000 station readings. No account, service listening on LAN, internet collection, sensor discovery, automatic connect, uploads or radio transmissions are introduced.
+- Added Python storage/API and JavaScript navigation/entry regression suites plus Linux CI syntax check. **482 Python tests and 136 JavaScript suites passed locally**; Python compileall and JavaScript syntax checks passed. **Automatic Ecowitt, WeeWX, rtl_433 and ESP32 sensor adapters remain planned, not implemented or hardware-verified.** Test results and manual checks: `docs/RELEASE_0.2.168_TESTS.md`.
+
 ## OpenRF v0.2.167 — Unified messaging navigation (2026-11-21)
 
 - Renamed the former **Mesh messages** sidebar/header/page labels to **Meshtastic** so it cannot be confused with the independent **MeshCore** integration. Existing routes, IDs, API endpoints, saved message data and protocols are preserved.

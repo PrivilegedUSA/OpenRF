@@ -5,7 +5,7 @@ const html=fs.readFileSync('openrf/static/index.html','utf8');
 const mesh=fs.readFileSync('openrf/static/mesh.js','utf8');
 for(const id of ['mesh-reply-conversation','mesh-byte-count','mesh-text'])
   assert(html.includes(`id="${id}"`),`Missing ${id}`);
-assert(html.includes('/static/mesh.js?v=0.2.167'));
+assert(html.includes('/static/mesh.js?v=0.2.169'));
 assert(mesh.includes("el('mesh-reply-conversation').addEventListener('click'"));
 assert(mesh.includes('new TextEncoder().encode(el(\'mesh-text\').value).length'));
 assert(mesh.includes('count>180'));

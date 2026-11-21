@@ -22,7 +22,7 @@ assert(app.includes("state.map.on('click', 'survey-waypoints'"),'waypoint detail
 for(const id of ['mesh-panel','mesh-serial','mesh-mode','mesh-connect','mesh-disconnect',
   'mesh-set-mode','mesh-send','mesh-compose','mesh-text','mesh-destination','mesh-channel',
   'mesh-messages','mesh-status'])assert(html.includes(`id="${id}"`),id);
-assert(html.includes('/static/mesh.js?v=0.2.167'));
+assert(html.includes('/static/mesh.js?v=0.2.169'));
 assert(html.includes('/static/navigation_health.js?v=0.2.76'));
 assert(css.includes('.mesh-control-grid')&&css.includes('@media(max-width:650px)'));
 assert(mesh.includes("'/api/mesh/connect'")&&mesh.includes("'/api/mesh/send'"));

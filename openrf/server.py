@@ -57,6 +57,7 @@ from .wifi_connect import wifi_status, list_wifi, connect_wifi, WifiConnectionEr
 from .drivers.ble_bluez import scan_once as ble_scan_once, BleScanUnavailable
 from .drivers.serial_openrf import query_port, SerialSensorError
 from .storage import Repository, to_csv, to_geojson
+from .weather import WeatherStore, WeatherError
 from .emergency import EmergencyStore
 from .emergency_packs import STARTER_PACK
 from .emergency_sos import compose_draft
@@ -151,6 +152,8 @@ class Handler(BaseHTTPRequestHandler):
             max_size = 180000  # One Base64-encoded 128 KiB LXMF attachment.
         if request_path == '/api/reticulum/files/send':
             max_size = 2850000  # Explicit Base64-encoded 2 MiB Resource transfer.
+        if request_path == '/api/weather/import/csv':
+            max_size = 190000  # At most 160 kB UTF-8 text plus JSON escaping.
         if request_path == '/api/bluetooth/send':
             max_size = 2850000  # Explicit Base64-encoded 2 MiB Classic RFCOMM file.
         if request_path == '/api/navigation/trails/import':
@@ -401,6 +404,28 @@ class Handler(BaseHTTPRequestHandler):
                 'mode':'IMPORT_ONLY','radio_write_enabled':False})
         if path == '/api/health':
             return self._json(200, {'status': 'ok', 'version': __version__})
+        if path == '/api/weather/status':
+            return self._json(200, self.server.weather_store.status())
+        if path == '/api/weather/stations':
+            return self._json(200, {'stations': self.server.weather_store.stations()})
+        if path in ('/api/weather/readings', '/api/weather/export.csv'):
+            params = parse_qs(urlparse(self.path).query, keep_blank_values=True)
+            allowed = {'station_id', 'days', 'limit'} if path.endswith('/readings') else {'station_id'}
+            if set(params) - allowed or any(len(values) != 1 for values in params.values()) or 'station_id' not in params:
+                return self._error(400, 'Select one station and valid history options.')
+            try:
+                station_id = int(params['station_id'][0])
+                if path.endswith('/export.csv'):
+                    raw = self.server.weather_store.export_csv(station_id)
+                    return self._send(200, raw, 'text/csv; charset=utf-8',
+                                      {'Content-Disposition': 'attachment; filename="openrf-weather-history.csv"'})
+                days = int(params.get('days', ['7'])[0])
+                limit = int(params.get('limit', ['500'])[0])
+                return self._json(200, {'station_id': station_id, 'days': days,
+                                        'readings': self.server.weather_store.readings(station_id, days, limit),
+                                        'units': 'SI', 'data_origin': 'MANUAL_OR_IMPORTED_HISTORICAL'})
+            except (ValueError, WeatherError) as exc:
+                return self._error(400, str(exc))
         if path == '/api/maps/areas':
             try:
                 return self._json(200, {'areas': list_areas(self.server.map_directory),
@@ -748,7 +773,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, raw, 'text/csv; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.csv"'})
         if path in ('/', '/index.html'):
             file = STATIC_DIR / 'index.html'
-        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/browser-workspace.js', '/static/saved-trips.js', '/static/wifi-quick.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/trip-map.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/camera_alerts.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/meshcore.js', '/static/messaging-tabs.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/reticulum-files.js', '/static/reticulum-tabs.js', '/static/bluetooth-files.js', '/static/camera-layers.js', '/static/chirp-import.js'):
+        elif path == '/static/hardware-tabs.js':
+            file = STATIC_DIR / 'hardware-tabs.js'
+        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/browser-workspace.js', '/static/saved-trips.js', '/static/wifi-quick.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/trip-map.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/camera_alerts.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/weather.js', '/static/mesh.js', '/static/meshcore.js', '/static/messaging-tabs.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/reticulum-files.js', '/static/reticulum-tabs.js', '/static/bluetooth-files.js', '/static/camera-layers.js', '/static/chirp-import.js'):
             file = STATIC_DIR / Path(path).name
         elif path == '/static/offline-trails.js':
             file = STATIC_DIR / 'offline-trails.js'
@@ -870,6 +897,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._error(400, str(exc))
         try:
             body = self._decode_body()
+            if path == '/api/weather/stations':
+                return self._json(201, {'station': self.server.weather_store.create_station(body)})
+            if path == '/api/weather/readings/manual':
+                return self._json(201, {'reading': self.server.weather_store.add_manual(body)})
+            if path == '/api/weather/import/csv':
+                return self._json(201, self.server.weather_store.import_csv(body))
             if not isinstance(body, dict):
                 raise ValueError('Expected a JSON object')
             if path in ('/api/network/wifi/scan', '/api/network/wifi/connect'):
@@ -1529,7 +1562,7 @@ class Handler(BaseHTTPRequestHandler):
             if path == '/api/demo/clear':
                 return self._json(200, {'removed': self.repo.clear_demo()})
             self._error(404, 'Not found')
-        except (AreaError, ValueError, TypeError) as exc:
+        except (AreaError, WeatherError, ValueError, TypeError) as exc:
             self._error(400, str(exc))
         except (MapBusy, MapExists) as exc:
             self._error(409, str(exc))
@@ -1644,6 +1677,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
         server.server_close()
         raise
     server.repository = repository
+    server.weather_store = WeatherStore(repository.path)
     server.emergency_store = EmergencyStore(repository.path)
     server.breadcrumb_store = BreadcrumbStore(repository.path)
     server.trail_store = TrailStore(repository.path.parent / 'imported-trails.sqlite3')

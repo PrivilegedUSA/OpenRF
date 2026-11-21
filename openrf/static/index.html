@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.167">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.169">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -23,11 +23,11 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/map-elevation.js?v=0.2.151"></script>
   <script defer src="/static/battery-status.js?v=0.2.151"></script>
-  <script defer src="/static/wifi-quick.js?v=0.2.167"></script>
+  <script defer src="/static/wifi-quick.js?v=0.2.169"></script>
   <script defer src="/static/route-elevation.js?v=0.2.151"></script>
   <script defer src="/static/trip-map.js?v=0.2.151"></script>
-  <script defer src="/static/app.js?v=0.2.167"></script>
-  <script defer src="/static/app-settings.js?v=0.2.167"></script>
+  <script defer src="/static/app.js?v=0.2.169"></script>
+  <script defer src="/static/app-settings.js?v=0.2.169"></script>
   <script defer src="/static/browser-workspace.js?v=0.2.151"></script>
   <script defer src="/static/saved-trips.js?v=0.2.151"></script>
   <script defer src="/static/emergency-tabs.js?v=0.2.151"></script>
@@ -47,17 +47,19 @@
   <script defer src="/static/emergency-backup.js?v=0.2.151"></script>
   <script defer src="/static/field-calendar.js?v=0.2.151"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.167"></script>
-  <script defer src="/static/meshcore.js?v=0.2.167"></script>
-  <script defer src="/static/messaging-tabs.js?v=0.2.167"></script>
-  <script defer src="/static/reticulum.js?v=0.2.167"></script>
-  <script defer src="/static/reticulum-files.js?v=0.2.167"></script>
-  <script defer src="/static/bluetooth-files.js?v=0.2.167"></script>
-  <script defer src="/static/reticulum-tabs.js?v=0.2.167"></script>
+  <script defer src="/static/mesh.js?v=0.2.169"></script>
+  <script defer src="/static/meshcore.js?v=0.2.169"></script>
+  <script defer src="/static/messaging-tabs.js?v=0.2.169"></script>
+  <script defer src="/static/weather.js?v=0.2.169"></script>
+  <script defer src="/static/reticulum.js?v=0.2.169"></script>
+  <script defer src="/static/reticulum-files.js?v=0.2.169"></script>
+  <script defer src="/static/bluetooth-files.js?v=0.2.169"></script>
+  <script defer src="/static/reticulum-tabs.js?v=0.2.169"></script>
   <script defer src="/static/mesh_connections.js?v=0.2.104"></script>
   <script defer src="/static/wifi_halow.js?v=0.2.104"></script>
   <script defer src="/static/field_network.js?v=0.2.104"></script>
   <script defer src="/static/field_hotspot.js?v=0.2.104"></script>
+  <script defer src="/static/hardware-tabs.js?v=0.2.169"></script>
   <script defer src="/static/offline_readiness.js?v=0.2.104"></script>
   <script defer src="/static/camera-layers.js?v=0.2.114"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
@@ -65,7 +67,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.167</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.169</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15M15 6v15"/></svg></span><span class="nav-label">Map</span></button>
@@ -74,6 +76,7 @@
         <button class="nav-btn" data-page="scanner"><span class="nav-icon" aria-hidden="true">≋</span><span class="nav-label">Analysis</span></button>
         <button class="nav-btn" data-page="spectrum" aria-label="Signal viewer: spectrum and waterfall"><span class="nav-icon" aria-hidden="true">▥</span><span class="nav-label">Signal Viewer</span></button>
         <button class="nav-btn" data-page="radio"><span class="nav-icon" aria-hidden="true">◉</span><span class="nav-label">Radio Receiver</span></button>
+        <button class="nav-btn" data-page="weather" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2M5.6 5.6 7 7M3 12h2M17 7l1.4-1.4M13 9a4 4 0 0 0-6 3"/><path d="M7 19h11a4 4 0 0 0 .2-8A6.5 6.5 0 0 0 5.6 13a3.1 3.1 0 0 0 1.4 6Z"/></svg></span><span class="nav-label">Weather Station</span></button>
         <div class="nav-group" id="messages-nav-group">
           <button class="nav-btn nav-parent" type="button" id="messages-nav-toggle" aria-expanded="false" aria-controls="messages-nav-subpages"><span class="nav-icon" aria-hidden="true">✉</span><span class="nav-label">Messages</span><span class="nav-chevron" aria-hidden="true">▾</span></button>
           <div class="nav-subpages" id="messages-nav-subpages" hidden>
@@ -153,6 +156,83 @@
         <div class="panel trip-library-section"><div class="panel-title"><h3>Downloaded &amp; imported map packages</h3><span class="pill">MBTILES · OFFLINE</span></div><p class="muted small">Choose <strong>Use on map</strong> to select a local raster and see its declared coverage. For safety, currently selected maps must be switched off before removal. Deletion needs the exact filename confirmation.</p><div id="trip-library-list" class="trip-library-list" role="list" aria-label="Installed offline map packages"></div></div>
         <div class="panel trip-library-section"><div class="panel-title"><h3>Saved region plans</h3><span class="pill">PLANS · NO TILES</span></div><p class="muted small">These are previously saved geographic boundaries and zoom choices. A plan by itself does not include imagery or a route. Open Map settings to build/download map tiles for a plan.</p><div id="trip-library-areas" class="trip-library-list" role="list" aria-label="Saved map region plans"></div></div>
         <div class="panel trip-library-section"><h3>Before the trip</h3><p class="muted small">Even a downloaded trip raster map can contain gaps. Confirm actual route tile coverage, an installed Valhalla road or walking graph, battery/GNSS health, and applicable access rules separately. Numeric HGT terrain data and offline routes are not included in these raster packs. Navigation route geometry is not stored by the trip download.</p><button class="btn outline" id="trip-library-readiness" type="button">Open device readiness</button></div>
+      </section>
+      <section class="page weather-page" id="page-weather" aria-label="Offline weather station hub">
+        <div class="section-heading"><div><h2>Weather Station</h2><p>One local hub for permanent home stations and portable field sensors. Only operator-entered and imported historical measurements are supported so far.</p></div><span class="pill">OFFLINE · LOCAL HISTORY</span></div>
+        <div class="weather-tabs" role="tablist" aria-label="Weather station tools">
+          <button class="weather-tab" id="weather-tab-dashboard" type="button" role="tab" aria-selected="true" aria-controls="weather-panel-dashboard" tabindex="0" data-weather-tab="dashboard">Dashboard</button>
+          <button class="weather-tab" id="weather-tab-sensors" type="button" role="tab" aria-selected="false" aria-controls="weather-panel-sensors" tabindex="-1" data-weather-tab="sensors">Stations &amp; Sensors</button>
+          <button class="weather-tab" id="weather-tab-history" type="button" role="tab" aria-selected="false" aria-controls="weather-panel-history" tabindex="-1" data-weather-tab="history">History</button>
+        </div>
+        <section class="weather-tab-panel" id="weather-panel-dashboard" role="tabpanel" aria-labelledby="weather-tab-dashboard">
+          <div class="panel weather-head-panel">
+            <div class="panel-title"><h3>Weather hub</h3><span class="pill" id="weather-hardware-badge">NO LIVE SENSOR</span></div>
+            <p id="weather-dashboard-status" class="small muted" role="status" aria-live="polite">No weather device is connected. OpenRF will not search your network or listen to RF automatically.</p>
+            <div class="weather-summary-row"><span><strong id="weather-station-count">0</strong> saved stations</span><span><strong id="weather-reading-count">0</strong> archived readings</span><span><strong id="weather-last-update">—</strong> last observation</span></div>
+            <label for="weather-dashboard-station">Station to view</label><select class="field" id="weather-dashboard-station"><option value="">Create a station under Stations &amp; Sensors</option></select>
+            <div class="button-line"><button type="button" class="btn outline" id="weather-refresh">Refresh local records</button><button type="button" class="btn primary" id="weather-open-sensors">Set up a station</button></div>
+          </div>
+          <div class="weather-metrics" aria-label="Last recorded weather readings (never automatically live)">
+            <div class="weather-metric"><span>Temperature</span><strong id="weather-temperature">—</strong><small id="weather-temperature-meta">No recorded value</small></div>
+            <div class="weather-metric"><span>Wind speed</span><strong id="weather-wind">—</strong><small id="weather-wind-meta">No recorded value</small></div>
+            <div class="weather-metric"><span>Humidity</span><strong id="weather-humidity">—</strong><small id="weather-humidity-meta">No recorded value</small></div>
+            <div class="weather-metric"><span>Rainfall · interval</span><strong id="weather-rain">—</strong><small id="weather-rain-meta">No recorded value</small></div>
+          </div>
+          <p class="small muted weather-disclaimer">These values come only from saved observations and may be old. Every reading retains its station, observation time, units and MANUAL or IMPORTED/HISTORICAL origin. No current conditions, forecast or live connection is inferred.</p>
+        </section>
+        <section class="weather-tab-panel" id="weather-panel-sensors" role="tabpanel" aria-labelledby="weather-tab-sensors" hidden>
+          <div class="panel weather-section">
+            <div class="panel-title"><h3>Saved stations</h3><span class="pill">LOCAL · NO AUTO-CONNECT</span></div>
+            <div id="weather-station-list" class="weather-station-list"><p class="small muted">No stations created yet.</p></div>
+            <form id="weather-add-station" class="weather-inline-form">
+              <label>Station name<input id="weather-new-name" class="field" maxlength="64" placeholder="Home station, or Portable field kit" required></label>
+              <label>Optional description<input id="weather-new-notes" class="field" maxlength="250" placeholder="Your own location or sensor notes"></label>
+              <button type="submit" class="btn primary">Add local station</button>
+            </form>
+            <p class="small muted">A station here is a local record, not a claimed connection. Existing hardware brands and protocols will require separately implemented, verified adapters.</p>
+          </div>
+          <div class="panel weather-section">
+            <h3>Record a manual observation</h3>
+            <p class="small muted">Use this for measurements you personally read from another instrument. Every entry is marked MANUAL, never LIVE or receiver-verified. Observation time is the local server's current UTC time.</p>
+            <form id="weather-manual-form" class="weather-manual-form">
+              <label>Station<select class="field" id="weather-manual-station" required><option value="">Select a station</option></select></label>
+              <div class="weather-input-grid">
+                <label>Temperature (°F)<input class="field" id="weather-manual-temp" type="number" step="any" placeholder="Optional"></label>
+                <label>Humidity (%)<input class="field" id="weather-manual-humidity" type="number" step="any" min="0" max="100" placeholder="Optional"></label>
+                <label>Wind speed (mph)<input class="field" id="weather-manual-wind" type="number" step="any" min="0" placeholder="Optional"></label>
+                <label>Wind gust (mph)<input class="field" id="weather-manual-gust" type="number" step="any" min="0" placeholder="Optional"></label>
+                <label>Wind direction (°)<input class="field" id="weather-manual-direction" type="number" step="any" min="0" max="360" placeholder="Optional"></label>
+                <label>Rain since last reading (in)<input class="field" id="weather-manual-rain" type="number" step="any" min="0" placeholder="Optional"></label>
+              </div>
+              <button class="btn primary" type="submit">Save manual measurement</button>
+            </form>
+          </div>
+          <div class="panel weather-section">
+            <h3>Import historical CSV</h3>
+            <p class="small muted">Choose a local UTF-8 CSV file containing <code>observed_at_utc</code> plus at least one SI-unit column such as <code>temperature_c</code>, <code>wind_speed_mps</code>, <code>humidity_pct</code> or <code>rain_interval_mm</code>. Import is limited to 500 readings / 160 kB per file. Each imported record is marked HISTORICAL.</p>
+            <form id="weather-import-form" class="weather-inline-form">
+              <label>Import into station<select class="field" id="weather-import-station" required><option value="">Select a station</option></select></label>
+              <label>CSV on this device<input id="weather-csv-file" class="field" type="file" accept=".csv,text/csv" required></label>
+              <button class="btn outline" type="submit">Import selected CSV</button>
+            </form>
+            <div class="button-line"><button type="button" class="btn outline" id="weather-csv-example">Download blank CSV template</button></div>
+            <p class="small muted">A compatible file is not evidence that the listed weather data was physically measured. No files are uploaded to any online service.</p>
+          </div>
+          <p id="weather-sensors-status" class="small muted" role="status" aria-live="polite">Create a station to begin recording and importing weather observations.</p>
+        </section>
+        <section class="weather-tab-panel" id="weather-panel-history" role="tabpanel" aria-labelledby="weather-tab-history" hidden>
+          <div class="panel weather-section">
+            <div class="panel-title"><h3>Historical observations</h3><span class="pill">ACTUAL SAVED RECORDS</span></div>
+            <div class="weather-history-filters">
+              <label>Station<select class="field" id="weather-history-station"><option value="">Select a station</option></select></label>
+              <label>Period<select class="field" id="weather-history-days"><option value="1">Last 24 hours</option><option value="7" selected>Last 7 days</option><option value="30">Last 30 days</option><option value="365">Last year</option><option value="0">All saved (latest 1,000)</option></select></label>
+              <label>Measurement<select class="field" id="weather-history-metric"><option value="temperature_c">Temperature · °F</option><option value="wind_speed_mps">Wind · mph</option><option value="wind_gust_mps">Gust · mph</option><option value="humidity_pct">Humidity · %</option><option value="rain_interval_mm">Rain per interval · in</option><option value="pressure_hpa">Pressure · hPa</option><option value="uv_index">UV index</option></select></label>
+            </div>
+            <div class="weather-chart-wrap"><canvas id="weather-chart" width="880" height="260" role="img" aria-label="Historical observations trend. The readings table below contains the exact values.">Historical weather chart requires canvas support. Use the data table below.</canvas><p id="weather-chart-empty" class="small muted">No saved data for this period and metric.</p></div>
+            <div class="weather-history-actions"><span id="weather-history-status" class="small muted" role="status" aria-live="polite">Choose a station to view history.</span><a id="weather-export" class="btn outline" href="#" download="openrf-weather-history.csv" aria-disabled="true" title="Exports up to 50,000 most recent saved records, even beyond the chart window">Export CSV · up to 50k</a></div>
+            <div class="weather-table-wrap"><table class="weather-history-table"><thead><tr><th>Recorded UTC</th><th>Origin</th><th>Temperature</th><th>Wind</th><th>Humidity</th><th>Rain interval</th></tr></thead><tbody id="weather-history-rows"><tr><td colspan="6">No weather observations saved.</td></tr></tbody></table></div>
+          </div>
+        </section>
       </section>
       <section class="page browser-page" id="page-browser" aria-label="Optional web browser">
         <div class="section-heading"><div><h2>Web browser</h2><p>Optional internet access. Browsing is separate from saved RF investigations, GPS tracks and offline maps.</p></div><span class="pill">ONLINE TOOL</span></div>
@@ -1249,7 +1329,14 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
           <p id="session-report-status" class="muted small" role="status" aria-live="polite">Choose an investigation. DEMO and precise coordinates are excluded by default. Notes may contain personal data—review reports before sharing.</p>
         </div>
         <div class="panel captures-panel"><div class="panel-title"><h3>Saved survey snapshots</h3><span id="capture-count" class="pill">0 captures</span></div><p class="muted small">User-saved one-shot retrievals, including scans that returned zero results. Wi-Fi percent quality is not dBm or distance. Locations are optional observer positions.</p><div id="captures-list"></div></div></section>
-      <section class="page" id="page-hardware"><div class="section-heading"><div><h2>Hardware and integrations</h2><p>Expandable driver interface for the future Raspberry Pi field kit.</p></div><span id="hardware-platform" class="pill">DETECTING...</span></div><section class="panel hardware-manager" aria-label="Unified read-only device status">
+      <section class="page" id="page-hardware"><div class="section-heading"><div><h2>Hardware and integrations</h2><p>Linux hardware readiness, radio interfaces, network links and user-controlled external sensors.</p></div><span id="hardware-platform" class="pill">DETECTING...</span></div>
+      <div class="hardware-tabs" id="hardware-tabs" role="tablist" aria-label="Hardware tools">
+        <button class="hardware-tab" type="button" id="hardware-tab-dashboard" role="tab" aria-selected="true" aria-controls="hardware-panel-dashboard" tabindex="0">Dashboard</button>
+        <button class="hardware-tab" type="button" id="hardware-tab-radios" role="tab" aria-selected="false" aria-controls="hardware-panel-radios" tabindex="-1">Radios &amp; Networks</button>
+        <button class="hardware-tab" type="button" id="hardware-tab-sensors" role="tab" aria-selected="false" aria-controls="hardware-panel-sensors" tabindex="-1">USB &amp; Sensors</button>
+        <button class="hardware-tab" type="button" id="hardware-tab-system" role="tab" aria-selected="false" aria-controls="hardware-panel-system" tabindex="-1">System</button>
+      </div>
+      <section class="panel hardware-manager" id="hardware-manager-panel" aria-label="Unified read-only device status">
         <div class="panel-title"><h3>Connection overview</h3><span class="pill">READ-ONLY · NO LIVE RF CLAIMS</span></div>
         <p class="muted small" id="hardware-manager-summary" role="status" aria-live="polite">Checking Linux hardware prerequisites…</p>
         <div id="hardware-manager-entries" class="hardware-manager-entries"><div class="empty">No inventory retrieved yet.</div></div>
@@ -1326,21 +1413,21 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
         <div class="button-line"><button type="button" class="btn outline" id="halow-refresh">Refresh HaLow readiness</button></div>
         <p class="small muted">This read-only check never starts network discovery, pairing, packets, firmware flashing, AP setup, IP routing or Reticulum. Separately, Reticulum can now be explicitly scoped to an eligible vendor-configured HaLow interface; actual RF and peer communication remain unverified.</p>
       </section>
-      <div class="hardware-grid" id="hardware-cards"></div><p id="wifi-driver-status" class="muted small hardware-wifi-status">Checking one-shot Wi-Fi adapter readiness…</p><div class="panel hardware-inventory"><div class="panel-title"><h3>Detected host devices</h3><button id="refresh-hardware" class="btn outline">Refresh inventory</button></div><p class="muted small">Read-only Linux inventory. USB and serial entries do not mean that a receiver is supported, configured, or actively scanning.</p><div id="device-inventory" class="device-inventory"><div class="empty">Checking accessible Linux devices...</div></div></div><div class="panel sensor-registry"><div class="panel-title"><h3>Sensor connections</h3><span class="pill">DRIVER CONTRACT v1</span></div><p class="muted small">Only verified drivers can create SENSOR observations. USB detection alone does not mean live capture.</p><div id="sensor-registry-list" class="sensor-registry-list"><div class="empty">Checking sensor drivers…</div></div><div id="sensor-diagnostics" class="diagnostics-note">Checking connection readiness…</div></div>
-      <section class="panel hardware-readiness" aria-label="Read-only hardware readiness">
+      <div class="hardware-grid" id="hardware-cards"></div><p id="wifi-driver-status" class="muted small hardware-wifi-status">Checking one-shot Wi-Fi adapter readiness…</p><div class="panel hardware-inventory" id="hardware-inventory-panel"><div class="panel-title"><h3>Detected host devices</h3><button id="refresh-hardware" class="btn outline">Refresh inventory</button></div><p class="muted small">Read-only Linux inventory. USB and serial entries do not mean that a receiver is supported, configured, or actively scanning.</p><div id="device-inventory" class="device-inventory"><div class="empty">Checking accessible Linux devices...</div></div></div><div class="panel sensor-registry" id="sensor-registry-panel"><div class="panel-title"><h3>Sensor connections</h3><span class="pill">DRIVER CONTRACT v1</span></div><p class="muted small">Only verified drivers can create SENSOR observations. USB detection alone does not mean live capture.</p><div id="sensor-registry-list" class="sensor-registry-list"><div class="empty">Checking sensor drivers…</div></div><div id="sensor-diagnostics" class="diagnostics-note">Checking connection readiness…</div></div>
+      <section class="panel hardware-readiness" id="hardware-readiness-panel" aria-label="Read-only hardware readiness">
         <div class="panel-title"><h3>Hardware readiness checklist</h3><button type="button" class="btn outline" id="hardware-readiness-export">Save diagnostic JSON</button></div>
         <p class="muted small">Read-only checks of Linux inventory and previous user-started probes. A visible port does not prove that a receiver can collect measurements. Export contains no USB serial numbers, Wi-Fi network IDs, or GPS locations.</p>
         <p class="muted small" id="hardware-readiness-updated" role="status" aria-live="polite">Checking available devices…</p>
         <div id="hardware-readiness-items" class="hardware-readiness-items"><div class="empty">Readiness has not been checked yet.</div></div>
       </section>
-      <div class="panel usb-sensor-panel"><div class="panel-title"><h3>External USB sensor · OpenRF Serial v1</h3><span class="pill">USER-STARTED ONLY</span></div>
+      <div class="panel usb-sensor-panel" id="usb-sensor-panel"><div class="panel-title"><h3>External USB sensor · OpenRF Serial v1</h3><span class="pill">USER-STARTED ONLY</span></div>
         <p class="muted small">A Linux USB serial port is not automatically an RF scanner. Only a controller running compatible OpenRF Serial v1 firmware can respond. Probe sends a short USB command but makes <strong>no RF observation</strong>. Capture explicitly requests one snapshot and saves real device-reported records locally, with hardware identity and clock accuracy clearly marked unverified.</p>
         <label class="usb-port-label" for="usb-sensor-port">Linux USB-serial port</label>
         <div class="usb-sensor-actions"><select id="usb-sensor-port" aria-label="Select inventoried USB sensor port"><option value="">No serial port detected</option></select><button type="button" class="btn outline" id="usb-sensor-probe" disabled>Probe sensor</button><button type="button" class="btn primary" id="usb-sensor-capture" disabled>Capture one snapshot</button></div>
         <label class="switchline usb-location-option"><input type="checkbox" id="usb-sensor-location"> Attach recent browser survey location (not device position)</label>
         <div id="usb-sensor-status" class="diagnostics-note" role="status" aria-live="polite">No compatible USB sensor probed. WSL may require USB passthrough; no RF readings are collected automatically.</div>
         <p class="muted small">If a scan succeeds, compatible measurements appear in Saved, Analysis and the Map (only with an observer coordinate). No arbitrary sensor values can be uploaded through the browser. Identity, firmware and reported measurements are not cryptographically verified.</p>
-      </div><div class="panel"><div class="panel-title"><h3>Operating environment</h3><span class="pill">READ-ONLY CHECK</span></div><pre id="environment-info" class="hardware-pre">Checking system...</pre><p class="muted small">A detected USB/network interface does not mean a supported RF scanner is available. No packet interception, injection, jamming or arbitrary RF transmission is implemented. A user-requested NetworkManager Wi-Fi scan may send ordinary probe frames.</p></div></section>
+      </div><div class="panel" id="hardware-environment-panel"><div class="panel-title"><h3>Operating environment</h3><span class="pill">READ-ONLY CHECK</span></div><pre id="environment-info" class="hardware-pre">Checking system...</pre><p class="muted small">A detected USB/network interface does not mean a supported RF scanner is available. No packet interception, injection, jamming or arbitrary RF transmission is implemented. A user-requested NetworkManager Wi-Fi scan may send ordinary probe frames.</p></div></section>
     </main>
   </div>
   <dialog id="observation-dialog" class="modal"><form id="observation-form" method="dialog"><header><h3>Add survey observation</h3><button class="close-btn" type="button" data-close="observation-dialog" aria-label="Close">×</button></header><p class="muted small">A map coordinate is your observation position, not a transmitter location. Values you enter manually are not verified RF measurements.</p><div class="form-grid"><label>Category<select class="field" name="kind"><option>MANUAL</option><option>INFRASTRUCTURE</option><option>WIFI</option><option>BLE</option><option>RF</option><option>CELLULAR</option></select></label><label>Label / description<input class="field" name="label" maxlength="120" required placeholder="e.g. Visual camera candidate"></label><label>Latitude (optional)<input class="field" name="latitude" type="number" min="-90" max="90" step="any" placeholder="38.58"></label><label>Longitude (optional)<input class="field" name="longitude" type="number" min="-180" max="180" step="any" placeholder="-121.49"></label><label>Accuracy meters (optional)<input class="field" name="accuracy_m" type="number" min="0" step="any"></label><div class="observation-location-tools"><button type="button" id="observation-use-location" class="btn outline">⌖ Use my location</button><p id="observation-location-status" class="muted small" role="status" aria-live="polite">No location selected. Location is requested only when you press the button.</p></div><label>Identifier (optional)<input class="field" name="identifier" maxlength="200" placeholder="Observed ID, if relevant"></label><label>Frequency MHz (optional)<input class="field" name="frequency_mhz" min="0" step="any" type="number"></label><label>RSSI dBm (optional)<input class="field" name="rssi_dbm" min="-200" max="50" step="any" type="number"></label></div><input type="hidden" name="location_source" value="UNSPECIFIED"><input type="hidden" name="fix_age_seconds" value=""><label class="notes">Notes<textarea class="field" name="notes" rows="3" maxlength="3000" placeholder="Source, conditions, limitations…"></textarea></label><div class="dialog-buttons"><button type="button" class="btn ghost" data-close="observation-dialog">Cancel</button><button type="submit" class="btn primary">Save locally</button></div></form></dialog>

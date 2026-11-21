@@ -17,4 +17,4 @@ assert(script.includes('attachment.available!==false'));
 assert(script.includes('reticulum-message-attachment'));
 assert(css.includes('.reticulum-message-attachment img'));
 assert(!script.includes('innerHTML'),'Never render untrusted file names as HTML');
-console.log('PASS v0.2.167 Reticulum one-file compose, preview and session-limited download controls');
+console.log('PASS v0.2.169 Reticulum one-file compose, preview and session-limited download controls');

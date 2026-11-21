@@ -1,4 +1,4 @@
-/* v0.2.167: shared navigation for Meshtastic and MeshCore; no radio operations. */
+/* v0.2.169: shared navigation for Meshtastic and MeshCore; no radio operations. */
 (() => {
   'use strict';
   const names = ['dashboard', 'inbox', 'contacts'];

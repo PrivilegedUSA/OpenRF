@@ -104,7 +104,7 @@ class WifiApiTests(unittest.TestCase):
                     self.assertEqual(call('GET', '/api/network/wifi/status?connect=yes')[0], 400)
                 code, source = call('GET','/api/health')
                 self.assertEqual(code,200)
-                self.assertEqual(source['version'],'0.2.167')
+                self.assertEqual(source['version'],'0.2.169')
                 conn = HTTPConnection('127.0.0.1', server.server_port)
                 conn.request('GET','/static/wifi-quick.js')
                 asset = conn.getresponse()

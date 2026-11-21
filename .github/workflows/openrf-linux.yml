@@ -27,6 +27,8 @@ jobs:
           node --check openrf/static/app.js
           node --check openrf/static/meshcore.js
           node --check openrf/static/messaging-tabs.js
+          node --check openrf/static/weather.js
+          node --check openrf/static/hardware-tabs.js
           node --check openrf/static/field-breadcrumbs.js
           node --check openrf/static/offline-trails.js
           node --check openrf/static/history-analysis.js

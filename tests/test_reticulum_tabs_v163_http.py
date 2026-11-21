@@ -44,7 +44,7 @@ class ReticulumStaticAssetTests(unittest.TestCase):
 
                 status, html = get('/')
                 self.assertEqual(status, 200)
-                self.assertIn(b'/static/reticulum-tabs.js?v=0.2.167', html)
+                self.assertIn(b'/static/reticulum-tabs.js?v=0.2.169', html)
                 parser = _Scripts()
                 parser.feed(html.decode('utf-8'))
                 self.assertIn('/static/reticulum-tabs.js', parser.paths)

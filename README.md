@@ -1,5 +1,17 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.169 — Hardware tabs, readable card spacing and ZIP compatibility
+
+- **Hardware organization:** Four touchscreen-friendly tabs under **Hardware**: **Dashboard** (connection overview and capability summary), **Radios & Networks** (Meshtastic/Reticulum status, Wi-Fi hotspot and HaLow), **USB & Sensors** (Linux device inventory, sensor registry and explicit USB sensor controls), and **System** (readiness checklist and operating environment). Existing controls, handlers and drafts are moved to their tabs rather than recreated. Tab switching never probes or connects a radio.
+- **Consistent card gaps:** Added 16px separation between the Baofeng channel list and Radio Tools on Ham Radio, between Current Field Survey and Saved Investigation History (and the following cards) on Sessions, and between panels in every Hardware tab. Other page layouts are deliberately unchanged.
+- **Reliable release delivery:** This full bundle is packaged in standard ZIP32/Deflate form without extra ZIP extensions, with its manifest and every archived file verified. The user-reported v0.2.168(1) PowerShell `Central Directory corrupt` error was observed **on the user's downloaded copy**, not reproduced against the supplied source archive; a truncated or otherwise damaged download remains possible. Use an explicit `-ZipPath` to select the new ZIP and compare the downloaded byte count/checksum if the issue recurs. See [v0.2.169 verification and installer checks](docs/RELEASE_0.2.169_TESTS.md).
+
+## v0.2.168 — Universal weather hub foundation (manual and historical)
+
+- **Weather Station sidebar:** New offline **Dashboard**, **Stations & Sensors**, and **History** views for named permanent-home or portable-field weather stations. The dashboard uses the OpenRF style and shows temperature, wind, humidity and interval rainfall only when there are genuine saved measurements; otherwise it shows dashes and **NO LIVE SENSOR**.
+- **Working local weather archive:** Create named stations, save explicitly entered **MANUAL** readings (°F, mph and inches are converted to canonical SI values), and import bounded local UTF-8 CSV measurements as **IMPORTED_HISTORICAL**. Local SQLite records preserve station, observed UTC, recorded UTC, provenance and units; history includes an offline trend chart, a readable table, date filters and capped CSV export. Existing OpenRF data and messaging controls remain intact.
+- **No fake hardware:** There are **no active weather adapters yet**; this release does not connect Wi-Fi stations, search RF frequencies, listen to SDR, poll sensor endpoints or receive automatic live data. Compatible Ecowitt local gateways, WeeWX archives, `rtl_433` sensors and USB/ESP32 sensors are adapter candidates for later hardware-tested patches. The first release is testable with user-entered readings or an explicitly selected historical file, not simulated live weather. See [v0.2.168 testing and format details](docs/RELEASE_0.2.168_TESTS.md).
+
 ## v0.2.167 — Consistent messaging tabs
 
 - **Clear names:** The existing **Mesh messages** sidebar item and unread/header labels now say **Meshtastic**, distinct from **MeshCore** and **Reticulum**. Existing internal page IDs, APIs, and saved message history are unchanged.
