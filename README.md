@@ -1,5 +1,12 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.171 — Wireless weather sensors through opt-in RTL-SDR
+
+- **Decode real compatible wireless sensors on request:** In **Weather Station → Stations & Sensors → Wireless weather sensors · RTL-SDR**, choose a local station, 433.92/868.3/915 MHz band and 10–30-second window. **Listen** starts an optional `rtl_433` subprocess for that bounded session, **Stop** can end it early, **Refresh receiver status** checks availability/results, and **Save this sensor** archives only a selected decoded weather candidate. Supported weather fields vary by decoder and model; OpenRF does not know whether any specific purchased sensor is compatible until it is actually observed.
+- **Hardware/software:** Requires a compatible USB RTL-SDR receiver visible **inside Linux**, antenna appropriate for the sensor's band and an installed `rtl_433` executable. The base OpenRF application still runs without either. WSL USB passthrough and Pi permissions need real hardware testing. `rtl_433` receives but does not transmit; OpenRF does not poll or automatically start the dongle and blocks overlapping OpenRF radio/spectrum jobs.
+- **Accurate provenance:** Each archive entry is `RTL433_RECEIVER_REPORTED` with the decoder's model/ID/channel, Linux SDR index/frequency, and **OpenRF listening-window UTC** (not an authenticated device packet time). Source identity, battery flag, measurements, calibration and packet freshness remain **UNVERIFIED**. `rain_rate_mm_h` can be charted and exported independently of rainfall during an interval; `rtl_433`'s accumulated `rain_mm` is not mislabeled as interval rainfall. One user action saves one selected observation; there is no background stream or automatic alerts.
+- **History retained:** Previous local weather records, sidebar layout, Meshtastic/MeshCore/Reticulum independence, gateway/WeeWX adapters, icon art and all prior controls remain in this complete release. See [v0.2.171 test and installation instructions](docs/RELEASE_0.2.171_TESTS.md).
+
 ## v0.2.170 — Sidebar order, local weather adapters and cleaned site icon
 
 - **Requested sidebar sequence:** Overview, expandable **Messages** (Meshtastic / Reticulum / MeshCore), Map, Emergency, Analysis, Signal Viewer, Radio Receiver, Ham Radio, Sessions, Hardware, Web Browser, Weather Station, Trips & Maps, Saved. App Settings remains in the separate footer; the existing Map startup page remains unchanged.

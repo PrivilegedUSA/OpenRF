@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.170">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.171">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -23,11 +23,11 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/map-elevation.js?v=0.2.151"></script>
   <script defer src="/static/battery-status.js?v=0.2.151"></script>
-  <script defer src="/static/wifi-quick.js?v=0.2.170"></script>
+  <script defer src="/static/wifi-quick.js?v=0.2.171"></script>
   <script defer src="/static/route-elevation.js?v=0.2.151"></script>
   <script defer src="/static/trip-map.js?v=0.2.151"></script>
-  <script defer src="/static/app.js?v=0.2.170"></script>
-  <script defer src="/static/app-settings.js?v=0.2.170"></script>
+  <script defer src="/static/app.js?v=0.2.171"></script>
+  <script defer src="/static/app-settings.js?v=0.2.171"></script>
   <script defer src="/static/browser-workspace.js?v=0.2.151"></script>
   <script defer src="/static/saved-trips.js?v=0.2.151"></script>
   <script defer src="/static/emergency-tabs.js?v=0.2.151"></script>
@@ -47,19 +47,19 @@
   <script defer src="/static/emergency-backup.js?v=0.2.151"></script>
   <script defer src="/static/field-calendar.js?v=0.2.151"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.170"></script>
-  <script defer src="/static/meshcore.js?v=0.2.170"></script>
-  <script defer src="/static/messaging-tabs.js?v=0.2.170"></script>
-  <script defer src="/static/weather.js?v=0.2.170"></script>
-  <script defer src="/static/reticulum.js?v=0.2.170"></script>
-  <script defer src="/static/reticulum-files.js?v=0.2.170"></script>
-  <script defer src="/static/bluetooth-files.js?v=0.2.170"></script>
-  <script defer src="/static/reticulum-tabs.js?v=0.2.170"></script>
+  <script defer src="/static/mesh.js?v=0.2.171"></script>
+  <script defer src="/static/meshcore.js?v=0.2.171"></script>
+  <script defer src="/static/messaging-tabs.js?v=0.2.171"></script>
+  <script defer src="/static/weather.js?v=0.2.171"></script>
+  <script defer src="/static/reticulum.js?v=0.2.171"></script>
+  <script defer src="/static/reticulum-files.js?v=0.2.171"></script>
+  <script defer src="/static/bluetooth-files.js?v=0.2.171"></script>
+  <script defer src="/static/reticulum-tabs.js?v=0.2.171"></script>
   <script defer src="/static/mesh_connections.js?v=0.2.104"></script>
   <script defer src="/static/wifi_halow.js?v=0.2.104"></script>
   <script defer src="/static/field_network.js?v=0.2.104"></script>
   <script defer src="/static/field_hotspot.js?v=0.2.104"></script>
-  <script defer src="/static/hardware-tabs.js?v=0.2.170"></script>
+  <script defer src="/static/hardware-tabs.js?v=0.2.171"></script>
   <script defer src="/static/offline_readiness.js?v=0.2.104"></script>
   <script defer src="/static/camera-layers.js?v=0.2.114"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
@@ -67,7 +67,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.170</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.171</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -204,6 +204,19 @@
             <p class="small muted">The response's arrival time is recorded by OpenRF; it is not proof of when the remote sensor measured anything. Outdoor temperature, humidity, wind, pressure and UV are mapped when present. Cumulative rain totals are intentionally not mislabeled as interval rain. Pi and WSL must be able to reach that LAN IP.</p>
           </div>
           <div class="panel weather-section">
+            <div class="panel-title"><h3>Wireless weather sensors · RTL-SDR</h3><span class="pill">rtl_433 · OPT-IN RECEIVE ONLY</span></div>
+            <p class="small muted">Listen for compatible weather sensor broadcasts using a Linux-visible RTL-SDR and the optional <code>rtl_433</code> command. This uses SDR receiver index 0, not a proven hardware identity. No listen starts automatically. A listen runs for a maximum of 30 seconds, never transmits, and cannot run alongside OpenRF's radio receiver or SDR spectrum capture. Only decoded <em>weather</em> results are displayed; unrelated RF/remote events are discarded.</p>
+            <div class="weather-gateway-grid">
+              <label>Frequency band<select id="weather-rtl433-frequency" class="field"><option value="433.92">433.92 MHz</option><option value="915">915 MHz</option><option value="868.3">868.3 MHz</option></select></label>
+              <label>Listening time<select id="weather-rtl433-duration" class="field"><option value="10">10 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option></select></label>
+              <label>Save decoded sensor under<select id="weather-rtl433-station" class="field"><option value="">Select a station</option></select></label>
+            </div>
+            <div class="button-line weather-gateway-actions"><button type="button" id="weather-rtl433-start" class="btn primary">Listen for sensors</button><button type="button" id="weather-rtl433-stop" class="btn outline" disabled>Stop listening</button><button type="button" id="weather-rtl433-refresh" class="btn outline">Refresh receiver status</button></div>
+            <p id="weather-rtl433-status" class="small muted" role="status" aria-live="polite">No SDR weather listen has been requested. Check availability or start explicitly.</p>
+            <div id="weather-rtl433-results" class="weather-station-list" aria-live="polite"></div>
+            <p class="small muted">Every result retains a decoder-reported model, ID and channel, OpenRF's listening window, source receiver and normalized units. IDs, battery flags, signal validity and sensor timestamps are not independently verified. A <code>rain_mm</code> total is <em>not</em> treated as rainfall during this interval; only an explicit reported rain rate is stored. Select a specific decoded sensor and tap Save to archive it. Sensor compatibility depends on the device, firmware, RF band and antenna.</p>
+          </div>
+          <div class="panel weather-section">
             <h3>Record a manual observation</h3>
             <p class="small muted">Use this for measurements you personally read from another instrument. Every entry is marked MANUAL, never LIVE or receiver-verified. Observation time is the local server's current UTC time.</p>
             <form id="weather-manual-form" class="weather-manual-form">
@@ -215,6 +228,7 @@
                 <label>Wind gust (mph)<input class="field" id="weather-manual-gust" type="number" step="any" min="0" placeholder="Optional"></label>
                 <label>Wind direction (°)<input class="field" id="weather-manual-direction" type="number" step="any" min="0" max="360" placeholder="Optional"></label>
                 <label>Rain since last reading (in)<input class="field" id="weather-manual-rain" type="number" step="any" min="0" placeholder="Optional"></label>
+                <label>Rain rate (in/hr)<input class="field" id="weather-manual-rainrate" type="number" step="any" min="0" placeholder="Optional"></label>
               </div>
               <button class="btn primary" type="submit">Save manual measurement</button>
             </form>
@@ -248,7 +262,7 @@
             <div class="weather-history-filters">
               <label>Station<select class="field" id="weather-history-station"><option value="">Select a station</option></select></label>
               <label>Period<select class="field" id="weather-history-days"><option value="1">Last 24 hours</option><option value="7" selected>Last 7 days</option><option value="30">Last 30 days</option><option value="365">Last year</option><option value="0">All saved (latest 1,000)</option></select></label>
-              <label>Measurement<select class="field" id="weather-history-metric"><option value="temperature_c">Temperature · °F</option><option value="wind_speed_mps">Wind · mph</option><option value="wind_gust_mps">Gust · mph</option><option value="humidity_pct">Humidity · %</option><option value="rain_interval_mm">Rain per interval · in</option><option value="pressure_hpa">Pressure · hPa</option><option value="uv_index">UV index</option></select></label>
+              <label>Measurement<select class="field" id="weather-history-metric"><option value="temperature_c">Temperature · °F</option><option value="wind_speed_mps">Wind · mph</option><option value="wind_gust_mps">Gust · mph</option><option value="humidity_pct">Humidity · %</option><option value="rain_interval_mm">Rain per interval · in</option><option value="rain_rate_mm_h">Rain rate · in/hr</option><option value="pressure_hpa">Pressure · hPa</option><option value="uv_index">UV index</option></select></label>
             </div>
             <div class="weather-chart-wrap"><canvas id="weather-chart" width="880" height="260" role="img" aria-label="Historical observations trend. The readings table below contains the exact values.">Historical weather chart requires canvas support. Use the data table below.</canvas><p id="weather-chart-empty" class="small muted">No saved data for this period and metric.</p></div>
             <div class="weather-history-actions"><span id="weather-history-status" class="small muted" role="status" aria-live="polite">Choose a station to view history.</span><a id="weather-export" class="btn outline" href="#" download="openrf-weather-history.csv" aria-disabled="true" title="Exports up to 50,000 most recent saved records, even beyond the chart window">Export CSV · up to 50k</a></div>

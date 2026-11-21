@@ -9,7 +9,7 @@ const app=fs.readFileSync('openrf/static/app.js','utf8');
 const code=fs.readFileSync('openrf/static/weather.js','utf8');
 assert(html.includes('data-page="weather"'));
 assert(html.includes('id="page-weather"'));
-assert(html.includes('/static/weather.js?v=0.2.170'));
+assert(html.includes('/static/weather.js?v=0.2.171'));
 assert(app.includes("'weather','messages'"));
 assert(app.includes("'openrf:weather-shown'"));
 assert(css.includes('.weather-tab-panel[hidden]'));
@@ -39,12 +39,31 @@ get('weather-hardware-badge');
 const docEvents={};const windowEvents={};const calls=[];
 const sensorFixture={id:1,name:'TEST FIXTURE',notes:'',reading_count:0,last_observed_at_utc:null};
 let stations=[],rows=[],id=0;
+let receiverRun=null,receiverRunning=false,receiverSaved=false;
+const receiverFixture={candidate_id:'fixture-candidate',model:'FIXTURE WEATHER SENSOR',device_id:'fixture-42',
+  channel:'A',battery_reported_ok:null,saved:false,measurements:{temperature_c:22,rain_rate_mm_h:5.08}};
 const response=body=>({ok:true,json:async()=>body});
 async function fetchMock(path,options={}){
   calls.push({path,options});
   if(path==='/api/weather/status')return response({stations,reading_count:rows.length,automatic_collection:false,connected_devices:0});
+  if(path==='/api/weather/rtl433/status')return response({available:true,running:receiverRunning,
+    run:receiverRun&&{...receiverRun,candidates:receiverRunning?[]:[{...receiverFixture,saved:receiverSaved}]}});
   if(path.startsWith('/api/weather/readings?'))return response({readings:rows,source_kind:'MANUAL'});
   const body=JSON.parse(options.body||'{}');
+  if(path==='/api/weather/rtl433/start'){
+    receiverRunning=true;receiverRun={run_id:'fixture-run',state:'RUNNING',frequency_mhz:body.frequency_mhz,
+      duration_seconds:body.duration_seconds,finished_at_utc:null};
+    return response({run:receiverRun});
+  }
+  if(path==='/api/weather/rtl433/save'){
+    assert.deepEqual(Object.keys(body).sort(),['candidate_id','run_id','station_id']);
+    assert.equal(body.run_id,'fixture-run');assert.equal(body.candidate_id,'fixture-candidate');
+    receiverSaved=true;
+    const reading={observed_at_utc:'2026-11-21T12:01:00Z',source_kind:'RTL433_RECEIVER_REPORTED',
+      temperature_c:22,rain_rate_mm_h:5.08};
+    rows.push(reading);stations[0].reading_count=rows.length;
+    return response({reading});
+  }
   if(path==='/api/weather/stations'){
     const station={...sensorFixture,id:++id,name:body.name};stations.push(station);
     return response({station});
@@ -67,8 +86,9 @@ async function fetchMock(path,options={}){
 const context={
   document:{getElementById:get,createElement:()=>new Node(),addEventListener:(name,fn)=>docEvents[name]=fn},
   window:{devicePixelRatio:1,addEventListener:(name,fn)=>windowEvents[name]=fn},
-  fetch:fetchMock,console,Number,Date,Math,Promise,Blob,URL,
+  fetch:fetchMock,console,Number,Date,Math,Promise,Blob,URL,setTimeout:(fn,delay)=>{pendingTimers.push({fn,delay});},
 };
+const pendingTimers=[];
 vm.runInNewContext(code,context);
 assert.equal(calls.length,0,'No hardware scan, file import, or read request on script load');
 assert.equal(typeof context.window.OpenRFWeather.openTab,'function');
@@ -80,6 +100,8 @@ async function test(){
   assert.equal(get('weather-hardware-badge').textContent,'NO LIVE SENSOR');
   assert.equal(get('weather-station-count').textContent,'0');
   assert.equal(calls.filter(call=>call.options.method==='POST').length,0);
+  assert(!calls.some(call=>call.path.startsWith('/api/weather/rtl433/')),
+    'Showing weather must not probe or open an SDR');
 
   context.window.OpenRFWeather.openTab('sensors');
   get('weather-new-name').value='TEST FIXTURE';
@@ -136,6 +158,29 @@ async function test(){
   await get('weather-weewx-form').events.submit({preventDefault(){},currentTarget:get('weather-weewx-form')});
   assert(calls.some(call=>call.path==='/api/weather/import/weewx'));
   assert(get('weather-sensors-status').textContent.includes('WeeWX HISTORICAL'));
-  console.log('PASS v0.2.170 weather: manual, Ecowitt preview/save, WeeWX import, no auto-collection');
+  get('weather-rtl433-frequency').value='433.92';
+  get('weather-rtl433-duration').value='10';
+  get('weather-rtl433-station').value='1';
+  await get('weather-rtl433-refresh').events.click();
+  await next();
+  assert.equal(calls.filter(call=>call.path==='/api/weather/rtl433/start').length,0,
+    'Checking receiver status is not permission to open the device');
+  await get('weather-rtl433-start').events.click();
+  const start=calls.find(call=>call.path==='/api/weather/rtl433/start');
+  assert.deepEqual(JSON.parse(start.options.body),{frequency_mhz:433.92,duration_seconds:10});
+  assert.equal(pendingTimers.length,1,'Only a one-shot completion refresh may be scheduled');
+  assert.equal(pendingTimers[0].delay,12000);
+  receiverRunning=false;receiverRun.state='COMPLETE';receiverRun.finished_at_utc='2026-11-21T12:01:00Z';
+  pendingTimers.shift().fn();await next();await next();
+  const result=get('weather-rtl433-results').children[0];
+  assert(result.children[0].children[0].textContent.includes('FIXTURE WEATHER SENSOR'));
+  assert(result.children[0].children[1].textContent.includes('Rain rate'));
+  assert(!result.children[0].children[1].textContent.includes('Rain per observation interval'));
+  await result.children[1].events.click();
+  assert.equal(calls.filter(call=>call.path==='/api/weather/rtl433/save').length,1);
+  assert(get('weather-rtl433-status').textContent.includes('Actual sensor identity/time unverified'));
+  assert(!calls.some(call=>call.path==='/api/weather/rtl433/stop'),
+    'No implicit Stop or device manipulation');
+  console.log('PASS v0.2.171 weather: manual, Ecowitt, WeeWX, rtl_433 opt-in/listen/selected save');
 }
 test().catch(error=>{console.error(error);process.exitCode=1;});

@@ -1,4 +1,4 @@
-/* OpenRF v0.2.170 — offline weather archive, explicit Ecowitt LAN reads only. */
+/* OpenRF v0.2.171 — user-triggered Ecowitt and rtl_433 weather inputs. */
 (() => {
   'use strict';
   const el = id => document.getElementById(id);
@@ -34,6 +34,7 @@
     wind_gust_mps:{title:'Wind gust',unit:'mph',convert:toMph},
     humidity_pct:{title:'Humidity',unit:'%',convert:v=>v},
     rain_interval_mm:{title:'Rain per observation interval',unit:'in',convert:toInches},
+    rain_rate_mm_h:{title:'Rain rate',unit:'in/hr',convert:toInches},
     pressure_hpa:{title:'Pressure',unit:'hPa',convert:v=>v},
     uv_index:{title:'UV index',unit:'',convert:v=>v},
   };
@@ -68,7 +69,7 @@
     return option;
   }
   function syncSelectors(force=false) {
-    const ids=['weather-dashboard-station','weather-manual-station','weather-import-station','weather-weewx-station','weather-history-station','weather-gateway-station'];
+    const ids=['weather-dashboard-station','weather-manual-station','weather-import-station','weather-weewx-station','weather-history-station','weather-gateway-station','weather-rtl433-station'];
     for (const id of ids) {
       const select=el(id), prior=select.value;
       select.replaceChildren(option('','Select a station'));
@@ -180,6 +181,73 @@
   el('weather-gateway-test').addEventListener('click',()=>readGateway(false));
   el('weather-gateway-save').addEventListener('click',()=>readGateway(true));
 
+  // No rtl_433 request or status poll runs until one of these buttons is used.
+  let receiverEpoch=0, receiverRun=null;
+  const receiverText=message=>{el('weather-rtl433-status').textContent=message;};
+  function renderReceiver(result) {
+    const running=!!result.running,run=result.run,container=el('weather-rtl433-results');
+    receiverRun=run;
+    el('weather-rtl433-start').disabled=running;
+    el('weather-rtl433-stop').disabled=!running;
+    container.replaceChildren();
+    if(!result.available){receiverText('rtl_433 is not installed in the Linux environment. Install it before using an RTL-SDR weather receiver. No hardware was opened.');return;}
+    if(!run){receiverText('rtl_433 is installed, but no receiver or weather measurement has been verified. Press Listen to request a bounded receive-only sample.');return;}
+    if(running){receiverText(`Receiving at ${run.frequency_mhz} MHz · up to ${run.duration_seconds} seconds · no automatic save. Stop is available.`);return;}
+    if(run.state==='FAILED'||run.state==='STOPPED'){receiverText(`${run.state}: ${run.error||'No completed capture.'} No sensor readings were saved.`);return;}
+    if(run.state==='EXPIRED'){receiverText('The last weather receiver result has expired. Listen again to save a fresh receipt.');return;}
+    if(run.state!=='COMPLETE'){receiverText(`Weather receiver: ${run.state}.`);return;}
+    const candidates=run.candidates||[];
+    receiverText(candidates.length
+      ? `${candidates.length} decoder-reported weather sensor(s) · listen ended ${stamp(run.finished_at_utc)} UTC · source identity and packet timestamps unverified.`
+      : 'Listen completed with no compatible weather sensor messages. This does not prove that no sensors are nearby.');
+    for(const candidate of candidates){
+      const line=document.createElement('div');line.className='weather-station-row';
+      const info=document.createElement('div'),title=document.createElement('strong'),summary=document.createElement('small');
+      title.textContent=`${candidate.model} · ID ${candidate.device_id}${candidate.channel?' · channel '+candidate.channel:''}`;
+      const measurements=candidate.measurements||{};
+      const displayed=[['Temp',measurements.temperature_c,toF,'°F'],
+        ['Humidity',measurements.humidity_pct,v=>v,'%'],['Wind',measurements.wind_speed_mps,toMph,'mph'],
+        ['Gust',measurements.wind_gust_mps,toMph,'mph'],['Wind dir',measurements.wind_direction_deg,v=>v,'°'],
+        ['Rain rate',measurements.rain_rate_mm_h,toInches,'in/hr'],['Pressure',measurements.pressure_hpa,v=>v,'hPa']]
+        .filter(([,value])=>value!==null&&value!==undefined)
+        .map(([label,value,convert,unit])=>`${label}: ${format(convert(value),1,unit?' '+unit:'')}`);
+      summary.textContent=`${displayed.join(' · ')} · device-reported battery ${candidate.battery_reported_ok===null?'unknown':candidate.battery_reported_ok?'OK':'low'} · UNVERIFIED`;
+      info.append(title,summary);
+      const button=document.createElement('button');button.type='button';button.className='btn outline';
+      button.textContent=candidate.saved?'Saved':'Save this sensor';button.disabled=!!candidate.saved;
+      button.addEventListener('click',async()=>{
+        const stationId=Number(el('weather-rtl433-station').value);
+        if(!stationId){receiverText('Choose a local station before saving a decoded sensor.');return;}
+        button.disabled=true;
+        try{
+          await request('/api/weather/rtl433/save',{run_id:run.run_id,candidate_id:candidate.candidate_id,station_id:stationId});
+          await refresh();setStation(stationId);await loadReceiverStatus();
+          receiverText(`Saved one rtl_433 decoder-reported observation to station ${stationId}. Actual sensor identity/time unverified; no continuous listening.`);
+        }catch(error){receiverText(error.message);button.disabled=false;}
+      });
+      line.append(info,button);container.append(line);
+    }
+  }
+  async function loadReceiverStatus(){renderReceiver(await request('/api/weather/rtl433/status'));}
+  el('weather-rtl433-refresh').addEventListener('click',()=>loadReceiverStatus().catch(error=>receiverText(error.message)));
+  el('weather-rtl433-start').addEventListener('click',async()=>{
+    const button=el('weather-rtl433-start');button.disabled=true;receiverText('Requesting a bounded local weather receiver session…');
+    try{
+      const duration=Number(el('weather-rtl433-duration').value);
+      await request('/api/weather/rtl433/start',{
+        frequency_mhz:Number(el('weather-rtl433-frequency').value),duration_seconds:duration});
+      await loadReceiverStatus();
+      const epoch=++receiverEpoch;
+      // One status refresh after the requested listening window, not an automatic scan.
+      setTimeout(()=>{if(epoch===receiverEpoch && state.visible)loadReceiverStatus().catch(error=>receiverText(error.message));},(duration+2)*1000);
+    }catch(error){receiverText(error.message);button.disabled=false;}
+  });
+  el('weather-rtl433-stop').addEventListener('click',async()=>{
+    ++receiverEpoch;
+    try{await request('/api/weather/rtl433/stop',{});await loadReceiverStatus();}
+    catch(error){receiverText(error.message);}
+  });
+
   el('weather-add-station').addEventListener('submit',async event=>{
     event.preventDefault();
     const form=event.currentTarget, button=form.querySelector('button[type="submit"]');button.disabled=true;
@@ -210,6 +278,7 @@
         wind_gust_mps:optionalValue('weather-manual-gust',v=>v/2.2369362921),
         wind_direction_deg:optionalValue('weather-manual-direction',v=>v),
         rain_interval_mm:optionalValue('weather-manual-rain',v=>v*25.4),
+        rain_rate_mm_h:optionalValue('weather-manual-rainrate',v=>v*25.4),
       };
       const result=await request('/api/weather/readings/manual',{station_id:stationId,measurements});
       form.reset();await refresh();setStation(stationId);
@@ -242,7 +311,7 @@
     }catch(error){status(error.message,true);}finally{button.disabled=false;}
   });
   el('weather-csv-example').addEventListener('click',()=>{
-    const header='observed_at_utc,temperature_c,humidity_pct,pressure_hpa,wind_speed_mps,wind_gust_mps,wind_direction_deg,rain_interval_mm,uv_index,solar_wm2\r\n';
+    const header='observed_at_utc,temperature_c,humidity_pct,pressure_hpa,wind_speed_mps,wind_gust_mps,wind_direction_deg,rain_interval_mm,rain_rate_mm_h,uv_index,solar_wm2\r\n';
     const blob=new Blob([header],{type:'text/csv;charset=utf-8'});
     const url=URL.createObjectURL(blob), link=document.createElement('a');
     link.href=url;link.download='openrf-weather-template.csv';link.click();
@@ -291,7 +360,9 @@
     for(const row of state.readings.slice(-60).reverse()){
       const tr=document.createElement('tr');
       const origin=row.source_kind==='ECOWITT_GATEWAY_REPORTED'
-        ? `ECOWITT GATEWAY REPORTED · UNVERIFIED · ${row.source_device||'unknown gateway'}` : row.source_kind;
+        ? `ECOWITT GATEWAY REPORTED · UNVERIFIED · ${row.source_device||'unknown gateway'}`
+        : row.source_kind==='RTL433_RECEIVER_REPORTED'
+        ? `RTL_433 DECODED · UNVERIFIED · ${row.source_device||'unknown receiver'}` : row.source_kind;
       const parts=[`${stamp(row.observed_at_utc)} UTC`,origin,
         format(metricValue(row,'temperature_c'),1,' °F'),format(metricValue(row,'wind_speed_mps'),1,' mph'),
         format(row.humidity_pct,1,' %'),format(metricValue(row,'rain_interval_mm'),2,' in')];

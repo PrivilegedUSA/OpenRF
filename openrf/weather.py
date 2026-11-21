@@ -1,4 +1,4 @@
-"""Local-first weather archive and explicitly requested local gateway snapshots.
+"""Local-first weather archive and explicitly requested receiver observations.
 
 No weather device is probed on startup and no background collection occurs.
 Ecowitt LAN values are gateway-*reported*, not hardware-verified.
@@ -25,6 +25,7 @@ FIELDS = {
     'wind_gust_mps': (0, 160),
     'wind_direction_deg': (0, 360),
     'rain_interval_mm': (0, 2000),
+    'rain_rate_mm_h': (0, 2000),
     'uv_index': (0, 25),
     'solar_wm2': (0, 1800),
 }
@@ -117,7 +118,7 @@ class WeatherStore:
                     station_id INTEGER NOT NULL REFERENCES weather_stations(id),
                     observed_at_utc TEXT NOT NULL,
                     recorded_at_utc TEXT NOT NULL,
-                    source_kind TEXT NOT NULL CHECK(source_kind IN ('MANUAL', 'IMPORTED_HISTORICAL', 'ECOWITT_GATEWAY_REPORTED')),
+                    source_kind TEXT NOT NULL CHECK(source_kind IN ('MANUAL', 'IMPORTED_HISTORICAL', 'ECOWITT_GATEWAY_REPORTED', 'RTL433_RECEIVER_REPORTED')),
                     source_device TEXT NOT NULL DEFAULT '',
                     temperature_c REAL,
                     humidity_pct REAL,
@@ -126,9 +127,10 @@ class WeatherStore:
                     wind_gust_mps REAL,
                     wind_direction_deg REAL,
                     rain_interval_mm REAL,
+                    rain_rate_mm_h REAL,
                     uv_index REAL,
                     solar_wm2 REAL,
-                    UNIQUE(station_id, observed_at_utc, source_kind)
+                    UNIQUE(station_id, observed_at_utc, source_kind, source_device)
                 );
                 CREATE INDEX IF NOT EXISTS idx_weather_station_time
                     ON weather_readings(station_id, observed_at_utc DESC, id DESC);
@@ -159,6 +161,34 @@ class WeatherStore:
                     FROM weather_readings''')
                 db.execute('DROP TABLE weather_readings')
                 db.execute('ALTER TABLE weather_readings_v170 RENAME TO weather_readings')
+                db.execute('''CREATE INDEX idx_weather_station_time
+                    ON weather_readings(station_id, observed_at_utc DESC, id DESC)''')
+            current_sql = db.execute("SELECT sql FROM sqlite_master WHERE name='weather_readings' AND type='table'").fetchone()[0]
+            if 'RTL433_RECEIVER_REPORTED' not in current_sql:
+                # v0.2.171 -> v0.2.171, retaining every historic reading and
+                # allowing distinct physical sensor sources in one UTC second.
+                db.execute('''CREATE TABLE weather_readings_v171 (
+                    id INTEGER PRIMARY KEY,
+                    station_id INTEGER NOT NULL REFERENCES weather_stations(id),
+                    observed_at_utc TEXT NOT NULL, recorded_at_utc TEXT NOT NULL,
+                    source_kind TEXT NOT NULL CHECK(source_kind IN
+                        ('MANUAL','IMPORTED_HISTORICAL','ECOWITT_GATEWAY_REPORTED','RTL433_RECEIVER_REPORTED')),
+                    source_device TEXT NOT NULL DEFAULT '',
+                    temperature_c REAL, humidity_pct REAL, pressure_hpa REAL,
+                    wind_speed_mps REAL, wind_gust_mps REAL, wind_direction_deg REAL,
+                    rain_interval_mm REAL, rain_rate_mm_h REAL, uv_index REAL, solar_wm2 REAL,
+                    UNIQUE(station_id,observed_at_utc,source_kind,source_device)
+                )''')
+                db.execute('''INSERT INTO weather_readings_v171
+                    (id,station_id,observed_at_utc,recorded_at_utc,source_kind,source_device,
+                     temperature_c,humidity_pct,pressure_hpa,wind_speed_mps,
+                     wind_gust_mps,wind_direction_deg,rain_interval_mm,uv_index,solar_wm2)
+                    SELECT id,station_id,observed_at_utc,recorded_at_utc,source_kind,source_device,
+                     temperature_c,humidity_pct,pressure_hpa,wind_speed_mps,
+                     wind_gust_mps,wind_direction_deg,rain_interval_mm,uv_index,solar_wm2
+                    FROM weather_readings''')
+                db.execute('DROP TABLE weather_readings')
+                db.execute('ALTER TABLE weather_readings_v171 RENAME TO weather_readings')
                 db.execute('''CREATE INDEX idx_weather_station_time
                     ON weather_readings(station_id, observed_at_utc DESC, id DESC)''')
 
@@ -203,10 +233,10 @@ class WeatherStore:
             total = db.execute('SELECT COUNT(*) FROM weather_readings').fetchone()[0]
         return {'stations': self.stations(), 'reading_count': total,
                 'automatic_collection': False, 'connected_devices': 0,
-                'implemented_inputs': ['MANUAL', 'IMPORTED_HISTORICAL', 'ECOWITT_ON_DEMAND_LAN'],
-                'on_demand_adapters': ['Ecowitt local HTTP (manual action only)'],
+                'implemented_inputs': ['MANUAL', 'IMPORTED_HISTORICAL', 'ECOWITT_ON_DEMAND_LAN', 'RTL433_ON_DEMAND_SDR'],
+                'on_demand_adapters': ['Ecowitt local HTTP', 'rtl_433 optional RTL-SDR (manual actions only)'],
                 'future_adapters': ['WeeWX local archive',
-                                    'rtl_433 receiver', 'USB serial sensor'],
+                                    'USB serial weather sensor'],
                 'hardware_status': 'NOT_CONFIGURED',
                 'message': 'No receivers are started, discovered or polled by OpenRF on its own.'}
 
@@ -262,6 +292,27 @@ class WeatherStore:
             result['saved'] = True
         return result
 
+    def save_rtl433_sample(self, station_id, candidate, listen_finished_utc, frequency_mhz):
+        """Only the server-held rtl_433 capture receipt may invoke this method."""
+        station_id = self._station_id(station_id)
+        if not isinstance(candidate, dict) or not isinstance(candidate.get('model'), str):
+            raise WeatherError('Invalid decoded weather sensor receipt.')
+        at = normalize_time(listen_finished_utc)
+        values = normalize_measurements(candidate.get('measurements'))
+        source_device = (f"rtl_433 SDR index 0 / {frequency_mhz} MHz / "
+                         f"{candidate['model']} / id={candidate.get('device_id', '')} / "
+                         f"channel={candidate.get('channel', '')}")[:240]
+        now = utc_now()
+        with self._connect() as db:
+            self._exists(db, station_id)
+            if not self._insert(db, station_id, at, 'RTL433_RECEIVER_REPORTED',
+                                values, now, source_device):
+                raise WeatherError('This decoded sensor already has a saved record for this listen window.')
+        return {'station_id': station_id, 'observed_at_utc': at, 'recorded_at_utc': now,
+                'source_kind': 'RTL433_RECEIVER_REPORTED', 'source_device': source_device,
+                'timestamp_basis': 'HOST_LISTEN_WINDOW_NOT_PACKET_TIMESTAMP',
+                'hardware_verified': False, **values}
+
     def import_csv(self, body):
         if not isinstance(body, dict) or set(body) != {'station_id', 'csv_text'}:
             raise WeatherError('CSV import requires station_id and csv_text only.')
@@ -302,7 +353,8 @@ class WeatherStore:
         """Import user-selected WeeWX archive CSV, converting each row's usUnits.
 
         WeeWX systems: US=1, METRIC=16, METRICWX=17. `rain` is the
-        archive *interval* amount; `rainRate` and cumulative totals are ignored.
+        archive *interval* amount; `rainRate` is a rate, not an interval
+        amount. Unrelated cumulative rain counters are ignored.
         No WeeWX service or device is contacted by this import.
         """
         if not isinstance(body, dict) or set(body) != {'station_id', 'csv_text'}:
@@ -314,7 +366,8 @@ class WeatherStore:
         mapping = {'outTemp': 'temperature_c', 'outHumidity': 'humidity_pct',
                    'barometer': 'pressure_hpa', 'windSpeed': 'wind_speed_mps',
                    'windGust': 'wind_gust_mps', 'windDir': 'wind_direction_deg',
-                   'rain': 'rain_interval_mm', 'UV': 'uv_index', 'radiation': 'solar_wm2'}
+                   'rain': 'rain_interval_mm', 'rainRate': 'rain_rate_mm_h',
+                   'UV': 'uv_index', 'radiation': 'solar_wm2'}
         try:
             reader = csv.DictReader(io.StringIO(raw.lstrip('\ufeff'), newline=''), strict=True)
             headers = reader.fieldnames
@@ -358,12 +411,12 @@ class WeatherStore:
                             number /= 2.2369362921
                         elif column == 'barometer':
                             number *= 33.8638866667
-                        elif column == 'rain':
+                        elif column in ('rain', 'rainRate'):
                             number *= 25.4
                     elif unit_code == 16:
                         if column in ('windSpeed', 'windGust'):
                             number /= 3.6
-                        elif column == 'rain':
+                        elif column in ('rain', 'rainRate'):
                             number *= 10  # METRIC rain is in cm, not mm.
                     converted[field] = number
                 prepared.append((at, normalize_measurements(converted)))

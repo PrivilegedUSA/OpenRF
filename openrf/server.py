@@ -58,6 +58,7 @@ from .drivers.ble_bluez import scan_once as ble_scan_once, BleScanUnavailable
 from .drivers.serial_openrf import query_port, SerialSensorError
 from .storage import Repository, to_csv, to_geojson
 from .weather import WeatherStore, WeatherError
+from .weather_rtl433 import WeatherRtl433Manager, WeatherReceiverError
 from .emergency import EmergencyStore
 from .emergency_packs import STARTER_PACK
 from .emergency_sos import compose_draft
@@ -99,6 +100,8 @@ class OpenRFHTTPServer(ThreadingHTTPServer):
             self.bluetooth_file_manager.close()
         if hasattr(self, 'sdr_captures'):
             self.sdr_captures.close()
+        if hasattr(self, 'weather_receiver'):
+            self.weather_receiver.close()
         if hasattr(self,'recovery_lock'):
             self.recovery_lock.__exit__(None,None,None)
             del self.recovery_lock
@@ -408,6 +411,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, self.server.weather_store.status())
         if path == '/api/weather/stations':
             return self._json(200, {'stations': self.server.weather_store.stations()})
+        if path == '/api/weather/rtl433/status':
+            if urlparse(self.path).query:
+                return self._error(400, 'Weather receiver status takes no query parameters.')
+            return self._json(200, self.server.weather_receiver.status())
         if path in ('/api/weather/readings', '/api/weather/export.csv'):
             params = parse_qs(urlparse(self.path).query, keep_blank_values=True)
             allowed = {'station_id', 'days', 'limit'} if path.endswith('/readings') else {'station_id'}
@@ -908,6 +915,28 @@ class Handler(BaseHTTPRequestHandler):
             if path == '/api/weather/ecowitt/read':
                 receipt = self.server.weather_store.read_ecowitt(body)
                 return self._json(201 if receipt['saved'] else 200, {'reading': receipt})
+            if path == '/api/weather/rtl433/start':
+                try:
+                    with self.server.receiver_start_lock:
+                        if self.server.radio_receiver.status()['running'] or self.server.sdr_captures.status()['running']:
+                            raise WeatherReceiverError('Stop radio reception and SDR spectrum sweeps before listening for weather sensors.', 'receiver_busy')
+                        report = self.server.weather_receiver.start(body)
+                    return self._json(202, {'run': report})
+                except WeatherReceiverError as exc:
+                    return self._error(exc.status, str(exc), exc.code)
+            if path == '/api/weather/rtl433/stop':
+                if body:
+                    raise ValueError('Weather stop request accepts an empty object only.')
+                try:
+                    return self._json(200, {'run': self.server.weather_receiver.stop()})
+                except WeatherReceiverError as exc:
+                    return self._error(exc.status, str(exc), exc.code)
+            if path == '/api/weather/rtl433/save':
+                try:
+                    reading = self.server.weather_receiver.save(body, self.server.weather_store)
+                    return self._json(201, {'reading': reading})
+                except WeatherReceiverError as exc:
+                    return self._error(exc.status, str(exc), exc.code)
             if not isinstance(body, dict):
                 raise ValueError('Expected a JSON object')
             if path in ('/api/network/wifi/scan', '/api/network/wifi/connect'):
@@ -1319,6 +1348,8 @@ class Handler(BaseHTTPRequestHandler):
                     with self.server.receiver_start_lock:
                         if self.server.sdr_captures.status()['running']:
                             raise RadioError('Stop the SDR spectrum sweep before starting radio reception.', 'receiver_busy')
+                        if self.server.weather_receiver.status()['running']:
+                            raise RadioError('Stop the rtl_433 weather listen before starting radio reception.', 'receiver_busy')
                         record = self.server.radio_receiver.start(body)
                     return self._json(202, {'radio': record})
                 except RadioError as exc:
@@ -1344,6 +1375,8 @@ class Handler(BaseHTTPRequestHandler):
                     with self.server.receiver_start_lock:
                         if self.server.radio_receiver.status()['running']:
                             raise CaptureError('Stop radio reception before starting an SDR spectrum sweep.', 'receiver_busy')
+                        if self.server.weather_receiver.status()['running']:
+                            raise CaptureError('Stop the rtl_433 weather listen before starting an SDR sweep.', 'receiver_busy')
                         record = self.server.sdr_captures.start(settings, survey_location=body.get('survey_location'), session_id=session_id)
                     return self._json(202, {'capture': record})
                 except CaptureError as exc:
@@ -1705,6 +1738,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.serial_last_probe = None
     server.receiver_start_lock = threading.Lock()
     server.sdr_captures = SdrCaptureManager(repository.path.parent / 'sdr-captures')
+    server.weather_receiver = WeatherRtl433Manager()
     server.radio_receiver = RadioReceiver()
     server.messaging_port_lock = threading.RLock()
     server.mesh_manager = MeshManager(history_path=repository.path.parent / 'mesh-history.sqlite3')
