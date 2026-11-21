@@ -6,7 +6,7 @@ const path=require('node:path');
 const project=path.resolve(__dirname,'..');
 const shell=path.join(project,'tools/openrf-electron');
 const config=require(path.join(shell,'package.json'));
-assert.equal(config.version,'0.2.159');
+assert.equal(config.version,'0.2.160');
 assert.equal(config.build.appId,'org.openrf.fieldconsole');
 assert.equal(config.build.linux.executableName,'openrf');
 assert.equal(config.build.linux.syncDesktopName,true);
@@ -21,4 +21,4 @@ for(const resource of config.build.extraResources){
 const main=fs.readFileSync(path.join(shell,'main.js'),'utf8');
 assert(main.includes("process.argv.includes('--openrf-kiosk')"));
 assert(!main.includes("setFullScreen(true);\n  win.show();\n  win.setFullScreen"));
-console.log('PASS v0.2.159 optional kiosk switch and Debian installer manifest');
+console.log('PASS v0.2.160 optional kiosk switch and Debian installer manifest');

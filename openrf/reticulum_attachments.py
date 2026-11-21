@@ -41,6 +41,22 @@ def image_mime(data):
     return None
 
 
+def audio_mime(data):
+    """Recognize common browser voice-note containers without trusting extensions.
+
+    This identifies container signatures for safe audio playback, not the
+    codec or whether an untrusted file is guaranteed to decode successfully.
+    """
+    if data.startswith(b'OggS'):
+        return 'audio/ogg'
+    if data.startswith(b'\x1a\x45\xdf\xa3'):
+        return 'audio/webm'
+    if len(data) >= 12 and data[4:8] == b'ftyp' and data[8:12] in (
+            b'M4A ', b'isom', b'iso2', b'mp41', b'mp42'):
+        return 'audio/mp4'
+    return None
+
+
 def validate_browser_attachment(payload):
     if not isinstance(payload, dict) or set(payload) != {'filename', 'data_base64'}:
         raise ValueError('Provide a selected file name and its Base64 content only.')
@@ -110,7 +126,7 @@ class SessionAttachmentBuffer:
             self._total -= len(removed['data'])
         token = secrets.token_hex(16)
         item = {'id': token, 'filename': filename, 'size': len(data),
-                'mime': image_mime(data) or 'application/octet-stream', 'data': data}
+                'mime': image_mime(data) or audio_mime(data) or 'application/octet-stream', 'data': data}
         self._files[token] = item
         self._total += len(data)
         return {key: value for key, value in item.items() if key != 'data'}

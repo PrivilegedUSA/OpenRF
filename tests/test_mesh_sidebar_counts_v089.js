@@ -37,6 +37,8 @@ function checkForegroundPolling(source,funcName,condition){
   vm.runInNewContext(`const state=globalThis.state;
     const loadMessages=()=>{globalThis.calls++;};
     const refreshInbox=()=>{globalThis.calls++;};
+    let voiceRecorder=null,voicePending=false;
+    const cancelVoice=()=>{},voiceMessage=()=>{};
     ${snippet}`,ctx);
   assert.equal(typeof handlers.window.focus,'function');
   assert.equal(typeof handlers.document.visibilitychange,'function');

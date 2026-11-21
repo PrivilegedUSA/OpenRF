@@ -11,6 +11,7 @@ const {runtimeMetrics}=require('./runtime-metrics');
 const LOCAL_URL=parseLocalAppUrl(process.env.OPENRF_URL||'http://127.0.0.1:8765/');
 const MAX_TABS=8;
 let win=null,activeId=null,lastBounds=null,backendOwned=false;
+let microphoneGrantUntil=0;
 const views=new Map();
 const blank={x:0,y:0,width:0,height:0};
 
@@ -108,9 +109,24 @@ async function createWindow(){
     webPreferences:{preload:path.join(__dirname,'preload.js'),
       nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,
       backgroundThrottling:true}});
+  // Browser-window UI only: require an explicit Record click just before a
+  // microphone request. Deny camera, screen capture, remote tab and every
+  // other permission. Never grant on app startup.
+  session.defaultSession.setPermissionRequestHandler((contents,permission,callback,details)=>{
+    const local=Boolean(win&&!win.isDestroyed()&&contents===win.webContents&&
+      details?.requestingUrl?.startsWith(LOCAL_URL));
+    const audioOnly=Array.isArray(details?.mediaTypes)&&details.mediaTypes.length===1&&
+      details.mediaTypes[0]==='audio';
+    callback(Boolean(local&&permission==='media'&&audioOnly&&Date.now()<microphoneGrantUntil));
+  });
+  session.defaultSession.setPermissionCheckHandler((contents,permission,origin,details)=>
+    Boolean(win&&!win.isDestroyed()&&contents===win.webContents&&permission==='media'&&
+      origin===new URL(LOCAL_URL).origin&&details?.mediaType!=='video'&&
+      Date.now()<microphoneGrantUntil));
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   win.webContents.on('will-navigate',(event,url)=>{if(!url.startsWith(LOCAL_URL))event.preventDefault();});
   win.on('closed',()=>{
+    microphoneGrantUntil=0;
     for(const view of views.values())view.webContents.close();
     views.clear();win=null;
   });
@@ -133,6 +149,17 @@ else{
     }
   });
   ipcMain.handle('openrf-browser:action',handle);
+  ipcMain.handle('openrf-voice:arm',event=>{
+    if(!win||win.isDestroyed()||event.sender!==win.webContents||
+       !event.senderFrame?.url.startsWith(LOCAL_URL))return false;
+    microphoneGrantUntil=Date.now()+30000;
+    return true;
+  });
+  ipcMain.handle('openrf-voice:disarm',event=>{
+    if(!win||win.isDestroyed()||event.sender!==win.webContents)return false;
+    microphoneGrantUntil=0;
+    return true;
+  });
   app.whenReady().then(async ()=>{
     const backend=await ensureBackend({url:LOCAL_URL,
       projectRoot:rootFor(process.resourcesPath,__dirname),

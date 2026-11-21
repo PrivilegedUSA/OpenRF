@@ -1806,7 +1806,16 @@ body.map-workspace.has-message-unread .topbar #mesh-header-button{display:inline
 #page-reticulum .reticulum-selected-preview:not([hidden]){display:block;max-width:220px;max-height:140px;object-fit:contain;border:1px solid #345766;border-radius:8px}
 #page-reticulum .reticulum-message-attachment{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin:7px 0}
 #page-reticulum .reticulum-message-attachment img{display:block;max-width:min(100%,260px);max-height:190px;object-fit:contain;border:1px solid #345766;border-radius:8px}
+#page-reticulum .reticulum-message-attachment audio{display:block;width:min(100%,300px);max-width:100%;min-height:36px}
 #page-reticulum .reticulum-message-attachment a{overflow-wrap:anywhere}
+#page-reticulum .reticulum-voice-compose{margin:10px 0 0;padding:10px;border:1px solid #31525c;border-radius:9px;background:#0d2730}
+#page-reticulum .reticulum-voice-compose .button-line{display:flex;flex-wrap:wrap;align-items:center;gap:7px}
+#page-reticulum .reticulum-voice-compose #reticulum-voice-timer{margin-left:auto;font-variant-numeric:tabular-nums}
+#page-reticulum .reticulum-voice-compose #reticulum-voice-status{margin:7px 0 0;line-height:1.5}
+#page-reticulum .reticulum-voice-compose #reticulum-voice-status.error{color:#ffad91}
+#page-reticulum .reticulum-voice-compose.is-recording{border-color:#dc855d;background:#32231d}
+#page-reticulum .reticulum-voice-compose.is-recording #reticulum-voice-timer{color:#ffbd94;font-weight:800}
+#page-reticulum .reticulum-voice-preview:not([hidden]){display:block;width:min(100%,300px);max-width:100%;min-height:36px}
 @media(max-width:500px){
   #page-reticulum .reticulum-thread-heading{gap:7px}
   #page-reticulum .reticulum-thread-identity{flex-basis:calc(100% - 150px)}
@@ -2753,7 +2762,7 @@ body.map-workspace .topbar .header-wifi-button{background:#0c2833e8;color:#a9e7d
   .topbar .header-wifi-panel{right:-53px;max-height:calc(100vh - 80px)}}
 @media(max-width:550px){.trip-library-metrics{grid-template-columns:1fr 1fr}.trip-library-metrics>div:last-child{grid-column:1/-1}
   .trip-library-section,.trip-library-overview{padding:12px}.trip-library-card{padding:12px}}
-/* v0.2.159: bounded, manually armed Reticulum Resource transfers. */
+/* v0.2.160: bounded, manually armed Reticulum Resource transfers. */
 .reticulum-resource-panel { margin:16px 0; }
 .reticulum-resource-panel > summary { cursor:pointer; }
 .reticulum-resource-panel label { display:block; min-width:0; margin:11px 0; }

@@ -20,3 +20,9 @@ contextBridge.exposeInMainWorld('openrfNativeBrowser',Object.freeze({
   onLocation:handler=>{if(typeof handler==='function')ipcRenderer.on('openrf-browser:location',(_,detail)=>handler(detail));},
   onStatus:handler=>{if(typeof handler==='function')ipcRenderer.on('openrf-browser:status',(_,detail)=>handler(detail));},
 }));
+// Separate from external browser tabs; an explicit OpenRF Record click grants
+// a short-lived, audio-only local permission window. Remote tabs have no bridge.
+contextBridge.exposeInMainWorld('openrfVoicePermission',Object.freeze({
+  arm:()=>ipcRenderer.invoke('openrf-voice:arm'),
+  disarm:()=>ipcRenderer.invoke('openrf-voice:disarm'),
+}));

@@ -18,6 +18,9 @@
     activeThread:null,drafts:Object.create(null),attachment:null,attachmentPreviewUrl:null,
     halowEligible:[],...restoredUnread()};
   const maxAttachmentBytes=128*1024;
+  const maxVoiceSeconds=20;
+  let voiceRecorder=null,voiceStream=null,voiceTimer=null,voiceStarted=0;
+  let voiceEpoch=0,voicePending=false,voiceFile=false;
   const viewingMessages=()=>Boolean(el('page-reticulum')?.classList.contains('active'));
   function persistUnread(){
     try{
@@ -118,8 +121,18 @@
     if(!rnodeSelected)el('reticulum-transport-enable').checked=false;
     el('reticulum-disable').disabled=!state.enabled||state.busy;
     el('reticulum-announce').disabled=!state.enabled||state.busy;
-    el('reticulum-send').disabled=!state.enabled||state.busy||(!count&&!validFile)||count>1024||!validAddress||(Boolean(file)&&!validFile);
+    el('reticulum-send').disabled=!state.enabled||state.busy||voicePending||Boolean(voiceRecorder)||
+      (!count&&!validFile)||count>1024||!validAddress||(Boolean(file)&&!validFile);
     el('reticulum-save-recipient').disabled=!validAddress;
+    const voiceStart=el('reticulum-voice-record');
+    if(voiceStart){
+      voiceStart.disabled=!state.enabled||state.busy||voicePending||Boolean(voiceRecorder);
+      el('reticulum-voice-stop').hidden=!voiceRecorder;
+      el('reticulum-voice-stop').disabled=state.busy;
+      el('reticulum-voice-discard').hidden=!voicePending&&!voiceRecorder&&!voiceFile;
+      el('reticulum-voice-discard').disabled=state.busy;
+      el('reticulum-voice-compose')?.classList.toggle('is-recording',Boolean(voiceRecorder));
+    }
   }
   function renderStatus(result){
     state.enabled=Boolean(result.enabled);
@@ -151,6 +164,8 @@
     return found?`${found.alias} (${value.slice(0,7)}…)`:String(address||'unknown');
   }
   function clearAttachment(){
+    const wasVoice=Boolean(voiceRecorder||voicePending||voiceFile);
+    cancelVoice(true);
     state.attachment=null;
     if(state.attachmentPreviewUrl && typeof URL!=='undefined')URL.revokeObjectURL(state.attachmentPreviewUrl);
     state.attachmentPreviewUrl=null;
@@ -158,6 +173,127 @@
     if(file){file.value='';updateControls();}
     const preview=el('reticulum-attachment-preview');
     if(preview){preview.hidden=true;preview.removeAttribute('src');}
+    const audio=el('reticulum-attachment-audio');
+    if(audio){audio.pause();audio.hidden=true;audio.removeAttribute('src');audio.load();}
+    voiceFile=false;
+    if(wasVoice)voiceMessage('Voice note removed from this composer. Microphone off.');
+    updateControls();
+  }
+  function voiceMessage(message,error=false){
+    const label=el('reticulum-voice-status');
+    if(label){label.textContent=message;label.classList.toggle('error',error);}
+  }
+  function releaseMicrophone(stream){
+    for(const track of stream?.getTracks?.()||[])track.stop();
+    if(voiceStream===stream)voiceStream=null;
+  }
+  function stopVoiceTimer(){
+    if(voiceTimer!==null){clearInterval(voiceTimer);voiceTimer=null;}
+    el('reticulum-voice-timer').textContent='00:00 / 00:20';
+  }
+  function cancelVoice(silent=false){
+    voiceEpoch++;
+    voicePending=false;
+    void window.openrfVoicePermission?.disarm?.();
+    const recorder=voiceRecorder;
+    voiceRecorder=null;
+    if(recorder&&recorder.state!=='inactive'){
+      try{recorder.stop();}catch(_){/* Already stopping; tracks are stopped below. */}
+    }
+    releaseMicrophone(voiceStream);
+    stopVoiceTimer();
+    if(!silent)voiceMessage('Recording discarded. Microphone off. Nothing was sent.');
+  }
+  function previewAttachment(file){
+    if(state.attachmentPreviewUrl&&typeof URL!=='undefined')URL.revokeObjectURL(state.attachmentPreviewUrl);
+    state.attachmentPreviewUrl=null;
+    state.attachment=file||null;
+    const image=el('reticulum-attachment-preview');
+    const audio=el('reticulum-attachment-audio');
+    image.hidden=true;image.removeAttribute('src');
+    audio.pause();audio.hidden=true;audio.removeAttribute('src');audio.load();
+    if(file&&file.size<=maxAttachmentBytes){
+      if(['image/png','image/jpeg','image/webp'].includes(file.type)){
+        state.attachmentPreviewUrl=URL.createObjectURL(file);
+        image.src=state.attachmentPreviewUrl;image.hidden=false;
+      }else if(['audio/webm','audio/ogg','audio/mp4'].includes(file.type)){
+        state.attachmentPreviewUrl=URL.createObjectURL(file);
+        audio.src=state.attachmentPreviewUrl;audio.hidden=false;
+      }
+    }
+    updateControls();
+  }
+  function finishVoice(){
+    const rec=voiceRecorder;
+    if(rec&&rec.state==='recording'){
+      try{rec.stop();}catch(_){cancelVoice();}
+    }
+  }
+  async function startVoice(){
+    if(!state.enabled||state.busy||voicePending||voiceRecorder)return;
+    if(!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==='undefined'){
+      voiceMessage('Recording is unavailable in this browser/device. Check microphone support and permissions.',true);return;
+    }
+    if(state.attachment&&!window.confirm('Replace the currently selected attachment with a voice note?'))return;
+    if(state.attachment)clearAttachment();
+    const epoch=++voiceEpoch;
+    voicePending=true;updateControls();
+    voiceMessage('Requesting microphone permission for this voice note…');
+    let stream;
+    try{
+      if(window.openrfVoicePermission?.arm && await window.openrfVoicePermission.arm()!==true)
+        throw Error('Native shell declined microphone permission.');
+      if(epoch!==voiceEpoch){void window.openrfVoicePermission?.disarm?.();return;}
+      stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+      if(epoch!==voiceEpoch){releaseMicrophone(stream);void window.openrfVoicePermission?.disarm?.();return;}
+      voiceStream=stream;
+      const preferred=['audio/webm;codecs=opus','audio/ogg;codecs=opus',
+                       'audio/webm','audio/ogg','audio/mp4'];
+      const selected=preferred.find(type=>MediaRecorder.isTypeSupported?.(type));
+      const rec=new MediaRecorder(stream, selected?{mimeType:selected,audioBitsPerSecond:24000}:
+        {audioBitsPerSecond:24000});
+      const mime=rec.mimeType.split(';')[0].toLowerCase();
+      const extensions={'audio/webm':'webm','audio/ogg':'ogg','audio/mp4':'m4a'};
+      if(!extensions[mime])throw Error('This browser did not offer a supported WebM, Ogg or MP4 audio format.');
+      const chunks=[];
+      rec.ondataavailable=event=>{if(event.data&&event.data.size>0)chunks.push(event.data);};
+      rec.onerror=()=>{if(epoch!==voiceEpoch)return;cancelVoice(true);voiceMessage('Microphone recording failed. No audio was saved or sent.',true);};
+      rec.onstop=()=>{
+        void window.openrfVoicePermission?.disarm?.();
+        releaseMicrophone(stream);stopVoiceTimer();
+        if(epoch!==voiceEpoch)return;
+        voiceRecorder=null;voicePending=false;
+        const blob=new Blob(chunks,{type:mime});
+        if(!blob.size||blob.size>maxAttachmentBytes){
+          voiceFile=false;
+          voiceMessage(blob.size?'Voice note exceeded 128 KiB. Try a shorter recording; nothing was sent.':'No audio was captured. Nothing was sent.',true);
+          updateControls();return;
+        }
+        const stamp=new Date().toISOString().replace(/[-:]/g,'').replace(/\..*$/,'Z');
+        const file=new File([blob],`voice-note-${stamp}.${extensions[mime]}`,{type:mime});
+        voiceFile=true;previewAttachment(file);
+        voiceMessage(`Voice note ready (${(file.size/1024).toFixed(1)} KiB). Preview it, then press Send. Nothing has been transmitted.`);
+      };
+      rec.start(1000);
+      voiceRecorder=rec;voicePending=false;voiceStarted=Date.now();
+      voiceTimer=setInterval(()=>{
+        if(epoch!==voiceEpoch)return;
+        if(!viewingMessages()){
+          cancelVoice();voiceMessage('Recording stopped because you left Messages. Nothing was saved.',true);
+          return;
+        }
+        const elapsed=Math.min(maxVoiceSeconds,Math.floor((Date.now()-voiceStarted)/1000));
+        el('reticulum-voice-timer').textContent=`00:${String(elapsed).padStart(2,'0')} / 00:20`;
+        if(elapsed>=maxVoiceSeconds)finishVoice();
+      },250);
+      voiceMessage('Recording now. Stop anytime (maximum 20 seconds). Microphone active.');
+    }catch(error){
+      void window.openrfVoicePermission?.disarm?.();
+      releaseMicrophone(stream);stopVoiceTimer();
+      if(epoch!==voiceEpoch)return;
+      voiceRecorder=null;voicePending=false;
+      voiceMessage(`Microphone unavailable or permission denied: ${error.message}. Nothing was recorded.`,true);
+    }finally{updateControls();}
   }
   function friendlyMessageTime(value){
     const raw=String(value||'');
@@ -314,6 +450,11 @@
             const thumbnail=document.createElement('img');thumbnail.src=attachmentUrl;
             thumbnail.alt=`Attached image: ${attachment.filename}`;thumbnail.loading='lazy';
             wrap.append(thumbnail);
+          }else if(['audio/webm','audio/ogg','audio/mp4'].includes(attachment.mime)){
+            const player=document.createElement('audio');
+            player.controls=true;player.preload='none';player.src=attachmentUrl;
+            player.setAttribute('aria-label',`Play voice attachment: ${attachment.filename}`);
+            wrap.append(player);
           }
           const link=document.createElement('a');link.href=`${attachmentUrl}?download=1`;
           link.textContent=`Download ${attachment.filename} (${Math.ceil(attachment.size/1024)} KiB)`;
@@ -667,19 +808,16 @@
   });
   el('reticulum-text').addEventListener('input',updateControls);
   el('reticulum-attachment-file').addEventListener('change',event=>{
-    if(state.attachmentPreviewUrl)URL.revokeObjectURL(state.attachmentPreviewUrl);
-    state.attachmentPreviewUrl=null;
-    state.attachment=event.target.files?.[0]||null;
-    const preview=el('reticulum-attachment-preview');
-    preview.hidden=true;preview.removeAttribute('src');
-    if(state.attachment&&['image/png','image/jpeg','image/webp'].includes(state.attachment.type)&&
-       state.attachment.size<=maxAttachmentBytes){
-      state.attachmentPreviewUrl=URL.createObjectURL(state.attachment);
-      preview.src=state.attachmentPreviewUrl;preview.hidden=false;
-    }
-    updateControls();
+    cancelVoice(true);voiceFile=false;
+    previewAttachment(event.target.files?.[0]||null);
+    voiceMessage('Microphone off. Only the selected file will be attached when you press Send.');
   });
   el('reticulum-attachment-remove').addEventListener('click',clearAttachment);
+  el('reticulum-voice-record').addEventListener('click',startVoice);
+  el('reticulum-voice-stop').addEventListener('click',finishVoice);
+  el('reticulum-voice-discard').addEventListener('click',()=>{
+    clearAttachment();voiceMessage('Voice recording discarded. Microphone off. Nothing was sent.');
+  });
   el('reticulum-new-thread').addEventListener('click',()=>{
     openThread(null);el('reticulum-recipient').focus();
   });
@@ -765,7 +903,7 @@
   document.addEventListener('openrf:connections-changed',refreshStatus);
   el('reticulum-compose').addEventListener('submit',async event=>{
     event.preventDefault();
-    if(!state.enabled||state.busy||el('reticulum-send').disabled)return;
+    if(!state.enabled||state.busy||voicePending||voiceRecorder||el('reticulum-send').disabled)return;
     const address=el('reticulum-recipient').value.trim().toLowerCase();
     const payload={destination:address,text:el('reticulum-text').value};
     if(state.attachment){
@@ -799,7 +937,12 @@
   // The existing polling guard coalesces simultaneous focus/visibility events.
   const resumeInbox=()=>{if(state.enabled&&!state.busy)refreshInbox();};
   window.addEventListener('focus',resumeInbox);
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)resumeInbox();});
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden&&(voiceRecorder||voicePending)){
+      cancelVoice();voiceMessage('Voice recording stopped when the app was hidden. Nothing was sent.');
+    }
+    if(!document.hidden)resumeInbox();
+  });
   updateControls();
   publishUnread();
   refreshContacts().catch(error=>contactNote(error.message,true));

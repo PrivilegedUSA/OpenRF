@@ -20,5 +20,5 @@ assert(html.includes('id="map-survey-toggle"') && html.includes('m12 2-9 5 9 5 9
 assert(!html.includes('map-scan-symbol" aria-hidden="true">☷'), 'outdated scan symbol is gone');
 assert(css.includes('.map-add-observation {position:absolute;right:64px;bottom:12px;'), 'plus positioned next to layers control');
 assert(css.includes('min-width:44px;width:44px;height:44px;min-height:44px'), 'layers button compact and touch accessible');
-assert(html.includes('FIELD CONSOLE · 0.2.159'));
+assert(html.includes('FIELD CONSOLE · 0.2.160'));
 console.log('v0.2.21 hardware readiness refresh/export/privacy and waypoint spacing contract passed.');

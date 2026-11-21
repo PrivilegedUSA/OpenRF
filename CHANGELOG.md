@@ -1,3 +1,9 @@
+## OpenRF v0.2.160 — Explicit short LXMF voice notes (Phase 2) (2026-11-20)
+
+- Added **Record / Stop / Discard voice note** controls to Reticulum message composition. A local 20-second timed browser `MediaRecorder` captures only following explicit user action and browser permission; an audio preview appears before the existing, separately confirmed **Send** action. Thread changes, discard, lost focus and recording errors stop the microphone without sending.
+- Supports locally produced WebM/Ogg/MP4 audio as a single bounded **128 KiB** LXMF file attachment, with received-attachment MIME determined from bytes and a manual audio player. Audio never autoplays; oversized or empty recordings cannot be sent. Different remote peers may not support every codec; transport and playback remain subject to hardware and LXMF limitations.
+- Scoped Electron native microphone permission to the trusted local page and a short user-armed window, keeping external embedded websites and video capture denied. Added browser-mock voice flow, MIME, attachment and HTTP tests. No SQLite migration, mandatory Python dependency, automatic RF traffic, real-time calling, Bluetooth protocol or verified radio peer added. See `docs/RELEASE_0.2.160_TESTS.md`.
+
 ## OpenRF v0.2.159 — Peer Resource file transfers (Phase 1B) (2026-11-20)
 
 - Added a separate `openrf.files` Reticulum Resource destination with its own shareable/announced 32-character file address, distinct from LXMF chat. Two OpenRF v0.2.159 peers can explicitly send one file up to 2 MiB over an established RNS Link, with live reported progress, a cancel action and SHA-256 verification on receipt. Existing 128 KiB LXMF chat attachments are unchanged.

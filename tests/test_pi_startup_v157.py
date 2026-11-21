@@ -1,4 +1,4 @@
-"""v0.2.159: Raspberry Pi desktop startup is opt-in and limited to one stanza."""
+"""v0.2.160: Raspberry Pi desktop startup is opt-in and limited to one stanza."""
 import importlib.util
 from pathlib import Path
 import tempfile

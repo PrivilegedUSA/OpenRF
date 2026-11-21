@@ -20,6 +20,7 @@ function element(tag){
     scrollTop:0,scrollHeight:300,clientHeight:100,events:{},classList:{toggle(){}},
     replaceChildren(...items){this.children=[...items];},
     append(...items){this.children.push(...items);},
+    pause(){},load(){},removeAttribute(name){delete this[name];},
     setAttribute(name,value){this[name]=value;},
     addEventListener(name,callback){this.events[name]=callback;},
     focus(){this.focused=true;},
@@ -29,7 +30,8 @@ const ids=['reticulum-thread-browser','reticulum-thread-list','reticulum-thread-
   'reticulum-thread-name','reticulum-thread-address','reticulum-thread-copy',
   'reticulum-thread-save','reticulum-recipient-label','reticulum-quick-contact',
   'reticulum-recipient','reticulum-text','reticulum-conversation','reticulum-messages',
-  'reticulum-byte-count','reticulum-compose'];
+  'reticulum-byte-count','reticulum-compose','reticulum-voice-timer',
+  'reticulum-attachment-file','reticulum-attachment-preview','reticulum-attachment-audio'];
 const elements=Object.fromEntries(ids.map(id=>[id,element('div')]));
 const a='a'.repeat(32),b='b'.repeat(32),c='c'.repeat(32);
 const state={contacts:[{address:a,alias:'Sideband'},{address:c,alias:'Idle contact'}],
@@ -42,11 +44,12 @@ const data=[
   {direction:'IN',destination:a,text:'Last from phone',utc:'2026-11-17T08:02:00Z',
     status:'RECEIVED_VALID_SIGNATURE'}
 ];
-const context={elements,state,TextEncoder,document:{createElement:element}};
+const context={elements,state,TextEncoder,window:{},document:{createElement:element}};
 context.Option=class{constructor(label,value){this.textContent=label;this.value=value;}};
 const snippet=js.slice(js.indexOf('  function contactName('),js.indexOf('  const shown='));
 vm.runInNewContext(`const el=id=>globalThis.elements[id];
   const state=globalThis.state;
+  let voiceEpoch=0,voicePending=false,voiceRecorder=null,voiceStream=null,voiceTimer=null,voiceFile=false;
   const updateControls=()=>{};
   const note=()=>{};
   ${snippet}
