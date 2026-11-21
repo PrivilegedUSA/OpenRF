@@ -20,12 +20,14 @@ FAKE_SCAN = {
 class ConnectionsTests(unittest.TestCase):
     def test_registry_never_claims_other_sensors_are_implemented(self):
         sensors = connections({'wifi_one_shot': {'possible': False}})
-        self.assertEqual(sensors[0]['status'], 'unavailable')
-        self.assertEqual(sensors[1]['sensor_id'], 'openrf-serial-v1')
-        self.assertEqual(sensors[1]['status'], 'not_connected')
-        self.assertEqual(sensors[2]['status'], 'unavailable')
-        self.assertEqual(sensors[3]['status'], 'offline_file_only')
-        self.assertTrue(all(x['status'] == 'not_implemented' for x in sensors[4:]))
+        by_id = {x['sensor_id']:x for x in sensors}
+        self.assertEqual(by_id['networkmanager-wifi']['status'], 'unavailable')
+        self.assertEqual(by_id['openrf-serial-v1']['status'], 'not_connected')
+        self.assertEqual(by_id['openrf-weather-serial-v1']['status'], 'not_connected')
+        self.assertEqual(by_id['linux-ble']['status'], 'unavailable')
+        self.assertEqual(by_id['usb-sdr']['status'], 'offline_file_only')
+        for future in ('external-gnss','police-radar-receiver'):
+            self.assertEqual(by_id[future]['status'], 'not_implemented')
         self.assertEqual(connections({'wifi_one_shot': {'possible': True, 'interface': 'wlan0'}})[0]['status'], 'ready')
 
     def test_verified_scan_save_retains_origin_timestamp_and_no_fabricated_rssi(self):

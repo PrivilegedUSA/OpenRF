@@ -80,7 +80,8 @@ class BleInventoryTests(unittest.TestCase):
             # No BLE addresses returned by readiness API despite BlueZ's listing.
             self.assertNotIn('00:11:22:33:44:55', str(obj))
             registry=connections({'bluetooth_readiness':obj})
-            self.assertEqual(registry[2]['status'], 'ready_on_demand')
-            self.assertIn('2', registry[2]['description'])
+            ble = next(item for item in registry if item['sensor_id']=='linux-ble')
+            self.assertEqual(ble['status'], 'ready_on_demand')
+            self.assertIn('2', ble['description'])
 
 if __name__=='__main__': unittest.main()

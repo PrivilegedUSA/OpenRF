@@ -1,4 +1,4 @@
-/* OpenRF v0.2.171 — user-triggered Ecowitt and rtl_433 weather inputs. */
+/* OpenRF v0.2.172 — user-triggered Ecowitt and rtl_433 weather inputs. */
 (() => {
   'use strict';
   const el = id => document.getElementById(id);
@@ -69,7 +69,7 @@
     return option;
   }
   function syncSelectors(force=false) {
-    const ids=['weather-dashboard-station','weather-manual-station','weather-import-station','weather-weewx-station','weather-history-station','weather-gateway-station','weather-rtl433-station'];
+    const ids=['weather-dashboard-station','weather-manual-station','weather-import-station','weather-weewx-station','weather-history-station','weather-gateway-station','weather-rtl433-station','weather-serial-station'];
     for (const id of ids) {
       const select=el(id), prior=select.value;
       select.replaceChildren(option('','Select a station'));
@@ -248,6 +248,75 @@
     catch(error){receiverText(error.message);}
   });
 
+  // USB weather bridge: inventory, probe, snapshot and selected save are four
+  // separate *operator actions*. Showing Weather Station performs none of them.
+  const serialText=message=>{el('weather-serial-status').textContent=message;};
+  let serialBusy=false, serialReceipt=null;
+  const serialActions=['weather-serial-refresh','weather-serial-probe','weather-serial-read'];
+  async function serialAction(action){
+    if(serialBusy)return;
+    serialBusy=true;serialActions.forEach(id=>{el(id).disabled=true;});
+    try{await action();}catch(error){serialText(error.message);}
+    finally{serialBusy=false;serialActions.forEach(id=>{el(id).disabled=false;});}
+  }
+  el('weather-serial-refresh').addEventListener('click',()=>serialAction(async()=>{
+    const result=await request('/api/weather/serial/ports');
+    const selector=el('weather-serial-port'),previous=selector.value;
+    selector.replaceChildren(option('','Choose a Linux USB port'));
+    for(const port of result.ports||[])selector.append(option(port,port));
+    selector.value=(result.ports||[]).includes(previous)?previous:'';
+    serialText((result.ports||[]).length
+      ? `${result.ports.length} Linux USB serial candidate(s) detected. No port opened or identified. Select a port, then Probe.`
+      : 'No Linux USB serial ports detected. WSL may require USB passthrough; no device was opened.');
+  }));
+  el('weather-serial-probe').addEventListener('click',()=>serialAction(async()=>{
+    const port=el('weather-serial-port').value;
+    if(!port){serialText('Refresh the USB port list and choose a candidate first.');return;}
+    serialText(`Checking OpenRF Weather Serial v1 compatibility on ${port}…`);
+    const reply=await request('/api/weather/serial/probe',{port});
+    serialText(`${port} replied with ${reply.probe.protocol} · ${reply.probe.label} · hardware ID ${reply.probe.hardware_id} (UNVERIFIED). No measurements were read or saved.`);
+  }));
+  function renderSerialCapture(capture){
+    serialReceipt=capture;
+    const list=el('weather-serial-results');list.replaceChildren();
+    const candidates=capture.candidates||[];
+    serialText(`${candidates.length} weather sensor reading(s) from ${capture.port}, retrieved ${stamp(capture.received_at_utc)} UTC. Identity and measurement age are device-reported, not verified. Nothing has been saved.`);
+    if(!candidates.length)return;
+    for(const candidate of candidates){
+      const line=document.createElement('div');line.className='weather-station-row';
+      const info=document.createElement('div'),title=document.createElement('strong'),detail=document.createElement('small');
+      title.textContent=`${candidate.model} · ${candidate.sensor_id}${candidate.channel?' · channel '+candidate.channel:''}`;
+      const measurements=candidate.measurements||{};
+      const values=Object.entries(fields).filter(([key])=>measurements[key]!==null&&measurements[key]!==undefined)
+        .map(([key,field])=>`${field.title}: ${format(field.convert(measurements[key]),1,field.unit?' '+field.unit:'')}`);
+      detail.textContent=`${values.join(' · ')} · ${candidate.freshness} · ${candidate.measurement_age_seconds===null?'age unknown':candidate.measurement_age_seconds+' s device-reported age'} · UNVERIFIED`;
+      info.append(title,detail);
+      const button=document.createElement('button');button.type='button';button.className='btn outline';
+      button.textContent=candidate.saved?'Saved':'Save this reading';button.disabled=!!candidate.saved;
+      button.addEventListener('click',async()=>{
+        if(serialBusy)return;
+        const stationId=Number(el('weather-serial-station').value);
+        if(!stationId){serialText('Choose a local weather station before saving a reading.');return;}
+        button.disabled=true;
+        try{
+          await request('/api/weather/serial/save',{
+            run_id:capture.run_id,candidate_id:candidate.candidate_id,station_id:stationId});
+          candidate.saved=true;button.textContent='Saved';
+          await refresh();setStation(stationId);
+          serialText(`Saved ${candidate.model} to station ${stationId}. ${candidate.freshness} · source identity, device timing and accuracy unverified. No ongoing connection.`);
+        }catch(error){serialText(error.message);button.disabled=false;}
+      });
+      line.append(info,button);list.append(line);
+    }
+  }
+  el('weather-serial-read').addEventListener('click',()=>serialAction(async()=>{
+    const port=el('weather-serial-port').value;
+    if(!port){serialText('Refresh and select a Linux USB port before reading.');return;}
+    serialText(`Requesting one bounded, user-initiated USB weather snapshot from ${port}…`);
+    const reply=await request('/api/weather/serial/read',{port});
+    renderSerialCapture(reply.capture);
+  }));
+
   el('weather-add-station').addEventListener('submit',async event=>{
     event.preventDefault();
     const form=event.currentTarget, button=form.querySelector('button[type="submit"]');button.disabled=true;
@@ -362,7 +431,9 @@
       const origin=row.source_kind==='ECOWITT_GATEWAY_REPORTED'
         ? `ECOWITT GATEWAY REPORTED · UNVERIFIED · ${row.source_device||'unknown gateway'}`
         : row.source_kind==='RTL433_RECEIVER_REPORTED'
-        ? `RTL_433 DECODED · UNVERIFIED · ${row.source_device||'unknown receiver'}` : row.source_kind;
+        ? `RTL_433 DECODED · UNVERIFIED · ${row.source_device||'unknown receiver'}`
+        : row.source_kind==='OPENRF_SERIAL_WEATHER_REPORTED'
+        ? `USB WEATHER REPORTED · ${row.freshness||'UNKNOWN_AGE'} · UNVERIFIED · ${row.source_device||'unknown bridge'}` : row.source_kind;
       const parts=[`${stamp(row.observed_at_utc)} UTC`,origin,
         format(metricValue(row,'temperature_c'),1,' °F'),format(metricValue(row,'wind_speed_mps'),1,' mph'),
         format(row.humidity_pct,1,' %'),format(metricValue(row,'rain_interval_mm'),2,' in')];

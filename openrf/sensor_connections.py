@@ -37,6 +37,13 @@ def connections(hardware: dict) -> list[dict]:
             'A serial port alone does not prove a compatible module or genuine measurements. '
             'Available ports: ' + (', '.join(hardware.get('serial_ports', [])[:8]) or 'none'),
             ('MHz', 'dBm')).__dict__,
+        SensorDescriptor('openrf-weather-serial-v1', 'OpenRF Weather USB/ESP32 bridge v1',
+            'port_visible_unverified' if hardware.get('serial_ports') else 'not_connected',
+            'On-demand WEATHER protocol probe and single-snapshot capture. Supports a compatible, '
+            'explicitly programmed USB serial weather bridge, not arbitrary USB weather products. '
+            'Ports are candidates only; never auto-connected, scanned, paired or saved. '
+            'Available: ' + (', '.join(hardware.get('serial_ports', [])[:8]) or 'none'),
+            ('°C','%','hPa','m/s','mm','mm/h')).__dict__,
         SensorDescriptor('linux-ble', 'Linux Bluetooth LE',
             'ready_on_demand' if ble.get('controller_count', 0) and ble.get('daemon') == 'responding' else 'unavailable',
             'Read-only LE-only one-shot discovery on user request. Controller count: ' + str(ble.get('controller_count', 0)) +

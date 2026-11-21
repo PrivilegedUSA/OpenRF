@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.171">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.172">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -23,11 +23,11 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/map-elevation.js?v=0.2.151"></script>
   <script defer src="/static/battery-status.js?v=0.2.151"></script>
-  <script defer src="/static/wifi-quick.js?v=0.2.171"></script>
+  <script defer src="/static/wifi-quick.js?v=0.2.172"></script>
   <script defer src="/static/route-elevation.js?v=0.2.151"></script>
   <script defer src="/static/trip-map.js?v=0.2.151"></script>
-  <script defer src="/static/app.js?v=0.2.171"></script>
-  <script defer src="/static/app-settings.js?v=0.2.171"></script>
+  <script defer src="/static/app.js?v=0.2.172"></script>
+  <script defer src="/static/app-settings.js?v=0.2.172"></script>
   <script defer src="/static/browser-workspace.js?v=0.2.151"></script>
   <script defer src="/static/saved-trips.js?v=0.2.151"></script>
   <script defer src="/static/emergency-tabs.js?v=0.2.151"></script>
@@ -47,19 +47,19 @@
   <script defer src="/static/emergency-backup.js?v=0.2.151"></script>
   <script defer src="/static/field-calendar.js?v=0.2.151"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.171"></script>
-  <script defer src="/static/meshcore.js?v=0.2.171"></script>
-  <script defer src="/static/messaging-tabs.js?v=0.2.171"></script>
-  <script defer src="/static/weather.js?v=0.2.171"></script>
-  <script defer src="/static/reticulum.js?v=0.2.171"></script>
-  <script defer src="/static/reticulum-files.js?v=0.2.171"></script>
-  <script defer src="/static/bluetooth-files.js?v=0.2.171"></script>
-  <script defer src="/static/reticulum-tabs.js?v=0.2.171"></script>
+  <script defer src="/static/mesh.js?v=0.2.172"></script>
+  <script defer src="/static/meshcore.js?v=0.2.172"></script>
+  <script defer src="/static/messaging-tabs.js?v=0.2.172"></script>
+  <script defer src="/static/weather.js?v=0.2.172"></script>
+  <script defer src="/static/reticulum.js?v=0.2.172"></script>
+  <script defer src="/static/reticulum-files.js?v=0.2.172"></script>
+  <script defer src="/static/bluetooth-files.js?v=0.2.172"></script>
+  <script defer src="/static/reticulum-tabs.js?v=0.2.172"></script>
   <script defer src="/static/mesh_connections.js?v=0.2.104"></script>
   <script defer src="/static/wifi_halow.js?v=0.2.104"></script>
   <script defer src="/static/field_network.js?v=0.2.104"></script>
   <script defer src="/static/field_hotspot.js?v=0.2.104"></script>
-  <script defer src="/static/hardware-tabs.js?v=0.2.171"></script>
+  <script defer src="/static/hardware-tabs.js?v=0.2.172"></script>
   <script defer src="/static/offline_readiness.js?v=0.2.104"></script>
   <script defer src="/static/camera-layers.js?v=0.2.114"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
@@ -67,7 +67,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.171</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.172</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -215,6 +215,22 @@
             <p id="weather-rtl433-status" class="small muted" role="status" aria-live="polite">No SDR weather listen has been requested. Check availability or start explicitly.</p>
             <div id="weather-rtl433-results" class="weather-station-list" aria-live="polite"></div>
             <p class="small muted">Every result retains a decoder-reported model, ID and channel, OpenRF's listening window, source receiver and normalized units. IDs, battery flags, signal validity and sensor timestamps are not independently verified. A <code>rain_mm</code> total is <em>not</em> treated as rainfall during this interval; only an explicit reported rain rate is stored. Select a specific decoded sensor and tap Save to archive it. Sensor compatibility depends on the device, firmware, RF band and antenna.</p>
+          </div>
+          <div class="panel weather-section">
+            <div class="panel-title"><h3>Wired weather sensors · USB / ESP32</h3><span class="pill">OPENRF WEATHER SERIAL v1 · ON DEMAND</span></div>
+            <p class="small muted">Use an ESP32 or other USB bridge running the documented <code>openrf.weather.serial.v1</code> firmware protocol. This does <strong>not</strong> automatically support every USB weather product. Refresh only lists Linux serial ports; it never opens them or assumes compatibility. Probe and Read each open the selected port briefly at 115200 baud, then close it. No automatic polling, USB pairing, sensor transmission or internet service.</p>
+            <div class="weather-gateway-grid">
+              <label>Linux USB serial port<select class="field" id="weather-serial-port"><option value="">Refresh to list USB ports</option></select></label>
+              <label>Save measured sensor under<select class="field" id="weather-serial-station"><option value="">Select a station</option></select></label>
+            </div>
+            <div class="button-line weather-gateway-actions">
+              <button type="button" id="weather-serial-refresh" class="btn outline">Refresh USB ports</button>
+              <button type="button" id="weather-serial-probe" class="btn outline">Probe selected bridge</button>
+              <button type="button" id="weather-serial-read" class="btn primary">Read one snapshot</button>
+            </div>
+            <p id="weather-serial-status" class="small muted" role="status" aria-live="polite">No USB port has been opened. Choose Refresh, then explicitly Probe or Read.</p>
+            <div id="weather-serial-results" class="weather-station-list" aria-live="polite"></div>
+            <p class="small muted">One snapshot can include several decoder/firmware-reported sensors. OpenRF saves only the specific reading you select, with reported hardware ID, channel, SI measurement units, host UTC receipt and available device-reported measurement age. Older-than-120-second readings are flagged STALE; absent timestamps remain UNKNOWN. Device identity, freshness and calibration remain unverified. When a port belongs to running Meshtastic, MeshCore or Reticulum, OpenRF refuses to open it.</p>
           </div>
           <div class="panel weather-section">
             <h3>Record a manual observation</h3>

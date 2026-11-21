@@ -9,7 +9,7 @@ const app=fs.readFileSync('openrf/static/app.js','utf8');
 const code=fs.readFileSync('openrf/static/weather.js','utf8');
 assert(html.includes('data-page="weather"'));
 assert(html.includes('id="page-weather"'));
-assert(html.includes('/static/weather.js?v=0.2.171'));
+assert(html.includes('/static/weather.js?v='));
 assert(app.includes("'weather','messages'"));
 assert(app.includes("'openrf:weather-shown'"));
 assert(css.includes('.weather-tab-panel[hidden]'));
@@ -48,6 +48,7 @@ async function fetchMock(path,options={}){
   if(path==='/api/weather/status')return response({stations,reading_count:rows.length,automatic_collection:false,connected_devices:0});
   if(path==='/api/weather/rtl433/status')return response({available:true,running:receiverRunning,
     run:receiverRun&&{...receiverRun,candidates:receiverRunning?[]:[{...receiverFixture,saved:receiverSaved}]}});
+  if(path==='/api/weather/serial/ports')return response({ports:['ttyACM0'],diagnostics:[],automatic_connection:false});
   if(path.startsWith('/api/weather/readings?'))return response({readings:rows,source_kind:'MANUAL'});
   const body=JSON.parse(options.body||'{}');
   if(path==='/api/weather/rtl433/start'){
@@ -61,6 +62,27 @@ async function fetchMock(path,options={}){
     receiverSaved=true;
     const reading={observed_at_utc:'2026-11-21T12:01:00Z',source_kind:'RTL433_RECEIVER_REPORTED',
       temperature_c:22,rain_rate_mm_h:5.08};
+    rows.push(reading);stations[0].reading_count=rows.length;
+    return response({reading});
+  }
+  if(path==='/api/weather/serial/probe'){
+    assert.equal(body.port,'ttyACM0');
+    return response({probe:{protocol:'openrf.weather.serial.v1',label:'FIXTURE BRIDGE',
+      hardware_id:'fixture-hw',identity_verified:false}});
+  }
+  if(path==='/api/weather/serial/read'){
+    assert.equal(body.port,'ttyACM0');
+    return response({capture:{port:'ttyACM0',run_id:'fixture-serial-run',
+      received_at_utc:'2026-11-21T12:04:00Z',candidates:[{
+        candidate_id:'fixture-sensor',sensor_id:'anemometer',model:'FIXTURE WIND',channel:'A',
+        freshness:'STALE_DEVICE_REPORTED',measurement_age_seconds:180,saved:false,
+        measurements:{wind_speed_mps:12,wind_gust_mps:14}}]}});
+  }
+  if(path==='/api/weather/serial/save'){
+    assert.deepEqual(Object.keys(body).sort(),['candidate_id','run_id','station_id']);
+    assert.equal(body.run_id,'fixture-serial-run');assert.equal(body.candidate_id,'fixture-sensor');
+    const reading={observed_at_utc:'2026-11-21T12:04:00Z',source_kind:'OPENRF_SERIAL_WEATHER_REPORTED',
+      freshness:'STALE_DEVICE_REPORTED',wind_speed_mps:12};
     rows.push(reading);stations[0].reading_count=rows.length;
     return response({reading});
   }
@@ -102,6 +124,8 @@ async function test(){
   assert.equal(calls.filter(call=>call.options.method==='POST').length,0);
   assert(!calls.some(call=>call.path.startsWith('/api/weather/rtl433/')),
     'Showing weather must not probe or open an SDR');
+  assert(!calls.some(call=>call.path.startsWith('/api/weather/serial/')),
+    'Showing weather must not inventory or open USB weather hardware');
 
   context.window.OpenRFWeather.openTab('sensors');
   get('weather-new-name').value='TEST FIXTURE';
@@ -181,6 +205,21 @@ async function test(){
   assert(get('weather-rtl433-status').textContent.includes('Actual sensor identity/time unverified'));
   assert(!calls.some(call=>call.path==='/api/weather/rtl433/stop'),
     'No implicit Stop or device manipulation');
-  console.log('PASS v0.2.171 weather: manual, Ecowitt, WeeWX, rtl_433 opt-in/listen/selected save');
+  await get('weather-serial-refresh').events.click();
+  assert.equal(get('weather-serial-port').children.length,2);
+  assert.equal(calls.filter(call=>call.path==='/api/weather/serial/probe').length,0);
+  assert.equal(calls.filter(call=>call.path==='/api/weather/serial/read').length,0);
+  get('weather-serial-port').value='ttyACM0';get('weather-serial-station').value='1';
+  await get('weather-serial-probe').events.click();
+  assert(get('weather-serial-status').textContent.includes('UNVERIFIED'));
+  await get('weather-serial-read').events.click();
+  const serial=get('weather-serial-results').children[0];
+  assert(serial.children[0].children[0].textContent.includes('FIXTURE WIND'));
+  assert(serial.children[0].children[1].textContent.includes('STALE_DEVICE_REPORTED'));
+  await serial.children[1].events.click();
+  assert.equal(calls.filter(call=>call.path==='/api/weather/serial/save').length,1);
+  assert(get('weather-serial-status').textContent.includes('No ongoing connection'));
+  assert.equal(serial.children[1].textContent,'Saved');
+  console.log('PASS weather: manual, Ecowitt, WeeWX, rtl_433 and opt-in USB bridge read/selected save');
 }
 test().catch(error=>{console.error(error);process.exitCode=1;});

@@ -59,6 +59,7 @@ from .drivers.serial_openrf import query_port, SerialSensorError
 from .storage import Repository, to_csv, to_geojson
 from .weather import WeatherStore, WeatherError
 from .weather_rtl433 import WeatherRtl433Manager, WeatherReceiverError
+from .weather_serial import WeatherSerialReceipts, WeatherSerialError, query_weather_port
 from .emergency import EmergencyStore
 from .emergency_packs import STARTER_PACK
 from .emergency_sos import compose_draft
@@ -415,6 +416,15 @@ class Handler(BaseHTTPRequestHandler):
             if urlparse(self.path).query:
                 return self._error(400, 'Weather receiver status takes no query parameters.')
             return self._json(200, self.server.weather_receiver.status())
+        if path == '/api/weather/serial/ports':
+            if urlparse(self.path).query:
+                return self._error(400, 'Weather serial inventory takes no query parameters.')
+            return self._json(200, {'ports': enumerate_serial_ports(),
+                                    'diagnostics': serial_port_diagnostics(),
+                                    'last_snapshot': self.server.weather_serial_receipts.summary(),
+                                    'protocol': 'openrf.weather.serial.v1',
+                                    'automatic_connection': False,
+                                    'note': 'Visible ports are unverified; this read-only listing never opens a device.'})
         if path in ('/api/weather/readings', '/api/weather/export.csv'):
             params = parse_qs(urlparse(self.path).query, keep_blank_values=True)
             allowed = {'station_id', 'days', 'limit'} if path.endswith('/readings') else {'station_id'}
@@ -936,6 +946,37 @@ class Handler(BaseHTTPRequestHandler):
                     reading = self.server.weather_receiver.save(body, self.server.weather_store)
                     return self._json(201, {'reading': reading})
                 except WeatherReceiverError as exc:
+                    return self._error(exc.status, str(exc), exc.code)
+            if path in ('/api/weather/serial/probe', '/api/weather/serial/read'):
+                if not isinstance(body, dict) or set(body) != {'port'} or not isinstance(body.get('port'), str):
+                    return self._error(400, 'Choose exactly one Linux USB serial port.')
+                port = body['port']
+                try:
+                    with self.server.messaging_port_lock:
+                        if not self.server.serial_lock.acquire(blocking=False):
+                            raise WeatherSerialError('Another OpenRF USB sensor operation is in progress.', 'serial_busy')
+                        try:
+                            mesh = self.server.mesh_manager.status()
+                            core = self.server.meshcore_manager.status()
+                            reticulum = self.server.reticulum_manager.status()
+                            if mesh.get('port') == port and mesh.get('state', 'CONNECTED' if mesh.get('connected') else 'DISCONNECTED') != 'DISCONNECTED':
+                                raise WeatherSerialError('USB port is occupied by Meshtastic. Disconnect it first.', 'port_owned_by_meshtastic')
+                            if core.get('port') == port and core.get('state') != 'DISCONNECTED':
+                                raise WeatherSerialError('USB port is occupied by MeshCore. Disconnect it first.', 'port_owned_by_meshcore')
+                            if reticulum.get('enabled') and port in reticulum.get('rnode_ports', [reticulum.get('rnode_port')]):
+                                raise WeatherSerialError('USB port is occupied by a Reticulum RNode. Stop Reticulum first.', 'port_owned_by_reticulum')
+                            reply = query_weather_port(port, enumerate_serial_ports(), snapshot=path.endswith('/read'))
+                        finally:
+                            self.server.serial_lock.release()
+                    if path.endswith('/read'):
+                        return self._json(200, {'capture': self.server.weather_serial_receipts.remember(reply)})
+                    return self._json(200, {'probe': reply})
+                except WeatherSerialError as exc:
+                    return self._error(exc.status, str(exc), exc.code)
+            if path == '/api/weather/serial/save':
+                try:
+                    return self._json(201, {'reading': self.server.weather_serial_receipts.save(body, self.server.weather_store)})
+                except WeatherSerialError as exc:
                     return self._error(exc.status, str(exc), exc.code)
             if not isinstance(body, dict):
                 raise ValueError('Expected a JSON object')
@@ -1739,6 +1780,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.receiver_start_lock = threading.Lock()
     server.sdr_captures = SdrCaptureManager(repository.path.parent / 'sdr-captures')
     server.weather_receiver = WeatherRtl433Manager()
+    server.weather_serial_receipts = WeatherSerialReceipts()
     server.radio_receiver = RadioReceiver()
     server.messaging_port_lock = threading.RLock()
     server.mesh_manager = MeshManager(history_path=repository.path.parent / 'mesh-history.sqlite3')

@@ -1,14 +1,16 @@
 'use strict';
 const assert=require('node:assert/strict');
+const fs=require('node:fs');
 const path=require('node:path');
+const projectVersion=fs.readFileSync('openrf/__init__.py','utf8').match(/__version__\s*=\s*"([^"]+)"/)[1];
 const {EventEmitter}=require('node:events');
 const {rootFor,checkHealth,ensureBackend,stopBackend,EXPECTED_VERSION}=
   require('../tools/openrf-electron/backend');
-assert.equal(EXPECTED_VERSION,'0.2.169');
+assert.equal(EXPECTED_VERSION,projectVersion);
 const sourceDir=path.resolve('tools/openrf-electron');
 assert.equal(rootFor(null,sourceDir),path.resolve('.'));
 (async()=>{
-  const good=async()=>({ok:true,json:async()=>({status:'ok',version:'0.2.169'})});
+  const good=async()=>({ok:true,json:async()=>({status:'ok',version:projectVersion})});
   const old=async()=>({ok:true,json:async()=>({status:'ok',version:'0.2.151'})});
   const missing=async()=>{throw Error('not listening');};
   assert.equal((await checkHealth('http://127.0.0.1:8765/',good)).state,'ready');
@@ -31,5 +33,5 @@ assert.equal(rootFor(null,sourceDir),path.resolve('.'));
   assert.equal(result.owned,true);assert.equal(options.cwd,path.resolve('.'));
   assert.equal(options.stdio[0],'ignore');
   stopBackend();assert.equal(child.killed,true);
-  console.log('PASS v0.2.169 Electron attaches or starts owned loopback backend and stops only its child');
+  console.log('PASS v0.2.172 Electron attaches or starts owned loopback backend and stops only its child');
 })().catch(error=>{console.error(error);process.exitCode=1;});

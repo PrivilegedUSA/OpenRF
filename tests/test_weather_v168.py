@@ -1,4 +1,4 @@
-"""v0.2.169 offline weather hub: synthetic measurements are TEST FIXTURES ONLY."""
+"""v0.2.172 offline weather hub: synthetic measurements are TEST FIXTURES ONLY."""
 import http.client
 import json
 import tempfile
@@ -178,7 +178,8 @@ class WeatherHTTPTests(unittest.TestCase):
     def test_local_security_and_readonly_static_script(self):
         code, script = self.api('GET', '/static/weather.js')
         self.assertEqual(code, 200)
-        self.assertIn(b'OpenRF v0.2.169', script)
+        self.assertIn(b'OpenRF v', script)
+        self.assertIn(__import__('openrf').__version__.encode(), script)
         code, _ = self.api('GET', '/api/weather/readings?station_id=1&limit=200000')
         self.assertEqual(code, 400)
         code, _ = self.api('POST', '/api/weather/stations', {'name': 'X'},

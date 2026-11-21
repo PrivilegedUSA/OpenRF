@@ -118,8 +118,10 @@ class WeatherStore:
                     station_id INTEGER NOT NULL REFERENCES weather_stations(id),
                     observed_at_utc TEXT NOT NULL,
                     recorded_at_utc TEXT NOT NULL,
-                    source_kind TEXT NOT NULL CHECK(source_kind IN ('MANUAL', 'IMPORTED_HISTORICAL', 'ECOWITT_GATEWAY_REPORTED', 'RTL433_RECEIVER_REPORTED')),
+                    source_kind TEXT NOT NULL CHECK(source_kind IN ('MANUAL', 'IMPORTED_HISTORICAL', 'ECOWITT_GATEWAY_REPORTED', 'RTL433_RECEIVER_REPORTED', 'OPENRF_SERIAL_WEATHER_REPORTED')),
                     source_device TEXT NOT NULL DEFAULT '',
+                    timestamp_basis TEXT, sensor_reported_at_utc TEXT,
+                    measurement_age_seconds REAL, freshness TEXT,
                     temperature_c REAL,
                     humidity_pct REAL,
                     pressure_hpa REAL,
@@ -165,7 +167,7 @@ class WeatherStore:
                     ON weather_readings(station_id, observed_at_utc DESC, id DESC)''')
             current_sql = db.execute("SELECT sql FROM sqlite_master WHERE name='weather_readings' AND type='table'").fetchone()[0]
             if 'RTL433_RECEIVER_REPORTED' not in current_sql:
-                # v0.2.171 -> v0.2.171, retaining every historic reading and
+                # v0.2.170 -> v0.2.172, retaining every historic reading and
                 # allowing distinct physical sensor sources in one UTC second.
                 db.execute('''CREATE TABLE weather_readings_v171 (
                     id INTEGER PRIMARY KEY,
@@ -189,6 +191,37 @@ class WeatherStore:
                     FROM weather_readings''')
                 db.execute('DROP TABLE weather_readings')
                 db.execute('ALTER TABLE weather_readings_v171 RENAME TO weather_readings')
+                db.execute('''CREATE INDEX idx_weather_station_time
+                    ON weather_readings(station_id, observed_at_utc DESC, id DESC)''')
+            current_sql = db.execute("SELECT sql FROM sqlite_master WHERE name='weather_readings' AND type='table'").fetchone()[0]
+            if 'OPENRF_SERIAL_WEATHER_REPORTED' not in current_sql:
+                # v0.2.172 -> v0.2.172: retain every existing record, source,
+                # station ID and timestamp; append explicit sensor time quality.
+                db.execute('''CREATE TABLE weather_readings_v172 (
+                    id INTEGER PRIMARY KEY,
+                    station_id INTEGER NOT NULL REFERENCES weather_stations(id),
+                    observed_at_utc TEXT NOT NULL, recorded_at_utc TEXT NOT NULL,
+                    source_kind TEXT NOT NULL CHECK(source_kind IN
+                        ('MANUAL','IMPORTED_HISTORICAL','ECOWITT_GATEWAY_REPORTED',
+                         'RTL433_RECEIVER_REPORTED','OPENRF_SERIAL_WEATHER_REPORTED')),
+                    source_device TEXT NOT NULL DEFAULT '',
+                    timestamp_basis TEXT, sensor_reported_at_utc TEXT,
+                    measurement_age_seconds REAL, freshness TEXT,
+                    temperature_c REAL, humidity_pct REAL, pressure_hpa REAL,
+                    wind_speed_mps REAL, wind_gust_mps REAL, wind_direction_deg REAL,
+                    rain_interval_mm REAL, rain_rate_mm_h REAL, uv_index REAL, solar_wm2 REAL,
+                    UNIQUE(station_id,observed_at_utc,source_kind,source_device)
+                )''')
+                db.execute('''INSERT INTO weather_readings_v172
+                    (id,station_id,observed_at_utc,recorded_at_utc,source_kind,source_device,
+                     temperature_c,humidity_pct,pressure_hpa,wind_speed_mps,
+                     wind_gust_mps,wind_direction_deg,rain_interval_mm,rain_rate_mm_h,uv_index,solar_wm2)
+                    SELECT id,station_id,observed_at_utc,recorded_at_utc,source_kind,source_device,
+                     temperature_c,humidity_pct,pressure_hpa,wind_speed_mps,
+                     wind_gust_mps,wind_direction_deg,rain_interval_mm,rain_rate_mm_h,uv_index,solar_wm2
+                    FROM weather_readings''')
+                db.execute('DROP TABLE weather_readings')
+                db.execute('ALTER TABLE weather_readings_v172 RENAME TO weather_readings')
                 db.execute('''CREATE INDEX idx_weather_station_time
                     ON weather_readings(station_id, observed_at_utc DESC, id DESC)''')
 
@@ -233,10 +266,9 @@ class WeatherStore:
             total = db.execute('SELECT COUNT(*) FROM weather_readings').fetchone()[0]
         return {'stations': self.stations(), 'reading_count': total,
                 'automatic_collection': False, 'connected_devices': 0,
-                'implemented_inputs': ['MANUAL', 'IMPORTED_HISTORICAL', 'ECOWITT_ON_DEMAND_LAN', 'RTL433_ON_DEMAND_SDR'],
-                'on_demand_adapters': ['Ecowitt local HTTP', 'rtl_433 optional RTL-SDR (manual actions only)'],
-                'future_adapters': ['WeeWX local archive',
-                                    'USB serial weather sensor'],
+                'implemented_inputs': ['MANUAL', 'IMPORTED_HISTORICAL', 'ECOWITT_ON_DEMAND_LAN', 'RTL433_ON_DEMAND_SDR', 'OPENRF_WEATHER_SERIAL_V1_ON_DEMAND'],
+                'on_demand_adapters': ['Ecowitt local HTTP', 'rtl_433 optional RTL-SDR', 'OpenRF Weather Serial v1 (user-probed USB bridge)'],
+                'future_adapters': ['Automatic opt-in recording and sensor freshness monitoring'],
                 'hardware_status': 'NOT_CONFIGURED',
                 'message': 'No receivers are started, discovered or polled by OpenRF on its own.'}
 
@@ -313,6 +345,38 @@ class WeatherStore:
                 'timestamp_basis': 'HOST_LISTEN_WINDOW_NOT_PACKET_TIMESTAMP',
                 'hardware_verified': False, **values}
 
+    def save_serial_sample(self, station_id, capture, candidate):
+        """Persist only an authenticated-by-process receipt, not browser metrics.
+
+        Device identity and timing are still *unverified*: USB protocol response
+        is not a cryptographic signature, calibration or genuine sensor proof.
+        """
+        station_id = self._station_id(station_id)
+        at = normalize_time(capture['received_at_utc'])
+        values = normalize_measurements(candidate['measurements'])
+        source_device = (f"OpenRF weather USB / {capture['port']} / "
+                         f"hw={capture['hardware_id']} / {candidate['model']} / "
+                         f"sensor={candidate['sensor_id']} / channel={candidate['channel']}")[:240]
+        reported = candidate['sensor_reported_at_utc']
+        freshness = candidate['freshness']
+        age = candidate['measurement_age_seconds']
+        now = utc_now()
+        with self._connect() as db:
+            self._exists(db, station_id)
+            keys = ('station_id','observed_at_utc','recorded_at_utc','source_kind','source_device',
+                    'timestamp_basis','sensor_reported_at_utc','measurement_age_seconds','freshness',*FIELDS)
+            payload = (station_id,at,now,'OPENRF_SERIAL_WEATHER_REPORTED',source_device,
+                       'HOST_RECEIVED_AT_UTC',reported,age,freshness,*(values[field] for field in FIELDS))
+            cursor = db.execute('INSERT OR IGNORE INTO weather_readings (' + ','.join(keys) +
+                                ') VALUES (' + ','.join('?' for _ in keys) + ')', payload)
+            if cursor.rowcount != 1:
+                raise WeatherError('This sensor already has a weather reading at the same UTC second.')
+        return {'station_id': station_id, 'observed_at_utc': at, 'recorded_at_utc': now,
+                'source_kind': 'OPENRF_SERIAL_WEATHER_REPORTED', 'source_device': source_device,
+                'timestamp_basis':'HOST_RECEIVED_AT_UTC', 'sensor_reported_at_utc':reported,
+                'measurement_age_seconds':age, 'freshness':freshness,
+                'hardware_verified':False, **values}
+
     def import_csv(self, body):
         if not isinstance(body, dict) or set(body) != {'station_id', 'csv_text'}:
             raise WeatherError('CSV import requires station_id and csv_text only.')
@@ -323,7 +387,7 @@ class WeatherStore:
         try:
             rows = csv.DictReader(io.StringIO(raw.lstrip('\ufeff'), newline=''), strict=True)
             headers = rows.fieldnames
-            if not headers or len(headers) != len(set(headers)) or 'observed_at_utc' not in headers or set(headers) - (set(CSV_FIELDS) | {'station_id', 'source_kind', 'source_device'}):
+            if not headers or len(headers) != len(set(headers)) or 'observed_at_utc' not in headers or set(headers) - (set(CSV_FIELDS) | {'station_id', 'source_kind', 'source_device', 'timestamp_basis', 'sensor_reported_at_utc', 'measurement_age_seconds', 'freshness'}):
                 raise WeatherError('CSV needs observed_at_utc and only the supported measurement headers.')
             if not set(headers).intersection(FIELDS):
                 raise WeatherError('CSV must include at least one measurement column.')
@@ -461,8 +525,11 @@ class WeatherStore:
                               (station_id, MAX_EXPORT_ROWS)).fetchall()
         buffer = io.StringIO(newline='')
         writer = csv.writer(buffer, lineterminator='\r\n')
-        writer.writerow(('station_id', 'source_kind', 'source_device', *CSV_FIELDS))
+        writer.writerow(('station_id', 'source_kind', 'source_device', *CSV_FIELDS,
+                         'timestamp_basis','sensor_reported_at_utc','measurement_age_seconds','freshness'))
         for row in reversed(rows):
             writer.writerow((station_id, row['source_kind'], row['source_device'], row['observed_at_utc'],
-                             *(row[key] if row[key] is not None else '' for key in FIELDS)))
+                             *(row[key] if row[key] is not None else '' for key in FIELDS),
+                             *(row[key] if row[key] is not None else '' for key in
+                               ('timestamp_basis','sensor_reported_at_utc','measurement_age_seconds','freshness'))))
         return buffer.getvalue().encode('utf-8')

@@ -1,5 +1,14 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+OpenRF's original project source is licensed **GPL-3.0-or-later**; see the complete [GNU GPLv3 license text](LICENSE). Individually bundled or optional third-party components retain their own copyright and license notices.
+
+## v0.2.172 — User-controlled USB weather sensors and ESP32 example
+
+- **Wired weather adapters:** In **Weather Station → Stations & Sensors → Wired weather sensors · USB / ESP32**, refresh the read-only Linux `/dev/ttyACM*` and `/dev/ttyUSB*` list, select a port, **Probe selected bridge**, then **Read one snapshot**. A successful `openrf.weather.serial.v1` handshake is protocol compatibility, not certified hardware identity. Other USB/weather brands will need an adapter or matching bridge firmware—plugging an unknown device in does not automatically connect it or record readings.
+- **Honest, selective archiving:** A weather bridge can report up to 16 identified measurements (temperature, humidity, pressure, wind, gusts, wind direction, rain interval/rate, UV and solar, only if actually supported). Each captured record shows its device-reported hardware/sensor identity, SI units, host UTC receipt and optional measurement age. **STALE** readings older than 120 seconds and missing/clock-skewed device timestamps are explicitly labeled. Select a station and tap **Save this reading**; no background polling, automatic uploads, radio transmission, scanner crossover or unattended saving.
+- **Hardware reference:** Optional experimental `firmware/esp32-s3-weather-bme280-v1/` uses an ESP32-S3 and BME280 over I2C to provide *only* temperature/humidity/pressure through USB; requires separate Arduino-ESP32 3.x and Adafruit BME280 Library installation and physical wiring. **Firmware compilation, actual USB communication, sensor values and 7-inch Pi touchscreen behavior remain untested.** The main app runs without any board or Arduino package, on WSL/Pi/Linux Python stdlib.
+- **Protection and history:** No weather bridge action touches USB ports currently used by Meshtastic, MeshCore or Reticulum RNodes, and active OpenRF serial exchanges are exclusive. A new SQLite migration preserves weather history and adds per-sample source/timing/freshness metadata to CSV. The GitHub CI v0.2.169 stale version assertions are fixed by dynamic checks. Details and instructions: [v0.2.172 verification](docs/RELEASE_0.2.172_TESTS.md).
+
 ## v0.2.171 — Wireless weather sensors through opt-in RTL-SDR
 
 - **Decode real compatible wireless sensors on request:** In **Weather Station → Stations & Sensors → Wireless weather sensors · RTL-SDR**, choose a local station, 433.92/868.3/915 MHz band and 10–30-second window. **Listen** starts an optional `rtl_433` subprocess for that bounded session, **Stop** can end it early, **Refresh receiver status** checks availability/results, and **Save this sensor** archives only a selected decoded weather candidate. Supported weather fields vary by decoder and model; OpenRF does not know whether any specific purchased sensor is compatible until it is actually observed.
@@ -982,7 +991,7 @@ python3 -m compileall -q openrf
 node tests/test_frontend.js
 ```
 
-Detailed architecture: `docs/ARCHITECTURE.md`. OpenRF's original source is licensed under the **GNU GPL version 3 or (at your option) any later version** (`GPL-3.0-or-later`); see the repository-root `LICENSE` and `COPYRIGHT` files. External libraries, map data, fonts, artwork and other third-party assets retain their own licenses and attribution requirements.
+Detailed architecture: `docs/ARCHITECTURE.md`. License selection is pending; do not publish the repository as reusable open-source code until an actual license is selected and all dependency terms have been reviewed.
 
 ## v0.2.1 layout/map fixes retained
 

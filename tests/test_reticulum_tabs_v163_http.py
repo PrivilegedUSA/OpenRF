@@ -8,6 +8,7 @@ import unittest
 from urllib.parse import urlsplit
 
 from openrf.server import create_server
+from openrf import __version__
 from openrf.storage import Repository
 
 
@@ -44,7 +45,7 @@ class ReticulumStaticAssetTests(unittest.TestCase):
 
                 status, html = get('/')
                 self.assertEqual(status, 200)
-                self.assertIn(b'/static/reticulum-tabs.js?v=0.2.169', html)
+                self.assertIn(f'/static/reticulum-tabs.js?v={__version__}'.encode(), html)
                 parser = _Scripts()
                 parser.feed(html.decode('utf-8'))
                 self.assertIn('/static/reticulum-tabs.js', parser.paths)

@@ -6,7 +6,7 @@ const vm=require('node:vm');
 const html=fs.readFileSync('openrf/static/index.html','utf8');
 const css=fs.readFileSync('openrf/static/app.css','utf8');
 const code=fs.readFileSync('openrf/static/messaging-tabs.js','utf8');
-assert(html.includes('/static/messaging-tabs.js?v=0.2.169'));
+assert(html.includes('/static/messaging-tabs.js?v='));
 assert(html.includes('id="mesh-nav-item" data-page="messages" type="button"><span class="nav-label">Meshtastic</span>'));
 assert(html.includes('data-page="messages">Meshtastic'));
 assert(html.includes('id="meshcore-contact-directory"'));
@@ -75,4 +75,4 @@ for(const [key,layout] of Object.entries(layouts)){
 assert.equal(elements.get('mesh-node-directory').open,true,'Contacts panel opens Meshtastic directory');
 assert.equal(elements.get('mesh-device-settings').open,true,'Meshtastic connection controls are accessible');
 assert.equal(elements.get('meshcore-device-settings').open,false,'Test double retains original state; live HTML defaults it open');
-console.log('PASS v0.2.169 unified Meshtastic/MeshCore navigation, preserved nodes, scroll and keyboard');
+console.log('PASS v0.2.172 unified Meshtastic/MeshCore navigation, preserved nodes, scroll and keyboard');

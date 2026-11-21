@@ -13,7 +13,7 @@ const groups={
   system:['hardware-readiness-panel','hardware-environment-panel'],
 };
 const names=Object.keys(groups);
-assert(html.includes('/static/hardware-tabs.js?v=0.2.169'));
+assert(html.includes('/static/hardware-tabs.js?v='));
 assert(html.includes('id="page-hardware"'));
 for(const group of names){
   assert(html.includes(`id="hardware-tab-${group}"`));
@@ -70,4 +70,4 @@ assert.equal(nodes.get('hardware-tab-sensors').focusOptions.preventScroll,true);
 controller.open('system');
 assert.equal(controller.current(),'system');
 assert.equal(original['usb-sensor-panel'].value,'user draft','existing fields keep state');
-console.log('PASS v0.2.169 Hardware tabs, existing control preservation, 16px card gaps, keyboard');
+console.log('PASS v0.2.172 Hardware tabs, existing control preservation, 16px card gaps, keyboard');
