@@ -40,17 +40,29 @@ const docEvents={};const windowEvents={};const calls=[];
 const sensorFixture={id:1,name:'TEST FIXTURE',notes:'',reading_count:0,last_observed_at_utc:null};
 let stations=[],rows=[],id=0;
 let receiverRun=null,receiverRunning=false,receiverSaved=false;
+let recordingRunning=false,recordingSessions=[];
 const receiverFixture={candidate_id:'fixture-candidate',model:'FIXTURE WEATHER SENSOR',device_id:'fixture-42',
   channel:'A',battery_reported_ok:null,saved:false,measurements:{temperature_c:22,rain_rate_mm_h:5.08}};
 const response=body=>({ok:true,json:async()=>body});
 async function fetchMock(path,options={}){
   calls.push({path,options});
-  if(path==='/api/weather/status')return response({stations,reading_count:rows.length,automatic_collection:false,connected_devices:0});
+  if(path==='/api/weather/status')return response({stations,reading_count:rows.length,automatic_collection:recordingRunning,connected_devices:0,
+    recording:{running:recordingRunning,session_id:recordingRunning?1:null,stopping:false}});
+  if(path==='/api/weather/recording/sessions')return response({sessions:recordingSessions});
   if(path==='/api/weather/rtl433/status')return response({available:true,running:receiverRunning,
     run:receiverRun&&{...receiverRun,candidates:receiverRunning?[]:[{...receiverFixture,saved:receiverSaved}]}});
   if(path==='/api/weather/serial/ports')return response({ports:['ttyACM0'],diagnostics:[],automatic_connection:false});
   if(path.startsWith('/api/weather/readings?'))return response({readings:rows,source_kind:'MANUAL'});
   const body=JSON.parse(options.body||'{}');
+  if(path==='/api/weather/recording/start'){
+    recordingRunning=true;recordingSessions=[{id:1,station_name:'TEST FIXTURE',state:'RUNNING',
+      source_kind:body.source_kind,source_label:body.source_address,interval_seconds:body.interval_seconds,
+      started_at_utc:'2026-11-21T12:05:00Z',ended_at_utc:null,samples_saved:0,skipped_count:0,failure_count:0}];
+    return response({session_id:1,state:'RUNNING'});
+  }
+  if(path==='/api/weather/recording/stop'){
+    recordingRunning=false;recordingSessions[0].state='STOPPED';return response({state:'STOPPING'});
+  }
   if(path==='/api/weather/rtl433/start'){
     receiverRunning=true;receiverRun={run_id:'fixture-run',state:'RUNNING',frequency_mhz:body.frequency_mhz,
       duration_seconds:body.duration_seconds,finished_at_utc:null};
@@ -108,7 +120,8 @@ async function fetchMock(path,options={}){
 const context={
   document:{getElementById:get,createElement:()=>new Node(),addEventListener:(name,fn)=>docEvents[name]=fn},
   window:{devicePixelRatio:1,addEventListener:(name,fn)=>windowEvents[name]=fn},
-  fetch:fetchMock,console,Number,Date,Math,Promise,Blob,URL,setTimeout:(fn,delay)=>{pendingTimers.push({fn,delay});},
+  fetch:fetchMock,console,Number,Date,Math,Promise,Blob,URL,setTimeout:(fn,delay)=>{pendingTimers.push({fn,delay});return pendingTimers.length;},
+  clearTimeout:()=>{},
 };
 const pendingTimers=[];
 vm.runInNewContext(code,context);
@@ -220,6 +233,18 @@ async function test(){
   assert.equal(calls.filter(call=>call.path==='/api/weather/serial/save').length,1);
   assert(get('weather-serial-status').textContent.includes('No ongoing connection'));
   assert.equal(serial.children[1].textContent,'Saved');
-  console.log('PASS weather: manual, Ecowitt, WeeWX, rtl_433 and opt-in USB bridge read/selected save');
+  assert.equal(calls.filter(call=>call.path==='/api/weather/recording/start').length,0,
+    'Nothing should schedule recording without an explicit operator click');
+  get('weather-recording-station').value='1';get('weather-recording-source').value='ECOWITT';
+  get('weather-recording-address').value='192.168.1.40';get('weather-recording-interval').value='300';
+  await get('weather-recording-start').events.click();
+  const record=JSON.parse(calls.find(call=>call.path==='/api/weather/recording/start').options.body);
+  assert.equal(record.source_kind,'ECOWITT');assert.equal(record.interval_seconds,300);
+  assert.equal(get('weather-recording-badge').textContent,'RECORDING · USER STARTED');
+  context.window.OpenRFWeather.openTab('history');
+  assert.equal(get('weather-recording-sessions').children.length,1);
+  await get('weather-recording-stop').events.click();
+  assert.equal(get('weather-recording-badge').textContent,'STOPPED · OPT-IN');
+  console.log('PASS weather: on-demand sources, explicit scheduled recording, history and stop');
 }
 test().catch(error=>{console.error(error);process.exitCode=1;});

@@ -60,6 +60,7 @@ from .storage import Repository, to_csv, to_geojson
 from .weather import WeatherStore, WeatherError
 from .weather_rtl433 import WeatherRtl433Manager, WeatherReceiverError
 from .weather_serial import WeatherSerialReceipts, WeatherSerialError, query_weather_port
+from .weather_recording import WeatherRecorder, WeatherRecordingError
 from .emergency import EmergencyStore
 from .emergency_packs import STARTER_PACK
 from .emergency_sos import compose_draft
@@ -82,6 +83,8 @@ DEFAULT_DB = Path.home() / '.local' / 'share' / 'openrf' / 'openrf.sqlite3'
 
 class OpenRFHTTPServer(ThreadingHTTPServer):
     def server_close(self):
+        if hasattr(self, 'weather_recorder'):
+            self.weather_recorder.close()
         if hasattr(self, 'hotspot_manager') and self.hotspot_manager.state_file.exists():
             try:
                 self.hotspot_manager.stop({}, internal=True)
@@ -409,9 +412,17 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/health':
             return self._json(200, {'status': 'ok', 'version': __version__})
         if path == '/api/weather/status':
-            return self._json(200, self.server.weather_store.status())
+            weather_status = self.server.weather_store.status()
+            recorder = self.server.weather_recorder.status()
+            weather_status['automatic_collection'] = recorder['running']
+            weather_status['recording'] = recorder
+            return self._json(200, weather_status)
         if path == '/api/weather/stations':
             return self._json(200, {'stations': self.server.weather_store.stations()})
+        if path == '/api/weather/recording/status':
+            return self._json(200, self.server.weather_recorder.status())
+        if path == '/api/weather/recording/sessions':
+            return self._json(200, {'sessions': self.server.weather_recorder.sessions()})
         if path == '/api/weather/rtl433/status':
             if urlparse(self.path).query:
                 return self._error(400, 'Weather receiver status takes no query parameters.')
@@ -925,6 +936,15 @@ class Handler(BaseHTTPRequestHandler):
             if path == '/api/weather/ecowitt/read':
                 receipt = self.server.weather_store.read_ecowitt(body)
                 return self._json(201 if receipt['saved'] else 200, {'reading': receipt})
+            if path == '/api/weather/recording/start':
+                try:
+                    return self._json(202, self.server.weather_recorder.start(body))
+                except WeatherRecordingError as exc:
+                    return self._error(409 if 'already running' in str(exc) else 400, str(exc))
+            if path == '/api/weather/recording/stop':
+                if body:
+                    raise ValueError('Recording stop request accepts an empty object only.')
+                return self._json(200, self.server.weather_recorder.stop())
             if path == '/api/weather/rtl433/start':
                 try:
                     with self.server.receiver_start_lock:
@@ -952,22 +972,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self._error(400, 'Choose exactly one Linux USB serial port.')
                 port = body['port']
                 try:
-                    with self.server.messaging_port_lock:
-                        if not self.server.serial_lock.acquire(blocking=False):
-                            raise WeatherSerialError('Another OpenRF USB sensor operation is in progress.', 'serial_busy')
-                        try:
-                            mesh = self.server.mesh_manager.status()
-                            core = self.server.meshcore_manager.status()
-                            reticulum = self.server.reticulum_manager.status()
-                            if mesh.get('port') == port and mesh.get('state', 'CONNECTED' if mesh.get('connected') else 'DISCONNECTED') != 'DISCONNECTED':
-                                raise WeatherSerialError('USB port is occupied by Meshtastic. Disconnect it first.', 'port_owned_by_meshtastic')
-                            if core.get('port') == port and core.get('state') != 'DISCONNECTED':
-                                raise WeatherSerialError('USB port is occupied by MeshCore. Disconnect it first.', 'port_owned_by_meshcore')
-                            if reticulum.get('enabled') and port in reticulum.get('rnode_ports', [reticulum.get('rnode_port')]):
-                                raise WeatherSerialError('USB port is occupied by a Reticulum RNode. Stop Reticulum first.', 'port_owned_by_reticulum')
-                            reply = query_weather_port(port, enumerate_serial_ports(), snapshot=path.endswith('/read'))
-                        finally:
-                            self.server.serial_lock.release()
+                    reply = safe_weather_serial_query(self.server, port, snapshot=path.endswith('/read'))
                     if path.endswith('/read'):
                         return self._json(200, {'capture': self.server.weather_serial_receipts.remember(reply)})
                     return self._json(200, {'probe': reply})
@@ -1747,6 +1752,26 @@ class Handler(BaseHTTPRequestHandler):
             return self._error(400, 'Invalid observation ID')
 
 
+def safe_weather_serial_query(server, port, *, snapshot):
+    """One USB weather transaction with all messaging port owners protected."""
+    with server.messaging_port_lock:
+        if not server.serial_lock.acquire(blocking=False):
+            raise WeatherSerialError('Another OpenRF USB sensor operation is in progress.', 'serial_busy')
+        try:
+            mesh = server.mesh_manager.status()
+            core = server.meshcore_manager.status()
+            reticulum = server.reticulum_manager.status()
+            if mesh.get('port') == port and mesh.get('state', 'CONNECTED' if mesh.get('connected') else 'DISCONNECTED') != 'DISCONNECTED':
+                raise WeatherSerialError('USB port is occupied by Meshtastic. Disconnect it first.', 'port_owned_by_meshtastic')
+            if core.get('port') == port and core.get('state') != 'DISCONNECTED':
+                raise WeatherSerialError('USB port is occupied by MeshCore. Disconnect it first.', 'port_owned_by_meshcore')
+            if reticulum.get('enabled') and port in reticulum.get('rnode_ports', [reticulum.get('rnode_port')]):
+                raise WeatherSerialError('USB port is occupied by a Reticulum RNode. Stop Reticulum first.', 'port_owned_by_reticulum')
+            return query_weather_port(port, enumerate_serial_ports(), snapshot=snapshot)
+        finally:
+            server.serial_lock.release()
+
+
 def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServer:
     server = OpenRFHTTPServer(('127.0.0.1', port), Handler)
     server.recovery_lock=restore_exclusive_lock(repository.path)
@@ -1786,6 +1811,8 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.mesh_manager = MeshManager(history_path=repository.path.parent / 'mesh-history.sqlite3')
     server.meshcore_manager = MeshCoreManager()
     server.reticulum_manager = ReticulumManager(repository.path.parent / 'reticulum')
+    server.weather_recorder = WeatherRecorder(server.weather_store, ports=enumerate_serial_ports,
+        serial_snapshot=lambda port: safe_weather_serial_query(server, port, snapshot=True))
     server.bluetooth_file_manager = BluetoothFileManager()
     server.hotspot_manager = HotspotManager(repository.path.parent / 'field-network')
     server.alpr_import_lock = threading.Lock()

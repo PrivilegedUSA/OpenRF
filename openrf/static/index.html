@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.172">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.173">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -23,11 +23,11 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/map-elevation.js?v=0.2.151"></script>
   <script defer src="/static/battery-status.js?v=0.2.151"></script>
-  <script defer src="/static/wifi-quick.js?v=0.2.172"></script>
+  <script defer src="/static/wifi-quick.js?v=0.2.173"></script>
   <script defer src="/static/route-elevation.js?v=0.2.151"></script>
   <script defer src="/static/trip-map.js?v=0.2.151"></script>
-  <script defer src="/static/app.js?v=0.2.172"></script>
-  <script defer src="/static/app-settings.js?v=0.2.172"></script>
+  <script defer src="/static/app.js?v=0.2.173"></script>
+  <script defer src="/static/app-settings.js?v=0.2.173"></script>
   <script defer src="/static/browser-workspace.js?v=0.2.151"></script>
   <script defer src="/static/saved-trips.js?v=0.2.151"></script>
   <script defer src="/static/emergency-tabs.js?v=0.2.151"></script>
@@ -47,19 +47,19 @@
   <script defer src="/static/emergency-backup.js?v=0.2.151"></script>
   <script defer src="/static/field-calendar.js?v=0.2.151"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.172"></script>
-  <script defer src="/static/meshcore.js?v=0.2.172"></script>
-  <script defer src="/static/messaging-tabs.js?v=0.2.172"></script>
-  <script defer src="/static/weather.js?v=0.2.172"></script>
-  <script defer src="/static/reticulum.js?v=0.2.172"></script>
-  <script defer src="/static/reticulum-files.js?v=0.2.172"></script>
-  <script defer src="/static/bluetooth-files.js?v=0.2.172"></script>
-  <script defer src="/static/reticulum-tabs.js?v=0.2.172"></script>
+  <script defer src="/static/mesh.js?v=0.2.173"></script>
+  <script defer src="/static/meshcore.js?v=0.2.173"></script>
+  <script defer src="/static/messaging-tabs.js?v=0.2.173"></script>
+  <script defer src="/static/weather.js?v=0.2.173"></script>
+  <script defer src="/static/reticulum.js?v=0.2.173"></script>
+  <script defer src="/static/reticulum-files.js?v=0.2.173"></script>
+  <script defer src="/static/bluetooth-files.js?v=0.2.173"></script>
+  <script defer src="/static/reticulum-tabs.js?v=0.2.173"></script>
   <script defer src="/static/mesh_connections.js?v=0.2.104"></script>
   <script defer src="/static/wifi_halow.js?v=0.2.104"></script>
   <script defer src="/static/field_network.js?v=0.2.104"></script>
   <script defer src="/static/field_hotspot.js?v=0.2.104"></script>
-  <script defer src="/static/hardware-tabs.js?v=0.2.172"></script>
+  <script defer src="/static/hardware-tabs.js?v=0.2.173"></script>
   <script defer src="/static/offline_readiness.js?v=0.2.104"></script>
   <script defer src="/static/camera-layers.js?v=0.2.114"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
@@ -67,7 +67,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.172</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.173</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -172,6 +172,20 @@
             <label for="weather-dashboard-station">Station to view</label><select class="field" id="weather-dashboard-station"><option value="">Create a station under Stations &amp; Sensors</option></select>
             <div class="button-line"><button type="button" class="btn outline" id="weather-refresh">Refresh local records</button><button type="button" class="btn primary" id="weather-open-sensors">Set up a station</button></div>
           </div>
+          <div class="panel weather-section">
+            <div class="panel-title"><h3>Weather recording</h3><span class="pill" id="weather-recording-badge">STOPPED · OPT-IN</span></div>
+            <p class="small muted">Start a bounded local recording session for one selected station and source. Ecowitt samples are gateway-reported, not sensor-time-verified. USB samples require a known OpenRF Weather Serial v1 sensor and skip stale/unknown-age responses. Recording does not resume after an app restart. No SDR listening, auto-discovery, or internet upload.</p>
+            <div class="weather-gateway-grid">
+              <label>Save into station<select class="field" id="weather-recording-station"><option value="">Select a station</option></select></label>
+              <label>Recording source<select class="field" id="weather-recording-source"><option value="ECOWITT">Ecowitt private LAN gateway</option><option value="SERIAL">USB / ESP32 weather bridge</option></select></label>
+              <label>Gateway IP or Linux USB port<input class="field" id="weather-recording-address" maxlength="80" placeholder="192.168.1.40" autocomplete="off" spellcheck="false"></label>
+              <label>Sample interval<select class="field" id="weather-recording-interval"><option value="60">Every 1 minute</option><option value="120">Every 2 minutes</option><option value="300" selected>Every 5 minutes</option><option value="600">Every 10 minutes</option><option value="900">Every 15 minutes</option></select></label>
+              <label class="weather-recording-serial" id="weather-recording-id-label" hidden>USB sensor ID<input class="field" id="weather-recording-sensor-id" maxlength="64" placeholder="Exact ID from a snapshot" spellcheck="false"></label>
+              <label class="weather-recording-serial" id="weather-recording-channel-label" hidden>USB channel (if any)<input class="field" id="weather-recording-channel" maxlength="24" placeholder="Empty if none" spellcheck="false"></label>
+            </div>
+            <div class="button-line"><button type="button" class="btn primary" id="weather-recording-start">Start recording</button><button type="button" class="btn outline" id="weather-recording-stop" disabled>Stop recording</button><button type="button" class="btn outline" id="weather-recording-refresh">Refresh recording status</button></div>
+            <p id="weather-recording-status" class="small muted" role="status" aria-live="polite">Stopped. Nothing is being polled or saved automatically.</p>
+          </div>
           <div class="weather-metrics" aria-label="Last recorded weather readings (never automatically live)">
             <div class="weather-metric"><span>Temperature</span><strong id="weather-temperature">—</strong><small id="weather-temperature-meta">No recorded value</small></div>
             <div class="weather-metric"><span>Wind speed</span><strong id="weather-wind">—</strong><small id="weather-wind-meta">No recorded value</small></div>
@@ -273,6 +287,11 @@
           <p id="weather-sensors-status" class="small muted" role="status" aria-live="polite">Create a station to begin recording and importing weather observations.</p>
         </section>
         <section class="weather-tab-panel" id="weather-panel-history" role="tabpanel" aria-labelledby="weather-tab-history" hidden>
+          <div class="panel weather-section">
+            <div class="panel-title"><h3>Recording sessions</h3><span class="pill">LOCAL · LAST 20 SESSIONS</span></div>
+            <div id="weather-recording-sessions" class="weather-station-list"><p class="small muted">No recording sessions yet.</p></div>
+            <p class="small muted">Sessions keep start/end UTC times, source, interval, saved/skipped/error counts and stop reason. Individual readings remain in station history and CSV with their source labels and recording session IDs. Up to 72 hours or 5,000 saved samples per session; no automatic restart.</p>
+          </div>
           <div class="panel weather-section">
             <div class="panel-title"><h3>Historical observations</h3><span class="pill">ACTUAL SAVED RECORDS</span></div>
             <div class="weather-history-filters">

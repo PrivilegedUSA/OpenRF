@@ -1,4 +1,4 @@
-/* OpenRF v0.2.172 — user-triggered Ecowitt and rtl_433 weather inputs. */
+/* OpenRF v0.2.173 weather hub — opt-in local recording and source-tagged history. */
 (() => {
   'use strict';
   const el = id => document.getElementById(id);
@@ -69,7 +69,7 @@
     return option;
   }
   function syncSelectors(force=false) {
-    const ids=['weather-dashboard-station','weather-manual-station','weather-import-station','weather-weewx-station','weather-history-station','weather-gateway-station','weather-rtl433-station','weather-serial-station'];
+    const ids=['weather-dashboard-station','weather-manual-station','weather-import-station','weather-weewx-station','weather-history-station','weather-gateway-station','weather-rtl433-station','weather-serial-station','weather-recording-station'];
     for (const id of ids) {
       const select=el(id), prior=select.value;
       select.replaceChildren(option('','Select a station'));
@@ -140,15 +140,81 @@
     if(!state.stations.some(s=>s.id===state.selected))state.selected=state.stations[0]?.id||null;
     el('weather-station-count').textContent=String(state.stations.length);
     el('weather-reading-count').textContent=String(result.reading_count||0);
-    el('weather-hardware-badge').textContent='NO LIVE SENSOR';
-    el('weather-dashboard-status').textContent='No physical weather receiver is configured. Values below are saved records, including optional user-requested gateway snapshots—not an automatic live scan.';
+    el('weather-hardware-badge').textContent=result.recording?.running?'RECORDING · SOURCE REPORTED':'NO LIVE SENSOR';
+    el('weather-dashboard-status').textContent=result.recording?.running
+      ? 'Explicit recording is running. Source-reported readings are not independent sensor verification; see recording status below.'
+      : 'No physical weather receiver is configured. Values below are saved records, including optional user-requested gateway snapshots—not an automatic live scan.';
     syncSelectors();renderStationList();await renderOverview();
+    renderRecordingStatus(result.recording||{running:false});
+    await loadRecordingSessions();
     if(state.active==='history')await loadHistory();
   }
   el('weather-refresh').addEventListener('click',()=>refresh().catch(error=>{el('weather-dashboard-status').textContent=error.message;}));
   el('weather-open-sensors').addEventListener('click',()=>setTab('sensors'));
   el('weather-dashboard-station').addEventListener('change',e=>setStation(e.target.value));
   el('weather-history-station').addEventListener('change',e=>setStation(e.target.value));
+
+  // GET status/history calls never touch sensors. Only Start authorizes periodic reads.
+  let recordingTimer=null;
+  function renderRecordingStatus(report){
+    const running=!!report.running,stopping=!!report.stopping;
+    el('weather-recording-badge').textContent=running?(stopping?'STOPPING…':'RECORDING · USER STARTED'):'STOPPED · OPT-IN';
+    el('weather-recording-start').disabled=running;
+    el('weather-recording-stop').disabled=!running||stopping;
+    el('weather-recording-status').textContent=running
+      ? `${stopping?'Stopping':'Recording'} session #${report.session_id}. Maximum 72 hours / 5,000 saved samples. Source-reported, not sensor-verified.`
+      : 'Stopped. No scheduled weather reads are running. History remains saved locally.';
+    if(recordingTimer!==null){clearTimeout(recordingTimer);recordingTimer=null;}
+    if(running && state.visible){
+      recordingTimer=setTimeout(()=>{recordingTimer=null;if(state.visible)refresh().catch(error=>{
+        el('weather-recording-status').textContent=error.message;});},10000);
+    }
+  }
+  async function loadRecordingSessions(){
+    const result=await request('/api/weather/recording/sessions'),container=el('weather-recording-sessions');
+    container.replaceChildren();
+    if(!result.sessions?.length){
+      const p=document.createElement('p');p.className='small muted';p.textContent='No recording sessions yet.';
+      container.append(p);return;
+    }
+    for(const session of result.sessions){
+      const line=document.createElement('div');line.className='weather-station-row';
+      const main=document.createElement('div'),title=document.createElement('strong'),meta=document.createElement('small');
+      title.textContent=`#${session.id} · ${session.station_name} · ${session.state}`;
+      meta.textContent=`${session.source_kind} (${session.source_label}) · ${session.interval_seconds}s interval · ${stamp(session.started_at_utc)} to ${stamp(session.ended_at_utc)} UTC · ${session.samples_saved} saved · ${session.skipped_count} skipped · ${session.failure_count} errors${session.last_error?' · '+session.last_error:''}`;
+      main.append(title,meta);line.append(main);container.append(line);
+    }
+  }
+  el('weather-recording-source').addEventListener('change',()=>{
+    const serial=el('weather-recording-source').value==='SERIAL';
+    el('weather-recording-id-label').hidden=!serial;
+    el('weather-recording-channel-label').hidden=!serial;
+    el('weather-recording-address').placeholder=serial?'ttyACM0':'192.168.1.40';
+  });
+  el('weather-recording-start').addEventListener('click',async()=>{
+    const button=el('weather-recording-start'),source=el('weather-recording-source').value;
+    const body={station_id:Number(el('weather-recording-station').value),source_kind:source,
+      source_address:el('weather-recording-address').value.trim(),
+      interval_seconds:Number(el('weather-recording-interval').value)};
+    if(!body.station_id||!body.source_address){el('weather-recording-status').textContent='Choose a station and exact gateway IP or USB port.';return;}
+    if(source==='SERIAL'){
+      body.sensor_id=el('weather-recording-sensor-id').value.trim();
+      body.channel=el('weather-recording-channel').value.trim();
+    }
+    button.disabled=true;
+    try{
+      const result=await request('/api/weather/recording/start',body);
+      el('weather-recording-status').textContent=`Started session #${result.session_id}. First read pending.`;
+      await refresh();
+    }catch(error){el('weather-recording-status').textContent=error.message;button.disabled=false;}
+  });
+  el('weather-recording-stop').addEventListener('click',async()=>{
+    el('weather-recording-stop').disabled=true;
+    try{await request('/api/weather/recording/stop',{});await refresh();}
+    catch(error){el('weather-recording-status').textContent=error.message;}
+  });
+  el('weather-recording-refresh').addEventListener('click',()=>refresh().catch(error=>{
+    el('weather-recording-status').textContent=error.message;}));
 
   let readingGateway=false;
   async function readGateway(save) {
@@ -463,6 +529,9 @@
   document.addEventListener('openrf:weather-shown',()=>{
     state.visible=true;refresh().catch(error=>{el('weather-dashboard-status').textContent=error.message;});
   });
-  document.addEventListener('openrf:weather-hidden',()=>{state.visible=false;});
+  document.addEventListener('openrf:weather-hidden',()=>{
+    state.visible=false;
+    if(recordingTimer!==null){clearTimeout(recordingTimer);recordingTimer=null;}
+  });
   window.OpenRFWeather=Object.freeze({openTab:setTab,refresh});
 })();

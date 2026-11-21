@@ -1305,3 +1305,11 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Bundled the project's existing **GPL-3.0-or-later** choice as a complete standard GNU GPLv3 `LICENSE` text, matching the user's prior GitHub licensing commits. Optional/third-party component licenses are separate.
 - **516 Python tests and 139 JavaScript suites passed locally**, plus Python compilation and JavaScript syntax checks. Only firmware/hardware and actual post-push GitHub Actions validation remain unverified.
 
+## OpenRF v0.2.173 — Explicit weather recording and session history (2026-11-21)
+
+- Added **Start recording / Stop recording** to the Weather Station dashboard: a user-selected Ecowitt RFC1918 gateway or a precise USB/ESP32 Weather Serial v1 sensor ID/channel, with 60, 120, 300, 600 or 900 second interval. No recording begins at startup/page load, no auto-resume after app restart, and no transmission or automatic rtl_433 SDR listening. Existing manual, imported, Ecowitt, SDR and USB on-demand actions are unchanged.
+- Added a single bounded background weather worker (max 72 hours/5,000 saved samples per session, three consecutive failure stop). Refuses an overlapping recording; uses the existing messaging/serial ownership locks for each USB snapshot. Skips stale/unknown-age/clock-skewed USB readings and identical device UTC timestamps. Gateway reports remain explicitly unverified, including freshness.
+- Added local SQLite weather recording sessions with persistent time range, source/interval, counts, error reasons and clean/interrupted/limited termination states. Migration retains existing weather readings and adds an optional per-reading `recording_session_id` included in CSV exports and accepted (as non-authoritative metadata) by CSV reimports. The session-history UI shows the last 20 records without any background hardware probe.
+- Reconfirmed the v0.2.172 fix to old v0.2.169 GitHub Actions assertion expectations; tests and frontend cache keys follow current v0.2.173 packaging. See `docs/RELEASE_0.2.173_TESTS.md` for local test results and physical-verification limits.
+- **522 Python tests and 139 JavaScript suites passed locally**, including synthetic weather recorder start/stop, SQLite interruption recovery, exact USB selection, stale/duplicate suppression and MeshCore USB contention tests. Hardware and remote GitHub CI are unverified.
+

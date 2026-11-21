@@ -2,6 +2,13 @@
 
 OpenRF's original project source is licensed **GPL-3.0-or-later**; see the complete [GNU GPLv3 license text](LICENSE). Individually bundled or optional third-party components retain their own copyright and license notices.
 
+## v0.2.173 — User-started weather recording and local session history
+
+- **Start / Stop recording:** Weather Station → Dashboard now offers opt-in interval-based recording of an exact private-LAN Ecowitt gateway or a specifically identified OpenRF Weather Serial v1 USB sensor. Intervals are 1, 2, 5, 10 or 15 minutes. Nothing starts merely by opening Weather, and nothing resumes after a restart. Recording is bounded to 72 hours or 5,000 saved readings per session; three consecutive read failures stop the session.
+- **Source honesty:** Ecowitt remains gateway-reported and not independently freshness-verified. For USB recording, unknown-age, stale and clock-skewed samples are skipped instead of automatically stored; repeated device UTC times are skipped too. OpenRF still guards USB ports used by Meshtastic, MeshCore and Reticulum. This feature does not automatically activate rtl_433/SDR listening; that continues as a deliberate bounded one-shot operation.
+- **Persistent history:** Weather Station → History includes saved recording sessions with UTC start/end times, source, interval, saved/skipped/error counts and stop reason. The per-reading session ID is included in SQLite and CSV exports; existing observation history is retained. Conservative limits prevent unbounded unattended growth, and the recorder performs no online upload.
+- **Validation and setup:** See [v0.2.173 verification and install instructions](docs/RELEASE_0.2.173_TESTS.md). No live weather hardware, USB bridge firmware, Raspberry Pi touchscreen or post-push GitHub Actions result is claimed verified by local simulated tests.
+
 ## v0.2.172 — User-controlled USB weather sensors and ESP32 example
 
 - **Wired weather adapters:** In **Weather Station → Stations & Sensors → Wired weather sensors · USB / ESP32**, refresh the read-only Linux `/dev/ttyACM*` and `/dev/ttyUSB*` list, select a port, **Probe selected bridge**, then **Read one snapshot**. A successful `openrf.weather.serial.v1` handshake is protocol compatibility, not certified hardware identity. Other USB/weather brands will need an adapter or matching bridge firmware—plugging an unknown device in does not automatically connect it or record readings.

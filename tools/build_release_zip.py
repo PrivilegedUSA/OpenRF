@@ -1,8 +1,8 @@
 """Build a deterministic Windows-compatible OpenRF bundle (ZIP32/Deflate).
 
-Usage from a directory containing `work_v170/`:
-  python3 work_v170/project/tools/build_release_zip.py \
-      --source-root work_v170 --output OpenRF-v0.2.170.zip
+Usage from a directory containing `work173/`:
+  python3 work173/project/tools/build_release_zip.py \
+      --source-root work173 --output OpenRF-v0.2.173.zip
 
 The bundle contains only openrf-bundle.json at ZIP root and managed project/.
 User-owned updater scripts, Git, local data and credentials are never collected.

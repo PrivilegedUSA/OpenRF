@@ -167,7 +167,7 @@ class WeatherStore:
                     ON weather_readings(station_id, observed_at_utc DESC, id DESC)''')
             current_sql = db.execute("SELECT sql FROM sqlite_master WHERE name='weather_readings' AND type='table'").fetchone()[0]
             if 'RTL433_RECEIVER_REPORTED' not in current_sql:
-                # v0.2.170 -> v0.2.172, retaining every historic reading and
+                # v0.2.170 -> v0.2.173, retaining every historic reading and
                 # allowing distinct physical sensor sources in one UTC second.
                 db.execute('''CREATE TABLE weather_readings_v171 (
                     id INTEGER PRIMARY KEY,
@@ -195,7 +195,7 @@ class WeatherStore:
                     ON weather_readings(station_id, observed_at_utc DESC, id DESC)''')
             current_sql = db.execute("SELECT sql FROM sqlite_master WHERE name='weather_readings' AND type='table'").fetchone()[0]
             if 'OPENRF_SERIAL_WEATHER_REPORTED' not in current_sql:
-                # v0.2.172 -> v0.2.172: retain every existing record, source,
+                # v0.2.171 -> v0.2.172: retain every existing record, source,
                 # station ID and timestamp; append explicit sensor time quality.
                 db.execute('''CREATE TABLE weather_readings_v172 (
                     id INTEGER PRIMARY KEY,
@@ -224,6 +224,30 @@ class WeatherStore:
                 db.execute('ALTER TABLE weather_readings_v172 RENAME TO weather_readings')
                 db.execute('''CREATE INDEX idx_weather_station_time
                     ON weather_readings(station_id, observed_at_utc DESC, id DESC)''')
+            # v0.2.173: session records are local, survive restarts, and cannot
+            # silently resume an old weather-device connection.
+            db.execute('''CREATE TABLE IF NOT EXISTS weather_recording_sessions (
+                id INTEGER PRIMARY KEY,
+                station_id INTEGER NOT NULL REFERENCES weather_stations(id),
+                source_kind TEXT NOT NULL CHECK(source_kind IN ('ECOWITT','SERIAL')),
+                source_label TEXT NOT NULL,
+                interval_seconds INTEGER NOT NULL,
+                started_at_utc TEXT NOT NULL,
+                ended_at_utc TEXT,
+                state TEXT NOT NULL CHECK(state IN ('RUNNING','STOPPING','STOPPED','FAILED','INTERRUPTED','LIMIT_REACHED')),
+                samples_saved INTEGER NOT NULL DEFAULT 0,
+                skipped_count INTEGER NOT NULL DEFAULT 0,
+                failure_count INTEGER NOT NULL DEFAULT 0,
+                last_saved_at_utc TEXT,
+                last_error TEXT NOT NULL DEFAULT ''
+            )''')
+            if 'recording_session_id' not in {row['name'] for row in db.execute('PRAGMA table_info(weather_readings)')}:
+                db.execute('ALTER TABLE weather_readings ADD COLUMN recording_session_id INTEGER')
+            db.execute('''CREATE INDEX IF NOT EXISTS idx_weather_recording_readings
+                          ON weather_readings(recording_session_id)''')
+            db.execute('''UPDATE weather_recording_sessions
+                          SET state='INTERRUPTED',ended_at_utc=?,last_error='App stopped; recording requires a new explicit Start.'
+                          WHERE state IN ('RUNNING','STOPPING')''', (utc_now(),))
 
     @staticmethod
     def _station_id(value):
@@ -268,13 +292,13 @@ class WeatherStore:
                 'automatic_collection': False, 'connected_devices': 0,
                 'implemented_inputs': ['MANUAL', 'IMPORTED_HISTORICAL', 'ECOWITT_ON_DEMAND_LAN', 'RTL433_ON_DEMAND_SDR', 'OPENRF_WEATHER_SERIAL_V1_ON_DEMAND'],
                 'on_demand_adapters': ['Ecowitt local HTTP', 'rtl_433 optional RTL-SDR', 'OpenRF Weather Serial v1 (user-probed USB bridge)'],
-                'future_adapters': ['Automatic opt-in recording and sensor freshness monitoring'],
+                'future_adapters': ['Weather alert thresholds and comparison dashboard'],
                 'hardware_status': 'NOT_CONFIGURED',
-                'message': 'No receivers are started, discovered or polled by OpenRF on its own.'}
+                'message': 'All source polling requires a user-started recording or an explicit one-shot read.'}
 
-    def _insert(self, db, station_id, at, source, values, recorded_at, source_device=''):
-        keys = ('station_id', 'observed_at_utc', 'recorded_at_utc', 'source_kind', 'source_device', *FIELDS)
-        payload = (station_id, at, recorded_at, source, source_device, *(values[key] for key in FIELDS))
+    def _insert(self, db, station_id, at, source, values, recorded_at, source_device='', recording_session_id=None):
+        keys = ('station_id', 'observed_at_utc', 'recorded_at_utc', 'source_kind', 'source_device', 'recording_session_id', *FIELDS)
+        payload = (station_id, at, recorded_at, source, source_device, recording_session_id, *(values[key] for key in FIELDS))
         cursor = db.execute('INSERT OR IGNORE INTO weather_readings (' + ','.join(keys) +
                             ') VALUES (' + ','.join('?' for _ in keys) + ')', payload)
         return cursor.rowcount == 1
@@ -294,7 +318,7 @@ class WeatherStore:
         return {'station_id': station_id, 'observed_at_utc': at, 'recorded_at_utc': now,
                 'source_kind': 'MANUAL', **values}
 
-    def read_ecowitt(self, body):
+    def read_ecowitt(self, body, recording_session_id=None):
         """Only an explicit operator request can fetch, and optionally save, a reading."""
         if not isinstance(body, dict) or set(body) != {'station_id', 'gateway_ip', 'save'}:
             raise WeatherError('Choose station_id, private-LAN gateway_ip and save (true/false).')
@@ -319,7 +343,7 @@ class WeatherStore:
         if body['save']:
             with self._connect() as db:
                 self._exists(db, station_id)
-                if not self._insert(db, station_id, at, result['source_kind'], values, at, ip):
+                if not self._insert(db, station_id, at, result['source_kind'], values, at, ip, recording_session_id):
                     raise WeatherError('A gateway reading was already saved at this UTC second. Try again shortly.')
             result['saved'] = True
         return result
@@ -345,7 +369,7 @@ class WeatherStore:
                 'timestamp_basis': 'HOST_LISTEN_WINDOW_NOT_PACKET_TIMESTAMP',
                 'hardware_verified': False, **values}
 
-    def save_serial_sample(self, station_id, capture, candidate):
+    def save_serial_sample(self, station_id, capture, candidate, recording_session_id=None):
         """Persist only an authenticated-by-process receipt, not browser metrics.
 
         Device identity and timing are still *unverified*: USB protocol response
@@ -364,9 +388,9 @@ class WeatherStore:
         with self._connect() as db:
             self._exists(db, station_id)
             keys = ('station_id','observed_at_utc','recorded_at_utc','source_kind','source_device',
-                    'timestamp_basis','sensor_reported_at_utc','measurement_age_seconds','freshness',*FIELDS)
+                    'timestamp_basis','sensor_reported_at_utc','measurement_age_seconds','freshness','recording_session_id',*FIELDS)
             payload = (station_id,at,now,'OPENRF_SERIAL_WEATHER_REPORTED',source_device,
-                       'HOST_RECEIVED_AT_UTC',reported,age,freshness,*(values[field] for field in FIELDS))
+                       'HOST_RECEIVED_AT_UTC',reported,age,freshness,recording_session_id,*(values[field] for field in FIELDS))
             cursor = db.execute('INSERT OR IGNORE INTO weather_readings (' + ','.join(keys) +
                                 ') VALUES (' + ','.join('?' for _ in keys) + ')', payload)
             if cursor.rowcount != 1:
@@ -387,7 +411,7 @@ class WeatherStore:
         try:
             rows = csv.DictReader(io.StringIO(raw.lstrip('\ufeff'), newline=''), strict=True)
             headers = rows.fieldnames
-            if not headers or len(headers) != len(set(headers)) or 'observed_at_utc' not in headers or set(headers) - (set(CSV_FIELDS) | {'station_id', 'source_kind', 'source_device', 'timestamp_basis', 'sensor_reported_at_utc', 'measurement_age_seconds', 'freshness'}):
+            if not headers or len(headers) != len(set(headers)) or 'observed_at_utc' not in headers or set(headers) - (set(CSV_FIELDS) | {'station_id', 'source_kind', 'source_device', 'timestamp_basis', 'sensor_reported_at_utc', 'measurement_age_seconds', 'freshness', 'recording_session_id'}):
                 raise WeatherError('CSV needs observed_at_utc and only the supported measurement headers.')
             if not set(headers).intersection(FIELDS):
                 raise WeatherError('CSV must include at least one measurement column.')
@@ -516,6 +540,37 @@ class WeatherStore:
                               (*args, limit)).fetchall()
         return list(reversed([dict(row) for row in data]))
 
+    def create_recording(self, station_id, source_kind, label, interval_seconds):
+        with self._connect() as db:
+            self._exists(db, station_id)
+            if db.execute('SELECT COUNT(*) FROM weather_recording_sessions').fetchone()[0] >= 250:
+                raise WeatherError('250 saved recording sessions reached; no history was deleted.')
+            if db.execute('SELECT COUNT(*) FROM weather_readings WHERE station_id=?', (station_id,)).fetchone()[0] >= 50000:
+                raise WeatherError('Station has 50,000 readings; export and manage data before recording more.')
+            ident = db.execute('''INSERT INTO weather_recording_sessions
+                (station_id,source_kind,source_label,interval_seconds,started_at_utc,state)
+                VALUES(?,?,?,?,?,'RUNNING')''', (station_id,source_kind,label,interval_seconds,utc_now())).lastrowid
+        return ident
+
+    def update_recording(self, ident, *, state=None, saved=0, skipped=0, failure=0, error=''):
+        with self._connect() as db:
+            db.execute('''UPDATE weather_recording_sessions SET
+                state=COALESCE(?,state),
+                ended_at_utc=CASE WHEN ? IN ('STOPPED','FAILED','INTERRUPTED','LIMIT_REACHED') THEN ? ELSE ended_at_utc END,
+                samples_saved=samples_saved+?,skipped_count=skipped_count+?,failure_count=failure_count+?,
+                last_saved_at_utc=CASE WHEN ? > 0 THEN ? ELSE last_saved_at_utc END,
+                last_error=? WHERE id=?''',
+                (state,state,utc_now(),saved,skipped,failure,saved,utc_now(),str(error)[:240],ident))
+
+    def recordings(self, limit=20):
+        if type(limit) is not int or not 1 <= limit <= 50:
+            raise WeatherError('Recording history limit must be 1–50.')
+        with self._connect() as db:
+            rows = db.execute('''SELECT s.*,w.name AS station_name
+                FROM weather_recording_sessions s JOIN weather_stations w ON w.id=s.station_id
+                ORDER BY s.id DESC LIMIT ?''',(limit,)).fetchall()
+        return [dict(row) for row in rows]
+
     def export_csv(self, station_id):
         station_id = self._station_id(station_id)
         with self._connect() as db:
@@ -526,10 +581,10 @@ class WeatherStore:
         buffer = io.StringIO(newline='')
         writer = csv.writer(buffer, lineterminator='\r\n')
         writer.writerow(('station_id', 'source_kind', 'source_device', *CSV_FIELDS,
-                         'timestamp_basis','sensor_reported_at_utc','measurement_age_seconds','freshness'))
+                         'timestamp_basis','sensor_reported_at_utc','measurement_age_seconds','freshness','recording_session_id'))
         for row in reversed(rows):
             writer.writerow((station_id, row['source_kind'], row['source_device'], row['observed_at_utc'],
                              *(row[key] if row[key] is not None else '' for key in FIELDS),
                              *(row[key] if row[key] is not None else '' for key in
-                               ('timestamp_basis','sensor_reported_at_utc','measurement_age_seconds','freshness'))))
+                               ('timestamp_basis','sensor_reported_at_utc','measurement_age_seconds','freshness','recording_session_id'))))
         return buffer.getvalue().encode('utf-8')
