@@ -16,7 +16,7 @@ def _stamp_helper(pipe):
 
 
 def _nested_worker(pipe):
-    """Probe the Python restriction that broke RNS.Stamps under v0.2.165."""
+    """Probe the Python restriction that broke RNS.Stamps under v0.2.166."""
     ctx = multiprocessing.get_context('spawn')
     parent, child = ctx.Pipe(duplex=False)
     try:

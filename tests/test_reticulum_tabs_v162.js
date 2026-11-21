@@ -8,7 +8,7 @@ const vm = require('node:vm');
 const html = fs.readFileSync('openrf/static/index.html', 'utf8');
 const css = fs.readFileSync('openrf/static/app.css', 'utf8');
 const code = fs.readFileSync('openrf/static/reticulum-tabs.js', 'utf8');
-assert(html.includes('/static/reticulum-tabs.js?v=0.2.165'));
+assert(html.includes('/static/reticulum-tabs.js?v=0.2.166'));
 assert(css.includes('.reticulum-tab-panel[hidden]{display:none!important}'));
 assert(!/\.scrollIntoView\s*\(/.test(code), 'Tab changes must not scroll the page');
 
@@ -124,4 +124,4 @@ assert(html.includes('id="reticulum-send-status"'), 'Send feedback is visible on
 const reticulum = fs.readFileSync('openrf/static/reticulum.js', 'utf8');
 assert(reticulum.includes("sendNote('Route discovery requested. Message NOT sent."));
 assert(reticulum.includes("sendNote('Queued in LXMF."));
-console.log('PASS v0.2.165: four Reticulum tabs, collapsed dashboard settings and visible Inbox send status');
+console.log('PASS v0.2.166: four Reticulum tabs, collapsed dashboard settings and visible Inbox send status');

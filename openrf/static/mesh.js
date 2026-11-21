@@ -15,19 +15,22 @@
     return {receiveSequence:null,unread:0};
   }
   const state={connected:false,mode:'normal',busy:false,polling:false,
-    ...restoredUnread(),reticulumUnread:0};
+    ...restoredUnread(),reticulumUnread:0,meshcoreUnread:0};
   const viewingMessages=()=>Boolean(el('page-messages')?.classList.contains('active'));
   function renderUnread(){
     // The envelope is the total, but each sidebar child shows only its own
     // genuine incoming unread count. Never count sends or initial history.
     const reticulumUnread=state.reticulumUnread||0;
-    const count=state.unread+reticulumUnread;
+    const meshcoreUnread=state.meshcoreUnread||0;
+    const count=state.unread+reticulumUnread+meshcoreUnread;
     for(const [id,value] of [
       ['mesh-header-unread',count],
       ['mesh-nav-unread',state.unread],
       ['reticulum-nav-unread',reticulumUnread],
+      ['meshcore-nav-unread',meshcoreUnread],
       ['mesh-header-mesh-unread',state.unread],
-      ['mesh-header-reticulum-unread',reticulumUnread]
+      ['mesh-header-reticulum-unread',reticulumUnread],
+      ['mesh-header-meshcore-unread',meshcoreUnread]
     ]){
       const badge=el(id);if(!badge)continue;
       badge.hidden=value===0;
@@ -40,14 +43,15 @@
     document.body.classList?.toggle?.('has-message-unread',count>0);
     for(const [id,label,value] of [
       ['mesh-nav-item','Mesh messages',state.unread],
-      ['reticulum-nav-item','Reticulum',reticulumUnread]
+      ['reticulum-nav-item','Reticulum',reticulumUnread],
+      ['meshcore-nav-item','MeshCore',meshcoreUnread]
     ]){
       const button=el(id);
       button?.setAttribute('aria-label',value?`${label}, ${value} unread`:`${label}, no unread messages`);
     }
     const header=el('mesh-header-button');
     header.setAttribute('aria-label',count?`Choose message inbox, ${count} unread`:'Choose message inbox');
-    header.title=count?`${count} unread message${count===1?'':'s'} (Meshtastic: ${state.unread}, Reticulum: ${state.reticulumUnread||0})`:'Choose message inbox';
+    header.title=count?`${count} unread message${count===1?'':'s'} (Meshtastic: ${state.unread}, Reticulum: ${state.reticulumUnread||0}, MeshCore: ${meshcoreUnread})`:'Choose message inbox';
     const markRead=el('mesh-mark-read');
     if(markRead)markRead.disabled=state.unread===0;
     const inboxCount=el('mesh-inbox-unread');
@@ -326,6 +330,10 @@
   document.addEventListener('openrf:reticulum-unread',event=>{
     const count=event.detail?.count;
     if(Number.isSafeInteger(count)&&count>=0){state.reticulumUnread=count;renderUnread();}
+  });
+  document.addEventListener('openrf:meshcore-unread',event=>{
+    const count=event.detail?.count;
+    if(Number.isSafeInteger(count)&&count>=0){state.meshcoreUnread=count;renderUnread();}
   });
   document.addEventListener('openrf:messages-shown',async()=>{
     await refresh();

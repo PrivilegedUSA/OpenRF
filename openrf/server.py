@@ -34,6 +34,7 @@ from .sdr_capture import SdrCaptureManager, CaptureError
 from .radio import RadioReceiver, RadioError
 from .mesh import MeshManager, MeshError
 from .mesh import validate_send as validate_mesh_send
+from .meshcore_radio import MeshCoreManager, MeshCoreError
 from .reticulum_lan import ReticulumManager, ReticulumError, rnode_readiness
 from .reticulum_lan import validate_message as validate_lxmf_message
 from .bluetooth_files import BluetoothFileManager, BluetoothFileError
@@ -89,6 +90,8 @@ class OpenRFHTTPServer(ThreadingHTTPServer):
             self.radio_receiver.close()
         if hasattr(self, 'mesh_manager'):
             self.mesh_manager.close()
+        if hasattr(self, 'meshcore_manager'):
+            self.meshcore_manager.close()
         if hasattr(self, 'reticulum_manager'):
             self.reticulum_manager.close()
         if hasattr(self, 'bluetooth_file_manager'):
@@ -568,9 +571,16 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, self.server.mesh_manager.status())
         if path == '/api/mesh/connections':
             return self._json(200, connection_report(self.server.mesh_manager,
-                                                      self.server.reticulum_manager))
+                                                      self.server.reticulum_manager,
+                                                      self.server.meshcore_manager))
         if path == '/api/mesh/messages':
             return self._json(200, self.server.mesh_manager.messages())
+        if path == '/api/meshcore/status':
+            return self._json(200, self.server.meshcore_manager.status())
+        if path == '/api/meshcore/contacts':
+            return self._json(200, self.server.meshcore_manager.contacts())
+        if path == '/api/meshcore/messages':
+            return self._json(200, self.server.meshcore_manager.messages())
         if path == '/api/reticulum/status':
             return self._json(200, self.server.reticulum_manager.status())
         if path == '/api/reticulum/rnode/readiness':
@@ -738,7 +748,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, raw, 'text/csv; charset=utf-8', {'Content-Disposition': 'attachment; filename="openrf-observations.csv"'})
         if path in ('/', '/index.html'):
             file = STATIC_DIR / 'index.html'
-        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/browser-workspace.js', '/static/saved-trips.js', '/static/wifi-quick.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/trip-map.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/camera_alerts.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/reticulum-files.js', '/static/reticulum-tabs.js', '/static/bluetooth-files.js', '/static/camera-layers.js', '/static/chirp-import.js'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/browser-workspace.js', '/static/saved-trips.js', '/static/wifi-quick.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/trip-map.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/camera_alerts.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/mesh.js', '/static/meshcore.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/reticulum-files.js', '/static/reticulum-tabs.js', '/static/bluetooth-files.js', '/static/camera-layers.js', '/static/chirp-import.js'):
             file = STATIC_DIR / Path(path).name
         elif path == '/static/offline-trails.js':
             file = STATIC_DIR / 'offline-trails.js'
@@ -1129,14 +1139,49 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(201,{'profile':chirp_channels.import_csv(self.repo,body['name'],body['model'],body['csv'])})
             if path == '/api/mesh/connect':
                 try:
-                    reticulum = self.server.reticulum_manager.status()
-                    if (isinstance(body.get('port'), str) and reticulum['enabled'] and
-                            body['port'] in reticulum.get('rnode_ports',
-                                                        [reticulum.get('rnode_port')])):
-                        raise MeshError('That USB port is already assigned to the running Reticulum RNode. Stop Reticulum first.',
-                                        'mesh_port_in_use_by_reticulum', 409)
-                    return self._json(200, self.server.mesh_manager.connect(body))
+                    with self.server.messaging_port_lock:
+                        reticulum = self.server.reticulum_manager.status()
+                        if (isinstance(body.get('port'), str) and reticulum['enabled'] and
+                                body['port'] in reticulum.get('rnode_ports',
+                                                            [reticulum.get('rnode_port')])):
+                            raise MeshError('That USB port is already assigned to the running Reticulum RNode. Stop Reticulum first.',
+                                            'mesh_port_in_use_by_reticulum', 409)
+                        core = self.server.meshcore_manager.status()
+                        if body.get('port') == core.get('port') and core['state'] != 'DISCONNECTED':
+                            raise MeshError('That USB port is reserved for MeshCore. Disconnect MeshCore first.',
+                                            'mesh_port_in_use_by_meshcore', 409)
+                        result = self.server.mesh_manager.connect(body)
+                    return self._json(200, result)
                 except MeshError as exc:
+                    return self._error(exc.status, str(exc), exc.code)
+            if path.startswith('/api/meshcore/'):
+                try:
+                    manager = self.server.meshcore_manager
+                    if path == '/api/meshcore/connect':
+                        with self.server.messaging_port_lock:
+                            port = body.get('port') if isinstance(body, dict) else None
+                            mesh = self.server.mesh_manager.status()
+                            if port == mesh.get('port') and mesh.get('state', 'CONNECTED' if mesh.get('connected') else 'DISCONNECTED') != 'DISCONNECTED':
+                                raise MeshCoreError('That USB port is already in use by Meshtastic. Disconnect it first.',
+                                                    'meshcore_port_in_use_by_meshtastic', 409)
+                            reticulum = self.server.reticulum_manager.status()
+                            if (port and reticulum['enabled'] and
+                                    port in reticulum.get('rnode_ports', [reticulum.get('rnode_port')])):
+                                raise MeshCoreError('That USB port is already assigned to a running Reticulum RNode. Stop Reticulum first.',
+                                                    'meshcore_port_in_use_by_reticulum', 409)
+                            result = manager.connect(body)
+                        return self._json(200, result)
+                    if path == '/api/meshcore/disconnect':
+                        if body != {}:
+                            raise MeshCoreError('Disconnect accepts an empty object.', 'meshcore_bad_request', 400)
+                        with self.server.messaging_port_lock:
+                            result = manager.disconnect()
+                        return self._json(200, result)
+                    if path == '/api/meshcore/refresh':
+                        return self._json(200, manager.refresh(body))
+                    if path == '/api/meshcore/send':
+                        return self._json(202, manager.send(body))
+                except MeshCoreError as exc:
                     return self._error(exc.status, str(exc), exc.code)
             if path.startswith('/api/reticulum/'):
                 try:
@@ -1146,11 +1191,17 @@ class Handler(BaseHTTPRequestHandler):
                         selected_ports = [selected.get('port')] if isinstance(selected, dict) else []
                         if isinstance(body.get('rnodes'), list):
                             selected_ports.extend(item.get('port') for item in body['rnodes'] if isinstance(item, dict))
-                        mesh = self.server.mesh_manager.status()
-                        if mesh['connected'] and mesh.get('port') in selected_ports:
-                            raise ReticulumError('That USB port is already in use by Meshtastic. Disconnect Mesh messages first.',
-                                                 'rnode_port_in_use_by_mesh', 409)
-                        return self._json(200, manager.start(body))
+                        with self.server.messaging_port_lock:
+                            mesh = self.server.mesh_manager.status()
+                            if mesh.get('state', 'CONNECTED' if mesh.get('connected') else 'DISCONNECTED') != 'DISCONNECTED' and mesh.get('port') in selected_ports:
+                                raise ReticulumError('That USB port is already in use by Meshtastic. Disconnect Mesh messages first.',
+                                                     'rnode_port_in_use_by_mesh', 409)
+                            core = self.server.meshcore_manager.status()
+                            if core['state'] != 'DISCONNECTED' and core.get('port') in selected_ports:
+                                raise ReticulumError('That USB port is reserved for MeshCore. Disconnect MeshCore first.',
+                                                     'rnode_port_in_use_by_meshcore', 409)
+                            result = manager.start(body)
+                        return self._json(200, result)
                     if path == '/api/reticulum/stop':
                         return self._json(200, manager.stop(body))
                     if path == '/api/reticulum/announce':
@@ -1616,7 +1667,9 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.receiver_start_lock = threading.Lock()
     server.sdr_captures = SdrCaptureManager(repository.path.parent / 'sdr-captures')
     server.radio_receiver = RadioReceiver()
+    server.messaging_port_lock = threading.RLock()
     server.mesh_manager = MeshManager(history_path=repository.path.parent / 'mesh-history.sqlite3')
+    server.meshcore_manager = MeshCoreManager()
     server.reticulum_manager = ReticulumManager(repository.path.parent / 'reticulum')
     server.bluetooth_file_manager = BluetoothFileManager()
     server.hotspot_manager = HotspotManager(repository.path.parent / 'field-network')

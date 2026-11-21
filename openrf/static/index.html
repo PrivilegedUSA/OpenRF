@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.165">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.166">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -23,11 +23,11 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/map-elevation.js?v=0.2.151"></script>
   <script defer src="/static/battery-status.js?v=0.2.151"></script>
-  <script defer src="/static/wifi-quick.js?v=0.2.165"></script>
+  <script defer src="/static/wifi-quick.js?v=0.2.166"></script>
   <script defer src="/static/route-elevation.js?v=0.2.151"></script>
   <script defer src="/static/trip-map.js?v=0.2.151"></script>
-  <script defer src="/static/app.js?v=0.2.165"></script>
-  <script defer src="/static/app-settings.js?v=0.2.165"></script>
+  <script defer src="/static/app.js?v=0.2.166"></script>
+  <script defer src="/static/app-settings.js?v=0.2.166"></script>
   <script defer src="/static/browser-workspace.js?v=0.2.151"></script>
   <script defer src="/static/saved-trips.js?v=0.2.151"></script>
   <script defer src="/static/emergency-tabs.js?v=0.2.151"></script>
@@ -47,11 +47,12 @@
   <script defer src="/static/emergency-backup.js?v=0.2.151"></script>
   <script defer src="/static/field-calendar.js?v=0.2.151"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.104"></script>
-  <script defer src="/static/reticulum.js?v=0.2.165"></script>
-  <script defer src="/static/reticulum-files.js?v=0.2.165"></script>
-  <script defer src="/static/bluetooth-files.js?v=0.2.165"></script>
-  <script defer src="/static/reticulum-tabs.js?v=0.2.165"></script>
+  <script defer src="/static/mesh.js?v=0.2.166"></script>
+  <script defer src="/static/meshcore.js?v=0.2.166"></script>
+  <script defer src="/static/reticulum.js?v=0.2.166"></script>
+  <script defer src="/static/reticulum-files.js?v=0.2.166"></script>
+  <script defer src="/static/bluetooth-files.js?v=0.2.166"></script>
+  <script defer src="/static/reticulum-tabs.js?v=0.2.166"></script>
   <script defer src="/static/mesh_connections.js?v=0.2.104"></script>
   <script defer src="/static/wifi_halow.js?v=0.2.104"></script>
   <script defer src="/static/field_network.js?v=0.2.104"></script>
@@ -63,7 +64,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.165</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.166</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15M15 6v15"/></svg></span><span class="nav-label">Map</span></button>
@@ -77,6 +78,7 @@
           <div class="nav-subpages" id="messages-nav-subpages" hidden>
             <button class="nav-btn nav-subpage" id="mesh-nav-item" data-page="messages" type="button"><span class="nav-label">Mesh messages</span><span class="mesh-unread-badge mesh-nav-unread" id="mesh-nav-unread" hidden>0</span></button>
             <button class="nav-btn nav-subpage" id="reticulum-nav-item" data-page="reticulum" type="button"><span class="nav-label">Reticulum</span><span class="mesh-unread-badge mesh-nav-unread" id="reticulum-nav-unread" hidden>0</span></button>
+            <button class="nav-btn nav-subpage" id="meshcore-nav-item" data-page="meshcore" type="button"><span class="nav-label">MeshCore</span><span class="mesh-unread-badge mesh-nav-unread" id="meshcore-nav-unread" hidden>0</span></button>
           </div>
         </div>
         <button class="nav-btn" data-page="hamradio"><span class="nav-icon" aria-hidden="true">♫</span><span class="nav-label">Ham Radio</span></button>
@@ -134,6 +136,7 @@
           <div class="header-messages-choices" id="header-messages-choices" role="group" aria-label="Choose message inbox" hidden>
             <button type="button" data-page="messages">Mesh messages<span class="mesh-unread-badge" id="mesh-header-mesh-unread" hidden>0</span></button>
             <button type="button" data-page="reticulum">Reticulum<span class="mesh-unread-badge" id="mesh-header-reticulum-unread" hidden>0</span></button>
+            <button type="button" data-page="meshcore">MeshCore<span class="mesh-unread-badge" id="mesh-header-meshcore-unread" hidden>0</span></button>
           </div>
         </div>
         <span id="mesh-global-announcer" class="visually-hidden" aria-live="polite" aria-atomic="true"></span>
@@ -953,6 +956,44 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
           </div>
           <p class="small muted">Saved text remains on this device outside Git, is not encrypted at rest, and can be erased here. Disabling saving removes the saved messages. No messages are generated without a connected radio.</p>
           </details>
+        </div>
+      </section>
+      <section class="page" id="page-meshcore" aria-label="MeshCore Companion messaging">
+        <div class="section-heading"><div><h2>MeshCore</h2><p>Private direct text messaging through an explicitly connected MeshCore USB Companion radio. Separate from Meshtastic and Reticulum.</p></div><span class="pill">MESHCORE · USB SERIAL</span></div>
+        <div class="panel meshcore-panel" id="meshcore-panel">
+          <div class="panel-title"><h3>MeshCore Companion</h3><span class="pill" id="meshcore-link-badge">DISCONNECTED</span></div>
+          <p id="meshcore-status" class="small" role="status" aria-live="polite">No radio connected. Nothing is transmitting.</p>
+          <details class="meshcore-device" id="meshcore-device-settings" open>
+            <summary>USB radio connection</summary>
+            <p class="small muted">Ports are candidates only—not verified MeshCore devices. Select a USB serial port connected to a radio flashed with <strong>MeshCore Companion</strong> firmware. Opening this page or refreshing the port list never opens a port or transmits.</p>
+            <label for="meshcore-port">Linux USB port
+              <select class="field" id="meshcore-port"><option value="">Refresh available Linux ports</option></select>
+            </label>
+            <div class="button-line meshcore-controls">
+              <button type="button" class="btn primary" id="meshcore-connect" disabled>Connect radio</button>
+              <button type="button" class="btn outline" id="meshcore-disconnect" disabled>Disconnect</button>
+              <button type="button" class="btn outline" id="meshcore-refresh">Refresh ports &amp; contacts</button>
+            </div>
+            <p class="small muted" id="meshcore-device-info">Firmware identity not verified. USB device and LoRa reachability are unknown.</p>
+          </details>
+          <div class="mesh-inbox-header"><h4>Conversations</h4><span id="meshcore-storage" class="small muted">Session only · last 200 messages</span></div>
+          <div class="button-line message-read-actions"><button type="button" class="btn mini outline" id="meshcore-mark-read" disabled>Mark all as read</button><span id="meshcore-unread-label" class="small muted">No unread MeshCore messages</span></div>
+          <div class="meshcore-layout">
+            <div class="meshcore-thread-browser" id="meshcore-thread-browser">
+              <p class="small muted">Radio contacts (not verified online). Choose one to open a conversation.</p>
+              <div id="meshcore-contact-list" class="meshcore-contact-list"><p class="small muted">Connect a radio to load its contact list.</p></div>
+            </div>
+            <div class="meshcore-conversation" id="meshcore-conversation" hidden>
+              <div class="meshcore-conversation-head"><button type="button" id="meshcore-back" class="btn mini outline">← Conversations</button><span id="meshcore-thread-title" class="small">Contact</span></div>
+              <div id="meshcore-messages" class="mesh-messages" role="log" aria-label="MeshCore direct messages, oldest at top and newest at bottom"><p class="small muted">No messages in this conversation.</p></div>
+              <form id="meshcore-compose" class="mesh-compose">
+                <label for="meshcore-text">Direct message<textarea id="meshcore-text" class="field" rows="3" maxlength="120" placeholder="Write a direct MeshCore message…" required></textarea></label>
+                <div class="meshcore-compose-footer"><span class="small muted" id="meshcore-byte-count">0 / 120 UTF-8 bytes</span><button class="btn primary" id="meshcore-send" type="submit" disabled>Send</button></div>
+                <p class="small muted" id="meshcore-send-status" role="status" aria-live="polite">Radio acceptance is not a network ACK or proof someone read your message.</p>
+              </form>
+            </div>
+          </div>
+          <p class="small muted meshcore-privacy-note">Only direct messages to contacts on your selected MeshCore radio are supported in this patch. No automatic network forwarding, broadcasts, channel messages, GPS sharing or message uploads. Text is kept in memory until server shutdown; it is not encrypted at rest because no persistent message history is created. A network ACK reports an acknowledged packet, not a human reading confirmation.</p>
         </div>
       </section>
       <section class="page" id="page-reticulum" aria-label="Reticulum LXMF inbox and connection">

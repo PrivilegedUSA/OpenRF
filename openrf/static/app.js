@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const SELECTED_PAGE_SESSION_KEY = 'openrf.selected-page.v1';
 const MAP_VECTOR_PREFERENCE_KEY = 'openrf.map.vector-preference.v1';
 const MAP_BASEMAP_PREFERENCE_KEY = 'openrf.map.basemap.v1';
-const VALID_PAGES = new Set(['map','overview','emergency','scanner','spectrum','radio','messages','reticulum','hamradio','discoveries','trips','browser','sessions','hardware','settings']);
+const VALID_PAGES = new Set(['map','overview','emergency','scanner','spectrum','radio','messages','reticulum','meshcore','hamradio','discoveries','trips','browser','sessions','hardware','settings']);
 function rememberedBaseMap(){
   try {const value=window.localStorage?.getItem(MAP_BASEMAP_PREFERENCE_KEY);
     return ['default','satellite','topographic'].includes(value)?value:'default';}
@@ -438,10 +438,10 @@ function showPage(page, options = {}) {
     setNavigationOpen(false, false);
   }
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.toggle('active', el.dataset.page === page));
-  if (page === 'messages' || page === 'reticulum') setMessagesSubpagesOpen(true);
-  $('messages-nav-toggle').classList.toggle('active', page === 'messages' || page === 'reticulum');
+  if (page === 'messages' || page === 'reticulum' || page === 'meshcore') setMessagesSubpagesOpen(true);
+  $('messages-nav-toggle').classList.toggle('active', page === 'messages' || page === 'reticulum' || page === 'meshcore');
   document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === `page-${page}`));
-  const titles = {overview:'Field overview',emergency:'Emergency readiness',map:'Survey map',scanner:'Signal analysis',spectrum:'Spectrum & Waterfall',radio:'Radio receiver',messages:'Mesh messages',reticulum:'Reticulum messages',hamradio:'Ham radio channel lists',discoveries:'Saved discoveries',trips:'Trips & Maps',browser:'Web browser',sessions:'Investigations',hardware:'Hardware manager',settings:'App settings'};
+  const titles = {overview:'Field overview',emergency:'Emergency readiness',map:'Survey map',scanner:'Signal analysis',spectrum:'Spectrum & Waterfall',radio:'Radio receiver',messages:'Mesh messages',reticulum:'Reticulum messages',meshcore:'MeshCore messages',hamradio:'Ham radio channel lists',discoveries:'Saved discoveries',trips:'Trips & Maps',browser:'Web browser',sessions:'Investigations',hardware:'Hardware manager',settings:'App settings'};
   $('page-title').textContent = titles[page] || 'OpenRF'; $('page-crumb').textContent = page.toUpperCase();
   // Page-specific headings are the one visible title on non-map workspaces.
   // The old topbar H1 is intentionally hidden; do not focus a hidden node.
@@ -454,6 +454,7 @@ function showPage(page, options = {}) {
   if (page === 'radio') document.dispatchEvent(new Event('openrf:radio-shown'));
   if (page === 'messages') document.dispatchEvent(new Event('openrf:messages-shown'));
   if (page === 'reticulum') document.dispatchEvent(new Event('openrf:reticulum-shown'));
+  if (page === 'meshcore') document.dispatchEvent(new Event('openrf:meshcore-shown'));
   if (page === 'hardware') document.dispatchEvent(new Event('openrf:hardware-shown'));
   if (page === 'emergency') document.dispatchEvent(new Event('openrf:emergency-shown'));
   if (page === 'settings') document.dispatchEvent(new Event('openrf:settings-shown'));

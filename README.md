@@ -1,5 +1,12 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.166 — MeshCore USB Companion messaging (hardware test pending)
+
+- **Third messaging system:** Open **Messages → MeshCore** to view read-only Linux USB candidates, manually Connect/Disconnect a Companion-radio serial port, refresh its actual contacts, and exchange direct text with a selected radio contact. Messages show oldest at the top and newest at the bottom; a conversation opens at the latest text and follows only while near the bottom. Unread messages are marked read explicitly.
+- **Honest delivery and privacy:** MeshCore radio submission and a matching network ACK are distinct; neither means a person read it. No broadcast, automatic announce, forwarding to Meshtastic/LXMF, or automatic connection. Text stays in bounded session memory, not SQLite. USB ownership checks reject conflicts with running Meshtastic and Reticulum RNodes. The three inboxes remain independent.
+- **Optional Python package:** In the **same Linux/WSL/Pi Python environment used by OpenRF**, install the official SDK with `python3 -m pip install meshcore` (internet required *for installation only*, not for messaging). If using a virtualenv, run its `python -m pip install meshcore`. The main app continues working without this dependency. On WSL, USB serial ports need Linux passthrough; a visible port is only a candidate and must have suitable MeshCore **Companion** firmware, not Meshtastic/RNode firmware. Restart the backend after optional package installation.
+- **Testing:** The new MeshCore integration was tested with simulated SDK events and fake USB bridges, plus HTTP/JavaScript tests; real MeshCore radios, USB permissions, Pi hardware, ACK latency and network range are **not verified**. See [v0.2.166 verification and field checks](docs/RELEASE_0.2.166_TESTS.md).
+
 ## v0.2.165 — Reticulum messages like a chat, with receipt updates
 
 - **Latest at the bottom:** Both Reticulum and Meshtastic conversations now sort oldest-to-newest by their reported UTC timestamps, not by database insertion order. Opening a Reticulum thread, switching to Inbox or opening Mesh messages shows the latest message; new messages keep the view at the bottom if you were already there, but won't yank you away from older texts while reading.

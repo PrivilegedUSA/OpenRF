@@ -1,3 +1,10 @@
+## OpenRF v0.2.166 — MeshCore Companion radio messaging foundation (2026-11-21)
+
+- Added independent **Messages → MeshCore** workspace, touchscreen-ready USB controls, actual radio contact list, read-only unknown-sender threads, and direct radio text composition. Chronological conversation bubbles open at the newest and follow new messages only if already near the bottom. Header/sidebar unread count integrates without merging Meshtastic, MeshCore or Reticulum conversations.
+- Added optional official MeshCore `meshcore` Python SDK adapter in a dedicated asyncio loop. Explicit user action is required for serial Connect, Refresh contacts, Disconnect or Send; read-only inventory never opens an unknown port. Server process keeps no persistent MeshCore text history; up to 200 messages live in memory. No auto-advertisement, broadcasts, forwarding, location sharing or simulated transmissions.
+- Outgoing message receipts are matched by the SDK's `expected_ack` field to an actual ACK event. Radio submission is **not** a network ACK or recipient-read receipt. Errors and disconnected links do not become successes. Added synchronized mutual USB port-claim checks against Meshtastic and configured Reticulum RNodes and included MeshCore ownership in the read-only connections report.
+- Added deterministic Python fake-Companion, async SDK-shaped event-loop, API conflict and JavaScript inbox regression tests. **471 Python tests and 134 JavaScript suites passed locally.** No live MeshCore physical radio, WSL USB passthrough, Pi display or over-the-air success was verified. See `docs/RELEASE_0.2.166_TESTS.md`.
+
 ## OpenRF v0.2.165 — Reticulum chat chronology and delivery receipt callbacks (2026-11-21)
 
 - Reticulum and Meshtastic conversation bubbles now follow actual UTC chronology from oldest at the top to newest at the bottom, even when local history rows were inserted after an older message. Entering a Reticulum thread, selecting the Inbox tab or opening Mesh messages moves the conversation to the latest message; automatic polls follow only when near the bottom, preserving a manually scrolled position.

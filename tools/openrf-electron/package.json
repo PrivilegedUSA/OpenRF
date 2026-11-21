@@ -1,7 +1,7 @@
 {
   "name": "openrf-native-shell",
   "private": true,
-  "version": "0.2.165",
+  "version": "0.2.166",
   "description": "Chromium-based OpenRF Linux desktop shell and optional Debian packaging",
   "author": "OpenRF local build <openrf@localhost>",
   "homepage": "https://github.com/topics/openrf",

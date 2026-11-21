@@ -2823,3 +2823,35 @@ body.map-workspace .topbar .header-wifi-button{background:#0c2833e8;color:#a9e7d
 #page-reticulum #reticulum-tab-panel-files>.reticulum-resource-panel{margin-top:12px}
 @media(max-width:720px){#page-reticulum .reticulum-tabs{display:flex;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin}#page-reticulum .reticulum-tabs>button{flex:1 0 132px}}
 @media(max-width:420px){#page-reticulum .reticulum-tab-intro>.btn{width:100%}#page-reticulum .reticulum-tab-shortcuts>.btn{flex:1 1 140px}}
+
+/* v0.2.166 — independent MeshCore Companion inbox. Fits narrow Pi panels. */
+#page-meshcore .meshcore-panel{max-width:950px;margin:8px 0;padding:13px;min-width:0}
+#page-meshcore .meshcore-device{margin:12px 0;padding:11px;border:1px solid #315263;border-radius:9px;background:#0c222c}
+#page-meshcore .meshcore-device summary{cursor:pointer;font-size:12px;font-weight:750;color:#c1e8e1}
+#page-meshcore .meshcore-device label,#page-meshcore .mesh-compose label{display:grid;gap:6px;font-size:12px;color:#badbd7;min-width:0;margin:9px 0}
+#page-meshcore .meshcore-device .field{width:100%;max-width:475px;min-width:0}
+#page-meshcore .meshcore-controls{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+#page-meshcore #meshcore-status{color:#a2e3d9;overflow-wrap:anywhere}
+#page-meshcore .error{color:#ffbcae!important}
+#page-meshcore .mesh-inbox-header{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid #345766;margin-top:15px;padding-top:11px}
+#page-meshcore .mesh-inbox-header h4{margin:0;font-size:14px;color:#d6eee9}
+#page-meshcore .meshcore-layout{min-width:0;margin-top:9px}
+#page-meshcore .meshcore-contact-list{display:grid;gap:7px;margin-top:10px;max-height:44dvh;overflow-y:auto}
+#page-meshcore .meshcore-contact-choice{display:grid;gap:5px;text-align:left;min-width:0;min-height:53px;border:1px solid #315263;border-radius:9px;padding:10px 12px;background:#112e37;color:#d7f1eb;cursor:pointer}
+#page-meshcore .meshcore-contact-choice:focus-visible,#page-meshcore .meshcore-contact-choice:hover,#page-meshcore .meshcore-contact-choice.selected{border-color:#34c9b1;outline-offset:2px}
+#page-meshcore .meshcore-contact-choice strong,#page-meshcore .meshcore-contact-choice small{min-width:0;overflow-wrap:anywhere}
+#page-meshcore .meshcore-contact-choice small{font-size:10px;color:#9fbfb9}
+#page-meshcore .meshcore-conversation-head{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:8px 0 10px}
+#page-meshcore .mesh-messages{display:flex;flex-direction:column;gap:8px;max-height:42dvh;min-height:160px;overflow-y:auto;overscroll-behavior:contain;padding:11px;background:#0a202a;border:1px solid #315263;border-radius:9px}
+#page-meshcore .mesh-message.message-bubble{width:fit-content;max-width:88%;border:1px solid #2e5363;border-radius:13px 13px 13px 4px;padding:9px 11px;background:#122d38;overflow-wrap:anywhere}
+#page-meshcore .mesh-message.message-outbound{align-self:flex-end;border-color:#287469;background:#16483e;border-radius:13px 13px 4px 13px}
+#page-meshcore .mesh-message.message-inbound{align-self:flex-start}
+#page-meshcore .message-bubble p{white-space:pre-wrap;font-size:12px;line-height:1.5;margin:0 0 5px;color:#e1f5f0}
+#page-meshcore .message-bubble small{font-size:10px;line-height:1.5;color:#a9c8c2}
+#page-meshcore .mesh-compose{min-width:0;margin-top:12px}
+#page-meshcore .mesh-compose .field{width:100%;min-width:0;min-height:64px;resize:vertical}
+#page-meshcore .meshcore-compose-footer{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+#page-meshcore .meshcore-compose-footer .btn{min-width:95px}
+#page-meshcore .meshcore-privacy-note{margin-top:16px;border-top:1px solid #315263;padding-top:13px}
+#page-meshcore .message-read-actions{gap:8px;flex-wrap:wrap;margin:7px 0}
+@media(max-width:550px){#page-meshcore .meshcore-controls .btn{flex:1 1 130px}#page-meshcore .mesh-messages{max-height:38dvh}#page-meshcore .meshcore-panel{padding:10px}}

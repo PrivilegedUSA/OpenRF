@@ -5,12 +5,12 @@ Every future release must be named `OpenRF-vX.Y.Z.zip` and contain these at its 
 ```
 openrf-bundle.json
 project/
-  app/...
-  gradle/...
-  gradlew
-  gradlew.bat
-  settings.gradle.kts
-  ...
+  openrf/           # Python backend + local frontend
+  tests/            # Python + JavaScript regressions
+  tools/            # Linux/Pi build and optional device helpers
+  .github/workflows/openrf-linux.yml
+  README.md
+  CHANGELOG.md
 ```
 
 `openrf-bundle.json`:
@@ -19,13 +19,13 @@ project/
 {
   "project": "OpenRF",
   "formatVersion": 1,
-  "version": "0.1.0"
+  "version": "0.2.166"
 }
 ```
 
-`project/` contains only the Android source and files the release owns. The updater copies them into `C:\projects\OpenRF`, remembers which files it managed, and removes *previously managed* files that are no longer in a release. Other local files are not deleted. Reserved installer paths, local state, `.git`, and sensitive filenames are not allowed inside a bundle. ZIP entry paths are checked before extraction.
+`project/` contains the installable Linux/Python OpenRF source and managed release files, including its archived Android sources under `legacy/` for reference. The updater copies managed paths into `C:\projects\OpenRF`, remembers which files it managed, and removes *previously managed* files that are no longer in a release. Other local files are not deleted. Reserved installer paths, local state, `.git`, and sensitive filenames are not allowed inside a bundle. ZIP entry paths are checked before extraction.
 
-Keep **Update-OpenRF.ps1**, **Setup-OpenRF.ps1**, and **.gitignore** out of `project/` so future releases cannot overwrite the installer or its exclusions. The existing `.github/workflows/android-apk.yml` can be managed separately, or explicitly included if updating the workflow. Do not include credentials, personal scan logs, or signed-release keystores in bundles.
+Keep **Update-OpenRF.ps1**, **Setup-OpenRF.ps1**, and **.gitignore** out of `project/` so future releases cannot overwrite the installer or its exclusions. The managed `.github/workflows/openrf-linux.yml` runs Python and JavaScript tests, not Android APK builds. Do not include credentials, personal scan logs, RNS identities, or signing keys in bundles.
 
 ## Update command
 

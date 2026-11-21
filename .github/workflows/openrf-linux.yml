@@ -25,6 +25,7 @@ jobs:
       - name: Check JavaScript and mapping regressions
         run: |
           node --check openrf/static/app.js
+          node --check openrf/static/meshcore.js
           node --check openrf/static/field-breadcrumbs.js
           node --check openrf/static/offline-trails.js
           node --check openrf/static/history-analysis.js

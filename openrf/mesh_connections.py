@@ -13,10 +13,12 @@ from .serial_diagnostics import serial_port_diagnostics
 from .reticulum_lan import ReticulumError
 
 
-def connection_report(mesh_manager, reticulum_manager, *, port_inventory=None):
+def connection_report(mesh_manager, reticulum_manager, meshcore_manager=None, *, port_inventory=None):
     """Compose bounded local status only; never connect/probe/transmit."""
     mesh = mesh_manager.status()
     reticulum = reticulum_manager.status()
+    meshcore = meshcore_manager.status() if meshcore_manager is not None else {}
+    active_core_port = meshcore.get('port') if meshcore.get('state') != 'DISCONNECTED' else None
     connected_mesh_port = mesh.get('port') if mesh.get('connected') else None
     active_rnode_ports = reticulum.get('rnode_ports', []) if reticulum.get('enabled') else []
     active_rnode_ports = [p for p in active_rnode_ports
@@ -37,10 +39,13 @@ def connection_report(mesh_manager, reticulum_manager, *, port_inventory=None):
     # Include formerly claimed ports if Linux inventory cannot currently see
     # them. This is status evidence, NOT a fresh device detection.
     all_ports = sorted(set(accessible) | set(active_rnode_ports) |
-                       ({connected_mesh_port} if isinstance(connected_mesh_port, str) else set()))
+                       ({connected_mesh_port} if isinstance(connected_mesh_port, str) else set()) |
+                       ({active_core_port} if isinstance(active_core_port, str) else set()))
     for path in all_ports[:64]:
         if path == connected_mesh_port:
             owner = 'MESHTASTIC_USB_SESSION'
+        elif path == active_core_port:
+            owner = 'MESHCORE_USB_SESSION'
         elif path in active_rnode_ports:
             owner = 'RETICULUM_RNODE_REQUESTED'
         else:
@@ -79,6 +84,12 @@ def connection_report(mesh_manager, reticulum_manager, *, port_inventory=None):
                       'mode': mesh.get('mode') if mesh.get('mode') in ('normal', 'relay_only') else 'unknown',
                       'usb_session': 'OPEN' if mesh.get('connected') else 'CLOSED',
                       'rf_link_verified': False},
+        'meshcore': {'connected': bool(meshcore.get('connected')),
+                     'state': meshcore.get('state', 'NOT_CONFIGURED'),
+                     'port': active_core_port,
+                     'contact_count': meshcore.get('contact_count', 0),
+                     'sdk_available': bool(meshcore.get('sdk_available')),
+                     'rf_link_verified': False},
         'reticulum': {'enabled': bool(reticulum.get('enabled')),
                       'dependencies_available': bool(reticulum.get('dependencies_available')),
                       'rnode_ports': active_rnode_ports,
