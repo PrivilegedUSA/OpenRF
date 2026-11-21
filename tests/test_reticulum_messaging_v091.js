@@ -10,7 +10,7 @@ for(const id of ['reticulum-contacts-panel','reticulum-contact-form','reticulum-
   'reticulum-contact-alias','reticulum-contacts-list','reticulum-conversation',
   'reticulum-save-history','reticulum-clear-history','reticulum-storage-label',
   'reticulum-connection-brief'])assert(html.includes(`id="${id}"`),`Missing ${id}`);
-assert(html.includes('/static/reticulum.js?v=0.2.161'));
+assert(html.includes('/static/reticulum.js?v=0.2.162'));
 assert(css.includes('.reticulum-contact-form{display:grid;'));
 assert(css.includes('@media(max-width:500px){#page-reticulum .reticulum-contact-form{'));
 assert(js.includes("'/api/reticulum/contacts'"));

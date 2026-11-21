@@ -1,5 +1,11 @@
 # OpenRF — Offline-First Navigation and RF Toolkit
 
+## v0.2.162 — Reticulum Inbox, Dashboard, Connections and Files tabs
+
+- **Messages → Reticulum now opens on Inbox.** Conversations and voice-note composition appear immediately without scrolling past radio/network settings. Four separate tabs group **Inbox**, **Dashboard**, **Connections** and **Files**. The Reticulum unread count is also shown on the Inbox tab. Tabs work with keyboard arrow/Home/End keys and switch without hash navigation or automatic page scrolling.
+- **Existing features are preserved.** Dashboard provides the Reticulum service status, enable/stop controls, shareable LXMF address and manual announce; Connections holds TCP listeners/peers, HaLow, RNode and diagnostics; Files combines Reticulum Resource and nearby Bluetooth Classic. Contacts and privacy history stay under Inbox. Every original control is moved to its tab at startup rather than recreated, retaining its bound events and working forms.
+- **Calling intentionally deferred:** No LXST code or optional library has been installed, copied or bundled. The existing short, manually sent LXMF voice notes remain available. Real-time calling still needs an appropriately licensed implementation and two-device audio/radio testing. No backend, database schema, BLE/radio behavior or required dependency was changed. See [v0.2.162 release checks](docs/RELEASE_0.2.162_TESTS.md).
+
 ## v0.2.161 — Nearby Bluetooth files (Phase 3 initial)
 
 - **Nearby files, without Wi-Fi:** Open **Messages → Reticulum → Nearby Bluetooth file sharing**. This separate section does **not** require Reticulum/LXMF or internet: it uses a direct OpenRF-to-OpenRF **Bluetooth Classic RFCOMM channel 22**. Two Linux devices must first be paired **and trusted** through their OS Bluetooth settings. Display the local adapter address, enter the exact other-device address, then explicitly open a **five-minute, one-file** receive window or choose and confirm a send. No automatic scan, pairing, background listener or unsolicited file saving.

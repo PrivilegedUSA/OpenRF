@@ -278,8 +278,8 @@
       voiceRecorder=rec;voicePending=false;voiceStarted=Date.now();
       voiceTimer=setInterval(()=>{
         if(epoch!==voiceEpoch)return;
-        if(!viewingMessages()){
-          cancelVoice();voiceMessage('Recording stopped because you left Messages. Nothing was saved.',true);
+        if(!viewingMessages() || (window.OpenRFReticulumTabs?.current?.() || 'inbox') !== 'inbox'){
+          cancelVoice();voiceMessage('Recording stopped because you left the Reticulum Inbox. Nothing was saved.',true);
           return;
         }
         const elapsed=Math.min(maxVoiceSeconds,Math.floor((Date.now()-voiceStarted)/1000));

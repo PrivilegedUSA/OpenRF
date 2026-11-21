@@ -1,3 +1,9 @@
+## OpenRF v0.2.162 — Inbox-first Reticulum tabs (2026-11-21)
+
+- Reorganized the Reticulum workspace into four responsive, keyboard-accessible tabs: **Inbox (default)**, **Dashboard**, **Connections** and **Files**. The message thread list, composer, contacts and optional private history are accessible without scrolling through TCP, HaLow and RNode configuration. The inbox tab shows an unread count when applicable.
+- Moved the existing live form/message/file-transfer DOM nodes into tab panels, preserving IDs, event listeners and unsent drafts rather than cloning or replacing them. Dashboard includes shortcuts to the other tabs. Buttons update tab selection in place with no link/hash navigation, focus jump or forced page scrolling. Existing transfer actions still require explicit consent.
+- Per request, skipped LXST and real-time calls entirely; no dependency, new network endpoint, microphone permission or auto-transmit behavior. Added deterministic JavaScript layout/tab regression coverage. **457 Python tests and 132 JavaScript suites passed.** Headless Chromium could not launch under the test environment's process socket restrictions, so live layout and hardware remain unverified. See `docs/RELEASE_0.2.162_TESTS.md`.
+
 ## OpenRF v0.2.161 — Consent-based Bluetooth Classic peer file sharing (2026-11-20)
 
 - Added a **Nearby Bluetooth file sharing** section at the top of Messages → Reticulum, independent of enabling Reticulum. A trusted, paired Linux Bluetooth Classic device can explicitly receive one file for five minutes or send one file up to **2 MiB** on fixed OpenRF RFCOMM channel 22. The exact sender MAC must match the manually armed receiver. The UI requires separate confirmation for receiving and sending; opening the page does not scan or listen.
