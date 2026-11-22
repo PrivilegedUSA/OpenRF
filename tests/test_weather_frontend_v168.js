@@ -41,14 +41,20 @@ const sensorFixture={id:1,name:'TEST FIXTURE',notes:'',reading_count:0,last_obse
 let stations=[],rows=[],id=0;
 let receiverRun=null,receiverRunning=false,receiverSaved=false;
 let recordingRunning=false,recordingSessions=[];
+let recordingStartedAt=new Date().toISOString();
+let alertSettings=null;
 const receiverFixture={candidate_id:'fixture-candidate',model:'FIXTURE WEATHER SENSOR',device_id:'fixture-42',
   channel:'A',battery_reported_ok:null,saved:false,measurements:{temperature_c:22,rain_rate_mm_h:5.08}};
 const response=body=>({ok:true,json:async()=>body});
 async function fetchMock(path,options={}){
   calls.push({path,options});
   if(path==='/api/weather/status')return response({stations,reading_count:rows.length,automatic_collection:recordingRunning,connected_devices:0,
-    recording:{running:recordingRunning,session_id:recordingRunning?1:null,stopping:false}});
+    recording:{running:recordingRunning,session_id:recordingRunning?1:null,
+      station_id:recordingRunning?1:null,started_at_utc:recordingStartedAt,stopping:false}});
   if(path==='/api/weather/recording/sessions')return response({sessions:recordingSessions});
+  if(path.startsWith('/api/weather/alerts?'))return response({settings:alertSettings||{
+    station_id:1,enabled:false,stale_minutes:30,low_temperature_c:null,
+    high_temperature_c:null,high_wind_gust_mps:null,high_rain_rate_mm_h:null}});
   if(path.startsWith('/api/weather/compare?'))return response({metric:'temperature_c',days:7,
     current:{count:2,mean:20,minimum:18,maximum:22},
     previous:{count:1,mean:10,minimum:10,maximum:10}});
@@ -57,6 +63,9 @@ async function fetchMock(path,options={}){
   if(path==='/api/weather/serial/ports')return response({ports:['ttyACM0'],diagnostics:[],automatic_connection:false});
   if(path.startsWith('/api/weather/readings?'))return response({readings:rows,source_kind:'MANUAL'});
   const body=JSON.parse(options.body||'{}');
+  if(path==='/api/weather/alerts'){
+    alertSettings=body;return response({settings:body});
+  }
   if(path==='/api/weather/recording/start'){
     recordingRunning=true;recordingSessions=[{id:1,station_name:'TEST FIXTURE',state:'RUNNING',
       source_kind:body.source_kind,source_label:body.source_address,interval_seconds:body.interval_seconds,
@@ -268,6 +277,46 @@ async function test(){
   assert.equal(get('weather-recording-badge').textContent,'STOPPED · OPT-IN');
   assert(html.indexOf('id="weather-rain"')<html.indexOf('<h3>Weather recording</h3>'),
     'Weather Recording controls belong below the summary measurement cards');
+  assert.equal(get('weather-alerts-enabled').checked,false,'Alerts must be off by default');
+  assert.equal(calls.filter(call=>call.path==='/api/weather/alerts'&&call.options.method==='POST').length,0,
+    'Viewing weather must never enable or save warnings implicitly');
+  get('weather-alerts-enabled').checked=true;
+  get('weather-alerts-stale').value='30';
+  get('weather-alerts-temp-high').value='95';
+  get('weather-alerts-wind').value='30';
+  await get('weather-alerts-form').events.submit({preventDefault(){}});
+  const settingsWrite=calls.find(call=>call.path==='/api/weather/alerts'&&call.options.method==='POST');
+  assert(settingsWrite,'Alert preferences require an explicit Save');
+  assert.equal(JSON.parse(settingsWrite.options.body).enabled,true);
+  assert.equal(JSON.parse(settingsWrite.options.body).high_temperature_c,35);
+  assert(get('weather-alerts-status').textContent.includes('no active weather recording'),
+    'A manual/historical reading cannot trigger an idle alert');
+  recordingRunning=true;
+  rows=[{observed_at_utc:new Date().toISOString(),source_kind:'ECOWITT_GATEWAY_REPORTED',
+    recording_session_id:1,temperature_c:42,wind_gust_mps:20}];
+  await context.window.OpenRFWeather.refresh();
+  assert(get('weather-alerts-status').textContent.includes('SOURCE-REPORTED LOCAL WARNING'));
+  rows=[{...rows[0],source_kind:'MANUAL'}];
+  await context.window.OpenRFWeather.refresh();
+  assert(!get('weather-alerts-status').textContent.includes('SOURCE-REPORTED LOCAL WARNING'));
+  rows=[{...rows[0],source_kind:'OPENRF_SERIAL_WEATHER_REPORTED',
+    freshness:'STALE_DEVICE_REPORTED',measurement_age_seconds:180}];
+  await context.window.OpenRFWeather.refresh();
+  assert(get('weather-alerts-status').textContent.includes('withheld'));
+  rows=[{...rows[0],freshness:'FRESHNESS_DEVICE_REPORTED_UNVERIFIED',measurement_age_seconds:10}];
+  await context.window.OpenRFWeather.refresh();
+  assert(get('weather-alerts-status').textContent.includes('SOURCE-REPORTED LOCAL WARNING'));
+  recordingStartedAt=new Date(Date.now()-31*60*1000).toISOString();
+  rows=[{...rows[0],observed_at_utc:recordingStartedAt}];
+  await context.window.OpenRFWeather.refresh();
+  assert.equal(get('weather-freshness-badge').textContent,'OLD / UNKNOWN ARCHIVE');
+  assert(get('weather-alerts-status').textContent.includes('Recording freshness warning'));
+  assert(!get('weather-alerts-status').textContent.includes('SOURCE-REPORTED LOCAL WARNING'));
+  recordingRunning=false;
+  await context.window.OpenRFWeather.refresh();
+  assert(get('weather-alerts-status').textContent.includes('no active weather recording'));
+  assert(!calls.some(call=>call.path==='/api/weather/alerts'&&call.options.method==='POST'&&
+    JSON.parse(call.options.body||'{}').enabled===false),'Recording stop cannot silently modify alert preferences');
   console.log('PASS weather: on-demand sources, explicit recording, history comparison and card placement');
 }
 test().catch(error=>{console.error(error);process.exitCode=1;});

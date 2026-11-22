@@ -9,7 +9,7 @@ from __future__ import annotations
 import threading
 import time
 
-from .weather import WeatherError
+from .weather import WeatherError, utc_now
 from .weather_ecowitt import private_gateway_ip, EcowittError
 from .drivers.serial_openrf import eligible_port, SerialSensorError
 
@@ -36,6 +36,9 @@ class WeatherRecorder:
             active = self._active
             return {'running': active is not None,
                     'session_id': active['id'] if active else None,
+                    'station_id': active['station'] if active else None,
+                    'interval_seconds': active['interval'] if active else None,
+                    'started_at_utc': active['started_at_utc'] if active else None,
                     'stopping': bool(active and active['stop'].is_set()),
                     'automatic_restart': False,
                     'allowed_intervals_seconds': list(INTERVALS),
@@ -83,6 +86,7 @@ class WeatherRecorder:
             run = {'id': ident, 'station': station, 'source': source, 'address': address,
                    'sensor_id': sensor_id, 'channel': channel, 'interval': interval,
                    'stop': threading.Event(), 'started': time.monotonic(),
+                   'started_at_utc': utc_now(),
                    'count': 0, 'last_device_time': None}
             self._active = run
             thread = threading.Thread(target=self._run, args=(run,),

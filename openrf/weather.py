@@ -33,6 +33,9 @@ CSV_FIELDS = ('observed_at_utc', *FIELDS)
 MAX_IMPORT_BYTES = 160_000
 MAX_IMPORT_ROWS = 500
 MAX_EXPORT_ROWS = 50_000
+ALERT_STALE_MINUTES = (5, 15, 30, 60, 120)
+ALERT_THRESHOLDS = ('low_temperature_c', 'high_temperature_c',
+                    'high_wind_gust_mps', 'high_rain_rate_mm_h')
 
 
 class WeatherError(ValueError):
@@ -245,6 +248,18 @@ class WeatherStore:
                 db.execute('ALTER TABLE weather_readings ADD COLUMN recording_session_id INTEGER')
             db.execute('''CREATE INDEX IF NOT EXISTS idx_weather_recording_readings
                           ON weather_readings(recording_session_id)''')
+            # Opt-in, per-station display preferences only. No collection,
+            # background notifications or scheduled tasks are started here.
+            db.execute('''CREATE TABLE IF NOT EXISTS weather_alert_settings (
+                station_id INTEGER PRIMARY KEY REFERENCES weather_stations(id) ON DELETE CASCADE,
+                enabled INTEGER NOT NULL DEFAULT 0 CHECK(enabled IN (0,1)),
+                stale_minutes INTEGER NOT NULL DEFAULT 30,
+                low_temperature_c REAL,
+                high_temperature_c REAL,
+                high_wind_gust_mps REAL,
+                high_rain_rate_mm_h REAL,
+                updated_at_utc TEXT NOT NULL
+            )''')
             db.execute('''UPDATE weather_recording_sessions
                           SET state='INTERRUPTED',ended_at_utc=?,last_error='App stopped; recording requires a new explicit Start.'
                           WHERE state IN ('RUNNING','STOPPING')''', (utc_now(),))
@@ -289,12 +304,64 @@ class WeatherStore:
         with self._connect() as db:
             total = db.execute('SELECT COUNT(*) FROM weather_readings').fetchone()[0]
         return {'stations': self.stations(), 'reading_count': total,
+                'server_time_utc': utc_now(),
                 'automatic_collection': False, 'connected_devices': 0,
                 'implemented_inputs': ['MANUAL', 'IMPORTED_HISTORICAL', 'ECOWITT_ON_DEMAND_LAN', 'RTL433_ON_DEMAND_SDR', 'OPENRF_WEATHER_SERIAL_V1_ON_DEMAND'],
                 'on_demand_adapters': ['Ecowitt local HTTP', 'rtl_433 optional RTL-SDR', 'OpenRF Weather Serial v1 (user-probed USB bridge)'],
-                'future_adapters': ['Weather alert thresholds and comparison dashboard'],
+                'future_adapters': ['OS notifications and physically verified live sensor health'],
                 'hardware_status': 'NOT_CONFIGURED',
                 'message': 'All source polling requires a user-started recording or an explicit one-shot read.'}
+
+    def alert_settings(self, station_id):
+        """Return local UI warning preferences; GET never contacts hardware."""
+        station_id = self._station_id(station_id)
+        defaults = {'station_id': station_id, 'enabled': False, 'stale_minutes': 30,
+                    **{key: None for key in ALERT_THRESHOLDS}, 'updated_at_utc': None}
+        with self._connect() as db:
+            self._exists(db, station_id)
+            row = db.execute('SELECT * FROM weather_alert_settings WHERE station_id=?',
+                             (station_id,)).fetchone()
+        return defaults if row is None else dict(row) | {'enabled': bool(row['enabled'])}
+
+    def save_alert_settings(self, body):
+        """Persist only validated, explicitly submitted per-station warning rules."""
+        expected = {'station_id', 'enabled', 'stale_minutes', *ALERT_THRESHOLDS}
+        if not isinstance(body, dict) or set(body) != expected:
+            raise WeatherError('Choose station, enabled, stale minutes and all four optional alert limits.')
+        station_id = self._station_id(body['station_id'])
+        if type(body['enabled']) is not bool or type(body['stale_minutes']) is not int or body['stale_minutes'] not in ALERT_STALE_MINUTES:
+            raise WeatherError('Alerts must be enabled explicitly and use a listed freshness interval.')
+        limits = {'low_temperature_c': FIELDS['temperature_c'],
+                  'high_temperature_c': FIELDS['temperature_c'],
+                  'high_wind_gust_mps': FIELDS['wind_gust_mps'],
+                  'high_rain_rate_mm_h': FIELDS['rain_rate_mm_h']}
+        values = {}
+        for key, (minimum, maximum) in limits.items():
+            val = body[key]
+            if val is not None and (type(val) not in (int, float) or
+                                    not math.isfinite(val) or not minimum <= val <= maximum):
+                raise WeatherError(f'{key} must be blank or a valid SI-unit measurement.')
+            values[key] = round(val, 5) if val is not None else None
+        if (values['low_temperature_c'] is not None and
+                values['high_temperature_c'] is not None and
+                values['low_temperature_c'] >= values['high_temperature_c']):
+            raise WeatherError('Low-temperature threshold must be below high-temperature threshold.')
+        now = utc_now()
+        with self._connect() as db:
+            self._exists(db, station_id)
+            db.execute('''INSERT INTO weather_alert_settings
+                (station_id,enabled,stale_minutes,low_temperature_c,high_temperature_c,
+                 high_wind_gust_mps,high_rain_rate_mm_h,updated_at_utc)
+                VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(station_id) DO UPDATE SET
+                enabled=excluded.enabled,stale_minutes=excluded.stale_minutes,
+                low_temperature_c=excluded.low_temperature_c,
+                high_temperature_c=excluded.high_temperature_c,
+                high_wind_gust_mps=excluded.high_wind_gust_mps,
+                high_rain_rate_mm_h=excluded.high_rain_rate_mm_h,
+                updated_at_utc=excluded.updated_at_utc''',
+                (station_id, int(body['enabled']), body['stale_minutes'],
+                 *(values[key] for key in ALERT_THRESHOLDS), now))
+        return self.alert_settings(station_id)
 
     def _insert(self, db, station_id, at, source, values, recorded_at, source_device='', recording_session_id=None):
         keys = ('station_id', 'observed_at_utc', 'recorded_at_utc', 'source_kind', 'source_device', 'recording_session_id', *FIELDS)

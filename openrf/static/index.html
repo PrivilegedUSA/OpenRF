@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.174">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.175">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -23,11 +23,11 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/map-elevation.js?v=0.2.151"></script>
   <script defer src="/static/battery-status.js?v=0.2.151"></script>
-  <script defer src="/static/wifi-quick.js?v=0.2.174"></script>
+  <script defer src="/static/wifi-quick.js?v=0.2.175"></script>
   <script defer src="/static/route-elevation.js?v=0.2.151"></script>
   <script defer src="/static/trip-map.js?v=0.2.151"></script>
-  <script defer src="/static/app.js?v=0.2.174"></script>
-  <script defer src="/static/app-settings.js?v=0.2.174"></script>
+  <script defer src="/static/app.js?v=0.2.175"></script>
+  <script defer src="/static/app-settings.js?v=0.2.175"></script>
   <script defer src="/static/browser-workspace.js?v=0.2.151"></script>
   <script defer src="/static/saved-trips.js?v=0.2.151"></script>
   <script defer src="/static/emergency-tabs.js?v=0.2.151"></script>
@@ -47,19 +47,19 @@
   <script defer src="/static/emergency-backup.js?v=0.2.151"></script>
   <script defer src="/static/field-calendar.js?v=0.2.151"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.174"></script>
-  <script defer src="/static/meshcore.js?v=0.2.174"></script>
-  <script defer src="/static/messaging-tabs.js?v=0.2.174"></script>
-  <script defer src="/static/weather.js?v=0.2.174"></script>
-  <script defer src="/static/reticulum.js?v=0.2.174"></script>
-  <script defer src="/static/reticulum-files.js?v=0.2.174"></script>
-  <script defer src="/static/bluetooth-files.js?v=0.2.174"></script>
-  <script defer src="/static/reticulum-tabs.js?v=0.2.174"></script>
+  <script defer src="/static/mesh.js?v=0.2.175"></script>
+  <script defer src="/static/meshcore.js?v=0.2.175"></script>
+  <script defer src="/static/messaging-tabs.js?v=0.2.175"></script>
+  <script defer src="/static/weather.js?v=0.2.175"></script>
+  <script defer src="/static/reticulum.js?v=0.2.175"></script>
+  <script defer src="/static/reticulum-files.js?v=0.2.175"></script>
+  <script defer src="/static/bluetooth-files.js?v=0.2.175"></script>
+  <script defer src="/static/reticulum-tabs.js?v=0.2.175"></script>
   <script defer src="/static/mesh_connections.js?v=0.2.104"></script>
   <script defer src="/static/wifi_halow.js?v=0.2.104"></script>
   <script defer src="/static/field_network.js?v=0.2.104"></script>
   <script defer src="/static/field_hotspot.js?v=0.2.104"></script>
-  <script defer src="/static/hardware-tabs.js?v=0.2.174"></script>
+  <script defer src="/static/hardware-tabs.js?v=0.2.175"></script>
   <script defer src="/static/offline_readiness.js?v=0.2.104"></script>
   <script defer src="/static/camera-layers.js?v=0.2.114"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
@@ -67,7 +67,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.174</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.175</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -179,6 +179,23 @@
             <div class="weather-metric"><span>Rainfall · interval</span><strong id="weather-rain">—</strong><small id="weather-rain-meta">No recorded value</small></div>
           </div>
           <p class="small muted weather-disclaimer">These values come only from saved observations and may be old. Every reading retains its station, timestamps, units and origin. Ecowitt LAN snapshots are marked GATEWAY REPORTED / UNVERIFIED with OpenRF's fetch time, not the sensor's measurement time. No live connection or forecast is inferred.</p>
+          <div class="panel weather-section weather-alerts">
+            <div class="panel-title"><h3>Freshness &amp; local alerts</h3><span class="pill" id="weather-freshness-badge">NO SAVED RECORD</span></div>
+            <p class="small muted" id="weather-freshness-status" role="status" aria-live="polite">Choose a station to check the age of its last saved observation.</p>
+            <p class="small muted" id="weather-alerts-status" role="status" aria-live="polite">Threshold warnings are off by default.</p>
+            <form id="weather-alerts-form">
+              <label class="weather-alerts-toggle"><input type="checkbox" id="weather-alerts-enabled"> Enable in-app threshold warnings for this station</label>
+              <div class="weather-gateway-grid">
+                <label>Old after<select class="field" id="weather-alerts-stale"><option value="5">5 minutes</option><option value="15">15 minutes</option><option value="30" selected>30 minutes</option><option value="60">1 hour</option><option value="120">2 hours</option></select></label>
+                <label>Low temperature · °F<input class="field" id="weather-alerts-temp-low" type="number" step="any" placeholder="Off if blank"></label>
+                <label>High temperature · °F<input class="field" id="weather-alerts-temp-high" type="number" step="any" placeholder="Off if blank"></label>
+                <label>High wind gust · mph<input class="field" id="weather-alerts-wind" type="number" min="0" step="any" placeholder="Off if blank"></label>
+                <label>High rain rate · in/hr<input class="field" id="weather-alerts-rain" type="number" min="0" step="any" placeholder="Off if blank"></label>
+              </div>
+              <div class="button-line"><button class="btn outline" type="submit" id="weather-alerts-save">Save alert settings</button></div>
+            </form>
+            <p class="small muted">Saved privately on this OpenRF device per station. An alert is only a <strong>visible on-page warning</strong> while this Dashboard is open and recording is running with a recent saved session sample. It never sends a system notification, alarm, network message or automatic weather request. Ecowitt conditions are gateway-reported and not independently verified; missing or stale/unknown-age USB samples cannot trigger threshold alerts.</p>
+          </div>
           <div class="panel weather-section">
             <div class="panel-title"><h3>Weather recording</h3><span class="pill" id="weather-recording-badge">STOPPED · OPT-IN</span></div>
             <p class="small muted">Start a bounded local recording session for one selected station and source. Ecowitt samples are gateway-reported, not sensor-time-verified. USB samples require a known OpenRF Weather Serial v1 sensor and skip stale/unknown-age responses. Recording does not resume after an app restart. No SDR listening, auto-discovery, or internet upload.</p>

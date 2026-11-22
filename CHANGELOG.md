@@ -1321,3 +1321,11 @@ See `legacy/android-v0.1.6/CHANGELOG.md` for versions 0.1.0–0.1.6.
 - Preserved the existing MeshCore/Reticulum/Meshtastic, navigation, map, radio, privacy, recorder, export and source history functions. Tests and release versions updated to v0.2.174. See `docs/RELEASE_0.2.174_TESTS.md` for reproducible checks and unverified field hardware.
 - **525 Python tests and 140 JavaScript suites passed locally**. No physical sensor samples, GPIO/serial permissions, touchscreen visual QA or post-update GitHub Actions outcome were verified.
 
+## OpenRF v0.2.175 — Weather freshness and opt-in local alerts (2026-11-22)
+
+- Show the age of the selected station's last saved weather observation, calculated against the local OpenRF server UTC clock. Explicitly distinguish archival recency from actual live-sensor health. The user-selectable stale age defaults to 30 minutes and can be 5, 15, 30, 60 or 120 minutes.
+- Add optional local, per-station threshold warnings for low/high temperature, high wind gust and high rain rate. Settings use familiar display units, are converted to SI for storage in a small SQLite table and remain disabled unless the operator explicitly enables and saves them. No sensor reads or background notification service are started by this setting.
+- Threshold warnings evaluate only the most recent source-reported saved reading from the exact still-running recording session for the selected station, with a recent receipt. Manual/IMPORTED, previous-session, one-shot, stale or unknown-age USB samples cannot trigger measurement alarms. Ecowitt timestamps are host receipt times; source identity, device freshness and calibration are not independently verified.
+- Weather Recording remains below the metric cards and local alerts. The Weather History comparison, local exports, existing MeshCore/Reticulum/Meshtastic, map and other functions are preserved. Added Python storage/HTTP and simulated browser regression tests; see `docs/RELEASE_0.2.175_TESTS.md` for validation and hardware limits.
+- **529 Python tests and 140 JavaScript suites passed locally**, including a new version-metadata consistency test to detect the kind of partial Git staging that failed earlier Linux CI. GitHub Actions for this new release and physical weather hardware remain unverified.
+

@@ -419,6 +419,15 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, weather_status)
         if path == '/api/weather/stations':
             return self._json(200, {'stations': self.server.weather_store.stations()})
+        if path == '/api/weather/alerts':
+            params = parse_qs(urlparse(self.path).query, keep_blank_values=True)
+            if set(params) != {'station_id'} or len(params['station_id']) != 1:
+                return self._error(400, 'Choose exactly one saved weather station for local alerts.')
+            try:
+                return self._json(200, {'settings': self.server.weather_store.alert_settings(
+                    int(params['station_id'][0]))})
+            except (ValueError, WeatherError) as exc:
+                return self._error(400, str(exc))
         if path == '/api/weather/recording/status':
             return self._json(200, self.server.weather_recorder.status())
         if path == '/api/weather/recording/sessions':
@@ -937,6 +946,8 @@ class Handler(BaseHTTPRequestHandler):
             body = self._decode_body()
             if path == '/api/weather/stations':
                 return self._json(201, {'station': self.server.weather_store.create_station(body)})
+            if path == '/api/weather/alerts':
+                return self._json(200, {'settings': self.server.weather_store.save_alert_settings(body)})
             if path == '/api/weather/readings/manual':
                 return self._json(201, {'reading': self.server.weather_store.add_manual(body)})
             if path == '/api/weather/import/csv':

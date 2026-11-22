@@ -1,9 +1,10 @@
-/* OpenRF v0.2.174 weather hub — opt-in local recording and source-tagged history. */
+/* OpenRF v0.2.175 weather hub — opt-in local recording and source-tagged history. */
 (() => {
   'use strict';
   const el = id => document.getElementById(id);
   const groups = ['dashboard', 'sensors', 'history'];
   const state = {stations:[], selected:null, readings:[], historyEpoch:0, comparisonEpoch:0, overviewEpoch:0,
+    alertEpoch:0, alertsStation:null, alerts:null, recording:null, serverClock:null, receivedAt:null,
     active:'dashboard', latest:null, visible:false};
   const chart = el('weather-chart');
 
@@ -28,6 +29,9 @@
   const toF = n => n*9/5+32;
   const toMph = n => n*2.2369362921;
   const toInches = n => n/25.4;
+  const toC = n => (n-32)*5/9;
+  const toMps = n => n/2.2369362921;
+  const toMm = n => n*25.4;
   const fields = {
     temperature_c:{title:'Temperature',unit:'°F',convert:toF},
     wind_speed_mps:{title:'Wind speed',unit:'mph',convert:toMph},
@@ -82,8 +86,10 @@
   function setStation(id) {
     const station=state.stations.find(s=>String(s.id)===String(id));
     state.selected=station?.id||null;
+    state.alerts=null;state.alertsStation=null;++state.alertEpoch;
     syncSelectors(true);
     renderOverview().catch(error=>el('weather-dashboard-status').textContent=error.message);
+    loadAlertSettings().catch(error=>el('weather-alerts-status').textContent=error.message);
     if(state.active==='history')loadHistory();
   }
   function renderStationList() {
@@ -109,6 +115,116 @@
     el(id).textContent=available?format(convert(raw),1,` ${unit}`):'—';
     el(`${id}-meta`).textContent=available?`${reading.source_kind} · ${stamp(reading.observed_at_utc)} UTC`:'No recorded value';
   }
+  // "Freshness" here is the age of a saved entry, never proof that a sensor
+  // is connected. Thresholds are opt-in display warnings from the active
+  // session only; imported/manual/one-shot and old USB samples cannot alarm.
+  const ageSeconds = value => {
+    const time=Date.parse(value||'');
+    const now=state.serverClock!==null?state.serverClock+(Date.now()-state.receivedAt):Date.now();
+    return Number.isFinite(time) ? (now-time)/1000 : null;
+  };
+  const ageLabel = age => age===null?'unknown age':age<60?'less than 1 minute':age<3600?`${Math.floor(age/60)} min`:`${(age/3600).toFixed(1)} hr`;
+  function renderAlerts() {
+    const current=state.latest,recording=state.recording||{},rules=state.alerts;
+    const badge=el('weather-freshness-badge'),label=el('weather-freshness-status'),notice=el('weather-alerts-status');
+    const oldClass='weather-alert-stale';
+    badge.classList.toggle(oldClass,false);
+    notice.classList.toggle('weather-alert-warning',false);
+    notice.classList.toggle('weather-alert-normal',false);
+    if(!state.selected){
+      badge.textContent='NO STATION';label.textContent='Create or select a station to inspect saved readings.';
+    }else if(!current){
+      badge.textContent='NO SAVED RECORD';label.textContent='No measurements have been saved for this station. Device health is unknown.';
+    }else{
+      const age=ageSeconds(current.observed_at_utc),stale=age===null||age< -60||age>60*(rules?.stale_minutes||30);
+      badge.textContent=stale?'OLD / UNKNOWN ARCHIVE':'RECENT SAVED RECORD';
+      badge.classList.toggle(oldClass,stale);
+      label.textContent=`Last saved ${current.source_kind} entry: ${age===null?'unknown recorded time':ageLabel(Math.max(0,age))} old · ${stamp(current.observed_at_utc)} UTC. ${stale?'Archived data may be out of date.':'Recent archive entry only; sensor freshness is not independently verified.'}`;
+    }
+    if(!rules || state.alertsStation!==state.selected){
+      notice.textContent=state.selected?'Loading local alert settings…':'Alerts require a saved station.';return;
+    }
+    if(!rules.enabled){notice.textContent='Threshold warnings are OFF. Saving the settings does not start a receiver.';return;}
+    if(!recording.running || recording.stopping){notice.textContent='Warnings armed, but no active weather recording for this station. Saved history does not trigger alarms.';return;}
+    if(recording.station_id!==state.selected){notice.textContent='Warnings armed. The active recorder belongs to a different station.';return;}
+    const cutoff=rules.stale_minutes*60;
+    const validSession=current?.recording_session_id===recording.session_id;
+    const age=validSession?ageSeconds(current.observed_at_utc):ageSeconds(recording.started_at_utc);
+    if(age===null||age< -60||age>cutoff){
+      notice.textContent=`Recording freshness warning: ${age===null?'sample timing unavailable':`no eligible saved session sample in ${ageLabel(Math.max(0,age))}`}. No weather threshold alarm is inferred.`;
+      notice.classList.toggle('weather-alert-warning',true);return;
+    }
+    if(!validSession){notice.textContent='Recording started; waiting for its first eligible saved sample. Older history cannot trigger alerts.';return;}
+    if(!['ECOWITT_GATEWAY_REPORTED','OPENRF_SERIAL_WEATHER_REPORTED'].includes(current.source_kind)){
+      notice.textContent='This sample is not from an eligible recording source. No threshold alarm.';return;
+    }
+    if(current.source_kind==='OPENRF_SERIAL_WEATHER_REPORTED' &&
+       (current.freshness!=='FRESHNESS_DEVICE_REPORTED_UNVERIFIED' || current.measurement_age_seconds===null ||
+        current.measurement_age_seconds===undefined || current.measurement_age_seconds>120)){
+      notice.textContent='USB sensor age is stale or unknown. Threshold warnings are withheld.';return;
+    }
+    if(['low_temperature_c','high_temperature_c','high_wind_gust_mps','high_rain_rate_mm_h'].every(key=>rules[key]===null)){
+      notice.textContent='Warnings enabled, but no measurement limits configured. Recording freshness is still displayed.';return;
+    }
+    const warning=[];
+    if(rules.low_temperature_c!==null&&current.temperature_c!==null&&current.temperature_c!==undefined&&current.temperature_c<=rules.low_temperature_c)
+      warning.push(`Temperature ${format(toF(current.temperature_c),1,' °F')} at/below low limit`);
+    if(rules.high_temperature_c!==null&&current.temperature_c!==null&&current.temperature_c!==undefined&&current.temperature_c>=rules.high_temperature_c)
+      warning.push(`Temperature ${format(toF(current.temperature_c),1,' °F')} at/above high limit`);
+    if(rules.high_wind_gust_mps!==null&&current.wind_gust_mps!==null&&current.wind_gust_mps!==undefined&&current.wind_gust_mps>=rules.high_wind_gust_mps)
+      warning.push(`Wind gust ${format(toMph(current.wind_gust_mps),1,' mph')} at/above limit`);
+    if(rules.high_rain_rate_mm_h!==null&&current.rain_rate_mm_h!==null&&current.rain_rate_mm_h!==undefined&&current.rain_rate_mm_h>=rules.high_rain_rate_mm_h)
+      warning.push(`Rain rate ${format(toInches(current.rain_rate_mm_h),2,' in/hr')} at/above limit`);
+    notice.textContent=warning.length?`SOURCE-REPORTED LOCAL WARNING: ${warning.join('; ')}. Not independently verified.`:
+      'No configured thresholds crossed in the latest eligible saved session sample. Missing measurements are not assumed normal.';
+    notice.classList.toggle(warning.length?'weather-alert-warning':'weather-alert-normal',true);
+  }
+  async function loadAlertSettings(force=false){
+    const station=state.selected;
+    if(!station){state.alerts=null;state.alertsStation=null;el('weather-alerts-save').disabled=true;renderAlerts();return;}
+    if(!force && state.alertsStation===station){renderAlerts();return;}
+    const epoch=++state.alertEpoch;
+    const result=await request(`/api/weather/alerts?station_id=${station}`);
+    if(epoch!==state.alertEpoch||station!==state.selected)return;
+    state.alerts=result.settings;state.alertsStation=station;
+    const rules=state.alerts;
+    el('weather-alerts-save').disabled=false;
+    el('weather-alerts-enabled').checked=rules.enabled;
+    el('weather-alerts-stale').value=String(rules.stale_minutes);
+    for(const [id,value,convert] of [
+      ['weather-alerts-temp-low',rules.low_temperature_c,toF],
+      ['weather-alerts-temp-high',rules.high_temperature_c,toF],
+      ['weather-alerts-wind',rules.high_wind_gust_mps,toMph],
+      ['weather-alerts-rain',rules.high_rain_rate_mm_h,toInches]]){
+      el(id).value=value===null?'':String(Number(convert(value).toFixed(2)));
+    }
+    renderAlerts();
+  }
+  el('weather-alerts-form').addEventListener('submit',async event=>{
+    event.preventDefault();
+    if(!state.selected)return;
+    const optional=(id,convert)=>{
+      const raw=String(el(id).value).trim();
+      if(!raw)return null;
+      const number=Number(raw);
+      if(!Number.isFinite(number))throw Error('Enter a finite number for each filled alert threshold.');
+      return convert(number);
+    };
+    const button=el('weather-alerts-save'),station=state.selected;
+    button.disabled=true;
+    try{
+      const body={station_id:station,enabled:!!el('weather-alerts-enabled').checked,
+        stale_minutes:Number(el('weather-alerts-stale').value),
+        low_temperature_c:optional('weather-alerts-temp-low',toC),
+        high_temperature_c:optional('weather-alerts-temp-high',toC),
+        high_wind_gust_mps:optional('weather-alerts-wind',toMps),
+        high_rain_rate_mm_h:optional('weather-alerts-rain',toMm)};
+      const result=await request('/api/weather/alerts',body);
+      if(station!==state.selected)return;
+      state.alerts=result.settings;state.alertsStation=station;renderAlerts();
+    }catch(error){el('weather-alerts-status').textContent=error.message;}
+    finally{button.disabled=!state.selected;}
+  });
   async function renderOverview() {
     const epoch=++state.overviewEpoch;
     if(!state.selected){
@@ -117,6 +233,7 @@
         el(`weather-${id}`).textContent='—';el(`weather-${id}-meta`).textContent='No recorded value';
       }
       el('weather-last-update').textContent='—';
+      renderAlerts();
       return;
     }
     const result=await request(`/api/weather/readings?station_id=${state.selected}&days=0&limit=1`);
@@ -127,24 +244,33 @@
       for(const id of ['temperature','wind','humidity','rain']){
         el(`weather-${id}`).textContent='—';el(`weather-${id}-meta`).textContent='No recorded value';
       }
+      renderAlerts();
       return;
     }
     updateMetric('weather-temperature',reading.temperature_c,toF,'°F',reading);
     updateMetric('weather-wind',reading.wind_speed_mps,toMph,'mph',reading);
     updateMetric('weather-humidity',reading.humidity_pct,v=>v,'%',reading);
     updateMetric('weather-rain',reading.rain_interval_mm,toInches,'in',reading);
+    renderAlerts();
   }
   async function refresh() {
     const result=await request('/api/weather/status');
+    const serverClock=Date.parse(result.server_time_utc||'');
+    state.serverClock=Number.isFinite(serverClock)?serverClock:null;
+    state.receivedAt=Date.now();
     state.stations=result.stations||[];
-    if(!state.stations.some(s=>s.id===state.selected))state.selected=state.stations[0]?.id||null;
+    if(!state.stations.some(s=>s.id===state.selected)){
+      state.selected=state.stations[0]?.id||null;
+      state.alerts=null;state.alertsStation=null;++state.alertEpoch;
+    }
+    state.recording=result.recording||{running:false};
     el('weather-station-count').textContent=String(state.stations.length);
     el('weather-reading-count').textContent=String(result.reading_count||0);
     el('weather-hardware-badge').textContent=result.recording?.running?'RECORDING · SOURCE REPORTED':'NO LIVE SENSOR';
     el('weather-dashboard-status').textContent=result.recording?.running
       ? 'Explicit recording is running. Source-reported readings are not independent sensor verification; see recording status below.'
       : 'No physical weather receiver is configured. Values below are saved records, including optional user-requested gateway snapshots—not an automatic live scan.';
-    syncSelectors();renderStationList();await renderOverview();
+    syncSelectors();renderStationList();await renderOverview();await loadAlertSettings();
     renderRecordingStatus(result.recording||{running:false});
     await loadRecordingSessions();
     if(state.active==='history')await loadHistory();

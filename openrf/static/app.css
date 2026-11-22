@@ -2892,6 +2892,12 @@ body.map-workspace .topbar .header-wifi-button{background:#0c2833e8;color:#a9e7d
 #page-weather .weather-metric strong{font-size:clamp(21px,2vw,29px);line-height:1.2;font-weight:800;color:#d6fff2}
 #page-weather .weather-metric small{font-size:10px;color:#9bbbc2;overflow-wrap:anywhere}
 #page-weather .weather-disclaimer{max-width:1020px;margin-top:10px}
+#page-weather .weather-alerts-toggle{display:inline-flex;align-items:center;gap:9px;margin:8px 0 14px;color:#d0eee7;font-size:12px;font-weight:700;cursor:pointer}
+#page-weather .weather-alerts-toggle input{accent-color:#34c9b1;width:17px;height:17px}
+#page-weather .weather-alerts #weather-freshness-status,#page-weather .weather-alerts #weather-alerts-status{line-height:1.55;overflow-wrap:anywhere}
+#page-weather .weather-alerts .pill.weather-alert-stale{color:#ffdf9a;border-color:#94753d;background:#49381c}
+#page-weather .weather-alerts #weather-alerts-status.weather-alert-warning{color:#ffdf9a;font-weight:700}
+#page-weather .weather-alerts #weather-alerts-status.weather-alert-normal{color:#bcf0df}
 #page-weather .weather-station-list{display:grid;gap:8px;margin:12px 0 17px}
 #page-weather .weather-station-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border:1px solid #345765;border-radius:9px;padding:12px;background:#0f2a34}
 #page-weather .weather-station-row>div{display:grid;gap:6px;min-width:0;overflow-wrap:anywhere}

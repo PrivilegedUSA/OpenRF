@@ -2,6 +2,12 @@
 
 OpenRF's original project source is licensed **GPL-3.0-or-later**; see the complete [GNU GPLv3 license text](LICENSE). Individually bundled or optional third-party components retain their own copyright and license notices.
 
+## v0.2.175 — Saved-reading freshness and opt-in local weather warnings
+
+- **Know how old the data is:** Weather Station → Dashboard now labels the selected station's last *saved* observation as recent, old or unknown, based on the OpenRF server's UTC clock and a selectable 5–120-minute age limit. An old archive entry is not proof that the physical station disconnected. Manual, imported and one-shot readings remain visibly source-tagged rather than presented as live.
+- **Optional, per-station thresholds:** Save high/low temperature, wind gust and rain-rate limits in familiar °F, mph and inches/hour. Settings are stored in local SQLite, are disabled by default, and do not poll a sensor. The Dashboard displays warnings only when an explicitly started recorder is still running for that station and its latest saved reading belongs to that active session, has a recent receipt and comes from an eligible gateway/USB source. Serial readings with stale or unknown device age are excluded. Ecowitt readings remain *gateway reported and unverified*.
+- **No surprise notifications:** This patch adds on-page warnings only—not system notifications, audible alarms, automatic checks while the Weather page is closed, outbound messages, alarms that persist in the background or external uploads. No reading or physical hardware state is invented. See [v0.2.175 verification](docs/RELEASE_0.2.175_TESTS.md).
+
 ## v0.2.174 — Weather history comparisons and navigation/recording layout
 
 - **Remember the page in the sidebar:** After a refresh, the sidebar now scrolls its own navigation area enough to keep the restored active page (for example Weather Station) visible. The fix also applies when reopening the compact navigation drawer, including the planned 7-inch touchscreen layout, without scrolling the entire page or changing the remembered page choice.
