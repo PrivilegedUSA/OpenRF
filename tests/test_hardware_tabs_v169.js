@@ -70,4 +70,4 @@ assert.equal(nodes.get('hardware-tab-sensors').focusOptions.preventScroll,true);
 controller.open('system');
 assert.equal(controller.current(),'system');
 assert.equal(original['usb-sensor-panel'].value,'user draft','existing fields keep state');
-console.log('PASS v0.2.172 Hardware tabs, existing control preservation, 16px card gaps, keyboard');
+console.log('PASS v0.2.174 Hardware tabs, existing control preservation, 16px card gaps, keyboard');

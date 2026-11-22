@@ -1,4 +1,4 @@
-"""v0.2.172 offline weather hub: synthetic measurements are TEST FIXTURES ONLY."""
+"""v0.2.174 offline weather hub: synthetic measurements are TEST FIXTURES ONLY."""
 import http.client
 import json
 import tempfile

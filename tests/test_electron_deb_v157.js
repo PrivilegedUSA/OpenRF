@@ -22,4 +22,4 @@ for(const resource of config.build.extraResources){
 const main=fs.readFileSync(path.join(shell,'main.js'),'utf8');
 assert(main.includes("process.argv.includes('--openrf-kiosk')"));
 assert(!main.includes("setFullScreen(true);\n  win.show();\n  win.setFullScreen"));
-console.log('PASS v0.2.172 optional kiosk switch and Debian installer manifest');
+console.log('PASS v0.2.174 optional kiosk switch and Debian installer manifest');

@@ -75,4 +75,4 @@ for(const [key,layout] of Object.entries(layouts)){
 assert.equal(elements.get('mesh-node-directory').open,true,'Contacts panel opens Meshtastic directory');
 assert.equal(elements.get('mesh-device-settings').open,true,'Meshtastic connection controls are accessible');
 assert.equal(elements.get('meshcore-device-settings').open,false,'Test double retains original state; live HTML defaults it open');
-console.log('PASS v0.2.172 unified Meshtastic/MeshCore navigation, preserved nodes, scroll and keyboard');
+console.log('PASS v0.2.174 unified Meshtastic/MeshCore navigation, preserved nodes, scroll and keyboard');

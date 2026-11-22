@@ -124,4 +124,4 @@ assert(html.includes('id="reticulum-send-status"'), 'Send feedback is visible on
 const reticulum = fs.readFileSync('openrf/static/reticulum.js', 'utf8');
 assert(reticulum.includes("sendNote('Route discovery requested. Message NOT sent."));
 assert(reticulum.includes("sendNote('Queued in LXMF."));
-console.log('PASS v0.2.172: four Reticulum tabs, collapsed dashboard settings and visible Inbox send status');
+console.log('PASS v0.2.174: four Reticulum tabs, collapsed dashboard settings and visible Inbox send status');

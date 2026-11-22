@@ -1,4 +1,4 @@
-"""v0.2.173 weather recording — all sensor measurements below are TEST FIXTURES."""
+"""v0.2.174 weather recording — all sensor measurements below are TEST FIXTURES."""
 import http.client
 import json
 from pathlib import Path

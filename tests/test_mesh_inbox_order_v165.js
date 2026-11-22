@@ -45,4 +45,4 @@ assert.equal(box.scrollTop,0,'Reading old messages should not jump on a new arri
 box.scrollTop=280;
 context.renderMessages([...rows,{...rows[0],text:'next',received_at_utc:'2026-11-20T05:00:00Z'}]);
 assert.equal(box.scrollTop,500,'When near bottom, continue following new messages');
-console.log('PASS v0.2.169 Meshtastic chat chronology, initial bottom and new-message following');
+console.log('PASS v0.2.174 Meshtastic chat chronology, initial bottom and new-message following');

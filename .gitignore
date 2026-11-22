@@ -4,6 +4,7 @@ openrf-local.json
 local-data/
 private/
 secrets/
+credentials/
 .env
 .env.*
 *.jks
@@ -21,6 +22,26 @@ secrets/
 local.properties
 .cxx/
 .externalNativeBuild/
+
+# Linux / WSL Python environments and generated files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-shm
+*.db-wal
+
+# Electron / Node dependency installations and build output
+node_modules/
+node_modules.windows-backup/
+tools/openrf-electron/dist/
+npm-debug.log*
 
 # Misc
 .DS_Store

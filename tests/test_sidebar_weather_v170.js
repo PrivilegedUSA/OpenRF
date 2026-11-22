@@ -26,4 +26,4 @@ for (const size of [32,180,192,512]){
   assert.equal(data.readUInt32BE(20),size);
 }
 assert(html.includes('/static/assets/openrf-icon-32.png'));
-console.log('PASS v0.2.170 sidebar order, Messages subnavigation, icon image sizes');
+console.log('PASS v0.2.174 sidebar order, Messages subnavigation, icon image sizes');

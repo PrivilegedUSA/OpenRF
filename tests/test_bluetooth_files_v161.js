@@ -80,5 +80,5 @@ const settle=()=>new Promise(resolve=>setTimeout(resolve,10));
   assert.equal(send.options.headers['X-OpenRF-Bluetooth-Consent'],'send');
   assert.equal(JSON.parse(send.options.body).data_base64,Buffer.from('12345678').toString('base64'));
   assert.equal(confirms,2,'Both receive and send require separate operator confirmation');
-  console.log('PASS v0.2.172 Bluetooth UI: opt-in, status-only open, exact paired address, send confirmation');
+  console.log('PASS v0.2.174 Bluetooth UI: opt-in, status-only open, exact paired address, send confirmation');
 })().catch(error=>{console.error(error);process.exitCode=1;});

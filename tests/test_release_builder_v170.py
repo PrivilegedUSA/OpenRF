@@ -22,14 +22,14 @@ class ReleaseBuilderTests(unittest.TestCase):
             project = root/'project'
             project.mkdir(parents=True)
             (root/'openrf-bundle.json').write_text(json.dumps({
-                'project':'OpenRF','formatVersion':1,'version':'0.2.170'}))
+                'project':'OpenRF','formatVersion':1,'version':'0.2.175'}))
             (project/'app.py').write_text('print("hello")\n')
             (project/'__pycache__').mkdir()
             (project/'__pycache__'/'bad.pyc').write_bytes(b'NOT A SOURCE FILE')
             (root/'Update-OpenRF.ps1').write_text('LOCAL UPDATER STAYS OUTSIDE BUNDLE')
-            output=base/'OpenRF-v0.2.170.zip'
+            output=base/'OpenRF-v0.2.175.zip'
             result=builder.build(root,output)
-            self.assertEqual(result['version'],'0.2.170')
+            self.assertEqual(result['version'],'0.2.175')
             with ZipFile(output) as archive:
                 self.assertIsNone(archive.testzip())
                 self.assertIn('project/app.py',archive.namelist())
@@ -44,13 +44,13 @@ class ReleaseBuilderTests(unittest.TestCase):
             project=root/'project'
             project.mkdir(parents=True)
             (root/'openrf-bundle.json').write_text(json.dumps({
-                'project':'OpenRF','formatVersion':1,'version':'0.2.170'}))
+                'project':'OpenRF','formatVersion':1,'version':'0.2.175'}))
             with self.assertRaisesRegex(ValueError,'filename'):
                 builder.build(root,base/'wrong.zip')
             (project/'local-data').mkdir()
             (project/'local-data'/'private.log').write_text('PRIVATE')
             with self.assertRaisesRegex(ValueError,'Reserved'):
-                builder.build(root,base/'OpenRF-v0.2.170.zip')
+                builder.build(root,base/'OpenRF-v0.2.175.zip')
 
     def test_site_icon_variants_have_real_transparent_rounded_corners(self):
         asset_dir=Path(__file__).resolve().parents[1]/'openrf'/'static'/'assets'

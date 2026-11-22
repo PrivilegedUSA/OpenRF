@@ -33,5 +33,5 @@ assert.equal(rootFor(null,sourceDir),path.resolve('.'));
   assert.equal(result.owned,true);assert.equal(options.cwd,path.resolve('.'));
   assert.equal(options.stdio[0],'ignore');
   stopBackend();assert.equal(child.killed,true);
-  console.log('PASS v0.2.172 Electron attaches or starts owned loopback backend and stops only its child');
+  console.log('PASS v0.2.174 Electron attaches or starts owned loopback backend and stops only its child');
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -74,4 +74,4 @@ context.renderInbox([{...rows[0],direction:'OUT',status:'DELIVERED_LXMF'},
 assert.match(elements['reticulum-messages'].children[0].children[2].textContent,/receipt confirmed/,
   'A delivery callback is shown independently of queue acceptance');
 assert.match(elements['reticulum-messages'].children[1].children[2].textContent,/Delivery failed/);
-console.log('PASS v0.2.169 Reticulum oldest-first chat, UTC ordering and bottom-follow behavior');
+console.log('PASS v0.2.174 Reticulum oldest-first chat, UTC ordering and bottom-follow behavior');
