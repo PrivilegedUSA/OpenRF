@@ -135,28 +135,42 @@ try {
         -not (Test-Path -LiteralPath $payload -PathType Container)) {
         throw 'Not a valid OpenRF bundle: missing openrf-bundle.json or project/ folder.'
     }
-    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($manifest.project -cne 'OpenRF' -or [int]$manifest.formatVersion -ne 1 -or
         [string]::IsNullOrWhiteSpace($manifest.version) -or
         $manifest.version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid bundle manifest.' }
 
     # Reject inconsistent release inputs before any user-owned file is changed.
+    # Windows PowerShell 5.1 reads BOM-less files as ANSI by default; the UI
+    # brand header contains UTF-8 '·', so every version source needs UTF8.
     $expectedVersion = [string]$manifest.version
-    $pythonSource = Get-Content -LiteralPath (Join-Path $payload 'openrf\__init__.py') -Raw
+    $pythonSource = Get-Content -LiteralPath (Join-Path $payload 'openrf\__init__.py') -Raw -Encoding UTF8
     $pythonMatch = [regex]::Match($pythonSource, '(?m)^__version__\s*=\s*"([^"]+)"')
-    $electronSource = Get-Content -LiteralPath (Join-Path $payload 'tools\openrf-electron\backend.js') -Raw
+    $electronSource = Get-Content -LiteralPath (Join-Path $payload 'tools\openrf-electron\backend.js') -Raw -Encoding UTF8
     $backendMatch = [regex]::Match($electronSource, "const EXPECTED_VERSION\s*=\s*'([^']+)'")
-    $electronPackage = Get-Content -LiteralPath (Join-Path $payload 'tools\openrf-electron\package.json') -Raw | ConvertFrom-Json
-    $electronLockText = Get-Content -LiteralPath (Join-Path $payload 'tools\openrf-electron\package-lock.json') -Raw
+    $electronPackage = Get-Content -LiteralPath (Join-Path $payload 'tools\openrf-electron\package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    $electronLockText = Get-Content -LiteralPath (Join-Path $payload 'tools\openrf-electron\package-lock.json') -Raw -Encoding UTF8
     $lockMatch = [regex]::Match($electronLockText, '"version"\s*:\s*"([^"]+)"')
-    $indexHtml = Get-Content -LiteralPath (Join-Path $payload 'openrf\static\index.html') -Raw
-    if (-not $pythonMatch.Success -or $pythonMatch.Groups[1].Value -cne $expectedVersion -or
-        -not $backendMatch.Success -or $backendMatch.Groups[1].Value -cne $expectedVersion -or
-        [string]$electronPackage.version -cne $expectedVersion -or
-        -not $lockMatch.Success -or $lockMatch.Groups[1].Value -cne $expectedVersion -or
-        -not $indexHtml.Contains("/static/weather.js?v=$expectedVersion") -or
-        -not $indexHtml.Contains("FIELD CONSOLE " + [char]0xB7 + " $expectedVersion")) {
-        throw "Bundle version fields disagree with $expectedVersion. Nothing was installed."
+    $indexHtml = Get-Content -LiteralPath (Join-Path $payload 'openrf\static\index.html') -Raw -Encoding UTF8
+    $versionErrors = @()
+    if (-not $pythonMatch.Success -or $pythonMatch.Groups[1].Value -cne $expectedVersion) {
+        $versionErrors += 'Python version'
+    }
+    if (-not $backendMatch.Success -or $backendMatch.Groups[1].Value -cne $expectedVersion) {
+        $versionErrors += 'Electron backend'
+    }
+    if ([string]$electronPackage.version -cne $expectedVersion) { $versionErrors += 'Electron package' }
+    if (-not $lockMatch.Success -or $lockMatch.Groups[1].Value -cne $expectedVersion) {
+        $versionErrors += 'Electron package lock'
+    }
+    if (-not $indexHtml.Contains("/static/weather.js?v=$expectedVersion")) {
+        $versionErrors += 'Weather JavaScript cache version'
+    }
+    if (-not $indexHtml.Contains("FIELD CONSOLE " + [char]0xB7 + " $expectedVersion")) {
+        $versionErrors += 'UTF-8 UI brand version'
+    }
+    if ($versionErrors.Count -gt 0) {
+        throw "Bundle version fields disagree with $expectedVersion ($($versionErrors -join ', ')). Nothing was installed."
     }
 
     $newPaths = @()
