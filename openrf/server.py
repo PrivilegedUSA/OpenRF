@@ -432,6 +432,17 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, self.server.weather_recorder.status())
         if path == '/api/weather/recording/sessions':
             return self._json(200, {'sessions': self.server.weather_recorder.sessions()})
+        if path == '/api/weather/recording/export.csv':
+            params = parse_qs(urlparse(self.path).query, keep_blank_values=True)
+            if set(params) != {'session_id'} or len(params['session_id']) != 1:
+                return self._error(400, 'Select exactly one saved weather recording session.')
+            try:
+                session_id = int(params['session_id'][0])
+                raw = self.server.weather_store.export_recording_csv(session_id)
+                return self._send(200, raw, 'text/csv; charset=utf-8',
+                                  {'Content-Disposition': f'attachment; filename="openrf-weather-session-{session_id}.csv"'})
+            except (ValueError, WeatherError) as exc:
+                return self._error(400, str(exc))
         if path == '/api/weather/compare':
             params = parse_qs(urlparse(self.path).query, keep_blank_values=True)
             if (set(params) != {'station_id', 'days', 'metric'} or

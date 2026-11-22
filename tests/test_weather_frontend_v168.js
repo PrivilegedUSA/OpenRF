@@ -273,6 +273,13 @@ async function test(){
   assert.equal(get('weather-recording-badge').textContent,'RECORDING · USER STARTED');
   context.window.OpenRFWeather.openTab('history');
   assert.equal(get('weather-recording-sessions').children.length,1);
+  const sessionLink=get('weather-recording-sessions').children[0].children[1];
+  assert.equal(sessionLink.textContent,'Export session CSV');
+  assert.equal(sessionLink.href,'/api/weather/recording/export.csv?session_id=1');
+  assert.equal(sessionLink.download,'openrf-weather-session-1.csv');
+  assert.equal(sessionLink.attributes['aria-label'],'Export saved weather readings for session 1 as CSV');
+  assert.equal(calls.filter(call=>call.path.includes('recording/export.csv')).length,0,
+    'Displaying recording history must never download a CSV or touch hardware implicitly');
   await get('weather-recording-stop').events.click();
   assert.equal(get('weather-recording-badge').textContent,'STOPPED · OPT-IN');
   assert(html.indexOf('id="weather-rain"')<html.indexOf('<h3>Weather recording</h3>'),

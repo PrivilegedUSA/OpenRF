@@ -1,4 +1,4 @@
-/* OpenRF v0.2.175 weather hub — opt-in local recording and source-tagged history. */
+/* OpenRF v0.2.176 weather hub — opt-in local recording and source-tagged history. */
 (() => {
   'use strict';
   const el = id => document.getElementById(id);
@@ -308,7 +308,13 @@
       const main=document.createElement('div'),title=document.createElement('strong'),meta=document.createElement('small');
       title.textContent=`#${session.id} · ${session.station_name} · ${session.state}`;
       meta.textContent=`${session.source_kind} (${session.source_label}) · ${session.interval_seconds}s interval · ${stamp(session.started_at_utc)} to ${stamp(session.ended_at_utc)} UTC · ${session.samples_saved} saved · ${session.skipped_count} skipped · ${session.failure_count} errors${session.last_error?' · '+session.last_error:''}`;
-      main.append(title,meta);line.append(main);container.append(line);
+      const download=document.createElement('a');
+      download.className='btn outline';download.textContent='Export session CSV';
+      download.href=`/api/weather/recording/export.csv?session_id=${encodeURIComponent(session.id)}`;
+      download.download=`openrf-weather-session-${session.id}.csv`;
+      download.setAttribute('aria-label',`Export saved weather readings for session ${session.id} as CSV`);
+      download.title=session.samples_saved?'Download only this recording session’s saved readings.':'No readings saved. CSV contains column headings only.';
+      main.append(title,meta);line.append(main,download);container.append(line);
     }
   }
   el('weather-recording-source').addEventListener('change',()=>{

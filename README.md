@@ -2,6 +2,12 @@
 
 OpenRF's original project source is licensed **GPL-3.0-or-later**; see the complete [GNU GPLv3 license text](LICENSE). Individually bundled or optional third-party components retain their own copyright and license notices.
 
+## v0.2.176 — Export individual weather recordings and test locally
+
+- **Session-specific weather CSV:** Weather Station → History → Recording sessions now has an **Export session CSV** action on each entry. It downloads up to 5,000 source-tagged saved readings belonging to that exact session, not unrelated archived/manual samples, with UTC observation, SI units, receipt/source and session IDs retained. Empty or failed sessions export a header-only file. Downloading history does not poll, open or connect to any weather instrument.
+- **Windows-to-WSL test launcher:** Run `powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\tools\Test-OpenRF.ps1'` from any PowerShell directory to execute Python compilation/unit tests and all JavaScript regression suites locally in WSL. From Ubuntu, run `bash tools/test-openrf-linux.sh` in the OpenRF folder. This uses the installed WSL `python3` and Node.js; GitHub's standard-runner Python 3.11/3.14 matrix remains the independent release check. Neither launcher commits or pushes to GitHub.
+- **Preserved behavior:** Weather recording remains opt-in and below the dashboard metrics. Existing history, multi-day comparisons, freshness/threshold warnings, source attribution, optional devices and other OpenRF features are unchanged. See [v0.2.176 verification](docs/RELEASE_0.2.176_TESTS.md).
+
 ## v0.2.175 — Saved-reading freshness and opt-in local weather warnings
 
 - **Know how old the data is:** Weather Station → Dashboard now labels the selected station's last *saved* observation as recent, old or unknown, based on the OpenRF server's UTC clock and a selectable 5–120-minute age limit. An old archive entry is not proof that the physical station disconnected. Manual, imported and one-shot readings remain visibly source-tagged rather than presented as live.

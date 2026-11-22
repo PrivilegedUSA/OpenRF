@@ -33,6 +33,7 @@ CSV_FIELDS = ('observed_at_utc', *FIELDS)
 MAX_IMPORT_BYTES = 160_000
 MAX_IMPORT_ROWS = 500
 MAX_EXPORT_ROWS = 50_000
+MAX_RECORDING_EXPORT_ROWS = 5_000  # The recorder never saves more than this per session.
 ALERT_STALE_MINUTES = (5, 15, 30, 60, 120)
 ALERT_THRESHOLDS = ('low_temperature_c', 'high_temperature_c',
                     'high_wind_gust_mps', 'high_rain_rate_mm_h')
@@ -671,13 +672,9 @@ class WeatherStore:
                 'current': result[0], 'previous': result[1],
                 'note': 'Record-level statistics; missing values ignored. Mixed sensor sources, sparse sampling and reports not independently verified.'}
 
-    def export_csv(self, station_id):
-        station_id = self._station_id(station_id)
-        with self._connect() as db:
-            self._exists(db, station_id)
-            rows = db.execute('''SELECT * FROM weather_readings WHERE station_id=?
-                                 ORDER BY observed_at_utc DESC,id DESC LIMIT ?''',
-                              (station_id, MAX_EXPORT_ROWS)).fetchall()
+    @staticmethod
+    def _export_rows_csv(station_id, rows):
+        """Encode explicitly selected, local source-tagged records in UTC/SI units."""
         buffer = io.StringIO(newline='')
         writer = csv.writer(buffer, lineterminator='\r\n')
         writer.writerow(('station_id', 'source_kind', 'source_device', *CSV_FIELDS,
@@ -688,3 +685,32 @@ class WeatherStore:
                              *(row[key] if row[key] is not None else '' for key in
                                ('timestamp_basis','sensor_reported_at_utc','measurement_age_seconds','freshness','recording_session_id'))))
         return buffer.getvalue().encode('utf-8')
+
+    def export_csv(self, station_id):
+        station_id = self._station_id(station_id)
+        with self._connect() as db:
+            self._exists(db, station_id)
+            rows = db.execute('''SELECT * FROM weather_readings WHERE station_id=?
+                                 ORDER BY observed_at_utc DESC,id DESC LIMIT ?''',
+                              (station_id, MAX_EXPORT_ROWS)).fetchall()
+        return self._export_rows_csv(station_id, rows)
+
+    def export_recording_csv(self, session_id):
+        """Export only saved samples assigned to one existing recording session.
+
+        This is an archive query; it cannot start, reconnect or probe a sensor.
+        Empty/failed sessions have a header-only CSV. Other sessions and manual
+        records from the same station are never included.
+        """
+        if type(session_id) is not int or session_id <= 0:
+            raise WeatherError('Select a valid saved recording session.')
+        with self._connect() as db:
+            session = db.execute('''SELECT id,station_id FROM weather_recording_sessions
+                                    WHERE id=?''', (session_id,)).fetchone()
+            if session is None:
+                raise WeatherError('Weather recording session not found.')
+            rows = db.execute('''SELECT * FROM weather_readings
+                                 WHERE recording_session_id=? AND station_id=?
+                                 ORDER BY observed_at_utc DESC,id DESC LIMIT ?''',
+                              (session_id, session['station_id'], MAX_RECORDING_EXPORT_ROWS)).fetchall()
+        return self._export_rows_csv(session['station_id'], rows)
