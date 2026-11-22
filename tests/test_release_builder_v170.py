@@ -22,14 +22,14 @@ class ReleaseBuilderTests(unittest.TestCase):
             project = root/'project'
             project.mkdir(parents=True)
             (root/'openrf-bundle.json').write_text(json.dumps({
-                'project':'OpenRF','formatVersion':1,'version':'0.2.176'}))
+                'project':'OpenRF','formatVersion':1,'version':'0.2.177'}))
             (project/'app.py').write_text('print("hello")\n')
             (project/'__pycache__').mkdir()
             (project/'__pycache__'/'bad.pyc').write_bytes(b'NOT A SOURCE FILE')
             (root/'Update-OpenRF.ps1').write_text('LOCAL UPDATER STAYS OUTSIDE BUNDLE')
-            output=base/'OpenRF-v0.2.176.zip'
+            output=base/'OpenRF-v0.2.177.zip'
             result=builder.build(root,output)
-            self.assertEqual(result['version'],'0.2.176')
+            self.assertEqual(result['version'],'0.2.177')
             with ZipFile(output) as archive:
                 self.assertIsNone(archive.testzip())
                 self.assertIn('project/app.py',archive.namelist())
@@ -44,13 +44,36 @@ class ReleaseBuilderTests(unittest.TestCase):
             project=root/'project'
             project.mkdir(parents=True)
             (root/'openrf-bundle.json').write_text(json.dumps({
-                'project':'OpenRF','formatVersion':1,'version':'0.2.176'}))
+                'project':'OpenRF','formatVersion':1,'version':'0.2.177'}))
             with self.assertRaisesRegex(ValueError,'filename'):
                 builder.build(root,base/'wrong.zip')
             (project/'local-data').mkdir()
             (project/'local-data'/'private.log').write_text('PRIVATE')
             with self.assertRaisesRegex(ValueError,'Reserved'):
-                builder.build(root,base/'OpenRF-v0.2.176.zip')
+                builder.build(root,base/'OpenRF-v0.2.177.zip')
+
+    def test_electron_generated_build_files_are_excluded(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp)
+            root = base/'source'
+            project = root/'project'
+            shell = project/'tools'/'openrf-electron'
+            shell.mkdir(parents=True)
+            (root/'openrf-bundle.json').write_text(json.dumps({
+                'project':'OpenRF','formatVersion':1,'version':'0.2.177'}))
+            (shell/'package.json').write_text('{"name":"openrf-native-shell"}')
+            for folder in ('node_modules', 'node_modules.windows-backup', 'dist', 'release'):
+                generated = shell/folder/'nested'
+                generated.mkdir(parents=True)
+                (generated/'giant.bin').write_bytes(b'EXCLUDED')
+            target = base/'OpenRF-v0.2.177.zip'
+            builder.build(root,target)
+            with ZipFile(target) as archive:
+                names = archive.namelist()
+                self.assertIn('project/tools/openrf-electron/package.json',names)
+                self.assertFalse(any('giant.bin' in name for name in names))
+                self.assertFalse(any('/node_modules/' in name or '/dist/' in name
+                                     for name in names))
 
     def test_site_icon_variants_have_real_transparent_rounded_corners(self):
         asset_dir=Path(__file__).resolve().parents[1]/'openrf'/'static'/'assets'

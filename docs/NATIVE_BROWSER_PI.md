@@ -35,7 +35,7 @@ Electron is an **optional native Chromium host** that turns the existing local U
    OPENRF_URL=http://127.0.0.1:8765/ npm start
    ```
 
-   For fullscreen kiosk testing set `OPENRF_KIOSK=1` before `npm start`. The shell will attach to an existing **v0.2.157** OpenRF backend on that port, or start its own copy via `python3 -m openrf` with the packaged/source Python files. On exit it stops **only the process it owns**. If an older OpenRF server is still running on 8765, stop the old server with Ctrl+C before launching the newer shell. Use the actual loopback port reported by OpenRF if it differs from 8765. Never bind OpenRF to a public/LAN interface to make the shell connect.
+   For fullscreen kiosk testing set `OPENRF_KIOSK=1` before `npm start`. The shell will attach to an existing **matching-version** OpenRF backend on that port, or start its own copy via `python3 -m openrf` with the packaged/source Python files. On exit it stops **only the process it owns**. If an older OpenRF server is still running on 8765, stop the old server with Ctrl+C before launching the newer shell. Use the actual loopback port reported by OpenRF if it differs from 8765. Never bind OpenRF to a public/LAN interface to make the shell connect.
 
 5. Open **Web Browser** in the shell, enter a public website, press **Go**, then switch tabs. Pages run in their own Chromium surfaces within the OpenRF browser area. The side menu and emergency navigation remain part of OpenRF. **Closing a tab** closes its Chromium surface.
 
@@ -53,16 +53,16 @@ Electron is an **optional native Chromium host** that turns the existing local U
 
 On Raspberry Pi OS verify installation, graphics acceleration, touch keyboard, 1280×800 layout, Wi-Fi loss/reconnect, memory use, thermal throttling, power draw, button targets, status of all OpenRF sections after switching away from Browser, and multi-tab load/close behavior. In particular, compare App Settings memory readings while tabs are visible vs hidden, then close them to observe reclamation. These are **not verified by the source tests**. The Raspberry Pi hardware purchase is still pending.
 
-## Standalone `.deb` install and build (v0.2.157)
+## Standalone `.deb` install and build (v0.2.177)
 
 Install the matching prebuilt package, when available, on a **64-bit Debian-derived Linux desktop**:
 
 ```bash
 # Linux laptop or Ubuntu x86_64:
-sudo apt install ./OpenRF-0.2.157-amd64.deb
+sudo apt install ./OpenRF-0.2.177-amd64.deb
 
 # OR on 64-bit Raspberry Pi OS (aarch64), use the ARM64 file:
-sudo apt install ./OpenRF-0.2.157-arm64.deb
+sudo apt install ./OpenRF-0.2.177-arm64.deb
 
 # Launch from the desktop application menu, or:
 openrf
@@ -70,7 +70,22 @@ openrf
 
 The package installs a desktop menu entry and the embedded Chromium binary under `/opt/OpenRF/`, and places the read-only OpenRF Python server files at `/opt/OpenRF/resources/project/openrf/`. It requires OS-provided Python 3.11+ and GUI libraries; it does **not** require Node/npm on the target Pi. The Python backend runs only on loopback and writes its SQLite data to the user's normal data directory, not `/opt`. Installing the package does not add a system service, enable network access, or automatically sign into the desktop. Standard desktop display access is still required; WSL without working WSLg/GUI is not a supported test environment for launching the window.
 
-To build the packages again from source on a Linux machine with Node 20+ (downloads Electron and packaging tools while online):
+To build and validate both packages on Windows 11 with WSL and Node 20+ installed in WSL (this can download Electron and packaging tools while online), run **from any PowerShell directory**:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\tools\Build-OpenRF-Deb.ps1'
+```
+
+Or build from the Ubuntu/WSL OpenRF project directory:
+
+```bash
+cd /mnt/c/projects/OpenRF
+bash tools/build-openrf-deb.sh both
+```
+
+Both commands run the local Python/JS tests before packaging, then use `npm ci` to recreate **only** the Electron `node_modules` dependency tree from the pinned lock file (a network download may be needed). They do **not** install the resulting packages, touch Git, or run GitHub Actions. Use `amd64` or `arm64` in place of `both` to build only one architecture. The bundle updater skips generated `node_modules` and `.deb` build output, which must stay local.
+
+Alternatively, to invoke the Electron build commands directly after `npm ci`:
 
 ```bash
 cd /path/to/OpenRF/project/tools/openrf-electron
@@ -79,7 +94,7 @@ npm run build:deb:x64
 npm run build:deb:arm64
 ```
 
-The outputs are `dist/OpenRF-0.2.157-amd64.deb` and `dist/OpenRF-0.2.157-arm64.deb`. **These packages are separate downloads from the OpenRF update ZIP**. The project contact metadata remains clearly provisional (`openrf@localhost`) and the source license is currently marked `UNLICENSED`; select a genuine open-source license and actual project support contact before public distribution. An archive inspection/build is not equivalent to validating install/upgrade/uninstall or touchscreen behavior on a live Pi.
+The outputs are `dist/OpenRF-0.2.177-amd64.deb` and `dist/OpenRF-0.2.177-arm64.deb`. **These packages are separate downloads from the OpenRF update ZIP**. The current package uses GPL-3.0-or-later and bundles the license/copyright notices. Its maintainer is labeled **PrivilegedUSA**, with the public GitHub repository as the support entry point; no private or unverified contact email is published. The read-only verification script checks version, Debian architecture, dependencies, application menu entry, backend, kiosk helper, and license/copyright resources. It does not install software or prove a usable GUI. Before publishing, manually verify installed behavior on a supported Linux desktop, and Pi touchscreen behavior on real ARM64 hardware; the v0.2.157 build was an earlier artifact rather than proof for this release.
 
 ### Opt-in Raspberry Pi desktop autostart
 

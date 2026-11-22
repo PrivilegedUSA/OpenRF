@@ -2,6 +2,12 @@
 
 OpenRF's original project source is licensed **GPL-3.0-or-later**; see the complete [GNU GPLv3 license text](LICENSE). Individually bundled or optional third-party components retain their own copyright and license notices.
 
+## v0.2.177 — Verify native Linux Debian installers before distributing
+
+- **Installable OpenRF desktop:** Linux AMD64 and ARM64 `.deb` packaging remains opt-in. It bundles the Electron desktop shell and OpenRF Python/server source, with a normal app menu launcher; the installed OS must supply Python 3.11+ and GUI libraries. The original source ZIP and browser-only WSL experience still work. No automatic startup, LAN exposure or system service is added.
+- **Local build command:** From PowerShell, run `powershell.exe -NoProfile -ExecutionPolicy Bypass -File 'C:\projects\OpenRF\tools\Build-OpenRF-Deb.ps1'` (or from Ubuntu run `bash tools/build-openrf-deb.sh both`). This performs the local Python/JS preflight, installs pinned build dependencies with npm, builds AMD64 and ARM64 packages and checks each resulting Debian archive's version, architecture, dependencies, desktop launcher, Python backend and license files. It never pushes to GitHub or installs the resulting packages.
+- **Packaging cleanup:** The desktop package now uses the repository's GPL-3.0-or-later license, includes LICENSE and COPYRIGHT, and points at the real OpenRF GitHub project. Debian dependencies accept old/new GTK, accessibility and ALSA library names. Locally downloaded `node_modules` and `dist` build output are excluded from the managed source ZIP. See [v0.2.177 build and verification instructions](docs/RELEASE_0.2.177_TESTS.md). A successful archive check is *not* a Raspberry Pi touchscreen or installed-app test.
+
 ## v0.2.176 — Export individual weather recordings and test locally
 
 - **Session-specific weather CSV:** Weather Station → History → Recording sessions now has an **Export session CSV** action on each entry. It downloads up to 5,000 source-tagged saved readings belonging to that exact session, not unrelated archived/manual samples, with UTC observation, SI units, receipt/source and session IDs retained. Empty or failed sessions export a header-only file. Downloading history does not poll, open or connect to any weather instrument.

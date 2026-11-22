@@ -2,7 +2,7 @@
 
 Usage from a directory containing `work176/`:
   python3 work176/project/tools/build_release_zip.py \
-      --source-root work176 --output OpenRF-v0.2.176.zip
+      --source-root work176 --output OpenRF-v0.2.177.zip
 
 The bundle contains only openrf-bundle.json at ZIP root and managed project/.
 User-owned updater scripts, Git, local data and credentials are never collected.
@@ -34,8 +34,15 @@ def build(source_root: Path, output: Path) -> dict:
     if output.name != expected_name:
         raise ValueError('Expected archive filename ' + expected_name)
     def skipped(path: Path) -> bool:
-        return path.name == '.DS_Store' or path.suffix == '.pyc' or any(
-            part in ('__pycache__', '.pytest_cache') for part in path.relative_to(source_root).parts)
+        parts = path.relative_to(source_root).parts
+        if path.name == '.DS_Store' or path.suffix == '.pyc' or any(
+                part in ('__pycache__', '.pytest_cache') for part in parts):
+            return True
+        # Installing/building Electron locally must never add thousands of
+        # generated files (or bundled Chromium binaries) to the source ZIP.
+        return len(parts) >= 4 and parts[:3] == (
+            'project', 'tools', 'openrf-electron') and parts[3] in (
+                'node_modules', 'node_modules.windows-backup', 'dist', 'release')
 
     dirs = [project] + [p for p in sorted(project.rglob('*')) if p.is_dir() and not skipped(p)]
     files = [manifest_file] + [p for p in sorted(project.rglob('*')) if p.is_file() and not skipped(p)]

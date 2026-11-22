@@ -32,6 +32,8 @@ printf '\n[2/4] Run Python unit tests\n'
 
 printf '\n[3/4] Check shell and application JavaScript syntax\n'
 bash -n tools/setup-valhalla-wsl.sh
+bash -n tools/build-openrf-deb.sh
+"$python_bin" -m py_compile tools/verify_openrf_deb.py
 for source in \
   openrf/static/app.js \
   openrf/static/meshcore.js \
