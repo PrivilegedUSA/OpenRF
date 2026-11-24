@@ -4,7 +4,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
 const read=f=>fs.readFileSync(`openrf/static/${f}.js`,'utf8');
 const ui=read('surveillance'),html=fs.readFileSync('openrf/static/index.html','utf8');
 assert(html.includes('surveillance-recording-detail'));
-assert(html.includes('/static/tab-session.js?v=0.2.191'));
+assert(/\/static\/tab-session\.js\?v=0\.2\.\d+/.test(html));
 assert(ui.includes('surveillance-recording-table'));
 assert(ui.includes('surveillance-recording-open'));
 assert(ui.includes('surveillance-selected-player'));

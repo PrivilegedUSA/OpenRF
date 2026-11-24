@@ -1,0 +1,21 @@
+/* v0.2.192: sortable date-range list, inline expandable detail, video thumbnails, opt-in audio. */
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const html=fs.readFileSync('openrf/static/index.html','utf8');
+const js=fs.readFileSync('openrf/static/surveillance.js','utf8');
+const css=fs.readFileSync('openrf/static/surveillance.css','utf8');
+assert(html.includes('id="surveillance-recordings-range"'));
+assert(html.includes('value="today"') && html.includes('value="7d"') && html.includes('value="30d"'));
+assert(html.includes('id="surveillance-record-audio"'));
+assert(html.includes('id="surveillance-audio-device"'));
+assert(js.includes('surveillance-sort-button'));
+assert(js.includes("recordingSortKey = 'started_utc'"));
+assert(js.includes('recordingSortDesc=!recordingSortDesc'));
+assert(js.includes('surveillance-expanded-row'));
+assert(js.includes('showRecordingDetail(entry);cell.append(detail)'));
+assert(js.includes("entry.kind==='image'?'file':'thumbnail'"));
+assert(js.includes("if(fingerprint===renderedMediaFingerprint) return"));
+assert(js.includes('/api/surveillance/audio-devices'));
+assert(js.includes("record_audio: $('surveillance-record-audio').checked"));
+assert(css.includes('.surveillance-recording-table .surveillance-expanded-row'));
+console.log('PASS v192 surveillance sorted inline playback, thumbnails, optional audio');

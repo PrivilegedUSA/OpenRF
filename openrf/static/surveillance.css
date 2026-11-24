@@ -222,3 +222,14 @@
 .surveillance-selected-player,.surveillance-selected-image{display:block;object-fit:contain;max-width:100%;width:min(100%,820px);max-height:min(65vh,540px);margin:12px auto;background:#060e12}
 .surveillance-detail-actions{margin-top:14px}
 @media(max-width:650px){.surveillance-recording-table{min-width:520px}.surveillance-media-thumb{min-width:58px;width:58px;height:39px}}
+
+/* v0.2.192: sortable media list with inline player; narrow-screen scroll is table-only. */
+.surveillance-recording-table .surveillance-sort-button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;white-space:nowrap;text-align:left}
+.surveillance-recording-table .surveillance-sort-button:hover{text-decoration:underline}
+.surveillance-recording-table .surveillance-sort-button:focus-visible{outline:2px solid #34c9b1;outline-offset:3px}
+.surveillance-recording-table .surveillance-expanded-row>td{padding:0 12px 15px;background:#10252e}
+.surveillance-recording-table .surveillance-expanded-row:hover{background:#10252e}
+.surveillance-recording-table .surveillance-recording-detail{margin:0;max-width:100%;width:100%;min-width:0}
+.surveillance-audio-options{margin:8px 0 14px}
+.surveillance-audio-options #surveillance-audio-usb{margin:10px 0 0}
+.surveillance-audio-options[hidden],#surveillance-audio-usb[hidden]{display:none!important}

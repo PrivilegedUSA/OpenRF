@@ -1,3 +1,10 @@
+## OpenRF v0.2.192 — In-row recording playback, sortable history and optional audio (2026-11-24)
+
+- **Local media history:** completed MP4 videos now have first-frame JPEG thumbnails generated from existing private recordings only on request. Select a thumbnail or date to expand playback directly under that row; select again to collapse or another to switch. Routine status polls preserve the currently expanded player. No prerecorded image is presented as a live stream.
+- **Sort and time filters:** date/time, camera, type, status and size column headers sort ascending or descending. Added Today, Last 7 days, Last 30 days and All time date filter, alongside the existing camera filter. Filtering is read-only; cleanup remains a separate explicit confirmation workflow.
+- **Opt-in recording audio:** camera settings have an off-by-default Include audio option. Compatible RTSP cameras may supply audio from the video stream. For USB, choose a separately listed ALSA microphone device; WSL may not expose it even when webcam video works. Local recordings encode requested audio to AAC and report whether the finalized MP4 actually contains an audio track (using ffprobe). No background microphone capture, remote access or automatic recording. Saved-video playback uses the browser's normal audio controls.
+- **Safety:** saved files and thumbnails stay outside source and Git; thumbnail GETs use same-origin guards and strict numeric IDs. Cached thumbnails are removed with media. No physical camera, microphone, Raspberry Pi or GitHub CI verification. See `docs/RELEASE_0.2.192_TESTS.md`.
+
 ## OpenRF v0.2.191 — Surveillance media list, tab refresh state, USB preview bug fix (2026-11-24)
 
 - **USB preview during recording:** removed a stale `refresh()` condition that forcibly stopped an already-open live feed each time the backend reported a USB recording. The manual recorder continues to release the original reader before starting its one-reader MP4+MJPEG capture; the frontend now allows the shared preview to stay open during status polling. A failed hardware capture still reports failure; this is not proof of hardware reliability.

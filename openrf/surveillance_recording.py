@@ -13,7 +13,7 @@ from queue import Queue, Empty, Full
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .surveillance import SurveillanceError, validate_rtsp, validate_usb_device
+from .surveillance import SurveillanceError, validate_rtsp, validate_usb_device, validate_audio_device
 
 MAX_RECORD_SECONDS = 3600
 MAX_RECORDINGS = 2000
@@ -124,18 +124,37 @@ class RecordingManager:
         self.lock = threading.RLock()
         self.active = {}
         self.shared_usb = {}  # only while a user-requested manual USB recording is active
+        self.thumbnail_slots = threading.BoundedSemaphore(2)
         self.preview_stopper = None  # Configured by the local server; no background capture.
         with self._db() as db:
             db.execute('''CREATE TABLE IF NOT EXISTS surveillance_recordings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, camera_id INTEGER NOT NULL,
                 camera_name TEXT NOT NULL, kind TEXT NOT NULL, filename TEXT NOT NULL UNIQUE,
                 started_utc TEXT NOT NULL, ended_utc TEXT, state TEXT NOT NULL)''')
+            cols = {row[1] for row in db.execute('PRAGMA table_info(surveillance_recordings)')}
+            if 'audio_requested' not in cols:
+                db.execute('ALTER TABLE surveillance_recordings ADD COLUMN audio_requested INTEGER NOT NULL DEFAULT 0')
+            if 'audio_present' not in cols:
+                db.execute('ALTER TABLE surveillance_recordings ADD COLUMN audio_present INTEGER')
             db.execute("UPDATE surveillance_recordings SET state='INTERRUPTED', ended_utc=? WHERE state='RECORDING'", (_now(),))
 
     def _db(self):
         db = sqlite3.connect(str(self.db_path), timeout=10)
         db.row_factory = sqlite3.Row
         return db
+
+    def _audio_in_file(self, path):
+        """Check finalized local MP4 audio stream without assuming requested audio was saved."""
+        ffprobe = shutil.which('ffprobe')
+        if not ffprobe or not path.is_file() or not path.stat().st_size:
+            return None
+        try:
+            result = subprocess.run([ffprobe, '-v', 'error', '-select_streams', 'a:0',
+                                     '-show_entries', 'stream=index', '-of', 'csv=p=0', str(path)],
+                                    capture_output=True, timeout=8, check=False)
+            return bool(result.stdout.strip()) if result.returncode == 0 else None
+        except (OSError, subprocess.TimeoutExpired):
+            return None
 
     def _refresh(self):
         for cam_id, (ident, proc) in list(self.active.items()):
@@ -145,15 +164,18 @@ class RecordingManager:
                 output = self.folder / f'video-{ident:08d}.mp4'
                 valid_output = output.is_file() and output.stat().st_size > 0
                 with self._db() as db:
-                    db.execute("UPDATE surveillance_recordings SET state=?, ended_utc=? WHERE id=? AND state='RECORDING'",
-                               ('FINISHED' if proc.returncode == 0 and valid_output else 'FAILED', _now(), ident))
+                    db.execute("UPDATE surveillance_recordings SET state=?, ended_utc=?, audio_present=? WHERE id=? AND state='RECORDING'",
+                               ('FINISHED' if proc.returncode == 0 and valid_output else 'FAILED', _now(),
+                                self._audio_in_file(output) if valid_output else None, ident))
                     db.commit()
 
     def _public(self, row):
         file = self.folder / row['filename']
         return {'id': row['id'], 'camera_id': row['camera_id'], 'camera_name': row['camera_name'],
                 'kind': row['kind'], 'started_utc': row['started_utc'], 'ended_utc': row['ended_utc'],
-                'state': row['state'], 'bytes': file.stat().st_size if file.is_file() else 0}
+                'state': row['state'], 'bytes': file.stat().st_size if file.is_file() else 0,
+                'audio_requested': bool(row['audio_requested']),
+                'audio_present': None if row['audio_present'] is None else bool(row['audio_present'])}
 
     def list(self, limit=100):
         with self.lock:
@@ -187,6 +209,8 @@ class RecordingManager:
                 raise SurveillanceError('FFmpeg is required for local recording')
             if camera['source'] == 'USB' and not Path(camera['location']).exists():
                 raise SurveillanceError('USB camera device is not connected')
+            if camera.get('record_audio') and camera['source'] == 'USB':
+                validate_audio_device(camera.get('audio_device'))
             if camera['source'] == 'USB' and self.preview_stopper:
                 self.preview_stopper(camera['id'])
             if self.storage()['free_bytes'] < 512 * 1024 * 1024:
@@ -195,8 +219,8 @@ class RecordingManager:
                 if db.execute('SELECT COUNT(*) FROM surveillance_recordings').fetchone()[0] >= MAX_RECORDINGS:
                     raise SurveillanceError('Recording count limit reached; delete old recordings first')
                 started = _now()
-                cursor = db.execute('INSERT INTO surveillance_recordings (camera_id,camera_name,kind,filename,started_utc,state) VALUES (?,?,?,?,?,?)',
-                                    (camera['id'], camera['name'], 'video', 'pending', started, 'RECORDING'))
+                cursor = db.execute('INSERT INTO surveillance_recordings (camera_id,camera_name,kind,filename,started_utc,state,audio_requested) VALUES (?,?,?,?,?,?,?)',
+                                    (camera['id'], camera['name'], 'video', 'pending', started, 'RECORDING', int(bool(camera.get('record_audio')))))
                 ident = cursor.lastrowid
                 filename = f'video-{ident:08d}.mp4'
                 db.execute('UPDATE surveillance_recordings SET filename=? WHERE id=?', (filename, ident))
@@ -208,11 +232,21 @@ class RecordingManager:
                 # Single V4L2 opening: FFmpeg writes H.264 MP4 and sends a sampled
                 # MJPEG preview to stdout. The drain thread MUST run even with zero
                 # browser clients so a slow/missing viewer never blocks recording.
+                use_audio = bool(camera.get('record_audio'))
                 command = [shutil.which('ffmpeg'), '-nostdin', '-hide_banner', '-loglevel', 'error', '-y',
-                           *_input_args(camera['source'], camera['location']),
-                           '-map', '0:v:0', '-t', str(MAX_RECORD_SECONDS), '-an', '-sn', '-dn',
-                           '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
-                           '-movflags', '+faststart', '-f', 'mp4', str(output)]
+                           *_input_args(camera['source'], camera['location'])]
+                if usb and use_audio:
+                    command += ['-thread_queue_size', '512', '-f', 'alsa', '-i',
+                                validate_audio_device(camera['audio_device'])]
+                command += ['-map', '0:v:0']
+                if use_audio:
+                    # RTSP may carry an audio track in the same stream; optional
+                    # mapping keeps video usable when that source has no audio.
+                    command += ['-map', '1:a:0' if usb else '0:a:0?']
+                command += ['-t', str(MAX_RECORD_SECONDS), '-sn', '-dn',
+                            '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p']
+                command += (['-c:a', 'aac', '-b:a', '128k'] if use_audio else ['-an'])
+                command += ['-movflags', '+faststart', '-f', 'mp4', str(output)]
                 if usb:
                     command += ['-map', '0:v:0', '-t', str(MAX_RECORD_SECONDS), '-an', '-sn', '-dn',
                                 '-vf', 'fps=2,scale=960:-2', '-q:v', '6', '-f', 'mpjpeg',
@@ -254,10 +288,11 @@ class RecordingManager:
             state = 'STOPPED' if bytes_written and proc.returncode in (0, 255) else 'FAILED'
             # FFmpeg often reports SIGINT as 255 after correctly finalizing MP4.
             with self._db() as db:
-                db.execute('UPDATE surveillance_recordings SET state=?, ended_utc=? WHERE id=?',
-                           (state, _now(), ident))
+                db.execute('UPDATE surveillance_recordings SET state=?, ended_utc=?, audio_present=? WHERE id=?',
+                           (state, _now(), self._audio_in_file(output) if bytes_written else None, ident))
                 db.commit()
-            return {'id': ident, 'state': state, 'bytes': bytes_written}
+            return {'id': ident, 'state': state, 'bytes': bytes_written,
+                    'audio_present': self._audio_in_file(output) if bytes_written else None}
 
     def snapshot(self, camera):
         with self.lock:
@@ -310,6 +345,43 @@ class RecordingManager:
                 raise SurveillanceError('Recording file is missing')
             return path, 'image/jpeg' if row['kind'] == 'image' else 'video/mp4'
 
+    def thumbnail(self, ident):
+        """Generate and cache ONE JPEG from a completed video on explicit local GET.
+
+        Preview files stay private beside recordings; no camera is contacted.
+        """
+        with self.lock:
+            self._refresh()
+            with self._db() as db:
+                row = db.execute('SELECT * FROM surveillance_recordings WHERE id=?', (ident,)).fetchone() if type(ident) is int and ident > 0 else None
+            if not row or row['kind'] != 'video' or row['state'] not in ('FINISHED', 'STOPPED'):
+                raise SurveillanceError('Completed video required for thumbnail')
+            source = self.folder / row['filename']
+            if not source.is_file() or not source.stat().st_size:
+                raise SurveillanceError('Video file is missing')
+            target = self.folder / f'thumb-{ident:08d}.jpg'
+            if target.is_file() and target.stat().st_size > 0:
+                return target
+            if not shutil.which('ffmpeg'):
+                raise SurveillanceError('FFmpeg required for video thumbnails')
+            if not self.thumbnail_slots.acquire(blocking=False):
+                raise SurveillanceError('Thumbnail generation busy')
+            try:
+                # Bound runtime and output resolution. No external paths or URLs.
+                result = subprocess.run([shutil.which('ffmpeg'), '-nostdin', '-hide_banner',
+                    '-loglevel', 'error', '-y', '-i', str(source),
+                    '-frames:v', '1', '-vf', 'scale=192:108:force_original_aspect_ratio=decrease', '-q:v', '6', str(target)],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10, check=False)
+                if result.returncode or not target.is_file() or not target.stat().st_size:
+                    target.unlink(missing_ok=True)
+                    raise SurveillanceError('No thumbnail frame could be decoded')
+                return target
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                target.unlink(missing_ok=True)
+                raise SurveillanceError('Video thumbnail unavailable') from exc
+            finally:
+                self.thumbnail_slots.release()
+
     def delete(self, ident):
         with self.lock:
             self._refresh()
@@ -320,6 +392,7 @@ class RecordingManager:
                 if row['state'] in ('RECORDING', 'CAPTURING'):
                     raise SurveillanceError('Stop the recording before deleting it')
                 (self.folder / row['filename']).unlink(missing_ok=True)
+                (self.folder / f'thumb-{ident:08d}.jpg').unlink(missing_ok=True)
                 db.execute('DELETE FROM surveillance_recordings WHERE id=?', (ident,))
                 db.commit()
             return True

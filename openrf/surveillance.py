@@ -39,6 +39,36 @@ def validate_usb_device(value):
     return value
 
 
+def validate_audio_device(value):
+    """Constrain Linux audio capture to a specific ALSA hardware device."""
+    if not isinstance(value, str) or not re.fullmatch(r'hw:(?:0|[1-9][0-9]{0,2}),(?:0|[1-9][0-9]{0,2})', value):
+        raise SurveillanceError('Choose a Linux ALSA audio capture device (hw:card,device)')
+    return value
+
+
+def usb_audio_candidates():
+    """Inventory only. arecord lists inputs but does not open microphone capture."""
+    exe = shutil.which('arecord')
+    if not exe:
+        return {'devices': [], 'available': False, 'detail': 'Install alsa-utils for Linux USB microphone detection.'}
+    try:
+        result = subprocess.run([exe, '-l'], capture_output=True, text=True, timeout=4, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return {'devices': [], 'available': False, 'detail': 'ALSA device listing unavailable.'}
+    found = []
+    for line in result.stdout.splitlines():
+        match = re.match(r'^card\s+(\d+):\s+(.+?),\s+device\s+(\d+):\s+(.+)$', line)
+        if match:
+            card, name, device, label = match.groups()
+            if int(card) > 999 or int(device) > 999:
+                continue
+            found.append({'device': f'hw:{int(card)},{int(device)}',
+                          'name': f'{name.strip()} · {label.strip()}'[:120]})
+    return {'devices': found[:32], 'available': result.returncode == 0,
+            'detail': 'Listed ALSA input candidates; recording/audio capability not verified.' if result.returncode == 0
+            else 'No readable Linux ALSA capture devices found. WSL microphone passthrough may be unavailable.'}
+
+
 def usb_devices():
     """Local V4L2 paths only; no capture devices are opened while enumerating."""
     return [str(p) for p in sorted(Path('/dev').glob('video[0-9]*'),
@@ -137,6 +167,7 @@ def camera_public(row):
     host = urlsplit(row['rtsp_url']).hostname if source == 'RTSP' else row['usb_device']
     return {'id': row['id'], 'name': row['name'], 'type': source, 'host': host,
             'state': 'NOT_CHECKED', 'connected': False, 'recording': False,
+            'record_audio': bool(row['record_audio']), 'audio_device': row['audio_device'] or '',
             'capabilities': {'live_preview': True, 'recording': True, 'onvif': False,
                              'battery_telemetry': False}, 'created_at_utc': row['created_at_utc']}
 
@@ -155,6 +186,10 @@ class SurveillanceStore:
                 db.execute("ALTER TABLE surveillance_cameras ADD COLUMN source_type TEXT NOT NULL DEFAULT 'RTSP'")
             if 'usb_device' not in cols:
                 db.execute('ALTER TABLE surveillance_cameras ADD COLUMN usb_device TEXT')
+            if 'record_audio' not in cols:
+                db.execute('ALTER TABLE surveillance_cameras ADD COLUMN record_audio INTEGER NOT NULL DEFAULT 0')
+            if 'audio_device' not in cols:
+                db.execute('ALTER TABLE surveillance_cameras ADD COLUMN audio_device TEXT')
 
     @contextmanager
     def _connect(self):
@@ -186,7 +221,8 @@ class SurveillanceStore:
             raise SurveillanceError('Camera not found')
         source = row['source_type'] or 'RTSP'
         location = validate_usb_device(row['usb_device']) if source == 'USB' else validate_rtsp(row['rtsp_url'])
-        return {'id': row['id'], 'name': row['name'], 'source': source, 'location': location}
+        return {'id': row['id'], 'name': row['name'], 'source': source, 'location': location,
+                'record_audio': bool(row['record_audio']), 'audio_device': row['audio_device'] or ''}
 
     @staticmethod
     def _id(value):
@@ -195,12 +231,15 @@ class SurveillanceStore:
         return value
 
     def save(self, data, ident=None):
-        if not isinstance(data, dict) or set(data) - {'name', 'rtsp_url', 'source_type', 'usb_device'}:
+        if not isinstance(data, dict) or set(data) - {'name', 'rtsp_url', 'source_type', 'usb_device', 'record_audio', 'audio_device'}:
             raise SurveillanceError('Only camera name, source and device address can be configured')
         name = data.get('name')
         if not isinstance(name, str) or not 1 <= len(name.strip()) <= 64 or any(ord(c)<32 for c in name):
             raise SurveillanceError('Camera name must be 1–64 printable characters')
         name = name.strip()
+        audio_flag = data.get('record_audio', None)
+        if audio_flag is not None and type(audio_flag) is not bool:
+            raise SurveillanceError('Record audio must be an explicit on/off selection')
         with self.lock, self._connect() as db:
             if ident is None:
                 source = data.get('source_type', 'RTSP')
@@ -208,10 +247,12 @@ class SurveillanceStore:
                     raise SurveillanceError('Unsupported camera type')
                 url = validate_rtsp(data.get('rtsp_url')) if source == 'RTSP' else ''
                 device = validate_usb_device(data.get('usb_device')) if source == 'USB' else None
+                record_audio = bool(audio_flag)
+                audio_device = validate_audio_device(data.get('audio_device')) if record_audio and source == 'USB' else None
                 if db.execute('SELECT COUNT(*) FROM surveillance_cameras').fetchone()[0] >= 32:
                     raise SurveillanceError('Maximum 32 saved cameras')
-                cur = db.execute('INSERT INTO surveillance_cameras (name,rtsp_url,created_at_utc,source_type,usb_device) VALUES (?,?,?,?,?)',
-                                 (name, url, datetime.now(timezone.utc).isoformat(), source, device))
+                cur = db.execute('INSERT INTO surveillance_cameras (name,rtsp_url,created_at_utc,source_type,usb_device,record_audio,audio_device) VALUES (?,?,?,?,?,?,?)',
+                                 (name, url, datetime.now(timezone.utc).isoformat(), source, device, int(record_audio), audio_device))
                 ident = cur.lastrowid
             else:
                 ident = self._id(ident)
@@ -227,8 +268,10 @@ class SurveillanceStore:
                 else:
                     url = ''
                     device = validate_usb_device(data.get('usb_device') or previous['usb_device'])
-                db.execute('UPDATE surveillance_cameras SET name=?,rtsp_url=?,source_type=?,usb_device=? WHERE id=?',
-                           (name, url, source, device, ident))
+                record_audio = bool(previous['record_audio']) if audio_flag is None else audio_flag
+                audio_device = validate_audio_device(data.get('audio_device') or previous['audio_device']) if record_audio and source == 'USB' else None
+                db.execute('UPDATE surveillance_cameras SET name=?,rtsp_url=?,source_type=?,usb_device=?,record_audio=?,audio_device=? WHERE id=?',
+                           (name, url, source, device, int(record_audio), audio_device, ident))
             row = db.execute('SELECT * FROM surveillance_cameras WHERE id=?', (ident,)).fetchone()
             return camera_public(row)
 

@@ -78,7 +78,7 @@ from .survey_waypoints import waypoints_geojson
 from .sensor_connections import (connections, ScanReceiptStore, BleScanReceiptStore,
     verified_wifi_observation, verified_ble_observation, browser_location_details)
 
-from .surveillance import SurveillanceStore, SurveillanceError, PreviewSlots, capability_report, probe_camera, validate_usb_device, usb_candidates, usb_ptz_controls, set_usb_ptz
+from .surveillance import SurveillanceStore, SurveillanceError, PreviewSlots, capability_report, probe_camera, validate_usb_device, usb_candidates, usb_audio_candidates, usb_ptz_controls, set_usb_ptz
 from .surveillance_recording import RecordingManager
 from .surveillance_motion import MotionHistory
 from .surveillance_live_motion import LiveMotionService
@@ -192,6 +192,8 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host():
             return self._error(HTTPStatus.FORBIDDEN, 'Loopback-only service')
         path = urlparse(self.path).path
+        if path == '/api/surveillance/audio-devices':
+            return self._json(200, usb_audio_candidates())
         if path == '/api/surveillance/usb-devices':
             return self._json(200, {'devices': usb_candidates(), 'note': 'Local Linux device enumeration only; no camera streams opened.'})
         if path == '/api/surveillance':
@@ -214,6 +216,25 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200, usb_ptz_controls(source['location']))
             except SurveillanceError as exc:
                 return self._error(404, str(exc))
+        recording_thumb = re.fullmatch(r'/api/surveillance/recordings/([1-9][0-9]{0,9})/thumbnail', path)
+        if recording_thumb:
+            if (self.headers.get('Sec-Fetch-Site', 'same-origin') not in ('same-origin', 'none')
+                    or urlparse(self.path).query):
+                return self._error(403, 'Thumbnail requires same-origin access')
+            try:
+                thumbnail = self.server.surveillance_recordings.thumbnail(int(recording_thumb.group(1)))
+                content = thumbnail.read_bytes()  # bounded by FFmpeg's 192 px image transform
+            except (SurveillanceError, OSError):
+                return self._error(404, 'Thumbnail unavailable')
+            self.send_response(200)
+            self.send_header('Content-Type', 'image/jpeg')
+            self.send_header('Content-Length', str(len(content)))
+            self.send_header('Cache-Control', 'private, max-age=300')
+            self.send_header('X-Content-Type-Options', 'nosniff')
+            self.send_header('Referrer-Policy', 'no-referrer')
+            self.end_headers()
+            self.wfile.write(content)
+            return
         recording_file = re.fullmatch(r'/api/surveillance/recordings/([1-9][0-9]{0,9})/file', path)
         if recording_file:
             if self.headers.get('Sec-Fetch-Site', 'same-origin') not in ('same-origin', 'none') or urlparse(self.path).query not in ('', 'download'):

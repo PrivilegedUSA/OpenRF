@@ -43,6 +43,7 @@
   let activeTab = window.OpenRFWorkspaceTabs?.restore('surveillance', ['overview','cameras','recordings','events','schedules'], 'overview') || 'overview';
   let usbCandidates = [];
   let usbManual = false;
+  let audioCandidates = [];
   let alertEnabled = false;
   let lastEventId = null;
   const TAB_NAMES = ['overview', 'cameras', 'recordings', 'events', 'schedules'];
@@ -59,7 +60,7 @@
       button.tabIndex = chosen ? 0 : -1;
       $(`surveillance-panel-${name}`).hidden = !chosen;
     }
-    if (tab === 'cameras') refreshUsb(); // Enumeration only; never opens video devices.
+    if (tab === 'cameras') { refreshUsb(); refreshAudioDevices(); } // Inventory only; never opens video or audio capture.
     if (enteringOverview) { paused.clear(); autoPreviewInitialized = false; refresh(); } // User opened the Surveillance preview wall.
     if (focus) $(`surveillance-tab-${tab}`).focus({preventScroll:true});
   }
@@ -514,6 +515,9 @@
           if (!usbCandidates.some(device => device.path === camera.host)) {usbManual=true;showUsbManual();}
           else {$('surveillance-usb-choice').value = camera.host;}
         }
+        $('surveillance-record-audio').checked=Boolean(camera.record_audio);
+        $('surveillance-audio-device').value=camera.audio_device || '';
+        updateAudioOptions();
         editing = camera.id;
         $('surveillance-name').value = camera.name;
         $('surveillance-url').value = '';
@@ -574,6 +578,7 @@
     }
   }
   $('surveillance-recordings-camera').addEventListener('change',()=>showRecordings(latestMedia, latestStorage));
+  $('surveillance-recordings-range').addEventListener('change',()=>{renderedMediaFingerprint='';showRecordings(latestMedia,latestStorage);});
   $('surveillance-events-camera').addEventListener('change',()=>{
     showMotionHistory(latestMotion); showLiveMotion({status:liveMotion,events:latestLiveMotionEvents});
   });
@@ -621,11 +626,39 @@
     $('surveillance-save').textContent = 'Add camera';
     $('surveillance-cancel').hidden = true;
   }
+  async function refreshAudioDevices() {
+    const select=$('surveillance-audio-device'); const previous=select.value;
+    try {
+      const result=await request('/api/surveillance/audio-devices');
+      audioCandidates=result.devices || [];
+      select.replaceChildren();
+      const blank=document.createElement('option'); blank.value=''; blank.textContent='Select a microphone…'; select.append(blank);
+      for (const device of audioCandidates) {
+        const option=document.createElement('option'); option.value=device.device;
+        option.textContent=`${device.name} (${device.device})`; select.append(option);
+      }
+      const wanted=previous || (editing ? cameras.find(c=>c.id===editing)?.audio_device : '');
+      if (audioCandidates.some(device=>device.device===wanted)) select.value=wanted;
+      $('surveillance-audio-status').textContent=result.detail || 'Audio capture capability not verified.';
+    } catch(error) { $('surveillance-audio-status').textContent=`Cannot list Linux audio devices: ${error.message}`; }
+  }
+  $('surveillance-audio-refresh').addEventListener('click',refreshAudioDevices);
+  $('surveillance-record-audio').addEventListener('change',updateAudioOptions);
+  function updateAudioOptions() {
+    const usb=$('surveillance-source').value==='USB';
+    const enabled=$('surveillance-record-audio').checked;
+    $('surveillance-audio-usb').hidden=!(usb && enabled);
+    $('surveillance-audio-device').required=usb && enabled;
+    $('surveillance-audio-hint').textContent=usb ?
+      'USB: audio is a separate ALSA capture device. WSL may not expose the NexiGo microphone even when video works.' :
+      'RTSP: include audio only if the configured camera stream actually provides an audio track.';
+  }
   $('surveillance-form').addEventListener('submit', async event => {
     event.preventDefault();
     const id = editing;
-    const payload = {name: $('surveillance-name').value};
+    const payload = {name: $('surveillance-name').value, record_audio: $('surveillance-record-audio').checked};
     payload.source_type = $('surveillance-source').value;
+    if (payload.source_type === 'USB' && payload.record_audio) payload.audio_device=$('surveillance-audio-device').value;
     if (payload.source_type === 'USB') payload.usb_device = (usbManual ? $('surveillance-usb').value : $('surveillance-usb-choice').value).trim();
     else if (!id || $('surveillance-url').value.trim()) payload.rtsp_url = $('surveillance-url').value.trim();
     try {
@@ -643,10 +676,30 @@
     $('surveillance-url').required = rtsp && !editing;
     $('surveillance-usb').required = !rtsp && usbManual;
     $('surveillance-usb-choice').required = !rtsp && !usbManual;
+    updateAudioOptions();
   }
   let selectedRecordingId = null;
-  let renderedRecordingKey = ''; // Keep video DOM alive when a status poll refreshes the table.
+  let renderedRecordingKey = '';
+  let renderedMediaFingerprint = '';
+  let recordingSortKey = 'started_utc';
+  let recordingSortDesc = true;
   const mediaSize = size => Number.isFinite(size) ? (size > 0 && size < 104858 ? `${(size/1024).toFixed(1)} KiB` : `${(size / 1048576).toFixed(1)} MiB`) : 'unknown';
+  const recordDate = value => {const parsed=Date.parse(value);return Number.isFinite(parsed)?parsed:0;};
+  function dateRangeMatch(entry, range) {
+    if(range==='all') return true;
+    const now=new Date();
+    const cutoff=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    cutoff.setDate(cutoff.getDate()-(range==='today'?0:range==='7d'?6:29));
+    const stamp=recordDate(entry.started_utc);
+    return stamp>=cutoff.getTime() && stamp<=Date.now();
+  }
+  function recordingCompare(a,b) {
+    let result=0;
+    if (recordingSortKey==='started_utc') result=recordDate(a.started_utc)-recordDate(b.started_utc);
+    else if (recordingSortKey==='bytes') result=(Number(a.bytes)||0)-(Number(b.bytes)||0);
+    else result=String(a[recordingSortKey]||'').localeCompare(String(b[recordingSortKey]||''),undefined,{numeric:true,sensitivity:'base'});
+    return (recordingSortDesc?-result:result) || (b.id-a.id);
+  }
   function showRecordingDetail(entry) {
     const detail = $('surveillance-recording-detail');
     const key = entry ? `${entry.id}:${entry.state}:${entry.bytes}:${entry.kind}` : '';
@@ -658,10 +711,17 @@
     const head = document.createElement('div'); head.className = 'surveillance-detail-heading';
     const title = document.createElement('h4'); title.textContent = `${entry.kind === 'image' ? 'Snapshot' : 'Recording'} · ${entry.camera_name}`;
     const close = document.createElement('button'); close.type = 'button'; close.className = 'btn outline'; close.textContent = 'Close preview';
-    close.addEventListener('click', () => { selectedRecordingId = null; renderedRecordingKey = ''; showRecordings(latestMedia, latestStorage); });
+    close.addEventListener('click', () => { selectedRecordingId = null; renderedRecordingKey = ''; renderedMediaFingerprint = ''; showRecordings(latestMedia, latestStorage); });
     head.append(title, close); detail.append(head);
     const description = document.createElement('p'); description.className = 'small muted';
     description.textContent = `${entry.started_utc} · ${entry.state} · ${mediaSize(entry.bytes)}`; detail.append(description);
+    if (entry.kind==='video') {
+      const audio=document.createElement('p'); audio.className='small muted';
+      audio.textContent=entry.audio_present === true ? 'Audio track: verified in saved file' :
+        entry.audio_present === false ? 'Audio track: none detected' :
+        entry.audio_requested ? 'Audio requested; track not yet verified' : 'Audio not requested or not verified';
+      detail.append(audio);
+    }
     const finished = ['STOPPED','FINISHED'].includes(entry.state) && entry.bytes > 0;
     if (finished) {
       if (entry.kind === 'video') {
@@ -711,58 +771,88 @@
       const remove=document.createElement('button'); remove.type='button'; remove.className='btn outline'; remove.textContent='Delete file';
       remove.addEventListener('click', async () => {
         if (!confirm('Permanently delete this local recording or snapshot?')) return;
-        try { await request(`/api/surveillance/recordings/${entry.id}`,{method:'DELETE'}); selectedRecordingId=null; renderedRecordingKey=''; await refresh(); }
+        try { await request(`/api/surveillance/recordings/${entry.id}`,{method:'DELETE'}); selectedRecordingId=null; renderedRecordingKey=''; renderedMediaFingerprint=''; await refresh(); }
         catch(error) {status(error.message);} 
       }); right.append(remove);
     }
     actions.append(left,right); detail.append(actions);
   }
   function showRecordings(items, storage) {
-    latestMedia = items; latestStorage = storage;
-    const list=$('surveillance-recordings'); list.replaceChildren();
-    const selected=$('surveillance-recordings-camera').value;
-    const filtered=selected ? items.filter(entry=>String(entry.camera_id)===selected) : items;
-    $('surveillance-storage').textContent = `Local media: ${mediaSize(storage.recording_bytes)} · Disk free: ${mediaSize(storage.free_bytes)} · Maximum recording: ${storage.max_recording_seconds || '?'} seconds · up to ${storage.max_recordings || '?'} saved items.`;
+    latestMedia=items; latestStorage=storage;
+    const list=$('surveillance-recordings');
+    const cameraChoice=$('surveillance-recordings-camera').value;
+    const range=$('surveillance-recordings-range').value;
+    const filtered=items.filter(item=>(!cameraChoice || String(item.camera_id)===cameraChoice) && dateRangeMatch(item,range)).sort(recordingCompare);
+    $('surveillance-storage').textContent=`Local media: ${mediaSize(storage.recording_bytes)} · Disk free: ${mediaSize(storage.free_bytes)} · Maximum recording: ${storage.max_recording_seconds || '?'} seconds · up to ${storage.max_recordings || '?'} saved items.`;
+    if(selectedRecordingId!==null && !filtered.some(item=>item.id===selectedRecordingId)) selectedRecordingId=null;
+    const fingerprint=JSON.stringify([cameraChoice,range,recordingSortKey,recordingSortDesc,selectedRecordingId,
+      filtered.map(e=>[e.id,e.state,e.state==='RECORDING'?0:e.bytes,e.audio_present])]);
+    if(fingerprint===renderedMediaFingerprint) return; // Don't disturb a playing video during routine polling.
+    renderedMediaFingerprint=fingerprint;
+    const detail=$('surveillance-recording-detail');
+    list.replaceChildren(detail); // Keep the detail node reachable while rebuilding table rows.
     if (!filtered.length) {
-      const p=document.createElement('p');p.className='small muted'; p.textContent='No recordings or snapshots for this camera selection.'; list.append(p);
-      selectedRecordingId=null; showRecordingDetail(null); return;
+      const empty=document.createElement('p');empty.className='small muted';empty.textContent='No recordings or snapshots match these filters.';list.append(empty);
+      showRecordingDetail(null);list.append(detail);return;
     }
-    // A real compact row list: playing one recording opens a single, separate detail viewer.
-    const wrapper=document.createElement('div'); wrapper.className='surveillance-recording-list-scroll';
-    const table=document.createElement('table'); table.className='surveillance-recording-table';
-    const thead=document.createElement('thead'); const header=document.createElement('tr');
-    for (const label of ['Preview','Date / time','Camera','Type','Status','Size']) {
-      const th=document.createElement('th'); th.scope='col'; th.textContent=label; header.append(th);
+    const wrapper=document.createElement('div');wrapper.className='surveillance-recording-list-scroll';
+    const table=document.createElement('table');table.className='surveillance-recording-table';
+    const thead=document.createElement('thead'), header=document.createElement('tr');
+    const labels=[['Preview',null],['Date / time','started_utc'],['Camera','camera_name'],['Type','kind'],['Status','state'],['Size','bytes']];
+    for (const [label,key] of labels) {
+      const th=document.createElement('th');th.scope='col';
+      if(key) {
+        th.setAttribute('aria-sort',recordingSortKey===key?(recordingSortDesc?'descending':'ascending'):'none');
+        const button=document.createElement('button');button.type='button';button.className='surveillance-sort-button';
+        button.textContent=label+(recordingSortKey===key?(recordingSortDesc?' ↓':' ↑'):'');
+        button.setAttribute('aria-label',`Sort recordings by ${label}`);
+        button.addEventListener('click',()=>{
+          if(recordingSortKey===key) recordingSortDesc=!recordingSortDesc;
+          else {recordingSortKey=key;recordingSortDesc=key==='started_utc'||key==='bytes';}
+          renderedMediaFingerprint='';showRecordings(latestMedia,latestStorage);
+        });th.append(button);
+      } else th.textContent=label;
+      header.append(th);
     }
-    thead.append(header); table.append(thead); const body=document.createElement('tbody');
+    thead.append(header);table.append(thead);const body=document.createElement('tbody');
     for (const entry of filtered) {
       const row=document.createElement('tr');
       if (selectedRecordingId===entry.id) row.classList.add('is-selected');
       const preview=document.createElement('td');
-      const open=document.createElement('button'); open.type='button'; open.className='surveillance-media-thumb';
-      open.textContent=entry.kind==='image' ? 'View' : '▶'; open.setAttribute('aria-label', `Open ${entry.kind === 'image' ? 'snapshot' : 'recording'} from ${entry.camera_name}`);
-      if (entry.kind==='image' && ['STOPPED','FINISHED'].includes(entry.state) && entry.bytes>0) {
-        const image=document.createElement('img');image.loading='lazy'; image.alt='Saved snapshot preview';
-        image.src=`/api/surveillance/recordings/${entry.id}/file`;open.replaceChildren(image);
+      const open=document.createElement('button');open.type='button';open.className='surveillance-media-thumb';
+      open.setAttribute('aria-label',`${selectedRecordingId===entry.id?'Collapse':'Expand'} ${entry.kind==='image'?'snapshot':'recording'} from ${entry.camera_name}`);
+      open.textContent=entry.kind==='image'?'View':'▶';
+      if(['STOPPED','FINISHED'].includes(entry.state) && entry.bytes>0) {
+        const image=document.createElement('img');image.loading='lazy';
+        image.alt=entry.kind==='image'?'Saved snapshot preview':'First frame of saved recording';
+        image.src=`/api/surveillance/recordings/${entry.id}/${entry.kind==='image'?'file':'thumbnail'}`;
+        image.addEventListener('error',()=>{ if(image.parentNode===open) open.textContent='▶'; });
+        open.replaceChildren(image);
       }
-      preview.append(open); row.append(preview);
-      const dateCell=document.createElement('td'); const dateButton=document.createElement('button');
-      dateButton.type='button'; dateButton.className='surveillance-recording-open';
-      const parsedDate = new Date(entry.started_utc);
-      dateButton.textContent = Number.isNaN(parsedDate.getTime()) ? entry.started_utc : parsedDate.toLocaleString();
-      dateButton.title = entry.started_utc;
+      preview.append(open);row.append(preview);
+      const dateCell=document.createElement('td');const dateButton=document.createElement('button');
+      dateButton.type='button';dateButton.className='surveillance-recording-open';
+      const parsedDate=new Date(entry.started_utc);
+      dateButton.textContent=Number.isNaN(parsedDate.getTime())?entry.started_utc:parsedDate.toLocaleString();
       dateCell.append(dateButton);row.append(dateCell);
-      for (const value of [entry.camera_name,entry.kind==='image'?'Snapshot':'Video',entry.state,mediaSize(entry.bytes)]) {
+      for(const value of [entry.camera_name,entry.kind==='image'?'Snapshot':'Video',entry.state,mediaSize(entry.bytes)]) {
         const cell=document.createElement('td');cell.textContent=value;row.append(cell);
       }
-      const choose=()=>{ selectedRecordingId=entry.id; renderedRecordingKey=''; showRecordings(latestMedia,latestStorage); };
-      open.addEventListener('click',choose); dateButton.addEventListener('click',choose);
+      const choose=()=>{
+        selectedRecordingId=selectedRecordingId===entry.id?null:entry.id;
+        renderedMediaFingerprint='';showRecordings(latestMedia,latestStorage);
+      };
+      open.addEventListener('click',choose);dateButton.addEventListener('click',choose);
       body.append(row);
+      if (entry.id===selectedRecordingId) {
+        const expanded=document.createElement('tr');expanded.className='surveillance-expanded-row';
+        const cell=document.createElement('td');cell.colSpan=6;
+        expanded.append(cell);body.append(expanded);
+        showRecordingDetail(entry);cell.append(detail);
+      }
     }
     table.append(body);wrapper.append(table);list.append(wrapper);
-    let chosen=filtered.find(item=>item.id===selectedRecordingId);
-    if (!chosen) {selectedRecordingId=null; chosen=null;}
-    showRecordingDetail(chosen);
+    if(selectedRecordingId===null){showRecordingDetail(null);list.append(detail);}
   }
   function showMotionHistory(data) {
     latestMotion = data;
