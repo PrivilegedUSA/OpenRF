@@ -201,3 +201,24 @@
 .surveillance-recording > *{min-width:0;max-width:100%;box-sizing:border-box}
 .surveillance-recording .surveillance-playback{display:block;justify-self:center;align-self:center;width:100%;max-width:640px;min-width:0;max-height:320px;object-fit:contain}
 .surveillance-recording-actions{min-width:0;max-width:100%;box-sizing:border-box}
+
+/* v0.2.191: compact media table and ONE selected local playback view. */
+.surveillance-recording-list-scroll{width:100%;min-width:0;max-width:100%;overflow-x:auto;border:1px solid #35616b;border-radius:10px}
+.surveillance-recording-table{border-collapse:collapse;width:100%;min-width:580px;text-align:left;font-size:.84rem}
+.surveillance-recording-table th{font-size:.74rem;color:#b8cbd4;background:#112832;white-space:nowrap}
+.surveillance-recording-table td,.surveillance-recording-table th{padding:10px 12px;border-bottom:1px solid #294650;vertical-align:middle}
+.surveillance-recording-table tbody tr:last-child td{border-bottom:0}
+.surveillance-recording-table tbody tr:hover,.surveillance-recording-table tbody tr.is-selected{background:#193541}
+.surveillance-recording-table td:nth-child(2){min-width:175px}
+.surveillance-recording-table td:nth-child(3){max-width:220px;overflow-wrap:anywhere}
+.surveillance-recording-open{background:none;border:0;color:#7ce5d0;cursor:pointer;padding:4px 0;text-align:left;font:inherit;text-decoration:underline;text-underline-offset:3px}
+.surveillance-media-thumb{border:1px solid #35616b;border-radius:6px;background:#071b22;color:#e9f8f4;min-width:72px;width:72px;height:46px;display:grid;place-items:center;cursor:pointer;overflow:hidden}
+.surveillance-media-thumb img{display:block;width:100%;height:100%;object-fit:cover}
+.surveillance-recording-open:focus-visible,.surveillance-media-thumb:focus-visible{outline:2px solid #34c9b1;outline-offset:2px}
+.surveillance-recording-detail{box-sizing:border-box;min-width:0;width:100%;max-width:100%;margin-top:14px;border:1px solid #35616b;border-radius:10px;padding:clamp(12px,2vw,18px);background:#101d27}
+.surveillance-recording-detail[hidden]{display:none!important}
+.surveillance-detail-heading,.surveillance-detail-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.surveillance-detail-heading h4{margin:0;overflow-wrap:anywhere}
+.surveillance-selected-player,.surveillance-selected-image{display:block;object-fit:contain;max-width:100%;width:min(100%,820px);max-height:min(65vh,540px);margin:12px auto;background:#060e12}
+.surveillance-detail-actions{margin-top:14px}
+@media(max-width:650px){.surveillance-recording-table{min-width:520px}.surveillance-media-thumb{min-width:58px;width:58px;height:39px}}

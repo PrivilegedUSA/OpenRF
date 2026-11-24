@@ -59,6 +59,7 @@
         const messages=document.getElementById(config.messageBox);
         if (messages) messages.scrollTop=messages.scrollHeight;
       }
+      window.OpenRFWorkspaceTabs?.remember(config.key,name);
       // No page jump, URL change, radio connect, or scrollIntoView on tab switch.
       if (focus) tabs.get(name).focus({preventScroll:true});
     }
@@ -75,7 +76,7 @@
         event.preventDefault();activate(target,{focus:true});
       });
     }
-    activate('dashboard');
+    activate(window.OpenRFWorkspaceTabs?.restore(config.key,names,'dashboard') || 'dashboard');
     return Object.freeze({open:name=>activate(name),
       current:()=>names.find(name=>!panels.get(name).hidden)});
   }

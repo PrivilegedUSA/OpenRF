@@ -1,4 +1,4 @@
-/* OpenRF v0.2.190 weather hub — opt-in local recording and source-tagged history. */
+/* OpenRF v0.2.191 weather hub — opt-in local recording and source-tagged history. */
 (() => {
   'use strict';
   const el = id => document.getElementById(id);
@@ -45,6 +45,7 @@
   function setTab(name,focus=false) {
     if (!groups.includes(name)) return;
     state.active = name;
+    window.OpenRFWorkspaceTabs?.remember('weather',name);
     for (const group of groups) {
       const button = el(`weather-tab-${group}`), panel = el(`weather-panel-${group}`);
       button.setAttribute('aria-selected',String(group===name));
@@ -700,5 +701,6 @@
     state.visible=false;
     if(recordingTimer!==null){clearTimeout(recordingTimer);recordingTimer=null;}
   });
+  setTab(window.OpenRFWorkspaceTabs?.restore('weather', groups, 'dashboard') || 'dashboard');
   window.OpenRFWeather=Object.freeze({openTab:setTab,refresh});
 })();

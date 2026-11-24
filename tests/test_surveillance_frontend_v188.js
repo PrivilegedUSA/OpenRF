@@ -17,10 +17,10 @@ assert.match(ui, /surveillance-fullscreen'\)\.hidden = live.size < 2/);
 assert.match(ui, /classList\.toggle\('has-multiple', live\.size > 1\)/);
 assert.match(css, /#surveillance-fullscreen\[hidden\]\{display:none!important\}/);
 assert.match(html, /surveillance-fullscreen" hidden>Expand grid/);
-assert.match(ui, /Stop & save to finalize MP4/);
-assert.match(ui, /if \(active\) \{/);
+assert.match(ui, /Stop & save/); // in-progress clips cannot be downloaded until finalized
+assert.match(ui, /entry\.state === 'RECORDING'/);
 assert.match(ui, /Stop & save/);
-assert.match(ui, /entry\.state === 'STOPPED' \|\| entry\.state === 'FINISHED'/);
+assert.match(ui, /\['STOPPED','FINISHED'\]\.includes\(entry\.state\)/);
 assert.match(ui, /recordingInfo\.set\(item\.camera_id,item\)/);
 assert.match(ui, /if \(live\.size >= MAX_LIVE\)/);
 assert.match(ui, /Math\.max\(-limit, Math\.min\(limit, state\.x\)\)/);

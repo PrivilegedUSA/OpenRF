@@ -39,6 +39,7 @@
       tabs.get(item).setAttribute('aria-selected',String(active));
       tabs.get(item).tabIndex=active?0:-1;
     }
+    window.OpenRFWorkspaceTabs?.remember('hardware',name);
     // No scrollIntoView or page navigation; touch and keyboard behave alike.
     if(focus)tabs.get(name).focus({preventScroll:true});
   }
@@ -55,7 +56,7 @@
       event.preventDefault();select(target,true);
     });
   });
-  select('dashboard');
+  select(window.OpenRFWorkspaceTabs?.restore('hardware',names,'dashboard') || 'dashboard');
   window.OpenRFHardwareTabs=Object.freeze({open:select,
     current:()=>names.find(name=>!sections.get(name).hidden)});
 })();

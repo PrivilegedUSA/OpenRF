@@ -62,6 +62,7 @@
       buttons[i].setAttribute('aria-selected',String(selected));
       buttons[i].tabIndex=selected?0:-1;
     }
+    window.OpenRFWorkspaceTabs?.remember('emergency',key);
     if(focusTab)buttons[keys.indexOf(key)].focus({preventScroll:true});
   }
   for(const [index,button] of buttons.entries()){
@@ -85,5 +86,6 @@
     focus?.focus?.({preventScroll:true});
     focus?.scrollIntoView?.({block:'center',behavior:'auto'});
   });
+  activate(window.OpenRFWorkspaceTabs?.restore('emergency',keys,'dashboard') || 'dashboard');
   window.OpenRFEmergencyTabs=Object.freeze({open:key=>activate(key),current:()=>keys.find(key=>!panels.get(key).hidden)});
 })();

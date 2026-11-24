@@ -40,7 +40,7 @@
   const previewState = new Map(); // Requested, first decoded frame, or failed; never infer video success from an HTTP request.
   let motionBusy = false;
   let liveMotion = {state: 'OFF'};
-  let activeTab = 'overview';
+  let activeTab = window.OpenRFWorkspaceTabs?.restore('surveillance', ['overview','cameras','recordings','events','schedules'], 'overview') || 'overview';
   let usbCandidates = [];
   let usbManual = false;
   let alertEnabled = false;
@@ -51,6 +51,7 @@
     const enteringOverview = activeTab !== 'overview' && tab === 'overview';
     if (activeTab === 'overview' && tab !== 'overview') stopView(); // Hidden previews may not keep capturing.
     activeTab = tab;
+    window.OpenRFWorkspaceTabs?.remember('surveillance', tab);
     for (const name of TAB_NAMES) {
       const chosen = name === tab;
       const button = $(`surveillance-tab-${name}`);
@@ -363,7 +364,7 @@
           <button class="btn outline" type="button" data-feed-ptz-axis="zoom" data-feed-ptz-step="1" disabled>Zoom +</button>
           <button class="btn outline" type="button" data-feed-ptz-axis="zoom" data-feed-ptz-step="-1" disabled>Zoom −</button></div></details></div>
       <details class="surveillance-camera-tools"><summary>Recording and motion notes</summary>
-        <div class="surveillance-camera-tools-inner"><p class="small muted">Motion clips require explicit opt-in and use frame changes, not person detection. Stop & save finalizes MP4. For USB cameras, OpenRF pauses the live preview while capturing to avoid competing video readers. Digital zoom only changes the display.</p></div></details>
+        <div class="surveillance-camera-tools-inner"><p class="small muted">Motion clips require explicit opt-in and use frame changes, not person detection. Stop & save finalizes MP4. For manual USB recordings, OpenRF switches to a shared capture that can supply live preview and MP4 simultaneously. Some USB camera drivers may still fail; check actual frames and saved video. Digital zoom only changes the display.</p></div></details>
       <p class="small muted surveillance-feed-note" role="status" data-feed-note>Not connected.</p>`;
     pane.querySelector('[data-feed-fullscreen]').addEventListener('click', () => toggleFullscreen(pane));
     pane.querySelector('[data-feed-view]').addEventListener('click', () => live.has(camera.id) ? stopView(camera.id, true) : view(camera));
@@ -592,10 +593,10 @@
       renderUsb(data.capabilities.usb_candidates || []);
       recording.clear(); recordingInfo.clear();
       for (const item of data.recordings || []) if (item.state === 'RECORDING') { recording.add(item.camera_id); recordingInfo.set(item.camera_id,item); }
-      // A scheduled/other-session USB recording may also take over the device.
-      for (const camera of cameras) if (camera.type === 'USB' && recording.has(camera.id) && live.has(camera.id)) {
-        usbPreviewResume.add(camera.id); stopView(camera.id);
-      }
+      // v0.2.191: The recorder now supplies preview frames from its OWN USB reader.
+      // Do NOT stop that MJPEG request here: doing so on every status poll was
+      // the reason the camera stayed "Preview paused" throughout recording.
+      // If an unrelated device loses access, the real stream error is displayed.
       for (const cameraId of [...usbPreviewResume]) if (!recording.has(cameraId)) {
         usbPreviewResume.delete(cameraId);
         const camera = cameras.find(item => item.id === cameraId);
@@ -643,72 +644,125 @@
     $('surveillance-usb').required = !rtsp && usbManual;
     $('surveillance-usb-choice').required = !rtsp && !usbManual;
   }
-  function showRecordings(items, storage) {
-    latestMedia = items; latestStorage = storage;
-    const grid = $('surveillance-recordings');
-    grid.replaceChildren();
-    const selected = $('surveillance-recordings-camera').value;
-    items = selected ? items.filter(entry=>String(entry.camera_id)===selected) : items;
-    const fmt = size => Number.isFinite(size) ? (size > 0 && size < 104858 ? `${(size/1024).toFixed(1)} KiB` : `${(size / 1048576).toFixed(1)} MiB`) : 'unknown';
-    $('surveillance-storage').textContent = `Local media: ${fmt(storage.recording_bytes)} · Disk free: ${fmt(storage.free_bytes)} · Maximum recording: ${storage.max_recording_seconds || '?'} seconds · up to ${storage.max_recordings || '?'} saved items.`;
-    if (!items.length) { const p = document.createElement('p'); p.className='small muted'; p.textContent='No recordings or snapshots for this camera selection.'; grid.append(p); return; }
-    for (const entry of items) {
-      const pane = document.createElement('article'); pane.className='surveillance-recording';
-      const line = document.createElement('p');
-      const active = entry.state === 'RECORDING';
-      line.textContent = `${entry.kind === 'image' ? 'Snapshot' : 'Video'} · ${entry.camera_name} · ${entry.started_utc} · ${entry.state} · ${fmt(entry.bytes)}`;
-      pane.append(line);
-      const actions = document.createElement('div'); actions.className='surveillance-recording-actions';
-      const actionsLeft = document.createElement('div'); actionsLeft.className='surveillance-recording-actions-left';
-      const actionsRight = document.createElement('div'); actionsRight.className='surveillance-recording-actions-right';
-      if (active) {
-        const explain = document.createElement('p'); explain.className='small muted';
-        explain.textContent = entry.bytes ? 'Capture in progress. Stop & save to finalize MP4 before playback or download.' : 'Capture requested, but no video data written yet. If it remains at 0 bytes, stop and check USB preview/camera access.';
-        pane.append(explain);
-        const stop = document.createElement('button');stop.type='button';stop.className='btn surveillance-stop-save';stop.textContent='■ Stop & save';
-        stop.addEventListener('click', async () => {stop.disabled=true;try {await request(`/api/surveillance/cameras/${entry.camera_id}/stop`,{method:'POST'});await refresh();selectTab('recordings');}
-          catch(error){status(`Could not stop recording: ${error.message}`);stop.disabled=false;}});
-        actionsRight.append(stop);
-      } else if (entry.state === 'FAILED' || entry.state === 'INTERRUPTED') {
-        const explain=document.createElement('p');explain.className='small muted';
-        explain.textContent='This capture did not finish successfully. A file may be missing or unplayable; check USB access and FFmpeg before trying again.';pane.append(explain);
+  let selectedRecordingId = null;
+  let renderedRecordingKey = ''; // Keep video DOM alive when a status poll refreshes the table.
+  const mediaSize = size => Number.isFinite(size) ? (size > 0 && size < 104858 ? `${(size/1024).toFixed(1)} KiB` : `${(size / 1048576).toFixed(1)} MiB`) : 'unknown';
+  function showRecordingDetail(entry) {
+    const detail = $('surveillance-recording-detail');
+    const key = entry ? `${entry.id}:${entry.state}:${entry.bytes}:${entry.kind}` : '';
+    if (renderedRecordingKey === key && detail.childElementCount) return;
+    renderedRecordingKey = key;
+    detail.replaceChildren();
+    if (!entry) { detail.hidden = true; return; }
+    detail.hidden = false;
+    const head = document.createElement('div'); head.className = 'surveillance-detail-heading';
+    const title = document.createElement('h4'); title.textContent = `${entry.kind === 'image' ? 'Snapshot' : 'Recording'} · ${entry.camera_name}`;
+    const close = document.createElement('button'); close.type = 'button'; close.className = 'btn outline'; close.textContent = 'Close preview';
+    close.addEventListener('click', () => { selectedRecordingId = null; renderedRecordingKey = ''; showRecordings(latestMedia, latestStorage); });
+    head.append(title, close); detail.append(head);
+    const description = document.createElement('p'); description.className = 'small muted';
+    description.textContent = `${entry.started_utc} · ${entry.state} · ${mediaSize(entry.bytes)}`; detail.append(description);
+    const finished = ['STOPPED','FINISHED'].includes(entry.state) && entry.bytes > 0;
+    if (finished) {
+      if (entry.kind === 'video') {
+        const player = document.createElement('video'); player.className = 'surveillance-selected-player';
+        player.controls = true; player.preload = 'metadata'; player.playsInline = true;
+        player.src = `/api/surveillance/recordings/${entry.id}/file`;
+        detail.append(player);
+      } else {
+        const image = document.createElement('img'); image.className = 'surveillance-selected-image';
+        image.alt = `Saved snapshot from ${entry.camera_name}`;
+        image.src = `/api/surveillance/recordings/${entry.id}/file`; detail.append(image);
       }
-      if ((entry.state === 'STOPPED' || entry.state === 'FINISHED') && entry.bytes) {
-        const link = document.createElement('a'); link.className='btn outline'; link.textContent='Download file';
-        link.href=`/api/surveillance/recordings/${entry.id}/file?download`; link.rel='noopener'; link.target='_blank'; actionsRight.append(link);
-        if (entry.kind === 'video') {
-          const video = document.createElement('video'); video.controls=true; video.preload='none';
-          video.src=`/api/surveillance/recordings/${entry.id}/file`; video.className='surveillance-playback'; pane.append(video);
-        }
-      }
-      if (entry.kind === 'video' && (entry.state === 'STOPPED' || entry.state === 'FINISHED') && entry.bytes) {
-        const scan = document.createElement('button'); scan.type='button'; scan.className='btn outline';
-        scan.textContent='Scan for motion'; scan.disabled=motionBusy;
+    } else {
+      const note = document.createElement('p'); note.className = 'small muted';
+      note.textContent = entry.state === 'RECORDING' ? 'Recording is still being written. Stop & save before playback or download.' :
+        'No playable finalized media is available for this entry; it may have failed or been interrupted.';
+      detail.append(note);
+    }
+    const actions = document.createElement('div'); actions.className = 'surveillance-detail-actions';
+    const left = document.createElement('div'); left.className = 'surveillance-recording-actions-left';
+    const right = document.createElement('div'); right.className = 'surveillance-recording-actions-right';
+    if (entry.state === 'RECORDING') {
+      const stop = document.createElement('button'); stop.type='button'; stop.className='btn surveillance-stop-save'; stop.textContent='Stop & save';
+      stop.addEventListener('click', async () => {
+        stop.disabled = true; try { await request(`/api/surveillance/cameras/${entry.camera_id}/stop`,{method:'POST'}); await refresh(); }
+        catch (error) { status(`Could not stop recording: ${error.message}`); stop.disabled=false; }
+      }); right.append(stop);
+    }
+    if (finished) {
+      if (entry.kind === 'video') {
+        const scan = document.createElement('button'); scan.type='button'; scan.className='btn outline'; scan.textContent='Scan for motion'; scan.disabled=motionBusy;
         scan.addEventListener('click', async () => {
-          if (motionBusy) return;
-          motionBusy=true; scan.disabled=true;
+          if(motionBusy) return; motionBusy=true; scan.disabled=true;
           const setting=$('surveillance-motion-sensitivity').value;
           $('surveillance-motion-status').textContent=`Reviewing the first five minutes of ${entry.camera_name} using ${setting} sensitivity… No camera will be contacted.`;
           try {
-            const result=await request(`/api/surveillance/recordings/${entry.id}/motion-scan`, {
-              method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({sensitivity:setting})});
+            const result=await request(`/api/surveillance/recordings/${entry.id}/motion-scan`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sensitivity:setting})});
             $('surveillance-motion-status').textContent=`Scan complete: ${result.event_count} motion candidate(s) in ${result.sampled_seconds.toFixed(1)} sampled seconds from ${entry.camera_name}.`;
-          } catch (error) { $('surveillance-motion-status').textContent=`Saved-video motion scan failed: ${error.message}`; }
+          } catch(error) { $('surveillance-motion-status').textContent=`Saved-video motion scan failed: ${error.message}`; }
           finally { motionBusy=false; selectTab('events'); await refresh(); }
-        }); actionsLeft.append(scan);
+        }); left.append(scan);
       }
-      if (entry.state !== 'RECORDING' && entry.state !== 'CAPTURING') {
-        const remove = document.createElement('button'); remove.type='button'; remove.className='btn outline'; remove.textContent='Delete file';
-        remove.addEventListener('click', async () => {
-          if (!confirm('Permanently delete this local recording or snapshot?')) return;
-          try { await request(`/api/surveillance/recordings/${entry.id}`, {method:'DELETE'}); await refresh(); }
-          catch (error) { status(error.message); }
-        }); actionsRight.append(remove);
-      }
-      actions.append(actionsLeft, actionsRight);
-      pane.append(actions);
-      grid.append(pane);
+      const download=document.createElement('a'); download.className='btn outline'; download.textContent='Download file';
+      download.href=`/api/surveillance/recordings/${entry.id}/file?download`; download.rel='noopener'; download.target='_blank'; right.append(download);
     }
+    if (entry.state !== 'RECORDING' && entry.state !== 'CAPTURING') {
+      const remove=document.createElement('button'); remove.type='button'; remove.className='btn outline'; remove.textContent='Delete file';
+      remove.addEventListener('click', async () => {
+        if (!confirm('Permanently delete this local recording or snapshot?')) return;
+        try { await request(`/api/surveillance/recordings/${entry.id}`,{method:'DELETE'}); selectedRecordingId=null; renderedRecordingKey=''; await refresh(); }
+        catch(error) {status(error.message);} 
+      }); right.append(remove);
+    }
+    actions.append(left,right); detail.append(actions);
+  }
+  function showRecordings(items, storage) {
+    latestMedia = items; latestStorage = storage;
+    const list=$('surveillance-recordings'); list.replaceChildren();
+    const selected=$('surveillance-recordings-camera').value;
+    const filtered=selected ? items.filter(entry=>String(entry.camera_id)===selected) : items;
+    $('surveillance-storage').textContent = `Local media: ${mediaSize(storage.recording_bytes)} · Disk free: ${mediaSize(storage.free_bytes)} · Maximum recording: ${storage.max_recording_seconds || '?'} seconds · up to ${storage.max_recordings || '?'} saved items.`;
+    if (!filtered.length) {
+      const p=document.createElement('p');p.className='small muted'; p.textContent='No recordings or snapshots for this camera selection.'; list.append(p);
+      selectedRecordingId=null; showRecordingDetail(null); return;
+    }
+    // A real compact row list: playing one recording opens a single, separate detail viewer.
+    const wrapper=document.createElement('div'); wrapper.className='surveillance-recording-list-scroll';
+    const table=document.createElement('table'); table.className='surveillance-recording-table';
+    const thead=document.createElement('thead'); const header=document.createElement('tr');
+    for (const label of ['Preview','Date / time','Camera','Type','Status','Size']) {
+      const th=document.createElement('th'); th.scope='col'; th.textContent=label; header.append(th);
+    }
+    thead.append(header); table.append(thead); const body=document.createElement('tbody');
+    for (const entry of filtered) {
+      const row=document.createElement('tr');
+      if (selectedRecordingId===entry.id) row.classList.add('is-selected');
+      const preview=document.createElement('td');
+      const open=document.createElement('button'); open.type='button'; open.className='surveillance-media-thumb';
+      open.textContent=entry.kind==='image' ? 'View' : '▶'; open.setAttribute('aria-label', `Open ${entry.kind === 'image' ? 'snapshot' : 'recording'} from ${entry.camera_name}`);
+      if (entry.kind==='image' && ['STOPPED','FINISHED'].includes(entry.state) && entry.bytes>0) {
+        const image=document.createElement('img');image.loading='lazy'; image.alt='Saved snapshot preview';
+        image.src=`/api/surveillance/recordings/${entry.id}/file`;open.replaceChildren(image);
+      }
+      preview.append(open); row.append(preview);
+      const dateCell=document.createElement('td'); const dateButton=document.createElement('button');
+      dateButton.type='button'; dateButton.className='surveillance-recording-open';
+      const parsedDate = new Date(entry.started_utc);
+      dateButton.textContent = Number.isNaN(parsedDate.getTime()) ? entry.started_utc : parsedDate.toLocaleString();
+      dateButton.title = entry.started_utc;
+      dateCell.append(dateButton);row.append(dateCell);
+      for (const value of [entry.camera_name,entry.kind==='image'?'Snapshot':'Video',entry.state,mediaSize(entry.bytes)]) {
+        const cell=document.createElement('td');cell.textContent=value;row.append(cell);
+      }
+      const choose=()=>{ selectedRecordingId=entry.id; renderedRecordingKey=''; showRecordings(latestMedia,latestStorage); };
+      open.addEventListener('click',choose); dateButton.addEventListener('click',choose);
+      body.append(row);
+    }
+    table.append(body);wrapper.append(table);list.append(wrapper);
+    let chosen=filtered.find(item=>item.id===selectedRecordingId);
+    if (!chosen) {selectedRecordingId=null; chosen=null;}
+    showRecordingDetail(chosen);
   }
   function showMotionHistory(data) {
     latestMotion = data;
@@ -906,5 +960,6 @@
     if (activeTab === 'cameras') refreshUsb();
     if (['STARTING','MONITORING','STOPPING'].includes(liveMotion.state) || alertEnabled || activeTab === 'schedules' || recording.size > 0) refresh();
   }, 5000);
+  selectTab(activeTab); // Restore the selected panel after constructing all listeners.
   if ($('page-surveillance').classList.contains('active')) refresh();
 })();

@@ -103,6 +103,7 @@
       const messages = document.getElementById('reticulum-messages');
       if (messages) messages.scrollTop = messages.scrollHeight;
     }
+    window.OpenRFWorkspaceTabs?.remember('reticulum',name);
     // No hash navigation, focus stealing or scrollIntoView on a tab change.
     if (focus) tabs.get(name).focus({ preventScroll: true });
   }
@@ -140,7 +141,7 @@
   const previous = document.getElementById('reticulum-inbox-unread')?.textContent || '';
   updateUnread(Number(/^\s*(\d+) unread\b/.exec(previous)?.[1] || 0));
 
-  activate('dashboard');
+  activate(window.OpenRFWorkspaceTabs?.restore('reticulum',names,'dashboard') || 'dashboard');
   window.OpenRFReticulumTabs = Object.freeze({
     open: name => activate(name),
     current: () => names.find(name => !panels.get(name).hidden)
