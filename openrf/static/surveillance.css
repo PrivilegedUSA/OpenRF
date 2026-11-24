@@ -153,3 +153,44 @@
 @media(max-width:600px){.surveillance-overlay-button{min-width:34px;min-height:34px}.surveillance-overlay-bottom{gap:3px;padding:5px}.surveillance-feed-media{min-height:190px}}
 /* App-wide .btn display rules override the user-agent [hidden] style. */
 #surveillance-fullscreen[hidden]{display:none!important}
+
+
+/* v0.2.189: quiet, icon-led overlays. No toolbar scrollbar, no outlines around every action. */
+.surveillance-ui-icon{width:21px;height:21px;display:block;flex-shrink:0}
+.surveillance-overlay-bottom{inset:auto auto 10px 50%;transform:translateX(-50%);width:auto;max-width:none;overflow:visible;scrollbar-width:none;padding:3px 5px;gap:6px;border:0;background:transparent;backdrop-filter:none;box-shadow:none;z-index:5}
+.surveillance-overlay-zoom{position:absolute;bottom:10px;right:10px;display:flex;align-items:center;gap:4px;z-index:5}
+.surveillance-overlay-bottom .surveillance-overlay-button,.surveillance-overlay-zoom .surveillance-overlay-button,.surveillance-overlay-top .surveillance-overlay-button{border:0;box-shadow:none;background:rgba(7,21,30,.54);min-width:39px;min-height:39px;border-radius:50%;backdrop-filter:blur(4px);padding:8px}
+.surveillance-overlay-bottom .surveillance-overlay-button:hover,.surveillance-overlay-zoom .surveillance-overlay-button:hover,.surveillance-overlay-top .surveillance-overlay-button:hover{background:rgba(36,77,86,.91)}
+.surveillance-overlay-bottom .surveillance-record-circle{min-width:58px;min-height:58px;padding:12px;color:#fff;background:#b91c36;border:0}
+.surveillance-overlay-bottom .surveillance-record-circle .surveillance-ui-icon{width:29px;height:29px}
+.surveillance-overlay-bottom .surveillance-record-circle:hover{background:#d32647}
+.surveillance-feed.is-recording .surveillance-overlay-bottom .surveillance-record-circle{background:#8d162a}
+.surveillance-feed.is-recording .surveillance-overlay-bottom .surveillance-record-circle:hover{background:#ae2038}
+.surveillance-zoom-display{min-width:auto;padding:3px 5px;background:rgba(7,21,30,.67);border-radius:5px}
+.surveillance-zoom-display[hidden]{display:none!important}
+.surveillance-ptz-overlay{top:auto;bottom:65px;right:12px;max-height:min(55%,290px);z-index:6}
+.surveillance-feed:fullscreen .surveillance-overlay-bottom{inset:auto auto 18px 50%;transform:translateX(-50%)}
+.surveillance-feed:fullscreen .surveillance-overlay-zoom{bottom:18px;right:18px}
+.surveillance-feed:fullscreen .surveillance-ptz-overlay{bottom:70px;right:18px}
+.surveillance-viewer:fullscreen .surveillance-overlay-bottom{inset:auto auto 10px 50%;transform:translateX(-50%)}
+.surveillance-recordings{gap:14px}
+.surveillance-recording{display:flex;flex-direction:column;align-items:stretch;gap:12px;padding:16px}
+.surveillance-recording>p{flex:none;margin:0}
+.surveillance-recording .surveillance-playback{display:block;max-width:100%;width:min(100%,640px);max-height:320px;align-self:center}
+.surveillance-recording-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;width:100%;margin-top:4px}
+.surveillance-recording-actions-left,.surveillance-recording-actions-right{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.surveillance-recording-actions-right{margin-left:auto}
+@container (max-width:680px){
+  .surveillance-overlay-zoom{top:51px;right:8px;bottom:auto;display:grid;grid-template-columns:repeat(2,32px);gap:3px}
+  .surveillance-overlay-bottom{bottom:7px;gap:3px}
+  .surveillance-overlay-bottom .surveillance-overlay-button{min-width:33px;min-height:33px;padding:6px}
+  .surveillance-overlay-bottom .surveillance-record-circle{min-width:46px;min-height:46px;padding:9px}
+  .surveillance-overlay-bottom .surveillance-record-circle .surveillance-ui-icon{width:25px;height:25px}
+  .surveillance-overlay-zoom .surveillance-overlay-button{min-width:32px;min-height:32px;padding:6px}
+  .surveillance-overlay-zoom .surveillance-ui-icon{width:17px;height:17px}
+  .surveillance-ptz-overlay{top:51px;bottom:auto;right:85px;max-height:calc(100% - 58px);max-width:calc(100% - 100px)}
+}
+.surveillance-feed-media{container-type:inline-size}
+@media (max-width:480px){.surveillance-recording-actions{align-items:stretch}.surveillance-recording-actions-left,.surveillance-recording-actions-right{width:100%}.surveillance-recording-actions-right{justify-content:flex-end}}
+/* The magnification badge must not take a grid slot in the small camera tiles. */
+.surveillance-overlay-zoom .surveillance-zoom-display{position:absolute;right:0;bottom:calc(100% + 4px);pointer-events:none;white-space:nowrap}

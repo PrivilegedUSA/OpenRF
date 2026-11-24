@@ -37,6 +37,7 @@ class RecordingManager:
         self.folder.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.lock = threading.RLock()
         self.active = {}
+        self.preview_stopper = None  # Configured by the local server; no background capture.
         with self._db() as db:
             db.execute('''CREATE TABLE IF NOT EXISTS surveillance_recordings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, camera_id INTEGER NOT NULL,
@@ -92,6 +93,8 @@ class RecordingManager:
                 raise SurveillanceError('FFmpeg is required for local recording')
             if camera['source'] == 'USB' and not Path(camera['location']).exists():
                 raise SurveillanceError('USB camera device is not connected')
+            if camera['source'] == 'USB' and self.preview_stopper:
+                self.preview_stopper(camera['id'])
             if self.storage()['free_bytes'] < 512 * 1024 * 1024:
                 raise SurveillanceError('At least 512 MiB free space is required to start recording')
             with self._db() as db:
@@ -152,6 +155,11 @@ class RecordingManager:
                 raise SurveillanceError('FFmpeg is required for screenshots')
             if camera['source'] == 'USB' and not Path(camera['location']).exists():
                 raise SurveillanceError('USB camera device is not connected')
+            self._refresh()
+            if camera['source'] == 'USB' and camera['id'] in self.active:
+                raise SurveillanceError('Stop USB recording before taking another snapshot')
+            if camera['source'] == 'USB' and self.preview_stopper:
+                self.preview_stopper(camera['id'])
             with self._db() as db:
                 if db.execute('SELECT COUNT(*) FROM surveillance_recordings').fetchone()[0] >= MAX_RECORDINGS:
                     raise SurveillanceError('Recording count limit reached')

@@ -277,6 +277,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self._error(404, str(exc))
             if not capability_report()['rtsp_mjpeg_preview']:
                 return self._error(503, 'FFmpeg is missing')
+            if camera['source'] == 'USB':
+                with self.server.surveillance_recordings.lock:
+                    self.server.surveillance_recordings._refresh()
+                    if camera['id'] in self.server.surveillance_recordings.active:
+                        return self._error(409, 'USB preview is paused during recording; stop and save before viewing again')
             if not self.server.surveillance_previews.semaphore.acquire(blocking=False):
                 return self._error(429, 'Maximum two live previews; close another view first')
             self.send_response(200)
@@ -287,7 +292,7 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.close_connection = True
             try:
-                self.server.surveillance_previews.run(camera['location'], self.wfile, reserved=True, source=camera['source'])
+                self.server.surveillance_previews.run(camera['location'], self.wfile, reserved=True, source=camera['source'], camera_id=camera['id'])
             except SurveillanceError:
                 pass
             return
@@ -2065,6 +2070,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.surveillance_live_motion = LiveMotionService(repository.path, server.surveillance_recordings)
     server.surveillance_schedules = SurveillanceSchedules(repository.path, server.surveillance_store, server.surveillance_recordings)
     server.surveillance_previews = PreviewSlots()
+    server.surveillance_recordings.preview_stopper = server.surveillance_previews.stop_camera
     server.surveillance_probe_lock = threading.BoundedSemaphore(1)
     server.weather_store = WeatherStore(repository.path)
     server.emergency_store = EmergencyStore(repository.path)

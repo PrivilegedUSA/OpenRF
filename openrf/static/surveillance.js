@@ -3,6 +3,24 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const MAX_LIVE = 2;
+  // Small inline vector icons: consistent on Raspberry Pi even without internet fonts.
+  const ICON_PATHS = {
+    expand:'<path d="M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3"/>',
+    shrink:'<path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3m8 0v-3a2 2 0 0 1 2-2h3"/>',
+    pause:'<rect x="5" y="4" width="4" height="16" rx="1"/><rect x="15" y="4" width="4" height="16" rx="1"/>',
+    play:'<path d="m8 5 12 7-12 7V5Z"/>',
+    camera:'<path d="M14 5h-4l-2 3H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-4l-2-3Z"/><circle cx="12" cy="14" r="3"/>',
+    history:'<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5m4-1v5l3 2"/>',
+    activity:'<path d="M3 12h4l3-7 4 14 3-7h4"/>',
+    minus:'<path d="M5 12h14"/>',
+    plus:'<path d="M5 12h14M12 5v14"/>',
+    reset:'<path d="M3 11a9 9 0 1 1 2.6 6.4M3 4v7h7"/>',
+    move:'<path d="m12 2-3 3h6l-3-3Zm0 20-3-3h6l-3 3ZM2 12l3-3v6l-3-3Zm20 0-3-3v6l3-3Z"/><path d="M12 5v14M5 12h14"/>',
+    record:'<circle cx="12" cy="12" r="8" fill="currentColor" stroke="none"/>',
+    stop:'<rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor" stroke="none"/>'
+  };
+  const cameraIcon = name => `<svg class="surveillance-ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${ICON_PATHS[name]}</svg>`;
+  const setCameraIcon = (button, name) => { button.innerHTML = cameraIcon(name); };
   let cameras = [];
   let editing = null;
   const live = new Map();
@@ -14,6 +32,7 @@
   let latestLiveMotionEvents = [];
 
   const paused = new Set(); // Manual pause only lasts for the current Surveillance visit.
+  const usbPreviewResume = new Set(); // Remember previews paused solely to free a USB capture device.
   let autoPreviewInitialized = false;
   const checks = new Map();
   const recording = new Set();
@@ -130,7 +149,7 @@
     $('surveillance-fullscreen').setAttribute('aria-label', full === wall ? 'Exit fullscreen camera grid' : 'Expand the active camera grid');
     for (const tile of wallTiles.values()) {
       const button = tile.querySelector('[data-feed-fullscreen]');
-      button.innerHTML = full === tile ? '&#x2922;' : '&#x26F6;'; // icon only; accessible label below
+      setCameraIcon(button, full === tile ? 'shrink' : 'expand');
       button.title = full === tile ? 'Exit full screen' : 'Expand camera';
       button.setAttribute('aria-label', `${full === tile ? 'Exit full screen for' : 'Full screen for'} ${tile.dataset.cameraName}`);
     }
@@ -164,26 +183,34 @@
     const viewing = live.has(camera.id);
     const monitor = isMonitoring(camera.id);
     const blocked = ['STARTING','MONITORING','STOPPING'].includes(liveMotion.state) && !monitor;
-    pane.querySelector('[data-feed-view]').textContent = viewing ? 'Ⅱ' : '▶';
+    setCameraIcon(pane.querySelector('[data-feed-view]'), viewing ? 'pause' : 'play');
     pane.querySelector('[data-feed-view]').title = viewing ? 'Pause camera preview' : 'Resume camera preview';
     pane.querySelector('[data-feed-view]').setAttribute('aria-label', `${viewing ? 'Pause preview for' : 'View live from'} ${camera.name}`);
-    pane.querySelector('[data-feed-record]').textContent = recording.has(camera.id) ? '■' : '●';
+    setCameraIcon(pane.querySelector('[data-feed-record]'), recording.has(camera.id) ? 'stop' : 'record');
     pane.querySelector('[data-feed-record]').title = recording.has(camera.id) ? 'Stop and save recording' : 'Start local recording';
     pane.querySelector('[data-feed-record]').setAttribute('aria-pressed', String(recording.has(camera.id)));
+    pane.querySelector('[data-feed-view]').disabled = recording.has(camera.id) && camera.type === 'USB';
+    pane.querySelector('[data-feed-snapshot]').disabled = recording.has(camera.id) && camera.type === 'USB';
     pane.querySelector('[data-feed-record]').setAttribute('aria-label', `${recording.has(camera.id) ? 'Stop and save recording for' : 'Start recording from'} ${camera.name}`);
-    pane.querySelector('[data-feed-motion]').textContent = monitor ? 'Stop motion clips' : 'Start motion clips';
+    setCameraIcon(pane.querySelector('[data-feed-motion]'), monitor ? 'stop' : 'activity');
+    pane.querySelector('[data-feed-motion]').title = monitor ? 'Stop motion-triggered clips' : 'Start motion-triggered clips (opt-in)';
+    pane.querySelector('[data-feed-motion]').setAttribute('aria-label', `${monitor ? 'Stop' : 'Start'} motion clips for ${camera.name}`);
+    pane.querySelector('[data-feed-motion]').setAttribute('aria-pressed', String(monitor));
     pane.querySelector('[data-feed-motion]').disabled = blocked;
     const media = recordingInfo.get(camera.id);
     const capture = recording.has(camera.id);
+    pane.querySelector('[data-feed-view]').title = capture && camera.type === 'USB' ? 'USB preview paused during recording' : viewing ? 'Pause preview' : 'Resume preview';
     pane.querySelector('[data-feed-record-status]').textContent = capture ? (media && media.bytes > 0 ? 'REC · WRITING FILE' : 'REC · STARTING') : viewing ? ({READY:'LIVE FRAMES',FAILED:'PREVIEW FAILED'}[previewState.get(camera.id)] || 'PREVIEW REQUESTED') : 'PREVIEW PAUSED';
     pane.querySelector('[data-feed-rec-badge]').textContent = capture ? (media && media.bytes > 0 ? '● REC · UNFINALIZED' : '● REC · STARTING') : '';
     pane.querySelector('[data-feed-rec-badge]').hidden = !capture;
     pane.querySelector('[data-feed-zoom-label]').textContent = `${Number(cropState(camera.id).zoom.toFixed(2))}×`;
+    pane.querySelector('[data-feed-zoom-label]').hidden = cropState(camera.id).zoom <= 1;
     pane.classList.toggle('is-live', viewing);
     pane.classList.toggle('is-recording', recording.has(camera.id));
     if (!viewing) {
       pane.querySelector('[data-feed-placeholder]').hidden = false;
-      pane.querySelector('[data-feed-placeholder]').textContent = paused.has(camera.id) ?
+      pane.querySelector('[data-feed-placeholder]').textContent = recording.has(camera.id) && camera.type === 'USB' ?
+        'USB preview released for recording. Stop & save to return to live view.' : paused.has(camera.id) ?
         'Preview paused. Select View live to resume.' :
         'Preview inactive. Up to two cameras can show live frames at once.';
       pane.querySelector('[data-feed-note]').textContent = 'Not connected or tested by this preview.';
@@ -194,15 +221,28 @@
   }
   async function toggleRecording(camera, button) {
     button.disabled = true;
+    const stopping = recording.has(camera.id);
+    const needsPreviewPause = !stopping && camera.type === 'USB' && live.has(camera.id);
+    if (needsPreviewPause) {
+      usbPreviewResume.add(camera.id);
+      stopView(camera.id); // One V4L2 reader at a time; server also closes any other local preview client.
+    }
     try {
-      const stopping = recording.has(camera.id);
-      await request(`/api/surveillance/cameras/${camera.id}/${stopping ? 'stop' : 'record'}`, {method:'POST'});
-      if (stopping) recording.delete(camera.id); else recording.add(camera.id);
-      status(stopping ? `Recording stopped for ${camera.name}. Check Recordings for finalized playable files and any failures.` :
-        `Capture started for ${camera.name}. Stop with the square button to finalize MP4; 0 bytes means video is not yet saved. If USB capture fails, pause its preview before retrying.`);
+      const result = await request(`/api/surveillance/cameras/${camera.id}/${stopping ? 'stop' : 'record'}`, {method:'POST'});
+      if (stopping) {
+        recording.delete(camera.id);
+        status(result.state === 'STOPPED' ? `Recording saved for ${camera.name} (${result.bytes} bytes). Open History to play or download.` :
+          `Recording ended with ${result.state || 'unknown'} status. See History for details; no playable video is assumed.`);
+      } else {
+        recording.add(camera.id);
+        status(`Capture requested for ${camera.name}. Stop & save to finalize the MP4. The USB preview is paused while capturing.`);
+      }
       await refresh();
-    } catch(error) { status(`Recording action failed: ${error.message}`); }
-    finally { button.disabled = false; }
+      if (stopping && usbPreviewResume.delete(camera.id) && overviewVisible()) view(camera);
+    } catch(error) {
+      status(`Recording action failed: ${error.message}`);
+      if (needsPreviewPause && usbPreviewResume.delete(camera.id) && overviewVisible()) view(camera);
+    } finally { button.disabled = false; }
   }
   async function toggleMotion(camera, button, showEvents=false) {
     const stopping = isMonitoring(camera.id);
@@ -219,12 +259,17 @@
   }
   async function captureSnapshot(camera, button) {
     button.disabled = true;
+    const resume = camera.type === 'USB' && live.has(camera.id);
+    if (resume) stopView(camera.id);
     try {
       await request(`/api/surveillance/cameras/${camera.id}/snapshot`,{method:'POST'});
       status(`Screenshot saved for ${camera.name}. See Recordings to download it.`);
       await refresh();
     } catch(error) { status(`Screenshot failed: ${error.message}`); }
-    finally { button.disabled = false; }
+    finally {
+      button.disabled = false;
+      if (resume && overviewVisible() && !recording.has(camera.id)) view(camera);
+    }
   }
   function cropState(id) {
     if (!viewport.has(id)) viewport.set(id, {zoom:1, x:0, y:0});
@@ -241,6 +286,7 @@
     state.y = Math.max(-limit, Math.min(limit, state.y));
     pane.querySelector('img').style.transform = `translate(${state.x}%, ${state.y}%) scale(${state.zoom})`;
     pane.querySelector('[data-feed-zoom-label]').textContent = `${Number(state.zoom.toFixed(2))}×`;
+    pane.querySelector('[data-feed-zoom-label]').hidden = state.zoom <= 1;
     pane.querySelector('[data-feed-zoom-reset]').disabled = state.zoom === 1 && !state.x && !state.y;
     pane.querySelector('[data-feed-media]').classList.toggle('is-zoomed', state.zoom > 1);
   }
@@ -288,31 +334,32 @@
       <div class="surveillance-feed-media" data-feed-media><img alt="Camera frames (video may be unavailable)" draggable="false" />
       <div class="surveillance-feed-placeholder" data-feed-placeholder>Preview inactive</div>
       <div class="surveillance-overlay-top"><span class="surveillance-video-rec" data-feed-rec-badge hidden></span>
-        <button class="surveillance-overlay-button surveillance-expand" type="button" data-feed-fullscreen aria-label="Expand camera" title="Expand camera">⛶</button></div>
+        <button class="surveillance-overlay-button surveillance-expand" type="button" data-feed-fullscreen aria-label="Expand camera" title="Expand camera">${cameraIcon('expand')}</button></div>
       <div class="surveillance-overlay-bottom" role="group" aria-label="Camera live controls">
-        <button class="surveillance-overlay-button surveillance-record-circle" type="button" data-feed-record aria-label="Start recording" title="Start recording">●</button>
-        <button class="surveillance-overlay-button" type="button" data-feed-view title="Pause or resume preview">Ⅱ</button>
-        <button class="surveillance-overlay-button" type="button" data-feed-snapshot title="Save snapshot" aria-label="Save snapshot">▣</button>
-        <button class="surveillance-overlay-button" type="button" data-feed-history title="Camera history" aria-label="Camera history">◷</button>
-        <span class="surveillance-overlay-divider" aria-hidden="true"></span>
-        <button class="surveillance-overlay-button" type="button" data-feed-zoom-out title="Zoom out" aria-label="Digital zoom out">−</button>
-        <span class="surveillance-zoom-display" data-feed-zoom-label>1×</span>
-        <button class="surveillance-overlay-button" type="button" data-feed-zoom-in title="Zoom in" aria-label="Digital zoom in">+</button>
-        <button class="surveillance-overlay-button" type="button" data-feed-zoom-reset title="Reset zoom" aria-label="Reset digital zoom">↺</button>
-        <button class="surveillance-overlay-button" type="button" data-feed-ptz-toggle title="Camera PTZ controls" aria-label="Show camera pan tilt zoom controls" data-feed-ptz-toggle>✥</button>
+        <button class="surveillance-overlay-button" type="button" data-feed-view title="Pause preview" aria-label="Pause preview">${cameraIcon('pause')}</button>
+        <button class="surveillance-overlay-button" type="button" data-feed-snapshot title="Save snapshot" aria-label="Save snapshot">${cameraIcon('camera')}</button>
+        <button class="surveillance-overlay-button surveillance-record-circle" type="button" data-feed-record aria-label="Start recording" title="Start recording">${cameraIcon('record')}</button>
+        <button class="surveillance-overlay-button surveillance-motion-button" type="button" data-feed-motion title="Start motion clips" aria-label="Start motion-triggered clips">${cameraIcon('activity')}</button>
+        <button class="surveillance-overlay-button" type="button" data-feed-history title="Camera history" aria-label="Camera history">${cameraIcon('history')}</button>
       </div>
-      <details class="surveillance-device-ptz surveillance-ptz-overlay" data-feed-device-ptz hidden><summary>Camera PTZ</summary>
+      <div class="surveillance-overlay-zoom" role="group" aria-label="Digital zoom and camera movement">
+        <button class="surveillance-overlay-button" type="button" data-feed-zoom-out title="Digital zoom out" aria-label="Digital zoom out">${cameraIcon('minus')}</button>
+        <span class="surveillance-zoom-display" data-feed-zoom-label hidden>1×</span>
+        <button class="surveillance-overlay-button" type="button" data-feed-zoom-in title="Digital zoom in" aria-label="Digital zoom in">${cameraIcon('plus')}</button>
+        <button class="surveillance-overlay-button" type="button" data-feed-zoom-reset title="Reset digital zoom" aria-label="Reset digital zoom">${cameraIcon('reset')}</button>
+        <button class="surveillance-overlay-button" type="button" data-feed-ptz-toggle title="Device pan, tilt and zoom" aria-label="Show device pan tilt zoom controls">${cameraIcon('move')}</button>
+      </div>
+      <details class="surveillance-device-ptz surveillance-ptz-overlay" data-feed-device-ptz hidden><summary>Device pan / tilt / zoom</summary>
         <p class="small muted" data-feed-device-status>Expand to inspect supported USB controls; movement is not guaranteed.</p>
         <div class="surveillance-camera-tools-row" role="group" aria-label="Device controls">
-          <button class="btn outline" type="button" data-feed-ptz-axis="pan" data-feed-ptz-step="-1" disabled>◀</button>
-          <button class="btn outline" type="button" data-feed-ptz-axis="pan" data-feed-ptz-step="1" disabled>▶</button>
-          <button class="btn outline" type="button" data-feed-ptz-axis="tilt" data-feed-ptz-step="1" disabled>▲</button>
-          <button class="btn outline" type="button" data-feed-ptz-axis="tilt" data-feed-ptz-step="-1" disabled>▼</button>
+          <button class="btn outline" type="button" data-feed-ptz-axis="pan" data-feed-ptz-step="-1" aria-label="Device pan left" disabled>◀</button>
+          <button class="btn outline" type="button" data-feed-ptz-axis="pan" data-feed-ptz-step="1" aria-label="Device pan right" disabled>▶</button>
+          <button class="btn outline" type="button" data-feed-ptz-axis="tilt" data-feed-ptz-step="1" aria-label="Device tilt up" disabled>▲</button>
+          <button class="btn outline" type="button" data-feed-ptz-axis="tilt" data-feed-ptz-step="-1" aria-label="Device tilt down" disabled>▼</button>
           <button class="btn outline" type="button" data-feed-ptz-axis="zoom" data-feed-ptz-step="1" disabled>Zoom +</button>
           <button class="btn outline" type="button" data-feed-ptz-axis="zoom" data-feed-ptz-step="-1" disabled>Zoom −</button></div></details></div>
-      <details class="surveillance-camera-tools"><summary>Motion clips and camera options</summary>
-        <div class="surveillance-camera-tools-inner"><button class="btn outline" type="button" data-feed-motion title="Opt-in motion-triggered clips, not person detection">Start motion clips</button>
-        <p class="small muted">Recording must be stopped to finalize its MP4. Live preview and recording use separate USB capture requests; some devices cannot do both simultaneously. Digital zoom and drag change only the preview, not the stored file.</p></div></details>
+      <details class="surveillance-camera-tools"><summary>Recording and motion notes</summary>
+        <div class="surveillance-camera-tools-inner"><p class="small muted">Motion clips require explicit opt-in and use frame changes, not person detection. Stop & save finalizes MP4. For USB cameras, OpenRF pauses the live preview while capturing to avoid competing video readers. Digital zoom only changes the display.</p></div></details>
       <p class="small muted surveillance-feed-note" role="status" data-feed-note>Not connected.</p>`;
     pane.querySelector('[data-feed-fullscreen]').addEventListener('click', () => toggleFullscreen(pane));
     pane.querySelector('[data-feed-view]').addEventListener('click', () => live.has(camera.id) ? stopView(camera.id, true) : view(camera));
@@ -486,6 +533,7 @@
   function view(camera) {
     if (live.has(camera.id)) return;
     if (!overviewVisible()) return;
+    if (camera.type === 'USB' && recording.has(camera.id)) { status(`Stop recording ${camera.name} before opening its USB preview.`); return; }
     if (live.size >= MAX_LIVE) {
       status(`Only ${MAX_LIVE} concurrent previews are supported. Pause a feed before opening another.`);
       return;
@@ -540,6 +588,15 @@
       renderUsb(data.capabilities.usb_candidates || []);
       recording.clear(); recordingInfo.clear();
       for (const item of data.recordings || []) if (item.state === 'RECORDING') { recording.add(item.camera_id); recordingInfo.set(item.camera_id,item); }
+      // A scheduled/other-session USB recording may also take over the device.
+      for (const camera of cameras) if (camera.type === 'USB' && recording.has(camera.id) && live.has(camera.id)) {
+        usbPreviewResume.add(camera.id); stopView(camera.id);
+      }
+      for (const cameraId of [...usbPreviewResume]) if (!recording.has(cameraId)) {
+        usbPreviewResume.delete(cameraId);
+        const camera = cameras.find(item => item.id === cameraId);
+        if (camera && overviewVisible() && !paused.has(cameraId)) view(camera);
+      }
       showInventory();
       reconcileWall();
       autoStartPreviews();
@@ -596,6 +653,10 @@
       const line = document.createElement('p');
       const active = entry.state === 'RECORDING';
       line.textContent = `${entry.kind === 'image' ? 'Snapshot' : 'Video'} · ${entry.camera_name} · ${entry.started_utc} · ${entry.state} · ${fmt(entry.bytes)}`;
+      pane.append(line);
+      const actions = document.createElement('div'); actions.className='surveillance-recording-actions';
+      const actionsLeft = document.createElement('div'); actionsLeft.className='surveillance-recording-actions-left';
+      const actionsRight = document.createElement('div'); actionsRight.className='surveillance-recording-actions-right';
       if (active) {
         const explain = document.createElement('p'); explain.className='small muted';
         explain.textContent = entry.bytes ? 'Capture in progress. Stop & save to finalize MP4 before playback or download.' : 'Capture requested, but no video data written yet. If it remains at 0 bytes, stop and check USB preview/camera access.';
@@ -603,15 +664,14 @@
         const stop = document.createElement('button');stop.type='button';stop.className='btn surveillance-stop-save';stop.textContent='■ Stop & save';
         stop.addEventListener('click', async () => {stop.disabled=true;try {await request(`/api/surveillance/cameras/${entry.camera_id}/stop`,{method:'POST'});await refresh();selectTab('recordings');}
           catch(error){status(`Could not stop recording: ${error.message}`);stop.disabled=false;}});
-        pane.append(stop);
+        actionsRight.append(stop);
       } else if (entry.state === 'FAILED' || entry.state === 'INTERRUPTED') {
         const explain=document.createElement('p');explain.className='small muted';
         explain.textContent='This capture did not finish successfully. A file may be missing or unplayable; check USB access and FFmpeg before trying again.';pane.append(explain);
       }
-      pane.append(line);
       if ((entry.state === 'STOPPED' || entry.state === 'FINISHED') && entry.bytes) {
         const link = document.createElement('a'); link.className='btn outline'; link.textContent='Download file';
-        link.href=`/api/surveillance/recordings/${entry.id}/file?download`; link.rel='noopener'; link.target='_blank'; pane.append(link);
+        link.href=`/api/surveillance/recordings/${entry.id}/file?download`; link.rel='noopener'; link.target='_blank'; actionsRight.append(link);
         if (entry.kind === 'video') {
           const video = document.createElement('video'); video.controls=true; video.preload='none';
           video.src=`/api/surveillance/recordings/${entry.id}/file`; video.className='surveillance-playback'; pane.append(video);
@@ -631,7 +691,7 @@
             $('surveillance-motion-status').textContent=`Scan complete: ${result.event_count} motion candidate(s) in ${result.sampled_seconds.toFixed(1)} sampled seconds from ${entry.camera_name}.`;
           } catch (error) { $('surveillance-motion-status').textContent=`Saved-video motion scan failed: ${error.message}`; }
           finally { motionBusy=false; selectTab('events'); await refresh(); }
-        }); pane.append(scan);
+        }); actionsLeft.append(scan);
       }
       if (entry.state !== 'RECORDING' && entry.state !== 'CAPTURING') {
         const remove = document.createElement('button'); remove.type='button'; remove.className='btn outline'; remove.textContent='Delete file';
@@ -639,8 +699,10 @@
           if (!confirm('Permanently delete this local recording or snapshot?')) return;
           try { await request(`/api/surveillance/recordings/${entry.id}`, {method:'DELETE'}); await refresh(); }
           catch (error) { status(error.message); }
-        }); pane.append(remove);
+        }); actionsRight.append(remove);
       }
+      actions.append(actionsLeft, actionsRight);
+      pane.append(actions);
       grid.append(pane);
     }
   }

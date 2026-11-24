@@ -1,3 +1,7 @@
+## v0.2.189 — Cleaner Surveillance controls and USB recording compatibility
+
+Surveillance previews now show centered Record, Pause, Snapshot, opt-in Motion and History overlays, with separate digital zoom and supported camera PTZ on the right. History cards have bottom-aligned actions. The local server releases a USB camera's preview before user-requested recording or screenshots, so preview and capture are less likely to compete for `/dev/video0`; recording still requires stopping to finalize the MP4. No background recording has been enabled. The NexiGo/PTZ hardware behavior of this patch is not yet verified; see `docs/RELEASE_0.2.189_TESTS.md`.
+
 ## v0.2.188 — Surveillance controls over video and recording history improvements
 
 The Surveillance camera wall now puts primary actions directly on the video: round Record / square Stop & save, individual expand control, pause preview, snapshot, per-camera History, zoom and optional reported USB PTZ. Expand grid appears only when two camera preview requests are active. Camera recordings remain local; stop an in-progress recording to finalize it, then use Recordings to view/download it. A running FFmpeg process is not evidence of a valid MP4. Certain USB webcams may not support multiple simultaneous capture requests, so try pausing live preview before recording if you see failures. The updated software was browser-tested using clearly synthetic fixtures; this patch has not been exercised on the user's NexiGo or Raspberry Pi device. See `docs/RELEASE_0.2.188_TESTS.md`.

@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {spawn} = require('node:child_process');
 
-const EXPECTED_VERSION = '0.2.188';
+const EXPECTED_VERSION = '0.2.189';
 let backendChild = null;
 
 function rootFor(appResources, sourceDir) {

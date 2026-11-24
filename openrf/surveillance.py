@@ -292,6 +292,7 @@ class PreviewSlots:
     def __init__(self, capacity=2):
         self.semaphore = threading.BoundedSemaphore(capacity)
         self.active = set()
+        self.by_camera = {}  # camera ID -> active FFmpeg process and cleanup event
         self.lock = threading.Lock()
 
     def close(self):
@@ -299,11 +300,30 @@ class PreviewSlots:
             for process in list(self.active):
                 process.terminate()
 
-    def run(self, url, output, *, reserved=False, source='RTSP'):
+    def stop_camera(self, camera_id, timeout=3.0):
+        """Release existing preview readers before a user-initiated USB capture.
+
+        Never interpret process termination as a successfully saved recording.
+        Wait for the preview stream's cleanup to release its device handle.
+        """
+        with self.lock:
+            sessions = list(self.by_camera.get(camera_id, ()))
+        for process, _ in sessions:
+            if process.poll() is None:
+                try:
+                    process.terminate()
+                except ProcessLookupError:
+                    pass
+        for _, done in sessions:
+            if not done.wait(timeout):
+                raise SurveillanceError('USB preview is still releasing the device; pause the live feed and retry recording')
+
+    def run(self, url, output, *, reserved=False, source='RTSP', camera_id=None):
         """Streams FFmpeg multipart MJPEG bytes to an already-open local HTTP response."""
         if not reserved and not self.semaphore.acquire(blocking=False):
             raise SurveillanceError('Maximum two simultaneous live previews')
         process = None
+        done = threading.Event()
         try:
             executable = shutil.which('ffmpeg')
             if not executable:
@@ -317,6 +337,8 @@ class PreviewSlots:
             ], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=0)
             with self.lock:
                 self.active.add(process)
+                if camera_id is not None:
+                    self.by_camera.setdefault(camera_id, set()).add((process, done))
             while True:
                 chunk = process.stdout.read(16384)
                 if not chunk:
@@ -337,4 +359,11 @@ class PreviewSlots:
                     process.stdout.close()
                 with self.lock:
                     self.active.discard(process)
+                    if camera_id is not None:
+                        sessions = self.by_camera.get(camera_id)
+                        if sessions is not None:
+                            sessions.discard((process, done))
+                            if not sessions:
+                                del self.by_camera[camera_id]
+            done.set()
             self.semaphore.release()
