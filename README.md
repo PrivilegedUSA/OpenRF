@@ -1,3 +1,9 @@
+## v0.2.186 — Surveillance preview wall and fullscreen controls
+
+**Surveillance → Overview** now displays compact preview tiles for every saved camera. Opening Surveillance Overview requests up to two live feeds, without a separate View live step. More than two saved cameras remain visible but paused until a slot opens. Entering the **main OpenRF Overview** does not connect cameras; opening other Surveillance tabs or leaving Surveillance stops preview requests. Pausing a preview won't cause it to restart on subsequent status refreshes. A preview is not a recording.
+
+Each tile contains fullscreen, Record/Stop recording, Screenshot, Motion clips, and Preview/Pause actions. Individual camera fullscreen keeps those controls; the fullscreen button becomes **Exit full screen** when active. Camera configuration and diagnostics live under the **Cameras** tab. **Motion clips** is a separate, opt-in frame-change monitor that may request 20-second recordings, not a person detector; see Motion & Events for sensitivity and event history. The normal schedules and local notifications remain unchanged. See `docs/RELEASE_0.2.186_TESTS.md` for tests and limits.
+
 ## v0.2.185 — Camera picker, opt-in recording schedules, local motion alerts and camera sidebar icon
 
 Surveillance → Cameras now shows detected Linux V4L2 video devices with their device labels and paths, and includes a **Refresh USB cameras** button; manual `/dev/videoN` entry remains available under Advanced. Enumeration does not open cameras and does not verify streaming. Windows-attached NexiGo webcams may not be visible within WSL without USB passthrough; actual webcam and Raspberry Pi tests remain outstanding.

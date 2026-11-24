@@ -1,4 +1,4 @@
-/* OpenRF Surveillance: user-started, maximum two real RTSP previews, never automatic. */
+/* OpenRF Surveillance: on-entry preview wall; camera capture/recording remains user-controlled. */
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
@@ -6,6 +6,9 @@
   let cameras = [];
   let editing = null;
   const live = new Map();
+  const wallTiles = new Map();
+  const paused = new Set(); // Manual pause only lasts for the current Surveillance visit.
+  let autoPreviewInitialized = false;
   const checks = new Map();
   const recording = new Set();
   let motionBusy = false;
@@ -18,7 +21,8 @@
   const TAB_NAMES = ['overview', 'cameras', 'recordings', 'events', 'schedules'];
   function selectTab(tab, focus = false) {
     if (!TAB_NAMES.includes(tab)) return;
-    if (activeTab === 'overview' && tab !== 'overview') stopView(); // Hidden preview tiles must not keep requesting camera frames.
+    const enteringOverview = activeTab !== 'overview' && tab === 'overview';
+    if (activeTab === 'overview' && tab !== 'overview') stopView(); // Hidden previews may not keep capturing.
     activeTab = tab;
     for (const name of TAB_NAMES) {
       const chosen = name === tab;
@@ -28,6 +32,7 @@
       $(`surveillance-panel-${name}`).hidden = !chosen;
     }
     if (tab === 'cameras') refreshUsb(); // Enumeration only; never opens video devices.
+    if (enteringOverview) { paused.clear(); autoPreviewInitialized = false; refresh(); } // User opened the Surveillance preview wall.
     if (focus) $(`surveillance-tab-${tab}`).focus({preventScroll:true});
   }
   for (const name of TAB_NAMES) {
@@ -104,25 +109,168 @@
     return result;
   }
   const status = text => { $('surveillance-status').textContent = text; };
-  function updateLiveHeader() {
-    $('surveillance-viewer').hidden = live.size === 0;
-    $('surveillance-live-title').textContent = `Live monitoring · ${live.size} of ${MAX_LIVE} slots`;
-    $('surveillance-live-status').textContent = live.size ?
-      'Only feeds you explicitly opened are requested. No recording is active.' :
-      'Stopped. No camera is being requested.';
+  function overviewVisible() {
+    return activeTab === 'overview' && $('page-surveillance').classList.contains('active');
   }
-  function stopView(id) {
+  function updateFullscreenLabels() {
+    const full = document.fullscreenElement;
+    const wall = $('surveillance-viewer');
+    $('surveillance-fullscreen').textContent = full === wall ? 'Exit full screen' : 'Full screen wall';
+    for (const tile of wallTiles.values()) {
+      const button = tile.querySelector('[data-feed-fullscreen]');
+      button.textContent = full === tile ? 'Exit full screen' : 'Full screen';
+      button.setAttribute('aria-label', `${full === tile ? 'Exit full screen for' : 'Full screen for'} ${tile.dataset.cameraName}`);
+    }
+  }
+  async function toggleFullscreen(target) {
+    try {
+      if (document.fullscreenElement === target) {
+        if (document.exitFullscreen) await document.exitFullscreen();
+      } else if (target.requestFullscreen) await target.requestFullscreen();
+      updateFullscreenLabels();
+    } catch (_) { status('Full screen is unavailable in this window.'); }
+  }
+  function updateLiveHeader() {
+    $('surveillance-viewer').hidden = false; // Add camera remains reachable for an empty library.
+    $('surveillance-live-title').textContent = `Camera previews · ${live.size} of ${MAX_LIVE} active`;
+    $('surveillance-live-status').textContent = live.size ?
+      `${live.size} preview(s) requested. Previewing is separate from recording; ${recording.size} active recording(s) currently reported.` :
+      'All previews paused. No camera feed is being requested by this wall.';
+    updateFullscreenLabels();
+  }
+  function updateWallTile(camera) {
+    const pane = wallTiles.get(camera.id);
+    if (!pane) return;
+    pane.dataset.cameraName = camera.name;
+    pane.querySelector('[data-feed-name]').textContent = camera.name;
+    pane.querySelector('[data-feed-type]').textContent = `${camera.type} · ${camera.host}`;
+    const viewing = live.has(camera.id);
+    const monitor = isMonitoring(camera.id);
+    const blocked = ['STARTING','MONITORING','STOPPING'].includes(liveMotion.state) && !monitor;
+    pane.querySelector('[data-feed-view]').textContent = viewing ? 'Pause preview' : 'View live';
+    pane.querySelector('[data-feed-view]').setAttribute('aria-label', `${viewing ? 'Pause preview for' : 'View live from'} ${camera.name}`);
+    pane.querySelector('[data-feed-record]').textContent = recording.has(camera.id) ? 'Stop recording' : 'Record';
+    pane.querySelector('[data-feed-record]').setAttribute('aria-label', `${recording.has(camera.id) ? 'Stop recording' : 'Start recording'} ${camera.name}`);
+    pane.querySelector('[data-feed-motion]').textContent = monitor ? 'Stop motion clips' : 'Motion clips';
+    pane.querySelector('[data-feed-motion]').disabled = blocked;
+    pane.querySelector('[data-feed-record-status]').textContent = recording.has(camera.id) ? 'Recording requested' : 'Not recording';
+    pane.classList.toggle('is-live', viewing);
+    pane.classList.toggle('is-recording', recording.has(camera.id));
+    if (!viewing) {
+      pane.querySelector('[data-feed-placeholder]').hidden = false;
+      pane.querySelector('[data-feed-placeholder]').textContent = paused.has(camera.id) ?
+        'Preview paused. Select View live to resume.' :
+        'Preview inactive. Up to two cameras can show live frames at once.';
+      pane.querySelector('[data-feed-note]').textContent = 'Not connected or tested by this preview.';
+    } else {
+      pane.querySelector('[data-feed-placeholder]').hidden = true;
+    }
+    updateFullscreenLabels();
+  }
+  async function toggleRecording(camera, button) {
+    button.disabled = true;
+    try {
+      const stopping = recording.has(camera.id);
+      await request(`/api/surveillance/cameras/${camera.id}/${stopping ? 'stop' : 'record'}`, {method:'POST'});
+      if (stopping) recording.delete(camera.id); else recording.add(camera.id);
+      status(stopping ? `Recording stop requested for ${camera.name}.` :
+        `Recording requested for ${camera.name}; saved video is verified only after media is written.`);
+      await refresh();
+    } catch(error) { status(`Recording action failed: ${error.message}`); }
+    finally { button.disabled = false; }
+  }
+  async function toggleMotion(camera, button, showEvents=false) {
+    const stopping = isMonitoring(camera.id);
+    if (!stopping && !confirm(`Enable motion-triggered recording for ${camera.name}? OpenRF will analyze frame changes and may save local 20-second clips, for up to 20 minutes. Changes do not prove a person was detected. Stop whenever you choose.`)) return;
+    button.disabled = true;
+    try {
+      if (stopping) await request(`/api/surveillance/cameras/${camera.id}/motion/stop`, {method:'POST'});
+      else await request(`/api/surveillance/cameras/${camera.id}/motion/start`, {method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({sensitivity:$('surveillance-live-motion-sensitivity').value})});
+      if (showEvents) selectTab('events');
+      await refresh();
+    } catch(error) { status(`Motion monitor action failed: ${error.message}`); }
+    finally { button.disabled=false; }
+  }
+  async function captureSnapshot(camera, button) {
+    button.disabled = true;
+    try {
+      await request(`/api/surveillance/cameras/${camera.id}/snapshot`,{method:'POST'});
+      status(`Screenshot saved for ${camera.name}. See Recordings to download it.`);
+      await refresh();
+    } catch(error) { status(`Screenshot failed: ${error.message}`); }
+    finally { button.disabled = false; }
+  }
+  function ensureWallTile(camera) {
+    if (wallTiles.has(camera.id)) return wallTiles.get(camera.id);
+    const pane = document.createElement('article');
+    pane.className = 'surveillance-feed';
+    pane.dataset.cameraName = camera.name;
+    pane.setAttribute('aria-label', `Camera preview and recording controls for ${camera.name}`);
+    pane.innerHTML = `<div class="surveillance-feed-heading"><div class="surveillance-feed-ident"><strong data-feed-name></strong><span class="small muted" data-feed-type></span></div>
+      <div class="button-line"><span class="surveillance-recording-indicator" data-feed-record-status>Not recording</span><button class="btn outline" type="button" data-feed-fullscreen>Full screen</button></div></div>
+      <div class="surveillance-feed-media"><img alt="Live webcam or network camera frames; video may be unavailable" /><div class="surveillance-feed-placeholder" data-feed-placeholder>Preview inactive</div></div>
+      <div class="surveillance-feed-controls button-line"><button class="btn outline" type="button" data-feed-view>View live</button>
+      <button class="btn primary" type="button" data-feed-record>Record</button>
+      <button class="btn outline" type="button" data-feed-snapshot>Screenshot</button>
+      <button class="btn outline" type="button" data-feed-motion title="Opt-in motion detection: frame changes can trigger short locally saved clips, not person detection">Motion clips</button></div>
+      <p class="small muted surveillance-feed-note" role="status" data-feed-note>Not connected.</p>`;
+    pane.querySelector('[data-feed-fullscreen]').addEventListener('click', () => toggleFullscreen(pane));
+    pane.querySelector('[data-feed-view]').addEventListener('click', () => live.has(camera.id) ? stopView(camera.id, true) : view(camera));
+    pane.querySelector('[data-feed-record]').addEventListener('click', event => toggleRecording(camera, event.currentTarget));
+    pane.querySelector('[data-feed-snapshot]').addEventListener('click', event => captureSnapshot(camera, event.currentTarget));
+    pane.querySelector('[data-feed-motion]').addEventListener('click', event => toggleMotion(camera, event.currentTarget));
+    wallTiles.set(camera.id, pane);
+    $('surveillance-live-grid').append(pane);
+    updateWallTile(camera);
+    return pane;
+  }
+  function reconcileWall() {
+    const placeholder = $('surveillance-live-grid').querySelector('[data-wall-empty]');
+    if (placeholder) placeholder.remove();
+    if (!cameras.length) {
+      const empty = document.createElement('p'); empty.className='small muted';
+      empty.setAttribute('data-wall-empty','');
+      empty.textContent='No cameras saved. Choose Add camera to select a Linux USB webcam or configure an RTSP camera.';
+      $('surveillance-live-grid').append(empty);
+    }
+    for (const [id, tile] of wallTiles) {
+      if (!cameras.some(camera => camera.id === id)) {
+        stopView(id);
+        tile.remove(); wallTiles.delete(id); paused.delete(id);
+      }
+    }
+    for (const camera of cameras) {
+      // Keep active img elements mounted across inventory refresh: moving/rebuilding them cancels MJPEG.
+      ensureWallTile(camera);
+      updateWallTile(camera);
+    }
+    updateLiveHeader();
+  }
+  function stopView(id, manual = false) {
     const ids = id === undefined ? Array.from(live.keys()) : [id];
+    if (manual && id === undefined) for (const camera of cameras) paused.add(camera.id);
     for (const cameraId of ids) {
+      if (manual) paused.add(cameraId);
       const pane = live.get(cameraId);
       if (!pane) continue;
-      // Remove the stream before removing the DOM node to cancel its HTTP request.
+      // Cancel the MJPEG HTTP request, but retain the tile and its controls.
       pane.querySelector('img').removeAttribute('src');
-      pane.remove();
       live.delete(cameraId);
+      const camera = cameras.find(item => item.id === cameraId);
+      if (camera) updateWallTile(camera);
     }
     updateLiveHeader();
     showInventory();
+  }
+  function autoStartPreviews() {
+    // Opening Surveillance Overview is the user's viewing action. Never start on the general app Overview.
+    if (!overviewVisible() || autoPreviewInitialized) return;
+    autoPreviewInitialized = true;
+    for (const camera of cameras) {
+      if (live.size >= MAX_LIVE) break;
+      if (!paused.has(camera.id) && !live.has(camera.id)) view(camera);
+    }
   }
   function showInventory() {
     const grid = $('surveillance-grid');
@@ -136,7 +284,7 @@
       const monitoring = isMonitoring(camera.id);
       const otherMonitor = ['STARTING','MONITORING','STOPPING'].includes(liveMotion.state) && !monitoring;
       const tile = document.createElement('article');
-      tile.className = 'panel surveillance-tile';
+      tile.className = 'surveillance-tile';
       const check = checks.get(camera.id);
       tile.innerHTML = `<div class="panel-title"><h3>${escapeHtml(camera.name)}</h3><span class="pill">${viewing ? 'REQUESTED' : 'NOT CHECKED'}</span></div>
         <p class="small muted">${escapeHtml(camera.type)} · ${escapeHtml(camera.host)} · ${viewing ? 'Preview requested; see feed status below' : 'No current connection or battery status verified'}</p>
@@ -162,40 +310,10 @@
         tile.querySelector('[data-check-status]').textContent = checks.get(camera.id);
         button.disabled = false;
       });
-      tile.querySelector('[data-action=view]').addEventListener('click', () => viewing ? stopView(camera.id) : view(camera));
-      tile.querySelector('[data-action=record]').addEventListener('click', async event => {
-        const button = event.currentTarget;
-        button.disabled = true;
-        try {
-          const stopping = recording.has(camera.id);
-          const result = await request(`/api/surveillance/cameras/${camera.id}/${stopping ? 'stop' : 'record'}`, {method: 'POST'});
-          if (stopping) recording.delete(camera.id); else recording.add(camera.id);
-          status(stopping ? `Recording stop requested for ${camera.name}.` : `Recording started for ${camera.name}; frames are not verified until captured.`);
-          await refresh();
-        } catch (error) { status(`Recording action failed: ${error.message}`); }
-        button.disabled = false;
-      });
-      tile.querySelector('[data-action=motion]').addEventListener('click', async event => {
-        const button = event.currentTarget;
-        const stopping = isMonitoring(camera.id);
-        if (!stopping && !confirm(`Start live motion monitoring for ${camera.name}? This will connect to this camera and may start local 20-second recordings automatically when frames change, for up to 20 minutes. Stop any time in Motion & Events.`)) return;
-        button.disabled = true;
-        try {
-          if (stopping) await request(`/api/surveillance/cameras/${camera.id}/motion/stop`,{method:'POST'});
-          else await request(`/api/surveillance/cameras/${camera.id}/motion/start`,{method:'POST',headers:{'Content-Type':'application/json'},
-             body:JSON.stringify({sensitivity:$('surveillance-live-motion-sensitivity').value})});
-          selectTab('events');await refresh();
-        } catch(error) {status(`Motion monitor action failed: ${error.message}`);button.disabled=false;}
-      });
-      tile.querySelector('[data-action=snapshot]').addEventListener('click', async event => {
-        event.currentTarget.disabled = true;
-        try {
-          await request(`/api/surveillance/cameras/${camera.id}/snapshot`, {method:'POST'});
-          status(`Screenshot saved for ${camera.name}.`);
-          await refresh();
-        } catch (error) { status(`Screenshot failed: ${error.message}`); }
-        event.currentTarget.disabled = false;
-      });
+      tile.querySelector('[data-action=view]').addEventListener('click', () => {if(viewing) stopView(camera.id,true); else {selectTab('overview');view(camera);}});
+      tile.querySelector('[data-action=record]').addEventListener('click', event => toggleRecording(camera,event.currentTarget));
+      tile.querySelector('[data-action=motion]').addEventListener('click', event => toggleMotion(camera,event.currentTarget,true));
+      tile.querySelector('[data-action=snapshot]').addEventListener('click', event => captureSnapshot(camera,event.currentTarget));
       tile.querySelector('[data-action=edit]').addEventListener('click', () => {
         $('surveillance-source').value = camera.type;
         updateSource();
@@ -227,48 +345,27 @@
   }
   function view(camera) {
     if (live.has(camera.id)) return;
+    if (!overviewVisible()) return;
     if (live.size >= MAX_LIVE) {
-      status(`Only ${MAX_LIVE} concurrent previews are supported. Stop a feed before opening another.`);
+      status(`Only ${MAX_LIVE} concurrent previews are supported. Pause a feed before opening another.`);
       return;
     }
-    const pane = document.createElement('article');
-    pane.className = 'surveillance-feed';
-    pane.setAttribute('aria-label', `Live preview for ${camera.name}`);
-    const header = document.createElement('div');
-    header.className = 'surveillance-feed-heading';
-    const name = document.createElement('strong');
-    name.textContent = camera.name;
-    const actions = document.createElement('div');
-    actions.className = 'button-line';
-    const fullscreen = document.createElement('button');
-    fullscreen.className = 'btn outline';
-    fullscreen.type = 'button';
-    fullscreen.textContent = 'Full screen';
-    fullscreen.addEventListener('click', () => { if (pane.requestFullscreen) pane.requestFullscreen(); });
-    const stop = document.createElement('button');
-    stop.className = 'btn outline';
-    stop.type = 'button';
-    stop.textContent = 'Stop';
-    stop.addEventListener('click', () => stopView(camera.id));
-    actions.append(fullscreen, stop);
-    header.append(name, actions);
-    const image = document.createElement('img');
-    image.alt = `Live frames from ${camera.name} (preview; recording is independently controlled)`;
-    const note = document.createElement('p');
-    note.className = 'small muted';
-    note.setAttribute('role', 'status');
-    note.textContent = 'Opening RTSP preview. Waiting for real camera frames…';
-    pane.append(header, image, note);
+    const pane = ensureWallTile(camera);
+    const image = pane.querySelector('img');
+    const note = pane.querySelector('[data-feed-note]');
+    paused.delete(camera.id);
     live.set(camera.id, pane);
-    $('surveillance-live-grid').append(pane);
-    updateLiveHeader();
-    showInventory();
+    note.textContent = `Opening ${camera.type === 'USB' ? 'USB (V4L2)' : 'RTSP'} preview. Waiting for real camera frames…`;
+    image.alt = `Live frames from ${camera.name} (preview; recording is independently controlled)`;
     image.onload = () => {
       if (live.get(camera.id) === pane) note.textContent = 'Video frames received (up to 2 fps). Recording is controlled separately.';
     };
     image.onerror = () => {
-      if (live.get(camera.id) === pane) note.textContent = 'Preview failed or unavailable. Check camera, RTSP path, LAN and FFmpeg. Not recording.';
+      if (live.get(camera.id) === pane) note.textContent =
+        `Preview failed or unavailable. Check ${camera.type === 'USB' ? 'Linux webcam access and video format' : 'camera network, RTSP URL'}, and FFmpeg. Not recording.`;
     };
+    updateWallTile(camera);
+    updateLiveHeader();
     image.src = `/api/surveillance/cameras/${camera.id}/live`;
   }
   async function refresh() {
@@ -276,19 +373,22 @@
       const data = await request('/api/surveillance');
       cameras = data.cameras || [];
       for (const id of checks.keys()) if (!cameras.some(camera => camera.id === id)) checks.delete(id);
-      // An inventory refresh itself never starts an RTSP request.
+      // Inventory requests are local. The selected Surveillance Overview may open previews after it renders.
       for (const id of Array.from(live.keys())) if (!cameras.some(camera => camera.id === id)) stopView(id);
       showLiveMotion(data.live_motion || {status:{state:'OFF'},events:[]});
       showInventory();
+      reconcileWall();
       showMotionHistory(data.motion || {scans: [], events: []});
       $('surveillance-capabilities').textContent = `FFmpeg: ${data.capabilities.ffmpeg}. On-demand preview: ${data.capabilities.rtsp_mjpeg_preview ? 'available (2 feeds)' : 'unavailable'}. RTSP diagnostics: ${data.capabilities.rtsp_diagnostics ? 'available' : 'ffprobe missing'}. USB devices found: ${data.capabilities.usb_devices.length}. Live motion monitoring is opt-in, one camera and a maximum 20-minute session. ONVIF, Bluetooth pairing and battery telemetry remain unsupported. Saved-video motion review is manual.`;
       renderUsb(data.capabilities.usb_candidates || []);
       recording.clear();
       for (const item of data.recordings || []) if (item.state === 'RECORDING') recording.add(item.camera_id);
       showInventory();
+      reconcileWall();
+      autoStartPreviews();
       showRecordings(data.recordings || [], data.storage || {});
       showSchedules(data.schedules || {armed:false,schedules:[]});
-      status(`${cameras.length} saved camera(s). Inventory refresh did not contact cameras.`);
+      status(`${cameras.length} saved camera(s). ${overviewVisible() ? 'Surveillance Overview requests up to two live previews.' : 'No camera previews requested by this tab.'}`);
     } catch (error) { status(`Cannot read local camera inventory: ${error.message}`); }
   }
   function resetForm() {
@@ -546,20 +646,18 @@
   $('surveillance-refresh-media').addEventListener('click', refresh);
   updateSource();
   $('surveillance-cancel').addEventListener('click', resetForm);
-  $('surveillance-close-live').addEventListener('click', () => stopView());
+  $('surveillance-close-live').addEventListener('click', () => stopView(undefined, true));
   $('surveillance-refresh').addEventListener('click', refresh);
-  $('surveillance-fullscreen').addEventListener('click', () => {
-    const box = $('surveillance-viewer');
-    if (box.requestFullscreen) box.requestFullscreen();
-  });
-  document.addEventListener('openrf:surveillance-shown', refresh);
+  $('surveillance-fullscreen').addEventListener('click', () => toggleFullscreen($('surveillance-viewer')));
+  document.addEventListener('fullscreenchange', updateFullscreenLabels);
+  document.addEventListener('openrf:surveillance-shown', () => {paused.clear();autoPreviewInitialized=false;refresh();});
   function stopMonitorOnLeave() {
     if (['STARTING','MONITORING','STOPPING'].includes(liveMotion.state) && liveMotion.camera_id) {
       // Browser navigation may cancel an ordinary request; keepalive is best effort.
       fetch(`/api/surveillance/cameras/${liveMotion.camera_id}/motion/stop`, {method:'POST',keepalive:true}).catch(()=>{});
     }
   }
-  document.addEventListener('openrf:surveillance-hidden', () => {stopView(); stopMonitorOnLeave();});
+  document.addEventListener('openrf:surveillance-hidden', () => {stopView();paused.clear();autoPreviewInitialized=false;stopMonitorOnLeave();});
   window.addEventListener('pagehide', () => {stopView(); stopMonitorOnLeave();});
   setInterval(() => {
     if (!$('page-surveillance').classList.contains('active')) return;
