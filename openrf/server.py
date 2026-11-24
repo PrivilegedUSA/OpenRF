@@ -80,6 +80,7 @@ from .sensor_connections import (connections, ScanReceiptStore, BleScanReceiptSt
 
 from .surveillance import SurveillanceStore, SurveillanceError, PreviewSlots, capability_report, probe_camera, validate_usb_device
 from .surveillance_recording import RecordingManager
+from .surveillance_motion import MotionHistory
 
 STATIC_DIR = Path(__file__).resolve().parent / 'static'
 DEFAULT_DB = Path.home() / '.local' / 'share' / 'openrf' / 'openrf.sqlite3'
@@ -189,7 +190,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, {'cameras': self.server.surveillance_store.list(),
                                     'capabilities': capability_report(),
                                     'recordings': self.server.surveillance_recordings.list(),
-                                    'storage': self.server.surveillance_recordings.storage()})
+                                    'storage': self.server.surveillance_recordings.storage(),
+                                    'motion': self.server.surveillance_motion.history()})
         recording_file = re.fullmatch(r'/api/surveillance/recordings/([1-9][0-9]{0,9})/file', path)
         if recording_file:
             if self.headers.get('Sec-Fetch-Site', 'same-origin') not in ('same-origin', 'none') or urlparse(self.path).query not in ('', 'download'):
@@ -952,6 +954,17 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200, self.server.surveillance_recordings.cleanup_apply(data['days'], data['ids']))
             except (SurveillanceError, ValueError) as exc:
                 return self._error(400, str(exc))
+        motion_match = re.fullmatch(r'/api/surveillance/recordings/([1-9][0-9]{0,9})/motion-scan', path)
+        if motion_match:
+            if urlparse(self.path).query:
+                return self._error(400, 'Motion scan does not accept query parameters')
+            try:
+                data = self._decode_body()
+                if not isinstance(data, dict) or set(data) != {'sensitivity'}:
+                    raise SurveillanceError('Motion scan requires a sensitivity setting')
+                return self._json(200, self.server.surveillance_motion.scan(int(motion_match.group(1)), data['sensitivity']))
+            except (SurveillanceError, ValueError) as exc:
+                return self._error(409, str(exc))
         action = re.fullmatch(r'/api/surveillance/cameras/([1-9][0-9]{0,9})/(record|stop|snapshot)', path)
         if action:
             if urlparse(self.path).query:
@@ -1830,6 +1843,14 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host() or not self._allowed_origin():
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
+        motion = re.fullmatch(r'/api/surveillance/motion-scans/([1-9][0-9]{0,9})', path)
+        if motion:
+            if urlparse(self.path).query:
+                return self._error(400, 'Motion deletion does not accept query parameters')
+            try:
+                return self._json(200, {'deleted': self.server.surveillance_motion.delete_history(int(motion.group(1)))})
+            except SurveillanceError as exc:
+                return self._error(400, str(exc))
         recorded = re.fullmatch(r'/api/surveillance/recordings/([1-9][0-9]{0,9})', path)
         if recorded:
             try:
@@ -1967,6 +1988,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.repository = repository
     server.surveillance_store = SurveillanceStore(repository.path)
     server.surveillance_recordings = RecordingManager(repository.path)
+    server.surveillance_motion = MotionHistory(server.surveillance_recordings)
     server.surveillance_previews = PreviewSlots()
     server.surveillance_probe_lock = threading.BoundedSemaphore(1)
     server.weather_store = WeatherStore(repository.path)

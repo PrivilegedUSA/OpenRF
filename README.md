@@ -1,3 +1,7 @@
+## v0.2.183 — On-demand saved-video motion review
+
+Surveillance now lets you explicitly analyze the first five minutes of a **completed local video recording** with FFmpeg, at two grayscale frames per second, at low/medium/high sensitivity. It records local SQLite scan receipts and timestamped **frame-change/motion candidates**, including zero-result scans, with a timeline and a manual removal control. This is offline **post-recording analysis**, not live motion detection or motion-triggered recording. No camera is contacted by opening Surveillance or running a review. See `docs/RELEASE_0.2.183_TESTS.md`.
+
 ## v0.2.182 — Surveillance manual history retention
 
 Surveillance now supports reviewing recordings and screenshots older than a selected number of days and explicitly confirming deletion of those reviewed items. No automatic cleanup occurs. Existing camera monitoring, recording, screenshots, local media and messaging remain. See `docs/RELEASE_0.2.182_TESTS.md`.

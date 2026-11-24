@@ -15,3 +15,8 @@
 @media(max-width:640px){.surveillance-feed-heading{align-items:flex-start}.surveillance-feed-heading .btn{padding:8px}}
 
 .surveillance-recordings{display:grid;gap:10px;margin-top:12px}.surveillance-recording{border:1px solid #35616b;border-radius:10px;padding:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}.surveillance-recording p{flex:1 1 230px;overflow-wrap:anywhere}.surveillance-playback{width:min(100%,560px);max-height:250px;background:#080d13}.surveillance-camera-form [hidden]{display:none}
+
+.surveillance-motion-controls{align-items:center;flex-wrap:wrap}.surveillance-motion-controls label{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.surveillance-motion-history{display:grid;gap:10px;margin-top:12px}.surveillance-motion-scan{border:1px solid #35616b;border-radius:10px;padding:12px;min-width:0}
+.surveillance-motion-scan>.button-line{flex-wrap:wrap}.surveillance-motion-scan p{overflow-wrap:anywhere}
+.surveillance-motion-events{display:grid;gap:5px;padding-left:18px;margin:8px 0}.surveillance-motion-events li{overflow-wrap:anywhere}

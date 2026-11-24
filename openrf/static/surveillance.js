@@ -8,6 +8,7 @@
   const live = new Map();
   const checks = new Map();
   const recording = new Set();
+  let motionBusy = false;
   const escapeHtml = text => String(text).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   async function request(url, options) {
     const response = await fetch(url, {cache: 'no-store', ...options});
@@ -171,7 +172,8 @@
       // An inventory refresh itself never starts an RTSP request.
       for (const id of Array.from(live.keys())) if (!cameras.some(camera => camera.id === id)) stopView(id);
       showInventory();
-      $('surveillance-capabilities').textContent = `FFmpeg: ${data.capabilities.ffmpeg}. On-demand preview: ${data.capabilities.rtsp_mjpeg_preview ? 'available (2 feeds)' : 'unavailable'}. RTSP diagnostics: ${data.capabilities.rtsp_diagnostics ? 'available' : 'ffprobe missing'}. USB devices found: ${data.capabilities.usb_devices.length}. ONVIF, Bluetooth pairing, motion events, and battery telemetry unsupported.`;
+      showMotionHistory(data.motion || {scans: [], events: []});
+      $('surveillance-capabilities').textContent = `FFmpeg: ${data.capabilities.ffmpeg}. On-demand preview: ${data.capabilities.rtsp_mjpeg_preview ? 'available (2 feeds)' : 'unavailable'}. RTSP diagnostics: ${data.capabilities.rtsp_diagnostics ? 'available' : 'ffprobe missing'}. USB devices found: ${data.capabilities.usb_devices.length}. ONVIF, Bluetooth pairing, live motion alarms, and battery telemetry unsupported. Saved-video motion review is manual.`;
       $('surveillance-usb-devices').replaceChildren();
       for (const path of data.capabilities.usb_devices) {
         const item = document.createElement('option'); item.value = path;
@@ -234,6 +236,22 @@
           video.src=`/api/surveillance/recordings/${entry.id}/file`; video.className='surveillance-playback'; pane.append(video);
         }
       }
+      if (entry.kind === 'video' && (entry.state === 'STOPPED' || entry.state === 'FINISHED') && entry.bytes) {
+        const scan = document.createElement('button'); scan.type='button'; scan.className='btn outline';
+        scan.textContent='Scan for motion'; scan.disabled=motionBusy;
+        scan.addEventListener('click', async () => {
+          if (motionBusy) return;
+          motionBusy=true; scan.disabled=true;
+          const setting=$('surveillance-motion-sensitivity').value;
+          $('surveillance-motion-status').textContent=`Reviewing the first five minutes of ${entry.camera_name} using ${setting} sensitivity… No camera will be contacted.`;
+          try {
+            const result=await request(`/api/surveillance/recordings/${entry.id}/motion-scan`, {
+              method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({sensitivity:setting})});
+            $('surveillance-motion-status').textContent=`Scan complete: ${result.event_count} motion candidate(s) in ${result.sampled_seconds.toFixed(1)} sampled seconds from ${entry.camera_name}.`;
+          } catch (error) { $('surveillance-motion-status').textContent=`Saved-video motion scan failed: ${error.message}`; }
+          finally { motionBusy=false; await refresh(); }
+        }); pane.append(scan);
+      }
       if (entry.state !== 'RECORDING' && entry.state !== 'CAPTURING') {
         const remove = document.createElement('button'); remove.type='button'; remove.className='btn outline'; remove.textContent='Delete file';
         remove.addEventListener('click', async () => {
@@ -245,6 +263,49 @@
       grid.append(pane);
     }
   }
+  function showMotionHistory(data) {
+    const grid=$('surveillance-motion-history'); grid.replaceChildren();
+    const scans=data.scans || [], events=data.events || [];
+    if (!scans.length) {
+      const p=document.createElement('p'); p.className='small muted';
+      p.textContent='No saved-video motion scans yet. Finish a manual recording, then choose Scan for motion.';
+      grid.append(p); return;
+    }
+    for (const scan of scans) {
+      const pane=document.createElement('article'); pane.className='surveillance-motion-scan';
+      const summary=document.createElement('p');
+      summary.textContent=`${scan.camera_name} · Recording #${scan.recording_id} · ${scan.event_count} candidate(s) · ${scan.sensitivity} sensitivity · ${scan.sampled_seconds.toFixed(1)} s reviewed · scanned ${scan.scanned_utc}${scan.source_available ? '' : ' · SOURCE VIDEO UNAVAILABLE'}`;
+      pane.append(summary);
+      const matching=events.filter(item=>item.recording_id===scan.recording_id);
+      if (matching.length) {
+        const ul=document.createElement('ul'); ul.className='surveillance-motion-events';
+        for (const event of matching) {
+          const item=document.createElement('li');
+          item.textContent=`Approx. +${event.offset_seconds.toFixed(1)} s into recording · ${(event.changed_fraction*100).toFixed(1)}% sampled pixels changed (not a confidence score)`;
+          ul.append(item);
+        }
+        pane.append(ul);
+      } else {
+        const p=document.createElement('p'); p.className='small muted';
+        p.textContent=scan.event_count ? 'Older events omitted from the most recent 200 entries.' : 'No motion candidates exceeded this threshold.';
+        pane.append(p);
+      }
+      if (scan.source_available) {
+        const play=document.createElement('a'); play.className='btn outline';
+        play.textContent='Open source recording'; play.href=`/api/surveillance/recordings/${scan.recording_id}/file`;
+        play.rel='noopener'; play.target='_blank'; pane.append(play);
+      }
+      const discard=document.createElement('button'); discard.type='button'; discard.className='btn outline';
+      discard.textContent='Remove analysis history';
+      discard.addEventListener('click', async () => {
+        if (!confirm(`Remove saved motion analysis and events for recording #${scan.recording_id}? This will not delete the video.`)) return;
+        try { await request(`/api/surveillance/motion-scans/${scan.recording_id}`,{method:'DELETE'}); await refresh(); }
+        catch(error) { $('surveillance-motion-status').textContent=`Could not remove analysis: ${error.message}`; }
+      });
+      pane.append(discard); grid.append(pane);
+    }
+  }
+  $('surveillance-motion-refresh').addEventListener('click', refresh);
   let cleanupReview = null;
   const cleanupStatus = text => { $('surveillance-cleanup-status').textContent = text; };
   const invalidateReview = () => { cleanupReview = null; $('surveillance-cleanup-apply').hidden = true; };

@@ -1,3 +1,11 @@
+## OpenRF v0.2.183 — Opt-in saved-video motion candidates and local event history (2026-11-24)
+
+- Added explicit **Scan for motion** to completed, locally saved Surveillance videos. The backend uses installed FFmpeg to decode at most the first five minutes at 2 fps, 128×72 grayscale, then applies deterministic frame-change thresholds. Low/medium/high sensitivities and a six-second candidate cooldown are available. No live stream is opened, no automatic scan or recording is started, and synthetic footage is used only for tests.
+- New private SQLite motion-scan receipts and event history record recording identity, approximate time offset, pixel-change fraction, sensitivity and scan timestamp. Zero-result scans are retained. Rescanning replaces that video's prior candidates; deleting only an analysis is explicit and does not remove the original media. If video is deleted or cleaned up, its historical events show **SOURCE VIDEO UNAVAILABLE**.
+- Added a readable Motion review & event history panel and scan button on eligible recordings, with independently selectable sensitivity and manual removal of scan history. An observed frame change is **not person detection, an alert, proof of live motion, or a confidence estimate**.
+- Added deterministic algorithm, input/error validation, source-availability, HTTP origin protection, persistence, FFmpeg synthetic-clip and frontend checks. No hardware cameras or Raspberry Pi were used. Full regression status: see `docs/RELEASE_0.2.183_TESTS.md`.
+- Existing Surveillance previews/recordings, media retention, camera inventory, map, navigation, messaging and Weather Hub remain intact. ONVIF, continuous live motion, automatic event recording, scheduled recording, remote camera pairing and real-hardware performance are not implemented.
+
 ## OpenRF v0.2.182 — Explicit Surveillance history cleanup (2026-11-24)
 
 - Added user-triggered retention review for local Surveillance recordings and snapshots by age (1–3650 days), reporting item count and bytes without deleting anything.
