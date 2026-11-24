@@ -807,11 +807,11 @@
         button.append(document.createTextNode(label));
         // Always show BOTH directions; highlight the active sort direction.
         const chevrons=document.createElementNS('http://www.w3.org/2000/svg','svg');
-        chevrons.setAttribute('viewBox','0 0 14 18');
+        chevrons.setAttribute('viewBox','0 0 12 16');
         chevrons.setAttribute('class','surveillance-sort-chevrons');
         chevrons.setAttribute('aria-hidden','true');
-        for(const [direction,points] of [['up','2,7 7,2 12,7'],['down','2,11 7,16 12,11']]){
-          const arrow=document.createElementNS('http://www.w3.org/2000/svg','polyline');
+        for(const [direction,points] of [['up','1,6 6,1 11,6'],['down','1,10 6,15 11,10']]){
+          const arrow=document.createElementNS('http://www.w3.org/2000/svg','polygon');
           arrow.setAttribute('points',points);
           arrow.setAttribute('class',`surveillance-sort-${direction}`);
           chevrons.append(arrow);

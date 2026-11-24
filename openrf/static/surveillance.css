@@ -205,7 +205,7 @@
 /* v0.2.191: compact media table and ONE selected local playback view. */
 .surveillance-recording-list-scroll{width:100%;min-width:0;max-width:100%;overflow-x:auto;border:1px solid #35616b;border-radius:10px}
 .surveillance-recording-table{border-collapse:collapse;width:100%;min-width:580px;text-align:left;font-size:.84rem}
-.surveillance-recording-table th{font-size:.74rem;color:#b8cbd4;background:#112832;white-space:nowrap}
+.surveillance-recording-table th{font-size:.92rem;color:#b8cbd4;background:#112832;white-space:nowrap}
 .surveillance-recording-table td,.surveillance-recording-table th{padding:10px 12px;border-bottom:1px solid #294650;vertical-align:middle}
 .surveillance-recording-table tbody tr:last-child td{border-bottom:0}
 .surveillance-recording-table tbody tr:hover,.surveillance-recording-table tbody tr.is-selected{background:#193541}
@@ -234,10 +234,17 @@
 .surveillance-audio-options #surveillance-audio-usb{margin:10px 0 0}
 .surveillance-audio-options[hidden],#surveillance-audio-usb[hidden]{display:none!important}
 
-/* v0.2.193: visible bidirectional sort cues, with the active direction accented. */
-.surveillance-recording-table .surveillance-sort-button{display:inline-flex;align-items:center;gap:8px;min-height:24px;line-height:1.25}
-.surveillance-recording-table .surveillance-sort-chevrons{width:15px;height:19px;flex:0 0 15px;overflow:visible;vertical-align:middle}
-.surveillance-recording-table .surveillance-sort-chevrons polyline{fill:none;stroke:#9ebbc5;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.72}
+/* v0.2.194: compact filled triangles instead of outlined sort chevrons. */
+.surveillance-recording-table .surveillance-sort-button{display:inline-flex;align-items:center;gap:6px;min-height:27px;line-height:1.3}
+.surveillance-recording-table .surveillance-sort-chevrons{width:10px;height:15px;flex:0 0 10px;overflow:visible;vertical-align:middle}
+.surveillance-recording-table .surveillance-sort-chevrons polygon{fill:#9ebbc5;opacity:.75}
 .surveillance-recording-table .is-sorted-asc .surveillance-sort-up,
-.surveillance-recording-table .is-sorted-desc .surveillance-sort-down{stroke:#34c9b1;opacity:1;stroke-width:2.5}
-.surveillance-recording-table .surveillance-sort-button:hover .surveillance-sort-chevrons polyline{opacity:1}
+.surveillance-recording-table .is-sorted-desc .surveillance-sort-down{fill:#34c9b1;opacity:1}
+.surveillance-recording-table .surveillance-sort-button:hover .surveillance-sort-chevrons polygon{opacity:1}
+
+/* Keep the two history filters in one row on regular touchscreen/desktop widths.
+   At narrow viewports stack them instead of overflowing the content panel. */
+.surveillance-recordings-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:center;gap:14px;max-width:920px;margin:12px 0 14px}
+.surveillance-recordings-filters .surveillance-history-filter{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:10px;align-items:center;min-width:0;margin:0;white-space:nowrap}
+.surveillance-recordings-filters .surveillance-history-filter select{width:100%;max-width:none;min-width:0}
+@media(max-width:680px){.surveillance-recordings-filters{grid-template-columns:minmax(0,1fr)}}

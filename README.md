@@ -1,3 +1,7 @@
+## v0.2.194 — More readable Surveillance history table
+
+Surveillance → Recordings now displays Camera history and Date range on a single row when there is enough space, with each dropdown resizing to fit. Narrow layouts still stack the fields rather than overflowing. History-table column headings are slightly larger, and every sortable header has smaller filled up/down triangles, with the active direction highlighted. All camera capture, sorting, playback, downloads and deletion logic is unchanged. See `docs/RELEASE_0.2.194_TESTS.md`.
+
 ## v0.2.193 — Clearer Surveillance recording-history controls
 
 Surveillance → Recordings now gives an expanded video/snapshot more breathing room above its player. Sortable table headers permanently show both up/down chevrons; the selected direction is emphasized. The recording list, existing camera and date filters, playback, download, and retention controls work as before. No webcam, audio or capture engine changes. See `docs/RELEASE_0.2.193_TESTS.md`.

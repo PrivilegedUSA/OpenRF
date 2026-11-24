@@ -5,7 +5,7 @@ const assert=require('node:assert/strict');
 const js=fs.readFileSync('openrf/static/surveillance.js','utf8');
 const css=fs.readFileSync('openrf/static/surveillance.css','utf8');
 assert(js.includes("chevrons.setAttribute('class','surveillance-sort-chevrons')"));
-assert(js.includes("[['up','2,7 7,2 12,7'],['down','2,11 7,16 12,11']]"));
+assert(js.includes("[['up','1,6 6,1 11,6'],['down','1,10 6,15 11,10']]"));
 assert(js.includes("button.append(chevrons)"));
 assert(js.includes("recordingSortKey===key?",));
 assert(js.includes("th.setAttribute('aria-sort',"));

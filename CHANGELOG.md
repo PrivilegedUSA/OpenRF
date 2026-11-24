@@ -1,3 +1,9 @@
+## OpenRF v0.2.194 — Surveillance history table compactness and sort affordances (2026-11-24)
+
+- **History filters:** camera and date-range selects share a row on typical desktop/7-inch layouts, with responsive grid sizing; they stack on narrow content widths.
+- **Sortable headings:** increase header font size modestly and replace outline chevrons with smaller filled up/down triangles, always visible; active sort highlighted in teal. Preserve keyboard operation and `aria-sort`.
+- **Scope:** UI-only update. Existing recordings, settings, media and capture code are unchanged, with no new automatic connections or deletion behavior. See `docs/RELEASE_0.2.194_TESTS.md`.
+
 ## OpenRF v0.2.193 — Surveillance recording history spacing and clear sorting (2026-11-24)
 
 - **Expanded playback spacing:** add 14px above the selected recording's inline player, matching the existing space below. Only the selected history row is affected; compact and touchscreen layouts remain within the scrolling table.

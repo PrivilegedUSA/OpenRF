@@ -1,0 +1,21 @@
+/* v0.2.194: paired history filters and compact filled sort triangles. */
+'use strict';
+const fs = require('node:fs');
+const assert = require('node:assert/strict');
+const html = fs.readFileSync('openrf/static/index.html', 'utf8');
+const css = fs.readFileSync('openrf/static/surveillance.css', 'utf8');
+const js = fs.readFileSync('openrf/static/surveillance.js', 'utf8');
+const filterBlock = html.match(/<div class="surveillance-recordings-filters"[^>]*>([\s\S]*?)<\/div>/);
+assert(filterBlock, 'History filter row exists');
+assert(filterBlock[1].includes('id="surveillance-recordings-camera"'));
+assert(filterBlock[1].includes('id="surveillance-recordings-range"'));
+assert(css.includes('.surveillance-recordings-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))'));
+assert(css.includes('@media(max-width:680px){.surveillance-recordings-filters{grid-template-columns:minmax(0,1fr)}'));
+assert(css.includes('.surveillance-recording-table th{font-size:.92rem;'));
+assert(css.includes('.surveillance-sort-chevrons polygon{fill:#9ebbc5;'));
+assert(css.includes('.is-sorted-desc .surveillance-sort-down{fill:#34c9b1;'));
+assert(js.includes("createElementNS('http://www.w3.org/2000/svg','polygon')"));
+assert(js.includes("chevrons.setAttribute('aria-hidden','true')"));
+assert(js.includes("th.setAttribute('aria-sort',"));
+assert(js.includes('recordingSortDesc=!recordingSortDesc'));
+console.log('PASS v194 paired history filters and filled sort indicators');
