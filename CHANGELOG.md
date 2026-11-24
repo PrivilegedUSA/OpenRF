@@ -1,3 +1,12 @@
+## OpenRF v0.2.188 — Surveillance overlays and clearer recording lifecycle (2026-11-24)
+
+- Redesigned Surveillance camera tiles with video overlays for primary recording/stop, per-camera fullscreen, pause/resume preview, screenshot, camera history, digital zoom and optional USB V4L2 PTZ. Advanced motion actions remain in a collapsed panel. Camera fullscreen remains accessible from the tile; the separate grid fullscreen button is shown only when two live previews are requested.
+- Improved preview reporting: distinguish preview requested, actual received frames and preview failure. The two-stream limit remains. Existing explicit manual recording/opt-in motion behavior is unchanged.
+- Digital pan now uses edge-to-edge cover imagery with bounded drags to avoid revealing empty background; display cropping can hide parts of non-16:9 images. Digital zoom only changes the preview, never the saved video.
+- Recordings history now includes **Stop & save** for active recording entries. MP4 playback/download becomes available only after a completed, nonempty recording. The UI explains that an active recording may be 0 bytes before finalization and no successful capture is implied by FFmpeg starting. Back-end process-exit verification rejects empty files and reports the actual stop outcome.
+- Hardware constraints: some webcams cannot support simultaneous V4L2 preview and recording capture; pause the preview and retry if a capture fails. No physical NexiGo, Raspberry Pi, Windows installer or CI verification was performed for v0.2.188.
+- Added v188 frontend and recording regression tests. Local Python and JS test outcomes are in `docs/RELEASE_0.2.188_TESTS.md`.
+
 ## OpenRF v0.2.187 — Compact Surveillance monitoring, per-camera history and opt-in USB PTZ (2026-11-24)
 
 - Redesigned Surveillance Overview as a video-first wall: a spacious single-camera preview and compact two-column layout for multiple saved cameras, with a clear red Record/Stop button, fullscreen, Pause/Resume and History. Less-frequent snapshot, motion and zoom actions live in a collapsible Camera tools panel. Both fullscreen and the standard wall retain working controls; recording status labels distinguish a *requested* recording from verified media.

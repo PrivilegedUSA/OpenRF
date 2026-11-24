@@ -119,3 +119,37 @@
 .surveillance-viewer:fullscreen .surveillance-live-grid{grid-template-columns:minmax(0,1fr)}
 .surveillance-viewer:fullscreen .surveillance-live-grid.has-multiple{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media(max-width:630px){.surveillance-live-grid.has-multiple{grid-template-columns:minmax(0,1fr)}.surveillance-feed-controls .btn{flex:0 1 auto}.surveillance-live-grid.has-multiple .surveillance-feed{padding:12px}}
+
+/* v0.2.188: video-first overlay controls, no letterboxing when digitally panning. */
+.surveillance-feed-media{isolation:isolate;overflow:hidden;aspect-ratio:16/9;position:relative;touch-action:pan-y}
+.surveillance-feed-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;aspect-ratio:auto;max-height:none;will-change:transform}
+.surveillance-feed-media.is-zoomed img{touch-action:none}
+.surveillance-overlay-top{position:absolute;inset:9px 9px auto 9px;z-index:3;display:flex;justify-content:space-between;align-items:center;gap:8px;pointer-events:none}
+.surveillance-overlay-top>*{pointer-events:auto}
+.surveillance-overlay-bottom{position:absolute;inset:auto 8px 8px 8px;z-index:3;display:flex;align-items:center;gap:5px;padding:6px 9px;border-radius:12px;background:rgba(4,15,21,.82);backdrop-filter:blur(5px);width:max-content;max-width:calc(100% - 16px);overflow-x:auto;scrollbar-width:thin;box-sizing:border-box}
+.surveillance-overlay-button{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:37px;min-height:37px;border:1px solid rgba(199,233,235,.28);border-radius:9px;background:rgba(25,53,63,.88);color:#f5fbfb;cursor:pointer;font-size:18px;font-weight:700;line-height:1;touch-action:manipulation}
+.surveillance-overlay-button:hover,.surveillance-overlay-button:focus-visible{background:#376776;outline:2px solid transparent}
+.surveillance-overlay-button:focus-visible{outline-color:#34c9b1;outline-offset:1px}
+.surveillance-overlay-button:disabled{opacity:.4;cursor:not-allowed}
+.surveillance-overlay-button[hidden],.surveillance-ptz-overlay[hidden]{display:none!important}
+.surveillance-record-circle{background:#a72034;color:white;border-color:#f56a74;min-width:44px;min-height:44px;border-radius:50%;font-size:24px;line-height:1}
+.is-recording .surveillance-record-circle{background:#790b21}
+.surveillance-overlay-divider{flex:0 0 1px;height:23px;background:#577580;margin:0 3px}
+.surveillance-zoom-display{font-size:12px;font-weight:650;color:#d9f3eb;min-width:33px;text-align:center}
+.surveillance-overlay-top .surveillance-video-rec{position:static;letter-spacing:.05em;pointer-events:none}
+.surveillance-overlay-top .surveillance-expand{margin-left:auto}
+.surveillance-ptz-overlay{position:absolute;top:56px;right:10px;z-index:4;width:min(320px,calc(100% - 20px));max-height:calc(100% - 125px);overflow:auto;background:rgba(11,31,41,.96);border:1px solid #467584;box-shadow:0 8px 28px #02080a;border-radius:10px;padding:10px}
+.surveillance-ptz-overlay summary{cursor:pointer;font-weight:650}
+.surveillance-ptz-overlay .surveillance-camera-tools-row{justify-content:center}
+.surveillance-feed:fullscreen .surveillance-overlay-bottom{left:50%;right:auto;transform:translateX(-50%);bottom:18px}
+.surveillance-feed:fullscreen .surveillance-feed-media{flex:1;min-height:0;aspect-ratio:auto}
+.surveillance-feed:fullscreen .surveillance-feed-media img{height:100%;max-height:100%;object-fit:cover}
+.surveillance-viewer:fullscreen .surveillance-overlay-bottom{inset:auto 8px 8px 8px}
+.surveillance-camera-tools{padding:0;border-top:0}.surveillance-camera-tools>summary{min-height:24px}
+.surveillance-feed-note{font-size:.74rem}
+.surveillance-recording{gap:9px}.surveillance-recording>p:first-child{flex-basis:100%}
+.surveillance-recording>p.small{flex-basis:100%;margin:0}
+.surveillance-stop-save{background:#a72034;color:white;border-color:#e76a7a}
+@media(max-width:600px){.surveillance-overlay-button{min-width:34px;min-height:34px}.surveillance-overlay-bottom{gap:3px;padding:5px}.surveillance-feed-media{min-height:190px}}
+/* App-wide .btn display rules override the user-agent [hidden] style. */
+#surveillance-fullscreen[hidden]{display:none!important}

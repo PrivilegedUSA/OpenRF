@@ -16,7 +16,7 @@ assert.match(ui, /toggleFullscreen\(pane\)/);
 assert.match(ui, /document\.exitFullscreen/);
 assert.match(ui, /openrf:surveillance-hidden/);
 assert.match(ui, /pagehide/);
-assert.match(ui, /No recording is active|Not recording/);
+assert.match(ui, /Previewing is separate from recording|No recording starts automatically/);
 assert.match(ui, /escapeHtml/);
 assert.doesNotMatch(ui, /localStorage/); // Polls only requested live-motion status, not camera streams.
 assert.match(css, /surveillance-live-grid/);

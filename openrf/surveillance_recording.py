@@ -53,9 +53,11 @@ class RecordingManager:
         for cam_id, (ident, proc) in list(self.active.items()):
             if proc.poll() is not None:
                 self.active.pop(cam_id, None)
+                output = self.folder / f'video-{ident:08d}.mp4'
+                valid_output = output.is_file() and output.stat().st_size > 0
                 with self._db() as db:
                     db.execute("UPDATE surveillance_recordings SET state=?, ended_utc=? WHERE id=? AND state='RECORDING'",
-                               ('FINISHED' if proc.returncode == 0 else 'FAILED', _now(), ident))
+                               ('FINISHED' if proc.returncode == 0 and valid_output else 'FAILED', _now(), ident))
                     db.commit()
 
     def _public(self, row):
@@ -134,11 +136,15 @@ class RecordingManager:
                 except subprocess.TimeoutExpired:
                     proc.kill()
                     proc.wait(timeout=3)
+            output = self.folder / f'video-{ident:08d}.mp4'
+            bytes_written = output.stat().st_size if output.is_file() else 0
+            state = 'STOPPED' if bytes_written and proc.returncode in (0, 255) else 'FAILED'
+            # FFmpeg often reports SIGINT as 255 after correctly finalizing MP4.
             with self._db() as db:
                 db.execute('UPDATE surveillance_recordings SET state=?, ended_utc=? WHERE id=?',
-                           ('STOPPED' if (self.folder / f'video-{ident:08d}.mp4').is_file() and (self.folder / f'video-{ident:08d}.mp4').stat().st_size > 0 else 'FAILED', _now(), ident))
+                           (state, _now(), ident))
                 db.commit()
-            return {'id': ident, 'state': 'STOPPED'}
+            return {'id': ident, 'state': state, 'bytes': bytes_written}
 
     def snapshot(self, camera):
         with self.lock:
