@@ -21,11 +21,16 @@ function rememberVectorPreference(value){
   try {window.localStorage?.setItem(MAP_VECTOR_PREFERENCE_KEY,value);} catch (_) { /* Private browsing is okay. */ }
 }
 function rememberedPage(){
-  try {const saved=window.sessionStorage?.getItem(SELECTED_PAGE_SESSION_KEY);return VALID_PAGES.has(saved)?saved:'map';}
-  catch (_) {return 'map';} // Private browsing may deny session storage.
+  // sessionStorage can survive closing/reopening Electron and browser session restore.
+  // Only a true page reload restores its selection; a fresh navigation opens Overview.
+  try {
+    const navigation = window.performance?.getEntriesByType?.('navigation')?.[0];
+    const saved = window.sessionStorage?.getItem(SELECTED_PAGE_SESSION_KEY);
+    return navigation?.type === 'reload' && VALID_PAGES.has(saved) ? saved : 'overview';
+  } catch (_) {return 'overview';}
 }
 function rememberPage(page){
-  try {window.sessionStorage?.setItem(SELECTED_PAGE_SESSION_KEY,page);} catch (_) { /* Map remains the fallback. */ }
+  try {window.sessionStorage?.setItem(SELECTED_PAGE_SESSION_KEY,page);} catch (_) { /* Overview remains the fallback. */ }
 }
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format = (val, suffix = '') => val === null || val === undefined || val === '' ? '—' : `${val}${suffix}`;
@@ -5857,7 +5862,7 @@ async function openInitialPage(){
   await Promise.race([refreshOpenRFVectorMapStatus(),new Promise(resolve=>setTimeout(resolve,1800))]);
   showPage(rememberedPage());
 }
-// Per-tab page state survives refresh; a new tab starts on Map. Vector source
+// Refresh restores this tab; a new launch or navigation starts on Overview. Vector source
 // preference is separate and persists across tabs without storing coordinates.
 openInitialPage().catch(error=>{console.warn('Vector readiness preflight:',error);showPage(rememberedPage());});
 refresh().catch(e=>flash(`OpenRF data refresh failed: ${e.message}. The server may still be running.`,true));

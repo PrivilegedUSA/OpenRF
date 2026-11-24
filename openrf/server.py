@@ -81,6 +81,7 @@ from .sensor_connections import (connections, ScanReceiptStore, BleScanReceiptSt
 from .surveillance import SurveillanceStore, SurveillanceError, PreviewSlots, capability_report, probe_camera, validate_usb_device
 from .surveillance_recording import RecordingManager
 from .surveillance_motion import MotionHistory
+from .surveillance_live_motion import LiveMotionService
 
 STATIC_DIR = Path(__file__).resolve().parent / 'static'
 DEFAULT_DB = Path.home() / '.local' / 'share' / 'openrf' / 'openrf.sqlite3'
@@ -90,6 +91,8 @@ class OpenRFHTTPServer(ThreadingHTTPServer):
     def server_close(self):
         if hasattr(self, "surveillance_previews"):
             self.surveillance_previews.close()
+        if hasattr(self, "surveillance_live_motion"):
+            self.surveillance_live_motion.close()
         if hasattr(self, "surveillance_recordings"):
             self.surveillance_recordings.close()
         if hasattr(self, 'weather_recorder'):
@@ -191,7 +194,9 @@ class Handler(BaseHTTPRequestHandler):
                                     'capabilities': capability_report(),
                                     'recordings': self.server.surveillance_recordings.list(),
                                     'storage': self.server.surveillance_recordings.storage(),
-                                    'motion': self.server.surveillance_motion.history()})
+                                    'motion': self.server.surveillance_motion.history(),
+                                    'live_motion': {'status': self.server.surveillance_live_motion.status(),
+                                                    'events': self.server.surveillance_live_motion.history()}})
         recording_file = re.fullmatch(r'/api/surveillance/recordings/([1-9][0-9]{0,9})/file', path)
         if recording_file:
             if self.headers.get('Sec-Fetch-Site', 'same-origin') not in ('same-origin', 'none') or urlparse(self.path).query not in ('', 'download'):
@@ -965,6 +970,21 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200, self.server.surveillance_motion.scan(int(motion_match.group(1)), data['sensitivity']))
             except (SurveillanceError, ValueError) as exc:
                 return self._error(409, str(exc))
+        live_motion_action = re.fullmatch(r'/api/surveillance/cameras/([1-9][0-9]{0,9})/motion/(start|stop)', path)
+        if live_motion_action:
+            if urlparse(self.path).query:
+                return self._error(400, 'Live motion action does not accept query parameters')
+            try:
+                ident = int(live_motion_action.group(1))
+                if live_motion_action.group(2) == 'stop':
+                    return self._json(200, self.server.surveillance_live_motion.stop(ident))
+                body = self._decode_body()
+                if not isinstance(body, dict) or set(body) != {'sensitivity'}:
+                    raise SurveillanceError('Choose a sensitivity before starting live motion')
+                source = self.server.surveillance_store.get_source(ident)
+                return self._json(200, self.server.surveillance_live_motion.start(source, body['sensitivity']))
+            except SurveillanceError as exc:
+                return self._error(409, str(exc))
         action = re.fullmatch(r'/api/surveillance/cameras/([1-9][0-9]{0,9})/(record|stop|snapshot)', path)
         if action:
             if urlparse(self.path).query:
@@ -999,6 +1019,8 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 body = self._decode_body()
                 match = re.fullmatch(r'/api/surveillance/cameras/([1-9][0-9]{0,9})', path)
+                if match and self.server.surveillance_live_motion.status().get('camera_id') == int(match.group(1)) and self.server.surveillance_live_motion.status().get('state') in ('STARTING', 'MONITORING', 'STOPPING'):
+                    raise SurveillanceError('Stop the live motion monitor before editing this camera')
                 result = self.server.surveillance_store.save(body, int(match.group(1)) if match else None)
                 return self._json(200 if match else 201, result)
             except (SurveillanceError, ValueError, TypeError) as exc:
@@ -1860,6 +1882,9 @@ class Handler(BaseHTTPRequestHandler):
         match = re.fullmatch(r'/api/surveillance/cameras/([1-9][0-9]{0,9})', path)
         if match:
             camera_id = int(match.group(1))
+            live = self.server.surveillance_live_motion.status()
+            if live.get('camera_id') == camera_id and live.get('state') in ('STARTING', 'MONITORING', 'STOPPING'):
+                return self._error(409, 'Stop live motion monitoring before removing this camera')
             if camera_id in self.server.surveillance_recordings.active:
                 return self._error(409, 'Stop the camera recording before deleting its configuration')
             return self._json(200, {'deleted': self.server.surveillance_store.delete(camera_id)})
@@ -1989,6 +2014,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.surveillance_store = SurveillanceStore(repository.path)
     server.surveillance_recordings = RecordingManager(repository.path)
     server.surveillance_motion = MotionHistory(server.surveillance_recordings)
+    server.surveillance_live_motion = LiveMotionService(repository.path, server.surveillance_recordings)
     server.surveillance_previews = PreviewSlots()
     server.surveillance_probe_lock = threading.BoundedSemaphore(1)
     server.weather_store = WeatherStore(repository.path)

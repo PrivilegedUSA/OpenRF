@@ -12,8 +12,8 @@ const css=fs.readFileSync('openrf/static/app.css','utf8');
 
 const nav=html.match(/<nav class="nav">([\s\S]*?)<\/nav>/)?.[1]||'';
 assert(nav.indexOf('data-page="overview"')>=0 && nav.indexOf('data-page="overview"')<nav.indexOf('data-page="map"'));
-assert(html.includes('<section class="page active" id="page-map"'));
-assert(html.includes('<section class="page" id="page-overview"'));
+assert(html.includes('<section class="page" id="page-map"'));
+assert(html.includes('<section class="page active" id="page-overview"'));
 assert(html.includes('id="mesh-header-button" aria-label="Choose message inbox"'));
 assert(html.includes('aria-expanded="false" aria-controls="header-messages-choices"'));
 assert(html.includes('id="header-messages-choices"') &&
@@ -33,22 +33,23 @@ assert(app.includes('closeHeaderMessageMenu();\n  rememberPage(page);'));
 const pageCode=app.slice(app.indexOf('const SELECTED_PAGE_SESSION_KEY'),app.indexOf('const escapeHTML'));
 const pageData=new Map();
 const storage={getItem:key=>pageData.get(key)||null,setItem:(key,value)=>pageData.set(key,value)};
-function pages(sessionStorage){
-  const context={window:{sessionStorage}};
+function pages(sessionStorage, navigation='navigate'){
+  const context={window:{sessionStorage,performance:{getEntriesByType:()=>[{type:navigation}]}}};
   vm.runInNewContext(pageCode+'\nglobalThis.getPage=rememberedPage;globalThis.setPage=rememberPage;',context);
   return context;
 }
 let tab=pages(storage);
-assert.equal(tab.getPage(),'map','An empty tab must launch Map, even on desktop');
+assert.equal(tab.getPage(),'overview','A new launch must open Overview');
 tab.setPage('overview');
-assert.equal(pages(storage).getPage(),'overview','Refreshing the same tab restores the page');
+assert.equal(pages(storage,'reload').getPage(),'overview','Refreshing the same tab restores the page');
 tab.setPage('reticulum');
-assert.equal(pages(storage).getPage(),'reticulum','Messaging pages also survive refresh');
+assert.equal(pages(storage,'reload').getPage(),'reticulum','Messaging pages also survive refresh');
+assert.equal(pages(storage).getPage(),'overview','New navigation must not inherit stale session storage');
 pageData.set('openrf.selected-page.v1','not-a-page');
-assert.equal(pages(storage).getPage(),'map','Invalid saved routes must be ignored');
-assert.equal(pages({getItem(){throw Error('denied')},setItem(){throw Error('denied')}}).getPage(),'map');
-assert.equal(pages({}).getPage(),'map','Storage is optional');
-assert(app.includes('showPage(rememberedPage());'),'Both desktop and touchscreen restore or default to Map');
+assert.equal(pages(storage,'reload').getPage(),'overview','Invalid saved routes must be ignored');
+assert.equal(pages({getItem(){throw Error('denied')},setItem(){throw Error('denied')}},'reload').getPage(),'overview');
+assert.equal(pages({},'reload').getPage(),'overview','Storage is optional');
+assert(app.includes('showPage(rememberedPage());'),'Both desktop and touchscreen restore or default to Overview');
 
 function inboxFixture(source,system,sessionStorage){
   const nodes={};

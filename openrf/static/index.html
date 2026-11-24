@@ -10,8 +10,8 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.183">
-  <link rel="stylesheet" href="/static/surveillance.css?v=0.2.183">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.184">
+  <link rel="stylesheet" href="/static/surveillance.css?v=0.2.184">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -24,11 +24,11 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/map-elevation.js?v=0.2.151"></script>
   <script defer src="/static/battery-status.js?v=0.2.151"></script>
-  <script defer src="/static/wifi-quick.js?v=0.2.183"></script>
+  <script defer src="/static/wifi-quick.js?v=0.2.184"></script>
   <script defer src="/static/route-elevation.js?v=0.2.151"></script>
   <script defer src="/static/trip-map.js?v=0.2.151"></script>
-  <script defer src="/static/app.js?v=0.2.183"></script>
-  <script defer src="/static/app-settings.js?v=0.2.183"></script>
+  <script defer src="/static/app.js?v=0.2.184"></script>
+  <script defer src="/static/app-settings.js?v=0.2.184"></script>
   <script defer src="/static/browser-workspace.js?v=0.2.151"></script>
   <script defer src="/static/saved-trips.js?v=0.2.151"></script>
   <script defer src="/static/emergency-tabs.js?v=0.2.151"></script>
@@ -48,20 +48,20 @@
   <script defer src="/static/emergency-backup.js?v=0.2.151"></script>
   <script defer src="/static/field-calendar.js?v=0.2.151"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.183"></script>
-  <script defer src="/static/meshcore.js?v=0.2.183"></script>
-  <script defer src="/static/messaging-tabs.js?v=0.2.183"></script>
-  <script defer src="/static/weather.js?v=0.2.183"></script>
-  <script defer src="/static/surveillance.js?v=0.2.183"></script>
-  <script defer src="/static/reticulum.js?v=0.2.183"></script>
-  <script defer src="/static/reticulum-files.js?v=0.2.183"></script>
-  <script defer src="/static/bluetooth-files.js?v=0.2.183"></script>
-  <script defer src="/static/reticulum-tabs.js?v=0.2.183"></script>
+  <script defer src="/static/mesh.js?v=0.2.184"></script>
+  <script defer src="/static/meshcore.js?v=0.2.184"></script>
+  <script defer src="/static/messaging-tabs.js?v=0.2.184"></script>
+  <script defer src="/static/weather.js?v=0.2.184"></script>
+  <script defer src="/static/surveillance.js?v=0.2.184"></script>
+  <script defer src="/static/reticulum.js?v=0.2.184"></script>
+  <script defer src="/static/reticulum-files.js?v=0.2.184"></script>
+  <script defer src="/static/bluetooth-files.js?v=0.2.184"></script>
+  <script defer src="/static/reticulum-tabs.js?v=0.2.184"></script>
   <script defer src="/static/mesh_connections.js?v=0.2.104"></script>
   <script defer src="/static/wifi_halow.js?v=0.2.104"></script>
   <script defer src="/static/field_network.js?v=0.2.104"></script>
   <script defer src="/static/field_hotspot.js?v=0.2.104"></script>
-  <script defer src="/static/hardware-tabs.js?v=0.2.183"></script>
+  <script defer src="/static/hardware-tabs.js?v=0.2.184"></script>
   <script defer src="/static/offline_readiness.js?v=0.2.104"></script>
   <script defer src="/static/camera-layers.js?v=0.2.114"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
@@ -69,10 +69,10 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.183</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.184</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
-        <button class="nav-btn" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
+        <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
         <div class="nav-group" id="messages-nav-group">
           <button class="nav-btn nav-parent" type="button" id="messages-nav-toggle" aria-expanded="false" aria-controls="messages-nav-subpages"><span class="nav-icon" aria-hidden="true">✉</span><span class="nav-label">Messages</span><span class="nav-chevron" aria-hidden="true">▾</span></button>
           <div class="nav-subpages" id="messages-nav-subpages" hidden>
@@ -81,7 +81,7 @@
             <button class="nav-btn nav-subpage" id="meshcore-nav-item" data-page="meshcore" type="button"><span class="nav-label">MeshCore</span><span class="mesh-unread-badge mesh-nav-unread" id="meshcore-nav-unread" hidden>0</span></button>
           </div>
         </div>
-        <button class="nav-btn active" data-page="map"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15M15 6v15"/></svg></span><span class="nav-label">Map</span></button>
+        <button class="nav-btn" data-page="map"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15M15 6v15"/></svg></span><span class="nav-label">Map</span></button>
         <button class="nav-btn" data-page="emergency"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 22 20H2L12 2.5Z"/><path d="M12 8.5v5.5"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></svg></span><span class="nav-label">Emergency</span></button>
         <button class="nav-btn" data-page="scanner"><span class="nav-icon" aria-hidden="true">≋</span><span class="nav-label">Analysis</span></button>
         <button class="nav-btn" data-page="spectrum" aria-label="Signal viewer: spectrum and waterfall"><span class="nav-icon" aria-hidden="true">▥</span><span class="nav-label">Signal Viewer</span></button>
@@ -105,7 +105,7 @@
     <button id="menu-backdrop" class="menu-backdrop" type="button" aria-label="Close navigation menu" hidden></button>
     <main class="main">
       <header class="topbar">
-        <div class="topbar-heading"><div><div class="eyebrow">OPENRF / <span id="page-crumb">MAP</span></div><h1 id="page-title">Survey map</h1></div></div>
+        <div class="topbar-heading"><div><div class="eyebrow">OPENRF / <span id="page-crumb">OVERVIEW</span></div><h1 id="page-title">Field overview</h1></div></div>
         <div class="top-right"><span id="runtime-pill" class="pill">LINUX</span><span class="pill green">OFFLINE DATA</span></div>
         <div class="field-clock-wrap">
           <button type="button" id="field-clock-button" class="field-clock-button" aria-label="Open offline clock and calendar" aria-expanded="false" aria-controls="field-calendar-panel"><span id="field-clock-time">--:--</span><small id="field-clock-date">Local time</small></button>
@@ -161,8 +161,15 @@
         <div class="panel trip-library-section"><h3>Before the trip</h3><p class="muted small">Even a downloaded trip raster map can contain gaps. Confirm actual route tile coverage, an installed Valhalla road or walking graph, battery/GNSS health, and applicable access rules separately. Numeric HGT terrain data and offline routes are not included in these raster packs. Navigation route geometry is not stored by the trip download.</p><button class="btn outline" id="trip-library-readiness" type="button">Open device readiness</button></div>
       </section>
       <section class="page surveillance-page" id="page-surveillance" aria-label="Local surveillance camera hub">
-        <div class="section-heading"><div><h2>Surveillance</h2><p>Private RTSP and compatible Linux USB cameras with opt-in live monitoring, recording, screenshots and local history. No automatic streams or cloud service.</p></div><span class="pill">LOCAL · OPT-IN</span></div>
-        <div class="panel"><div class="panel-title"><h3>Camera inventory</h3><button class="btn outline" type="button" id="surveillance-refresh">Refresh saved cameras</button></div>
+        <div class="section-heading"><div><h2>Surveillance</h2><p>Private RTSP and compatible Linux USB cameras with opt-in live monitoring, recording, screenshots and local history. No streams or cloud activity on launch.</p></div><span class="pill">LOCAL · OPT-IN</span></div>
+        <div class="surveillance-tabs" role="tablist" aria-label="Surveillance tools">
+          <button class="surveillance-tab" id="surveillance-tab-overview" role="tab" aria-selected="true" aria-controls="surveillance-panel-overview" tabindex="0" data-surveillance-tab="overview" type="button">Overview</button>
+          <button class="surveillance-tab" id="surveillance-tab-cameras" role="tab" aria-selected="false" aria-controls="surveillance-panel-cameras" tabindex="-1" data-surveillance-tab="cameras" type="button">Cameras</button>
+          <button class="surveillance-tab" id="surveillance-tab-recordings" role="tab" aria-selected="false" aria-controls="surveillance-panel-recordings" tabindex="-1" data-surveillance-tab="recordings" type="button">Recordings</button>
+          <button class="surveillance-tab" id="surveillance-tab-events" role="tab" aria-selected="false" aria-controls="surveillance-panel-events" tabindex="-1" data-surveillance-tab="events" type="button">Motion &amp; Events</button>
+        </div>
+        <section class="surveillance-tab-panel" id="surveillance-panel-overview" role="tabpanel" aria-labelledby="surveillance-tab-overview">
+        <div class="panel"><div class="panel-title"><h3>Camera inventory</h3><div class="button-line"><button class="btn outline" type="button" id="surveillance-add-camera">Add camera</button><button class="btn outline" type="button" id="surveillance-refresh">Refresh saved cameras</button></div></div>
           <p class="small muted" id="surveillance-capabilities">Capabilities not checked.</p><p class="small muted" id="surveillance-status" role="status">Inventory not loaded.</p>
           <div class="surveillance-grid" id="surveillance-grid"></div>
         </div>
@@ -171,6 +178,20 @@
           <div class="surveillance-live-grid" id="surveillance-live-grid" aria-label="User-started camera preview wall"></div>
           <p class="small muted" id="surveillance-live-status" role="status">Not connected.</p>
         </div>
+        </section>
+        <section class="surveillance-tab-panel" id="surveillance-panel-cameras" role="tabpanel" aria-labelledby="surveillance-tab-cameras" hidden>
+        <div class="panel"><div class="panel-title"><h3>Add or edit a camera</h3><span class="pill">LOCAL RTSP / LINUX USB</span></div>
+          <form id="surveillance-form" class="surveillance-camera-form">
+            <label>Camera name<input class="field" id="surveillance-name" maxlength="64" placeholder="Front door" required></label>
+            <label>Camera type<select class="field" id="surveillance-source"><option value="RTSP">Private-LAN RTSP</option><option value="USB">Linux USB (V4L2)</option></select></label>
+            <label id="surveillance-rtsp-field">Private RTSP URL<input class="field" id="surveillance-url" maxlength="1024" placeholder="rtsp://192.168.1.50:554/stream1" autocomplete="off" spellcheck="false" required></label>
+            <label id="surveillance-usb-field" hidden>Linux video device <input class="field" id="surveillance-usb" maxlength="16" placeholder="/dev/video0" list="surveillance-usb-devices"><datalist id="surveillance-usb-devices"></datalist></label>
+            <div class="button-line"><button type="submit" class="btn primary" id="surveillance-save">Add camera</button><button type="button" class="btn outline" id="surveillance-cancel" hidden>Cancel edit</button></div>
+          </form>
+          <p class="small muted">For RTSP use a real RFC1918 IPv4 camera URL, including a dedicated least-privilege login if needed. RTSP credentials are stored locally in SQLite without at-rest encryption and are never returned in camera inventory responses. USB cameras require Linux V4L2 devices such as /dev/video0; Windows/WSL camera passthrough is not guaranteed. USB device paths may change across reboots. All live views, recordings and screenshots require explicit action and FFmpeg. ONVIF discovery, Bluetooth camera video, unverified camera-specific motion performance, remote access and battery telemetry are not implemented.</p>
+        </div>
+        </section>
+        <section class="surveillance-tab-panel" id="surveillance-panel-recordings" role="tabpanel" aria-labelledby="surveillance-tab-recordings" hidden>
         <div class="panel"><div class="panel-title"><h3>Local recordings &amp; snapshots</h3><button class="btn outline" type="button" id="surveillance-refresh-media">Refresh history</button></div>
           <p class="small muted" id="surveillance-storage">Storage not checked.</p>
           <p class="small muted">Recordings stay in your local OpenRF data folder, not the source ZIP. Recording is manual, limited to one hour per session and two feeds at a time; stop recording before deleting a saved camera. Export/download or delete individual files here. Your browser may require MP4/H.264 playback support.</p>
@@ -182,6 +203,15 @@
           <p class="small muted" role="status" id="surveillance-cleanup-status">Cleanup is always manual. Review first; no files are automatically deleted.</p>
           <div id="surveillance-recordings" class="surveillance-recordings"></div>
         </div>
+        </section>
+        <section class="surveillance-tab-panel" id="surveillance-panel-events" role="tabpanel" aria-labelledby="surveillance-tab-events" hidden>
+          <div class="panel"><div class="panel-title"><h3>Opt-in live motion monitoring</h3><span class="pill">LIVE · MANUAL START</span></div>
+            <p class="small muted">Choose a saved camera from the Overview and press Start motion monitor. OpenRF will analyze real decoded frames (one camera at a time), and request a 20-second local recording for each qualifying change, with a 30-second cooldown. A session stops when you stop it or after 20 minutes. Camera access and recordings are never started on app launch. This is frame-change detection, not people or intrusion recognition; clips begin <strong>after</strong> a change is noticed (no pre-roll).</p>
+            <label class="surveillance-live-sensitivity" for="surveillance-live-motion-sensitivity">Live sensitivity <select class="field" id="surveillance-live-motion-sensitivity"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></label>
+            <p class="small muted" id="surveillance-live-motion-status" role="status">Live motion monitoring is off.</p>
+            <div class="button-line"><button class="btn outline" id="surveillance-live-motion-stop" type="button" hidden>Stop live motion monitor</button><button class="btn outline" id="surveillance-live-motion-refresh" type="button">Refresh live events</button></div>
+            <div id="surveillance-live-motion-events" class="surveillance-motion-history"></div>
+          </div>
         <div class="panel"><div class="panel-title"><h3>Motion review &amp; event history</h3><span class="pill">SAVED VIDEO · MANUAL</span></div>
           <p class="small muted">Analyze up to the first five minutes of a completed local recording at two sampled frames per second. Pixel changes become <strong>motion candidates</strong>, not confirmed people, movement directions, or live alerts. Analysis runs only when you choose Scan for motion beside a saved video; it does not connect to a camera or start recording. High sensitivity may generate false positives.</p>
           <div class="button-line surveillance-motion-controls">
@@ -191,16 +221,7 @@
           <p class="small muted" id="surveillance-motion-status" role="status">No automatic analysis. Events are stored only after you scan a saved recording.</p>
           <div id="surveillance-motion-history" class="surveillance-motion-history"></div>
         </div>
-        <div class="panel"><div class="panel-title"><h3>Add or edit a camera</h3><span class="pill">LOCAL RTSP / LINUX USB</span></div>
-          <form id="surveillance-form" class="surveillance-camera-form">
-            <label>Camera name<input class="field" id="surveillance-name" maxlength="64" placeholder="Front door" required></label>
-            <label>Camera type<select class="field" id="surveillance-source"><option value="RTSP">Private-LAN RTSP</option><option value="USB">Linux USB (V4L2)</option></select></label>
-            <label id="surveillance-rtsp-field">Private RTSP URL<input class="field" id="surveillance-url" maxlength="1024" placeholder="rtsp://192.168.1.50:554/stream1" autocomplete="off" spellcheck="false" required></label>
-            <label id="surveillance-usb-field" hidden>Linux video device <input class="field" id="surveillance-usb" maxlength="16" placeholder="/dev/video0" list="surveillance-usb-devices"><datalist id="surveillance-usb-devices"></datalist></label>
-            <div class="button-line"><button type="submit" class="btn primary" id="surveillance-save">Add camera</button><button type="button" class="btn outline" id="surveillance-cancel" hidden>Cancel edit</button></div>
-          </form>
-          <p class="small muted">For RTSP use a real RFC1918 IPv4 camera URL, including a dedicated least-privilege login if needed. RTSP credentials are stored locally in SQLite without at-rest encryption and are never returned in camera inventory responses. USB cameras require Linux V4L2 devices such as /dev/video0; Windows/WSL camera passthrough is not guaranteed. USB device paths may change across reboots. All live views, recordings and screenshots require explicit action and FFmpeg. ONVIF discovery, Bluetooth camera video, live motion alarms or automatic motion-triggered recording, remote access and battery telemetry are not implemented.</p>
-        </div>
+        </section>
       </section>
       <section class="page weather-page" id="page-weather" aria-label="Offline weather station hub">
         <div class="section-heading"><div><h2>Weather Station</h2><p>Local observations, historical records and user-requested reads from supported LAN gateways. Nothing connects or collects automatically.</p></div><span class="pill">OFFLINE · LOCAL HISTORY</span></div>
@@ -600,12 +621,12 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
           </details>
         </div>
       </section>
-      <section class="page" id="page-overview">
+      <section class="page active" id="page-overview">
         <div class="hero"><div><div class="eyebrow accent">OPEN SOURCE RF FIELD PLATFORM</div><h2>Investigate the invisible.<br><em>Document what you can verify.</em></h2><p>Run locally on WSL now. Move the same backend to a Raspberry Pi later. No imaginary detections—every record retains its evidence source.</p><div class="actions"><button class="btn primary" data-jump="map">Open survey map</button><button class="btn ghost" data-jump="hardware">View sensor capabilities</button></div></div><div class="hero-graphic" aria-hidden="true"><div class="radar-ring r1"></div><div class="radar-ring r2"></div><div class="radar-ring r3"></div><div class="radar-cross h"></div><div class="radar-cross v"></div><div class="center-dot"></div></div></div>
         <div class="stat-grid"><div class="metric"><small>TOTAL OBSERVATIONS</small><strong id="metric-observations">—</strong><span>Records stored locally</span></div><div class="metric"><small>MAPPED SURVEY POINTS</small><strong id="metric-mapped">—</strong><span>Observer positions only</span></div><div class="metric"><small>INVESTIGATIONS</small><strong id="metric-sessions">—</strong><span>Manually started sessions</span></div><div class="metric"><small>SYNTHETIC RECORDS</small><strong id="metric-demo">—</strong><span>Clearly marked DEMO</span></div></div>
         <div class="two-columns"><div class="panel"><div class="panel-title"><h3>Development console</h3><span class="pill amber">FOUNDATION RELEASE</span></div><p>Map surveys, persistent sessions, Wi-Fi/BLE one-shot discovery and offline spectrum-file analysis are implemented. RTL-SDR receiver sweeps now have explicit bounded controls; usable scans require compatible Linux-visible hardware and rtl_power. No invented live readings.</p><div class="button-line"><button class="btn outline" id="load-demo">Load synthetic test records</button><button class="btn danger-outline" id="clear-demo">Remove demo records</button></div><p class="muted small">The demonstration dataset is optional and prominently labeled. It is hidden from the map unless you enable its layer.</p></div><div class="panel"><div class="panel-title"><h3>Quick export</h3><span class="pill">LOCAL</span></div><p>Save a private copy of your observations, including GPS accuracy and source information.</p><div class="button-line"><a class="btn outline" href="/api/export.csv" download>Download CSV</a><a class="btn outline" href="/api/export.geojson" download>Download GeoJSON</a></div><p class="muted small">Online vector streets require an internet connection. Offline coordinate surveys work without internet; local MBTiles raster maps can be installed separately.</p></div></div>
       </section>
-      <section class="page active" id="page-map">
+      <section class="page" id="page-map">
         <div class="section-heading map-first-heading"><div><h2>Survey map</h2></div></div>
         <div class="map-wrap"><div id="map"></div><div id="map-location-toast" class="map-location-toast" role="status" aria-live="polite" hidden></div><svg id="navigation-preview-overlay" class="navigation-preview-overlay" aria-hidden="true" preserveAspectRatio="none"></svg><div id="navigation-preview-label" class="navigation-preview-label" hidden>DIRECT LINE · NOT A ROAD ROUTE</div>
         <div id="map-altimeter" class="map-altimeter" role="status" aria-live="off" tabindex="0" title="Altitude is unavailable until a fresh GPS fix reports it; altitude reference and vertical uncertainty vary by device.">

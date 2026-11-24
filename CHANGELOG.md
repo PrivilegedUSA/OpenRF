@@ -1,3 +1,10 @@
+## OpenRF v0.2.184 — Opt-in live motion clips, Surveillance tabs, Overview startup (2026-11-24)
+
+- Added a single, explicitly started real-camera FFmpeg grayscale motion monitor using user-selected low/medium/high thresholds. Frame changes (not person detection) may request local 20-second recordings; 30-second cooldown and 20-minute session limit. Monitor never reconnects/resumes after process restart; stopping the monitor also stops its owned clip. Saved events include evidence timestamps and actual media outcome, without exposing RTSP URLs.
+- Added a user-confirmation step before monitoring plus end-session controls, same-origin local API validation, and camera edit/delete guards while monitoring. The UI requests stopping monitoring when leaving Surveillance or unloading; process has a hard session cap if the browser disappears. No background monitoring on startup.
+- Reorganized Surveillance into padded Overview, Cameras, Recordings and Motion & Events tabs. Default initial app page is now **Overview**; a genuine browser refresh restores that tab's selected page. Map still opens on request.
+- Added focused Python and JavaScript regression tests with fully synthetic camera frames. Hardware camera, USB exclusivity, CPU, Pi performance and ONVIF remain unverified; concurrent monitor and clip require the camera to support multiple stream readers.
+
 ## OpenRF v0.2.183 — Opt-in saved-video motion candidates and local event history (2026-11-24)
 
 - Added explicit **Scan for motion** to completed, locally saved Surveillance videos. The backend uses installed FFmpeg to decode at most the first five minutes at 2 fps, 128×72 grayscale, then applies deterministic frame-change thresholds. Low/medium/high sensitivities and a six-second candidate cooldown are available. No live stream is opened, no automatic scan or recording is started, and synthetic footage is used only for tests.

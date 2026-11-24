@@ -20,3 +20,16 @@
 .surveillance-motion-history{display:grid;gap:10px;margin-top:12px}.surveillance-motion-scan{border:1px solid #35616b;border-radius:10px;padding:12px;min-width:0}
 .surveillance-motion-scan>.button-line{flex-wrap:wrap}.surveillance-motion-scan p{overflow-wrap:anywhere}
 .surveillance-motion-events{display:grid;gap:5px;padding-left:18px;margin:8px 0}.surveillance-motion-events li{overflow-wrap:anywhere}
+
+/* v0.2.184: readable, separated Surveillance workspaces. */
+.surveillance-tabs{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:18px 0 22px;padding:0 0 14px;border-bottom:1px solid #35616b}
+.surveillance-tab{border:1px solid #35616b;border-radius:9px;padding:11px 16px;color:inherit;background:transparent;cursor:pointer;font:inherit;min-height:44px}
+.surveillance-tab[aria-selected="true"]{background:#35616b;color:white;border-color:#34c9b1;font-weight:700}
+.surveillance-tab:focus-visible{outline:2px solid #34c9b1;outline-offset:3px}
+.surveillance-tab-panel[hidden]{display:none!important}
+.surveillance-tab-panel{display:grid;gap:18px;padding:2px 2px 22px;min-width:0}
+.surveillance-tab-panel>.panel{margin:0;min-width:0;padding:clamp(16px,2.5vw,25px)}
+.surveillance-tab-panel>.panel>.panel-title{margin-bottom:14px;gap:12px}
+.surveillance-tab-panel .button-line{gap:10px;flex-wrap:wrap}
+.surveillance-live-sensitivity{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0}
+@media(max-width:640px){.surveillance-tabs{gap:8px;margin-bottom:18px}.surveillance-tab{padding:10px 12px;flex:1 0 auto}.surveillance-tab-panel>.panel{padding:16px}}

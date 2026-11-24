@@ -9,6 +9,75 @@
   const checks = new Map();
   const recording = new Set();
   let motionBusy = false;
+  let liveMotion = {state: 'OFF'};
+  let activeTab = 'overview';
+  const TAB_NAMES = ['overview', 'cameras', 'recordings', 'events'];
+  function selectTab(tab, focus = false) {
+    if (!TAB_NAMES.includes(tab)) return;
+    if (activeTab === 'overview' && tab !== 'overview') stopView(); // Hidden preview tiles must not keep requesting camera frames.
+    activeTab = tab;
+    for (const name of TAB_NAMES) {
+      const chosen = name === tab;
+      const button = $(`surveillance-tab-${name}`);
+      button.setAttribute('aria-selected', String(chosen));
+      button.tabIndex = chosen ? 0 : -1;
+      $(`surveillance-panel-${name}`).hidden = !chosen;
+    }
+    if (focus) $(`surveillance-tab-${tab}`).focus({preventScroll:true});
+  }
+  for (const name of TAB_NAMES) {
+    const button = $(`surveillance-tab-${name}`);
+    button.addEventListener('click', () => selectTab(name));
+    button.addEventListener('keydown', event => {
+      if (!['ArrowRight','ArrowLeft','Home','End'].includes(event.key)) return;
+      event.preventDefault();
+      const i = TAB_NAMES.indexOf(name);
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? TAB_NAMES.length-1 :
+        (i + (event.key === 'ArrowRight' ? 1 : -1) + TAB_NAMES.length) % TAB_NAMES.length;
+      selectTab(TAB_NAMES[next], true);
+    });
+  }
+  function isMonitoring(cameraId) {
+    return ['STARTING','MONITORING','STOPPING'].includes(liveMotion.state) && liveMotion.camera_id === cameraId;
+  }
+  async function stopMonitor(cameraId) {
+    if (!cameraId) return;
+    try {
+      await request(`/api/surveillance/cameras/${cameraId}/motion/stop`, {method:'POST'});
+      await refresh();
+    } catch(error) { status(`Could not stop motion monitor: ${error.message}`); }
+  }
+  function showLiveMotion(data) {
+    const events = data.events || [];
+    liveMotion = data.status || {state:'OFF'};
+    const active = ['STARTING','MONITORING','STOPPING'].includes(liveMotion.state);
+    const statusText = `${liveMotion.state}: ${liveMotion.camera_name || 'No selected camera'}. ${liveMotion.detail || ''}` +
+      (liveMotion.last_frame_utc ? ` · Last decoded frame ${liveMotion.last_frame_utc}` : '') +
+      (active ? ` · Candidates: ${liveMotion.candidates || 0}` : '');
+    $('surveillance-live-motion-status').textContent = statusText;
+    $('surveillance-live-motion-stop').hidden = !active;
+    const list = $('surveillance-live-motion-events'); list.replaceChildren();
+    if (!events.length) { const p=document.createElement('p');p.className='small muted';
+      p.textContent='No live motion candidates recorded. Monitoring begins only when you explicitly start it.';list.append(p);return; }
+    for (const item of events) {
+      const card=document.createElement('article');card.className='surveillance-motion-scan';
+      const text=document.createElement('p');
+      text.textContent=`${item.camera_name} · ${item.detected_utc} · ${(item.changed_fraction*100).toFixed(1)}% sampled pixels changed · ${item.action.replaceAll('_',' ').toLowerCase()} (not person detection)`;
+      card.append(text);
+      if (item.recording_id && item.action === 'MEDIA_SAVED' && item.source_available) {
+        const link=document.createElement('a');link.className='btn outline';link.textContent='Open saved clip';
+        link.href=`/api/surveillance/recordings/${item.recording_id}/file`;
+        link.rel='noopener';link.target='_blank';card.append(link);
+      }
+      if (item.action === 'MEDIA_SAVED' && !item.source_available) {
+        const missing=document.createElement('p');missing.className='small muted';missing.textContent='Source clip is no longer available in local storage.';card.append(missing);
+      }
+      list.append(card);
+    }
+  }
+  $('surveillance-add-camera').addEventListener('click',()=> {selectTab('cameras');$('surveillance-name').focus();});
+  $('surveillance-live-motion-stop').addEventListener('click',()=>stopMonitor(liveMotion.camera_id));
+  $('surveillance-live-motion-refresh').addEventListener('click',refresh);
   const escapeHtml = text => String(text).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   async function request(url, options) {
     const response = await fetch(url, {cache: 'no-store', ...options});
@@ -41,11 +110,13 @@
     const grid = $('surveillance-grid');
     grid.replaceChildren();
     if (!cameras.length) {
-      grid.innerHTML = '<p class="small muted">No cameras saved. Add a private-network RTSP camera below; no discovery or connection happens automatically.</p>';
+      grid.innerHTML = '<p class="small muted">No cameras saved. Use the Cameras tab to add a real RTSP or Linux USB device; no automatic discovery or connection.</p>';
       return;
     }
     cameras.forEach(camera => {
       const viewing = live.has(camera.id);
+      const monitoring = isMonitoring(camera.id);
+      const otherMonitor = ['STARTING','MONITORING','STOPPING'].includes(liveMotion.state) && !monitoring;
       const tile = document.createElement('article');
       tile.className = 'panel surveillance-tile';
       const check = checks.get(camera.id);
@@ -54,6 +125,7 @@
         <p class="small muted" role="status" data-check-status>${check ? escapeHtml(check) : 'Diagnostics not run. Check is manual.'}</p>
         <div class="button-line"><button class="btn outline" type="button" data-action="probe">Test connection</button><button class="btn primary" type="button" data-action="view">${viewing ? 'Stop live' : 'View live'}</button>
         <button class="btn outline" type="button" data-action="record">${recording.has(camera.id) ? 'Stop recording' : 'Start recording'}</button>
+        <button class="btn outline" type="button" data-action="motion" ${otherMonitor ? 'disabled' : ''}>${monitoring ? 'Stop motion monitor' : 'Start motion + clips'}</button>
         <button class="btn outline" type="button" data-action="snapshot">Screenshot</button>
         <button class="btn outline" type="button" data-action="edit">Edit</button>
         <button class="btn outline" type="button" data-action="delete">Remove</button></div>`;
@@ -85,6 +157,18 @@
         } catch (error) { status(`Recording action failed: ${error.message}`); }
         button.disabled = false;
       });
+      tile.querySelector('[data-action=motion]').addEventListener('click', async event => {
+        const button = event.currentTarget;
+        const stopping = isMonitoring(camera.id);
+        if (!stopping && !confirm(`Start live motion monitoring for ${camera.name}? This will connect to this camera and may start local 20-second recordings automatically when frames change, for up to 20 minutes. Stop any time in Motion & Events.`)) return;
+        button.disabled = true;
+        try {
+          if (stopping) await request(`/api/surveillance/cameras/${camera.id}/motion/stop`,{method:'POST'});
+          else await request(`/api/surveillance/cameras/${camera.id}/motion/start`,{method:'POST',headers:{'Content-Type':'application/json'},
+             body:JSON.stringify({sensitivity:$('surveillance-live-motion-sensitivity').value})});
+          selectTab('events');await refresh();
+        } catch(error) {status(`Motion monitor action failed: ${error.message}`);button.disabled=false;}
+      });
       tile.querySelector('[data-action=snapshot]').addEventListener('click', async event => {
         event.currentTarget.disabled = true;
         try {
@@ -105,10 +189,11 @@
         $('surveillance-url').placeholder = 'Leave empty to keep existing private RTSP URL';
         $('surveillance-save').textContent = 'Save camera changes';
         $('surveillance-cancel').hidden = false;
+        selectTab('cameras');
         $('surveillance-name').focus();
       });
       tile.querySelector('[data-action=delete]').addEventListener('click', async () => {
-        if (recording.has(camera.id)) { status('Stop recording before deleting this camera.'); return; }
+        if (recording.has(camera.id) || isMonitoring(camera.id)) { status('Stop recording and live motion monitoring before removing this camera.'); return; }
         if (!confirm(`Remove ${camera.name} from OpenRF?`)) return;
         stopView(camera.id);
         checks.delete(camera.id);
@@ -171,9 +256,10 @@
       for (const id of checks.keys()) if (!cameras.some(camera => camera.id === id)) checks.delete(id);
       // An inventory refresh itself never starts an RTSP request.
       for (const id of Array.from(live.keys())) if (!cameras.some(camera => camera.id === id)) stopView(id);
+      showLiveMotion(data.live_motion || {status:{state:'OFF'},events:[]});
       showInventory();
       showMotionHistory(data.motion || {scans: [], events: []});
-      $('surveillance-capabilities').textContent = `FFmpeg: ${data.capabilities.ffmpeg}. On-demand preview: ${data.capabilities.rtsp_mjpeg_preview ? 'available (2 feeds)' : 'unavailable'}. RTSP diagnostics: ${data.capabilities.rtsp_diagnostics ? 'available' : 'ffprobe missing'}. USB devices found: ${data.capabilities.usb_devices.length}. ONVIF, Bluetooth pairing, live motion alarms, and battery telemetry unsupported. Saved-video motion review is manual.`;
+      $('surveillance-capabilities').textContent = `FFmpeg: ${data.capabilities.ffmpeg}. On-demand preview: ${data.capabilities.rtsp_mjpeg_preview ? 'available (2 feeds)' : 'unavailable'}. RTSP diagnostics: ${data.capabilities.rtsp_diagnostics ? 'available' : 'ffprobe missing'}. USB devices found: ${data.capabilities.usb_devices.length}. Live motion monitoring is opt-in, one camera and a maximum 20-minute session. ONVIF, Bluetooth pairing and battery telemetry remain unsupported. Saved-video motion review is manual.`;
       $('surveillance-usb-devices').replaceChildren();
       for (const path of data.capabilities.usb_devices) {
         const item = document.createElement('option'); item.value = path;
@@ -207,7 +293,7 @@
       if (id) { stopView(id); checks.delete(id); }
       await request(id ? `/api/surveillance/cameras/${id}` : '/api/surveillance/cameras',
         {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
-      resetForm(); await refresh();
+      resetForm(); selectTab('overview'); await refresh();
     } catch (error) { status(`Camera not saved: ${error.message}`); }
   });
   function updateSource() {
@@ -249,7 +335,7 @@
               method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({sensitivity:setting})});
             $('surveillance-motion-status').textContent=`Scan complete: ${result.event_count} motion candidate(s) in ${result.sampled_seconds.toFixed(1)} sampled seconds from ${entry.camera_name}.`;
           } catch (error) { $('surveillance-motion-status').textContent=`Saved-video motion scan failed: ${error.message}`; }
-          finally { motionBusy=false; await refresh(); }
+          finally { motionBusy=false; selectTab('events'); await refresh(); }
         }); pane.append(scan);
       }
       if (entry.state !== 'RECORDING' && entry.state !== 'CAPTURING') {
@@ -345,7 +431,14 @@
     if (box.requestFullscreen) box.requestFullscreen();
   });
   document.addEventListener('openrf:surveillance-shown', refresh);
-  document.addEventListener('openrf:surveillance-hidden', () => stopView());
-  window.addEventListener('pagehide', () => stopView());
+  function stopMonitorOnLeave() {
+    if (['STARTING','MONITORING','STOPPING'].includes(liveMotion.state) && liveMotion.camera_id) {
+      // Browser navigation may cancel an ordinary request; keepalive is best effort.
+      fetch(`/api/surveillance/cameras/${liveMotion.camera_id}/motion/stop`, {method:'POST',keepalive:true}).catch(()=>{});
+    }
+  }
+  document.addEventListener('openrf:surveillance-hidden', () => {stopView(); stopMonitorOnLeave();});
+  window.addEventListener('pagehide', () => {stopView(); stopMonitorOnLeave();});
+  setInterval(() => {if ($('page-surveillance').classList.contains('active') && ['STARTING','MONITORING','STOPPING'].includes(liveMotion.state)) refresh();}, 4000);
   if ($('page-surveillance').classList.contains('active')) refresh();
 })();

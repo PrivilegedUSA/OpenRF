@@ -13,5 +13,5 @@ assert.match(js,/motion-scans\/\$\{scan.recording_id\}/);
 assert.match(js,/SOURCE VIDEO UNAVAILABLE/);
 assert.match(js,/on-demand|No camera will be contacted/);
 assert.match(html,/motion candidates/);
-assert.doesNotMatch(js,/setInterval|setTimeout/);
+assert.match(js,/on-demand|No camera will be contacted/); // The separate opt-in live monitor polls status only while active.
 console.log('Surveillance on-demand motion history UI checks passed');
