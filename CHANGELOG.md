@@ -1,3 +1,29 @@
+## OpenRF v0.2.182 — Explicit Surveillance history cleanup (2026-11-24)
+
+- Added user-triggered retention review for local Surveillance recordings and snapshots by age (1–3650 days), reporting item count and bytes without deleting anything.
+- Added explicit confirm-and-delete of exactly reviewed media IDs, with server-side rechecks to prevent deleting active/newer recordings after a stale preview. No background deletion or automatic storage pruning.
+- Preserved local-only HTTP API, camera inventory, previews, screenshots and recording history. New Python/JavaScript tests cover validation, age filtering, live-recording exclusions and cross-origin rejection.
+- Actual cameras, Raspberry Pi playback/USB drivers, ONVIF, automatic motion capture, battery telemetry and hotspot pairing remain unverified or unimplemented. See `docs/RELEASE_0.2.182_TESTS.md`.
+
+## OpenRF v0.2.181 — Opt-in Surveillance recording, snapshots and USB video (2026-11-24)
+
+- Added explicit Linux V4L2 USB camera inventory support, one-shot JPEG screenshots and bounded on-demand FFmpeg video recording to local H.264 MP4. Persistent private recording history, download, byte-range playback, deletion and disk-usage display.
+- Preserved existing RTSP two-feed preview, opt-in connection diagnostics and local-only API. No auto-start or background scanning; camera credentials remain redacted from JSON.
+- Recordings stored outside source/Git beside the existing local SQLite database. ONVIF, PTZ, motion detection, configurable retention and Bluetooth camera video remain unimplemented. Camera hardware is untested. **14 focused Python tests and 143 JavaScript suites passed; full Python suite timed out**. See `docs/RELEASE_0.2.181_TESTS.md`.
+
+## OpenRF v0.2.180 — On-demand RTSP camera connection diagnostics (2026-11-24)
+
+- Added manual video-stream check for saved Surveillance RTSP cameras, returning bounded, sanitized codec/resolution metadata or an explicit diagnostic failure. No automatic scanning or recording.
+- Added single-probe concurrency control and tests, preserving the v0.2.179 two-camera monitoring wall.
+- FFprobe is optional and real cameras/physical Raspberry Pi were not available for testing. See `docs/RELEASE_0.2.180_TESTS.md`.
+
+## OpenRF v0.2.179 — Two-camera Surveillance live monitoring wall (2026-11-24)
+
+- Surveillance now supports manually opening **two simultaneous live RTSP previews**, each with an independent Stop and full-screen action, plus a Stop all feeds control and optional full-wall fullscreen. Opening a third feed is blocked with a clear message. No camera automatically connects on inventory refresh.
+- Closing Surveillance, navigating away from the application or removing a camera cancels its browser stream requests. Editing a camera's RTSP URL stops any previous preview before saving. Other existing OpenRF features and camera storage are preserved.
+- Camera availability stays honest: NOT CHECKED for inactive cameras and REQUESTED for user-started previews; receiving video frames is separately labeled. No unsupported live telemetry, video recording or motion detection is claimed.
+- No additional Python runtime dependencies. **No real RTSP camera or Raspberry Pi hardware was tested**. See `docs/RELEASE_0.2.179_TESTS.md`.
+
 ## OpenRF v0.2.178 — Surveillance inventory and user-started RTSP previews (2026-11-24)
 
 - Added the separate **Surveillance** workspace with add/edit/rename/remove of real RTSP camera configurations in the existing private OpenRF SQLite database. No relation to ALPR/Flock camera map layers. Saved entries show **NOT CHECKED**; inventory refresh never opens a stream or discovers a camera.

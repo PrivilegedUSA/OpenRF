@@ -5,7 +5,7 @@ const app=fs.readFileSync('openrf/static/app.js','utf8');
 const ui=fs.readFileSync('openrf/static/surveillance.js','utf8');
 assert.match(html,/data-page="surveillance"/);
 assert.match(html,/id="page-surveillance"/);
-assert.match(html,/id="surveillance-live"/);
+assert.match(html,/id="surveillance-live-grid"/);
 assert.match(app,/openrf:surveillance-hidden/);
 assert.match(app,/openrf:surveillance-shown/);
 assert.match(ui,/removeAttribute\('src'\)/);

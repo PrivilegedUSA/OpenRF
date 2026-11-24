@@ -3,6 +3,8 @@
 No scanning, background connections, recordings, or exposure of RTSP credentials in JSON.
 """
 import ipaddress
+import re
+import json
 import shutil
 from contextlib import contextmanager
 import sqlite3
@@ -31,11 +33,24 @@ def validate_rtsp(value):
     return value
 
 
+def validate_usb_device(value):
+    if not isinstance(value, str) or not re.fullmatch(r'/dev/video(?:0|[1-9][0-9]{0,2})', value):
+        raise SurveillanceError('USB camera must use an explicit /dev/videoN device')
+    return value
+
+
+def usb_devices():
+    """Local V4L2 device names only; never automatically open a capture device."""
+    return [str(p) for p in sorted(Path('/dev').glob('video[0-9]*'))
+            if re.fullmatch(r'video(?:0|[1-9][0-9]{0,2})', p.name)]
+
+
 def camera_public(row):
-    host = urlsplit(row['rtsp_url']).hostname
-    return {'id': row['id'], 'name': row['name'], 'type': 'RTSP', 'host': host,
+    source = row['source_type'] or 'RTSP'
+    host = urlsplit(row['rtsp_url']).hostname if source == 'RTSP' else row['usb_device']
+    return {'id': row['id'], 'name': row['name'], 'type': source, 'host': host,
             'state': 'NOT_CHECKED', 'connected': False, 'recording': False,
-            'capabilities': {'live_preview': True, 'recording': False, 'onvif': False,
+            'capabilities': {'live_preview': True, 'recording': True, 'onvif': False,
                              'battery_telemetry': False}, 'created_at_utc': row['created_at_utc']}
 
 
@@ -48,6 +63,11 @@ class SurveillanceStore:
             db.execute('''CREATE TABLE IF NOT EXISTS surveillance_cameras (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
                 rtsp_url TEXT NOT NULL, created_at_utc TEXT NOT NULL)''')
+            cols = {row[1] for row in db.execute('PRAGMA table_info(surveillance_cameras)')}
+            if 'source_type' not in cols:
+                db.execute("ALTER TABLE surveillance_cameras ADD COLUMN source_type TEXT NOT NULL DEFAULT 'RTSP'")
+            if 'usb_device' not in cols:
+                db.execute('ALTER TABLE surveillance_cameras ADD COLUMN usb_device TEXT')
 
     @contextmanager
     def _connect(self):
@@ -71,6 +91,16 @@ class SurveillanceStore:
             raise SurveillanceError('Camera not found')
         return validate_rtsp(row['rtsp_url'])
 
+    def get_source(self, ident):
+        ident = self._id(ident)
+        with self.lock, self._connect() as db:
+            row = db.execute('SELECT * FROM surveillance_cameras WHERE id=?', (ident,)).fetchone()
+        if row is None:
+            raise SurveillanceError('Camera not found')
+        source = row['source_type'] or 'RTSP'
+        location = validate_usb_device(row['usb_device']) if source == 'USB' else validate_rtsp(row['rtsp_url'])
+        return {'id': row['id'], 'name': row['name'], 'source': source, 'location': location}
+
     @staticmethod
     def _id(value):
         if type(value) is not int or not 1 <= value <= 2147483647:
@@ -78,29 +108,40 @@ class SurveillanceStore:
         return value
 
     def save(self, data, ident=None):
-        if not isinstance(data, dict) or set(data) - {'name', 'rtsp_url'}:
-            raise SurveillanceError('Only camera name and RTSP URL can be configured')
+        if not isinstance(data, dict) or set(data) - {'name', 'rtsp_url', 'source_type', 'usb_device'}:
+            raise SurveillanceError('Only camera name, source and device address can be configured')
         name = data.get('name')
         if not isinstance(name, str) or not 1 <= len(name.strip()) <= 64 or any(ord(c)<32 for c in name):
             raise SurveillanceError('Camera name must be 1–64 printable characters')
         name = name.strip()
         with self.lock, self._connect() as db:
             if ident is None:
-                url = validate_rtsp(data.get('rtsp_url'))
+                source = data.get('source_type', 'RTSP')
+                if source not in ('RTSP', 'USB'):
+                    raise SurveillanceError('Unsupported camera type')
+                url = validate_rtsp(data.get('rtsp_url')) if source == 'RTSP' else ''
+                device = validate_usb_device(data.get('usb_device')) if source == 'USB' else None
                 if db.execute('SELECT COUNT(*) FROM surveillance_cameras').fetchone()[0] >= 32:
                     raise SurveillanceError('Maximum 32 saved cameras')
-                cur = db.execute('INSERT INTO surveillance_cameras (name,rtsp_url,created_at_utc) VALUES (?,?,?)',
-                                 (name, url, datetime.now(timezone.utc).isoformat()))
+                cur = db.execute('INSERT INTO surveillance_cameras (name,rtsp_url,created_at_utc,source_type,usb_device) VALUES (?,?,?,?,?)',
+                                 (name, url, datetime.now(timezone.utc).isoformat(), source, device))
                 ident = cur.lastrowid
             else:
                 ident = self._id(ident)
-                if 'rtsp_url' in data and data['rtsp_url']:
-                    url = validate_rtsp(data['rtsp_url'])
-                    cur = db.execute('UPDATE surveillance_cameras SET name=?,rtsp_url=? WHERE id=?', (name,url,ident))
-                else:
-                    cur = db.execute('UPDATE surveillance_cameras SET name=? WHERE id=?', (name,ident))
-                if not cur.rowcount:
+                previous = db.execute('SELECT * FROM surveillance_cameras WHERE id=?', (ident,)).fetchone()
+                if previous is None:
                     raise SurveillanceError('Camera not found')
+                source = data.get('source_type', previous['source_type'] or 'RTSP')
+                if source not in ('RTSP', 'USB'):
+                    raise SurveillanceError('Unsupported camera type')
+                if source == 'RTSP':
+                    url = validate_rtsp(data.get('rtsp_url') or previous['rtsp_url'])
+                    device = None
+                else:
+                    url = ''
+                    device = validate_usb_device(data.get('usb_device') or previous['usb_device'])
+                db.execute('UPDATE surveillance_cameras SET name=?,rtsp_url=?,source_type=?,usb_device=? WHERE id=?',
+                           (name, url, source, device, ident))
             row = db.execute('SELECT * FROM surveillance_cameras WHERE id=?', (ident,)).fetchone()
             return camera_public(row)
 
@@ -110,10 +151,52 @@ class SurveillanceStore:
             return db.execute('DELETE FROM surveillance_cameras WHERE id=?', (ident,)).rowcount > 0
 
 
+def probe_camera(url):
+    """User-requested, bounded RTSP video probe; return only credential-free metadata.
+
+    A completed ffprobe result verifies a video stream existed at check time,
+    but is NOT evidence of an ongoing connection or an available battery.
+    """
+    validate_rtsp(url)
+    ffprobe = shutil.which('ffprobe')
+    if not ffprobe:
+        return {'state': 'UNSUPPORTED', 'detail': 'Install ffprobe (FFmpeg tools) to test RTSP cameras.'}
+    args = [ffprobe, '-v', 'error', '-rtsp_transport', 'tcp', '-timeout', '5000000',
+            '-select_streams', 'v:0', '-show_entries', 'stream=codec_name,width,height',
+            '-of', 'json', url]
+    try:
+        completed = subprocess.run(args, capture_output=True, timeout=9, check=False)
+    except subprocess.TimeoutExpired:
+        return {'state': 'TIMEOUT', 'detail': 'RTSP check timed out; verify camera address, network and credentials.'}
+    except OSError:
+        return {'state': 'UNAVAILABLE', 'detail': 'Cannot launch ffprobe on this device.'}
+    if completed.returncode != 0:
+        # ffprobe stderr may contain credentials and camera path: never expose it.
+        return {'state': 'UNAVAILABLE', 'detail': 'Camera did not return a readable video stream. Check network, credentials and RTSP path.'}
+    try:
+        result = json.loads(completed.stdout)
+        streams = result.get('streams') or []
+        stream = streams[0] if streams else None
+        if not isinstance(stream, dict):
+            raise ValueError('missing video stream')
+        metadata = {'state': 'STREAM_FOUND', 'detail': 'Video stream verified at check time; this is not a persistent connection.'}
+        codec = stream.get('codec_name')
+        if isinstance(codec, str) and codec.isascii() and codec.replace('_', '').isalnum() and len(codec) <= 32:
+            metadata['codec'] = codec
+        for dimension in ('width', 'height'):
+            value = stream.get(dimension)
+            if type(value) is int and 1 <= value <= 16384:
+                metadata[dimension] = value
+        return metadata
+    except (ValueError, TypeError, IndexError, AttributeError):
+        return {'state': 'UNAVAILABLE', 'detail': 'RTSP responded without readable video metadata.'}
+
+
 def capability_report():
     ffmpeg = shutil.which('ffmpeg')
-    return {'ffmpeg': 'AVAILABLE' if ffmpeg else 'MISSING', 'rtsp_mjpeg_preview': bool(ffmpeg),
-            'usb': 'NOT_IMPLEMENTED', 'onvif': 'NOT_IMPLEMENTED', 'recording': 'NOT_IMPLEMENTED',
+    return {'ffmpeg': 'AVAILABLE' if ffmpeg else 'MISSING', 'usb_devices': usb_devices(), 'rtsp_mjpeg_preview': bool(ffmpeg),
+            'rtsp_diagnostics': bool(shutil.which('ffprobe')),
+            'usb': 'V4L2_OPTIONAL', 'onvif': 'NOT_IMPLEMENTED', 'recording': 'MANUAL_FFMPEG' if ffmpeg else 'MISSING_FFMPEG',
             'automatic_connections': False,
             'note': 'Saved cameras are NOT connected or checked. Select View to request an on-demand RTSP preview.'}
 
@@ -129,7 +212,7 @@ class PreviewSlots:
             for process in list(self.active):
                 process.terminate()
 
-    def run(self, url, output, *, reserved=False):
+    def run(self, url, output, *, reserved=False, source='RTSP'):
         """Streams FFmpeg multipart MJPEG bytes to an already-open local HTTP response."""
         if not reserved and not self.semaphore.acquire(blocking=False):
             raise SurveillanceError('Maximum two simultaneous live previews')
@@ -141,7 +224,7 @@ class PreviewSlots:
             # No shell. Explicit RTSP transport, no hidden recording, at most 2 fps.
             process = subprocess.Popen([
                 executable, '-nostdin', '-hide_banner', '-loglevel', 'error',
-                '-rtsp_transport', 'tcp', '-timeout', '5000000', '-i', validate_rtsp(url),
+                *(['-f', 'video4linux2', '-i', validate_usb_device(url)] if source == 'USB' else ['-rtsp_transport', 'tcp', '-timeout', '5000000', '-i', validate_rtsp(url)]),
                 '-an', '-sn', '-dn', '-vf', 'fps=2,scale=960:-2',
                 '-q:v', '6', '-f', 'mpjpeg', '-boundary_tag', 'openrf', 'pipe:1',
             ], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=0)

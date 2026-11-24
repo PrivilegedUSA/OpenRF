@@ -78,7 +78,8 @@ from .survey_waypoints import waypoints_geojson
 from .sensor_connections import (connections, ScanReceiptStore, BleScanReceiptStore,
     verified_wifi_observation, verified_ble_observation, browser_location_details)
 
-from .surveillance import SurveillanceStore, SurveillanceError, PreviewSlots, capability_report
+from .surveillance import SurveillanceStore, SurveillanceError, PreviewSlots, capability_report, probe_camera, validate_usb_device
+from .surveillance_recording import RecordingManager
 
 STATIC_DIR = Path(__file__).resolve().parent / 'static'
 DEFAULT_DB = Path.home() / '.local' / 'share' / 'openrf' / 'openrf.sqlite3'
@@ -88,6 +89,8 @@ class OpenRFHTTPServer(ThreadingHTTPServer):
     def server_close(self):
         if hasattr(self, "surveillance_previews"):
             self.surveillance_previews.close()
+        if hasattr(self, "surveillance_recordings"):
+            self.surveillance_recordings.close()
         if hasattr(self, 'weather_recorder'):
             self.weather_recorder.close()
         if hasattr(self, 'hotspot_manager') and self.hotspot_manager.state_file.exists():
@@ -184,7 +187,60 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == '/api/surveillance':
             return self._json(200, {'cameras': self.server.surveillance_store.list(),
-                                    'capabilities': capability_report()})
+                                    'capabilities': capability_report(),
+                                    'recordings': self.server.surveillance_recordings.list(),
+                                    'storage': self.server.surveillance_recordings.storage()})
+        recording_file = re.fullmatch(r'/api/surveillance/recordings/([1-9][0-9]{0,9})/file', path)
+        if recording_file:
+            if self.headers.get('Sec-Fetch-Site', 'same-origin') not in ('same-origin', 'none') or urlparse(self.path).query not in ('', 'download'):
+                return self._error(403, 'Recorded media requires same-origin access')
+            try:
+                file, mime = self.server.surveillance_recordings.file(int(recording_file.group(1)))
+                size = file.stat().st_size
+            except (SurveillanceError, OSError):
+                return self._error(404, 'Recording unavailable')
+            # Support standard browser seeking without ever reading the entire file into RAM.
+            byte_range = self.headers.get('Range')
+            start, end = 0, size - 1
+            if byte_range:
+                found = re.fullmatch(r'bytes=([0-9]*)-([0-9]*)', byte_range)
+                if not found or not size or (not found.group(1) and not found.group(2)):
+                    return self._error(416, 'Invalid media byte range')
+                if not found.group(1):
+                    suffix = int(found.group(2))
+                    if suffix <= 0:
+                        return self._error(416, 'Invalid media byte range')
+                    start = max(size - suffix, 0)
+                else:
+                    start = int(found.group(1))
+                    end = min(int(found.group(2)), size - 1) if found.group(2) else size - 1
+                if start >= size or end < start:
+                    return self._error(416, 'Media byte range is unavailable')
+            self.send_response(206 if byte_range else 200)
+            self.send_header('Content-Type', mime)
+            self.send_header('Content-Length', str(max(end - start + 1, 0)))
+            self.send_header('Accept-Ranges', 'bytes')
+            if byte_range:
+                self.send_header('Content-Range', f'bytes {start}-{end}/{size}')
+            self.send_header('Cache-Control', 'no-store')
+            self.send_header('X-Content-Type-Options', 'nosniff')
+            self.send_header('X-Frame-Options', 'DENY')
+            self.send_header('Referrer-Policy', 'no-referrer')
+            self.send_header('Content-Disposition', f'attachment; filename="{file.name}"' if urlparse(self.path).query == 'download' else f'inline; filename="{file.name}"')
+            self.end_headers()
+            try:
+                with file.open('rb') as stream:
+                    stream.seek(start)
+                    remaining = end - start + 1
+                    while remaining > 0:
+                        chunk = stream.read(min(65536, remaining))
+                        if not chunk:
+                            break
+                        self.wfile.write(chunk)
+                        remaining -= len(chunk)
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                pass
+            return
         match = re.fullmatch(r'/api/surveillance/cameras/([1-9][0-9]{0,9})/live', path)
         if match:
             if self.headers.get('Sec-Fetch-Site', 'same-origin') not in ('same-origin', 'none'):
@@ -192,7 +248,7 @@ class Handler(BaseHTTPRequestHandler):
             if urlparse(self.path).query:
                 return self._error(400, 'Live view does not accept query parameters')
             try:
-                url = self.server.surveillance_store.get_url(int(match.group(1)))
+                camera = self.server.surveillance_store.get_source(int(match.group(1)))
             except SurveillanceError as exc:
                 return self._error(404, str(exc))
             if not capability_report()['rtsp_mjpeg_preview']:
@@ -207,7 +263,7 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.close_connection = True
             try:
-                self.server.surveillance_previews.run(url, self.wfile, reserved=True)
+                self.server.surveillance_previews.run(camera['location'], self.wfile, reserved=True, source=camera['source'])
             except SurveillanceError:
                 pass
             return
@@ -882,6 +938,50 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host() or not self._allowed_origin():
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
+        if path in ('/api/surveillance/cleanup/preview', '/api/surveillance/cleanup/apply'):
+            try:
+                data = self._decode_body()
+                if not isinstance(data, dict) or type(data.get('days')) is not int:
+                    raise SurveillanceError('A retention age in whole days is required')
+                if path.endswith('/preview'):
+                    if set(data) != {'days'}:
+                        raise SurveillanceError('Invalid preview fields')
+                    return self._json(200, self.server.surveillance_recordings.cleanup_preview(data['days']))
+                if set(data) != {'days', 'ids'}:
+                    raise SurveillanceError('Invalid cleanup fields')
+                return self._json(200, self.server.surveillance_recordings.cleanup_apply(data['days'], data['ids']))
+            except (SurveillanceError, ValueError) as exc:
+                return self._error(400, str(exc))
+        action = re.fullmatch(r'/api/surveillance/cameras/([1-9][0-9]{0,9})/(record|stop|snapshot)', path)
+        if action:
+            if urlparse(self.path).query:
+                return self._error(400, 'Camera action does not accept query parameters')
+            try:
+                camera = self.server.surveillance_store.get_source(int(action.group(1)))
+                op = action.group(2)
+                result = (self.server.surveillance_recordings.start(camera) if op == 'record' else
+                          self.server.surveillance_recordings.stop(camera['id']) if op == 'stop' else
+                          self.server.surveillance_recordings.snapshot(camera))
+                return self._json(200, result)
+            except SurveillanceError as exc:
+                return self._error(409, str(exc))
+        probe_match = re.fullmatch(r'/api/surveillance/cameras/([1-9][0-9]{0,9})/probe', path)
+        if probe_match:
+            if urlparse(self.path).query:
+                return self._error(400, 'Camera check does not accept query parameters')
+            if not self.server.surveillance_probe_lock.acquire(blocking=False):
+                return self._error(429, 'Another camera diagnostic is in progress')
+            try:
+                try:
+                    source = self.server.surveillance_store.get_source(int(probe_match.group(1)))
+                except SurveillanceError as exc:
+                    return self._error(404, str(exc))
+                if source['source'] == 'USB':
+                    return self._json(200, {'state': 'DEVICE_PRESENT' if Path(source['location']).exists() else 'UNAVAILABLE',
+                                            'detail': 'Local V4L2 device path exists (not a verified video stream).' if Path(source['location']).exists() else 'USB video device is not present.'})
+                return self._json(200, probe_camera(source['location']))
+            finally:
+                self.server.surveillance_probe_lock.release()
         if path == '/api/surveillance/cameras' or re.fullmatch(r'/api/surveillance/cameras/[1-9][0-9]{0,9}', path):
             try:
                 body = self._decode_body()
@@ -1730,9 +1830,18 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host() or not self._allowed_origin():
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
+        recorded = re.fullmatch(r'/api/surveillance/recordings/([1-9][0-9]{0,9})', path)
+        if recorded:
+            try:
+                return self._json(200, {'deleted': self.server.surveillance_recordings.delete(int(recorded.group(1)))})
+            except SurveillanceError as exc:
+                return self._error(409, str(exc))
         match = re.fullmatch(r'/api/surveillance/cameras/([1-9][0-9]{0,9})', path)
         if match:
-            return self._json(200, {'deleted': self.server.surveillance_store.delete(int(match.group(1)))})
+            camera_id = int(match.group(1))
+            if camera_id in self.server.surveillance_recordings.active:
+                return self._error(409, 'Stop the camera recording before deleting its configuration')
+            return self._json(200, {'deleted': self.server.surveillance_store.delete(camera_id)})
         if path.startswith('/api/terrain/tiles/') and path.count('/')==4:
             try:return self._json(200,remove_terrain_hgt(self.server.terrain_directory,
                                     path.rsplit('/',1)[-1],self.server.terrain_lock))
@@ -1857,7 +1966,9 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
         raise
     server.repository = repository
     server.surveillance_store = SurveillanceStore(repository.path)
+    server.surveillance_recordings = RecordingManager(repository.path)
     server.surveillance_previews = PreviewSlots()
+    server.surveillance_probe_lock = threading.BoundedSemaphore(1)
     server.weather_store = WeatherStore(repository.path)
     server.emergency_store = EmergencyStore(repository.path)
     server.breadcrumb_store = BreadcrumbStore(repository.path)

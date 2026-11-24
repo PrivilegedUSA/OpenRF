@@ -1,6 +1,22 @@
+## v0.2.182 — Surveillance manual history retention
+
+Surveillance now supports reviewing recordings and screenshots older than a selected number of days and explicitly confirming deletion of those reviewed items. No automatic cleanup occurs. Existing camera monitoring, recording, screenshots, local media and messaging remain. See `docs/RELEASE_0.2.182_TESTS.md`.
+
+## v0.2.181 — Surveillance Hub manual video recording and snapshots
+
+Save compatible private RTSP and Linux USB V4L2 cameras; initiate live views, manual H.264 MP4 recording and JPEG snapshots on demand. Use the new private media history for playback, download and deletion. Requires FFmpeg; not hardware-verified, not ONVIF discovery, motion detection or remote access. See `docs/RELEASE_0.2.181_TESTS.md`.
+
+## v0.2.180 — Surveillance manual RTSP diagnostics
+
+Surveillance now offers **Test connection** for individual saved cameras. It runs a bounded, user-requested ffprobe check and reports genuine video metadata or an explicit failure without disclosing private RTSP URLs. Requires ffprobe for diagnostics; no background checks, recording, or ONVIF discovery. See `docs/RELEASE_0.2.180_TESTS.md`.
+
 # OpenRF — Offline-First Navigation and RF Toolkit
 
 OpenRF's original project source is licensed **GPL-3.0-or-later**; see the complete [GNU GPLv3 license text](LICENSE). Individually bundled or optional third-party components retain their own copyright and license notices.
+
+## v0.2.179 — Surveillance: two-camera on-demand monitoring wall
+
+The Surveillance section can now show up to two user-started RTSP previews side by side with independent stop/fullscreen controls and a Stop all action. The camera inventory remains passive; no recording, automatic checks or cloud access. This is Surveillance Stage 1B, not full ONVIF/USB support. See `docs/RELEASE_0.2.179_TESTS.md`.
 
 ## v0.2.178 — Surveillance: camera inventory and opt-in RTSP previews
 
