@@ -1,3 +1,11 @@
+## OpenRF v0.2.185 — USB picker, consent-based schedules, local motion notifications and camera icon (2026-11-24)
+
+- Added automatic enumeration of Linux V4L2 video nodes and readable sysfs device labels for a dropdown in Surveillance → Cameras. Refresh/advanced manual path are available. Discovery does not contact, open or activate a camera; device presence does not establish video support. WSL USB passthrough and NexiGo hardware still require testing.
+- Added separate padded Surveillance Schedules tab with local recurring weekday windows and private SQLite persistence. Schedules always start disarmed on OpenRF restart. Arming requires explicit confirmation in the UI, disarming stops only schedule-owned recordings, and window expiry stops scheduled clips. Failures do not expose camera URLs. At most 16 schedules, one per camera, max 2 concurrent recordings. No unattended restart or cloud service.
+- Added opt-in local motion-candidate notifications: visible in-app activity and optional browser desktop notifications (requires permission). Off by default every UI session; notifications occur only for newly observed events while the app page is open. No person detection, background push or automatic uploads.
+- Replaced the Surveillance navigation tile glyph with a camera-shaped line SVG, matched to other sidebar icons.
+- Added Python/JS regressions for session-only schedule arming, window lifecycle, USB labels, new UI controls, sidebar glyph and API same-origin boundaries. See `docs/RELEASE_0.2.185_TESTS.md`. No camera or Raspberry Pi hardware was tested.
+
 ## OpenRF v0.2.184 — Opt-in live motion clips, Surveillance tabs, Overview startup (2026-11-24)
 
 - Added a single, explicitly started real-camera FFmpeg grayscale motion monitor using user-selected low/medium/high thresholds. Frame changes (not person detection) may request local 20-second recordings; 30-second cooldown and 20-minute session limit. Monitor never reconnects/resumes after process restart; stopping the monitor also stops its owned clip. Saved events include evidence timestamps and actual media outcome, without exposing RTSP URLs.

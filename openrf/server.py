@@ -78,10 +78,11 @@ from .survey_waypoints import waypoints_geojson
 from .sensor_connections import (connections, ScanReceiptStore, BleScanReceiptStore,
     verified_wifi_observation, verified_ble_observation, browser_location_details)
 
-from .surveillance import SurveillanceStore, SurveillanceError, PreviewSlots, capability_report, probe_camera, validate_usb_device
+from .surveillance import SurveillanceStore, SurveillanceError, PreviewSlots, capability_report, probe_camera, validate_usb_device, usb_candidates
 from .surveillance_recording import RecordingManager
 from .surveillance_motion import MotionHistory
 from .surveillance_live_motion import LiveMotionService
+from .surveillance_schedules import SurveillanceSchedules
 
 STATIC_DIR = Path(__file__).resolve().parent / 'static'
 DEFAULT_DB = Path.home() / '.local' / 'share' / 'openrf' / 'openrf.sqlite3'
@@ -89,6 +90,8 @@ DEFAULT_DB = Path.home() / '.local' / 'share' / 'openrf' / 'openrf.sqlite3'
 
 class OpenRFHTTPServer(ThreadingHTTPServer):
     def server_close(self):
+        if hasattr(self, "surveillance_schedules"):
+            self.surveillance_schedules.close()
         if hasattr(self, "surveillance_previews"):
             self.surveillance_previews.close()
         if hasattr(self, "surveillance_live_motion"):
@@ -189,8 +192,11 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host():
             return self._error(HTTPStatus.FORBIDDEN, 'Loopback-only service')
         path = urlparse(self.path).path
+        if path == '/api/surveillance/usb-devices':
+            return self._json(200, {'devices': usb_candidates(), 'note': 'Local Linux device enumeration only; no camera streams opened.'})
         if path == '/api/surveillance':
-            return self._json(200, {'cameras': self.server.surveillance_store.list(),
+            return self._json(200, {'schedules': self.server.surveillance_schedules.status(),
+                                    'cameras': self.server.surveillance_store.list(),
                                     'capabilities': capability_report(),
                                     'recordings': self.server.surveillance_recordings.list(),
                                     'storage': self.server.surveillance_recordings.storage(),
@@ -945,6 +951,18 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host() or not self._allowed_origin():
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
+        if path == '/api/surveillance/schedules' or path == '/api/surveillance/schedules/arm':
+            if urlparse(self.path).query:
+                return self._error(400, 'Schedule action does not accept query parameters')
+            try:
+                data = self._decode_body()
+                if path.endswith('/arm'):
+                    if not isinstance(data, dict) or set(data) != {'armed'}:
+                        raise SurveillanceError('Provide an explicit armed true/false setting')
+                    return self._json(200, self.server.surveillance_schedules.arm(data['armed']))
+                return self._json(200, self.server.surveillance_schedules.add(data))
+            except (SurveillanceError, ValueError, TypeError) as exc:
+                return self._error(409, str(exc))
         if path in ('/api/surveillance/cleanup/preview', '/api/surveillance/cleanup/apply'):
             try:
                 data = self._decode_body()
@@ -992,6 +1010,10 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 camera = self.server.surveillance_store.get_source(int(action.group(1)))
                 op = action.group(2)
+                if op == 'stop':
+                    self.server.surveillance_schedules.pause_camera(camera['id'])
+                    if camera['id'] not in self.server.surveillance_recordings.active:
+                        return self._json(200, {'state': 'STOPPED', 'note': 'Scheduled recording stopped for the current window.'})
                 result = (self.server.surveillance_recordings.start(camera) if op == 'record' else
                           self.server.surveillance_recordings.stop(camera['id']) if op == 'stop' else
                           self.server.surveillance_recordings.snapshot(camera))
@@ -1865,6 +1887,9 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host() or not self._allowed_origin():
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
+        scheduled = re.fullmatch(r'/api/surveillance/schedules/([1-9][0-9]{0,9})', path)
+        if scheduled:
+            return self._json(200, {'deleted': self.server.surveillance_schedules.remove(int(scheduled.group(1)))})
         motion = re.fullmatch(r'/api/surveillance/motion-scans/([1-9][0-9]{0,9})', path)
         if motion:
             if urlparse(self.path).query:
@@ -1887,6 +1912,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._error(409, 'Stop live motion monitoring before removing this camera')
             if camera_id in self.server.surveillance_recordings.active:
                 return self._error(409, 'Stop the camera recording before deleting its configuration')
+            self.server.surveillance_schedules.remove_camera(camera_id)
             return self._json(200, {'deleted': self.server.surveillance_store.delete(camera_id)})
         if path.startswith('/api/terrain/tiles/') and path.count('/')==4:
             try:return self._json(200,remove_terrain_hgt(self.server.terrain_directory,
@@ -2015,6 +2041,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.surveillance_recordings = RecordingManager(repository.path)
     server.surveillance_motion = MotionHistory(server.surveillance_recordings)
     server.surveillance_live_motion = LiveMotionService(repository.path, server.surveillance_recordings)
+    server.surveillance_schedules = SurveillanceSchedules(repository.path, server.surveillance_store, server.surveillance_recordings)
     server.surveillance_previews = PreviewSlots()
     server.surveillance_probe_lock = threading.BoundedSemaphore(1)
     server.weather_store = WeatherStore(repository.path)

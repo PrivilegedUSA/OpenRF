@@ -40,9 +40,35 @@ def validate_usb_device(value):
 
 
 def usb_devices():
-    """Local V4L2 device names only; never automatically open a capture device."""
-    return [str(p) for p in sorted(Path('/dev').glob('video[0-9]*'))
+    """Local V4L2 paths only; no capture devices are opened while enumerating."""
+    return [str(p) for p in sorted(Path('/dev').glob('video[0-9]*'),
+            key=lambda p: int(p.name[5:]))
             if re.fullmatch(r'video(?:0|[1-9][0-9]{0,2})', p.name)]
+
+
+def usb_candidates():
+    """Readable local camera labels from sysfs, including secondary video nodes.
+
+    Listing does NOT imply the camera can record; permissions and capture
+    capability need real stream tests. Metadata nodes may be unusable for video.
+    """
+    result = []
+    for path in usb_devices():
+        node = Path(path).name
+        sysfs = Path('/sys/class/video4linux') / node
+        try:
+            name = (sysfs / 'name').read_text(encoding='utf-8').strip()
+        except (OSError, UnicodeError):
+            name = ''
+        name = ''.join(c for c in name if c.isprintable())[:80] or 'Linux video device'
+        try:
+            index = int((sysfs / 'index').read_text(encoding='ascii').strip())
+        except (OSError, ValueError):
+            index = None
+        result.append({'path': path, 'name': name, 'index': index,
+                       'hint': 'secondary interface; may be metadata' if index is not None and index > 0 else
+                               'candidate capture device; not stream-tested'})
+    return result
 
 
 def camera_public(row):
@@ -194,7 +220,7 @@ def probe_camera(url):
 
 def capability_report():
     ffmpeg = shutil.which('ffmpeg')
-    return {'ffmpeg': 'AVAILABLE' if ffmpeg else 'MISSING', 'usb_devices': usb_devices(), 'rtsp_mjpeg_preview': bool(ffmpeg),
+    return {'ffmpeg': 'AVAILABLE' if ffmpeg else 'MISSING', 'usb_devices': usb_devices(), 'usb_candidates': usb_candidates(), 'rtsp_mjpeg_preview': bool(ffmpeg),
             'rtsp_diagnostics': bool(shutil.which('ffprobe')),
             'usb': 'V4L2_OPTIONAL', 'onvif': 'NOT_IMPLEMENTED', 'recording': 'MANUAL_FFMPEG' if ffmpeg else 'MISSING_FFMPEG',
             'automatic_connections': False,

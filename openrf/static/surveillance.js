@@ -11,7 +11,11 @@
   let motionBusy = false;
   let liveMotion = {state: 'OFF'};
   let activeTab = 'overview';
-  const TAB_NAMES = ['overview', 'cameras', 'recordings', 'events'];
+  let usbCandidates = [];
+  let usbManual = false;
+  let alertEnabled = false;
+  let lastEventId = null;
+  const TAB_NAMES = ['overview', 'cameras', 'recordings', 'events', 'schedules'];
   function selectTab(tab, focus = false) {
     if (!TAB_NAMES.includes(tab)) return;
     if (activeTab === 'overview' && tab !== 'overview') stopView(); // Hidden preview tiles must not keep requesting camera frames.
@@ -23,6 +27,7 @@
       button.tabIndex = chosen ? 0 : -1;
       $(`surveillance-panel-${name}`).hidden = !chosen;
     }
+    if (tab === 'cameras') refreshUsb(); // Enumeration only; never opens video devices.
     if (focus) $(`surveillance-tab-${tab}`).focus({preventScroll:true});
   }
   for (const name of TAB_NAMES) {
@@ -49,6 +54,19 @@
   }
   function showLiveMotion(data) {
     const events = data.events || [];
+    const latest = events.reduce((maximum, item) => Math.max(maximum, Number(item.id) || 0), 0);
+    if (lastEventId !== null && alertEnabled) {
+      const newest = events.filter(item => Number(item.id) > lastEventId).sort((a,b) => a.id-b.id);
+      if (newest.length) {
+        const item = newest[newest.length - 1];
+        $('surveillance-alert-status').textContent = `New local motion candidate: ${item.camera_name} at ${item.detected_utc}. ${newest.length} new event(s). Motion is not a verified person detection.`;
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          try { new Notification('OpenRF · Motion candidate', {body:`${item.camera_name} · frame change detected`, tag:'openrf-motion'}); }
+          catch (_) { /* Browser/platform may block desktop notifications. In-app status still works. */ }
+        }
+      }
+    }
+    lastEventId = Math.max(lastEventId || 0, latest);
     liveMotion = data.status || {state:'OFF'};
     const active = ['STARTING','MONITORING','STOPPING'].includes(liveMotion.state);
     const statusText = `${liveMotion.state}: ${liveMotion.camera_name || 'No selected camera'}. ${liveMotion.detail || ''}` +
@@ -110,7 +128,7 @@
     const grid = $('surveillance-grid');
     grid.replaceChildren();
     if (!cameras.length) {
-      grid.innerHTML = '<p class="small muted">No cameras saved. Use the Cameras tab to add a real RTSP or Linux USB device; no automatic discovery or connection.</p>';
+      grid.innerHTML = '<p class="small muted">No saved cameras. Open Cameras to choose a detected Linux USB webcam or enter a private RTSP stream; no camera will connect automatically.</p>';
       return;
     }
     cameras.forEach(camera => {
@@ -182,6 +200,10 @@
         $('surveillance-source').value = camera.type;
         updateSource();
         $('surveillance-usb').value = camera.type === 'USB' ? camera.host : '';
+        if (camera.type === 'USB') {
+          if (!usbCandidates.some(device => device.path === camera.host)) {usbManual=true;showUsbManual();}
+          else {$('surveillance-usb-choice').value = camera.host;}
+        }
         editing = camera.id;
         $('surveillance-name').value = camera.name;
         $('surveillance-url').value = '';
@@ -260,15 +282,12 @@
       showInventory();
       showMotionHistory(data.motion || {scans: [], events: []});
       $('surveillance-capabilities').textContent = `FFmpeg: ${data.capabilities.ffmpeg}. On-demand preview: ${data.capabilities.rtsp_mjpeg_preview ? 'available (2 feeds)' : 'unavailable'}. RTSP diagnostics: ${data.capabilities.rtsp_diagnostics ? 'available' : 'ffprobe missing'}. USB devices found: ${data.capabilities.usb_devices.length}. Live motion monitoring is opt-in, one camera and a maximum 20-minute session. ONVIF, Bluetooth pairing and battery telemetry remain unsupported. Saved-video motion review is manual.`;
-      $('surveillance-usb-devices').replaceChildren();
-      for (const path of data.capabilities.usb_devices) {
-        const item = document.createElement('option'); item.value = path;
-        $('surveillance-usb-devices').append(item);
-      }
+      renderUsb(data.capabilities.usb_candidates || []);
       recording.clear();
       for (const item of data.recordings || []) if (item.state === 'RECORDING') recording.add(item.camera_id);
       showInventory();
       showRecordings(data.recordings || [], data.storage || {});
+      showSchedules(data.schedules || {armed:false,schedules:[]});
       status(`${cameras.length} saved camera(s). Inventory refresh did not contact cameras.`);
     } catch (error) { status(`Cannot read local camera inventory: ${error.message}`); }
   }
@@ -278,6 +297,8 @@
     $('surveillance-source').value = 'RTSP';
     updateSource();
     $('surveillance-url').placeholder = 'rtsp://192.168.1.50:554/stream1';
+    $('surveillance-usb-choice').value=''; $('surveillance-usb').value='';
+    usbManual = false; showUsbManual();
     $('surveillance-save').textContent = 'Add camera';
     $('surveillance-cancel').hidden = true;
   }
@@ -286,7 +307,7 @@
     const id = editing;
     const payload = {name: $('surveillance-name').value};
     payload.source_type = $('surveillance-source').value;
-    if (payload.source_type === 'USB') payload.usb_device = $('surveillance-usb').value.trim();
+    if (payload.source_type === 'USB') payload.usb_device = (usbManual ? $('surveillance-usb').value : $('surveillance-usb-choice').value).trim();
     else if (!id || $('surveillance-url').value.trim()) payload.rtsp_url = $('surveillance-url').value.trim();
     try {
       // A changed RTSP URL must not leave a previous stream running.
@@ -301,7 +322,8 @@
     $('surveillance-rtsp-field').hidden = !rtsp;
     $('surveillance-usb-field').hidden = rtsp;
     $('surveillance-url').required = rtsp && !editing;
-    $('surveillance-usb').required = !rtsp;
+    $('surveillance-usb').required = !rtsp && usbManual;
+    $('surveillance-usb-choice').required = !rtsp && !usbManual;
   }
   function showRecordings(items, storage) {
     const grid = $('surveillance-recordings');
@@ -391,6 +413,106 @@
       pane.append(discard); grid.append(pane);
     }
   }
+  function showUsbManual() {
+    $('surveillance-usb-manual-field').hidden = !usbManual;
+    $('surveillance-usb-choice').required = !usbManual && $('surveillance-source').value === 'USB';
+    $('surveillance-usb').required = usbManual && $('surveillance-source').value === 'USB';
+    $('surveillance-usb-manual-toggle').textContent = usbManual ? 'Use detected camera list' : 'Advanced: enter device path';
+  }
+  function renderUsb(devices) {
+    usbCandidates = devices;
+    const select = $('surveillance-usb-choice'), old = select.value;
+    select.replaceChildren();
+    const placeholder=document.createElement('option');placeholder.value='';
+    placeholder.textContent = devices.length ? 'Choose a detected Linux camera…' : 'No Linux video devices found';
+    select.append(placeholder);
+    for (const device of devices) {
+      const option=document.createElement('option');option.value=device.path;
+      option.textContent=`${device.name} · ${device.path}${device.index > 0 ? ' (secondary interface)' : ''}`;
+      select.append(option);
+    }
+    if (old && devices.some(device=>device.path===old)) select.value=old;
+    $('surveillance-usb-status').textContent=devices.length ?
+      `${devices.length} Linux video interface(s) detected. Select the main capture interface; additional entries may be microphone/metadata. Detection is not proof that video can be recorded.` :
+      'No Linux video device is available. On WSL, a webcam connected to Windows is not necessarily passed through to Linux. You can refresh after connecting it.';
+  }
+  async function refreshUsb() {
+    try {const result=await request('/api/surveillance/usb-devices');renderUsb(result.devices || []);}
+    catch(error){$('surveillance-usb-status').textContent=`Could not enumerate Linux devices: ${error.message}`;}
+  }
+  $('surveillance-usb-refresh').addEventListener('click', refreshUsb);
+  $('surveillance-usb-manual-toggle').addEventListener('click',()=>{usbManual=!usbManual;showUsbManual();});
+  $('surveillance-usb-choice').addEventListener('change',()=>{
+    const selected=usbCandidates.find(item=>item.path===$('surveillance-usb-choice').value);
+    if (selected && !editing && !$('surveillance-name').value.trim()) $('surveillance-name').value=selected.name.slice(0,64);
+  });
+  $('surveillance-alert-toggle').addEventListener('change',event=>{
+    alertEnabled=!!event.target.checked;
+    $('surveillance-alert-status').textContent=alertEnabled ?
+      'Local motion alerts enabled for this open app session. Desktop notifications also need browser permission; no external service.' :
+      'Local motion alerts off. Existing event history is retained.';
+  });
+  $('surveillance-alert-permission').addEventListener('click', async()=>{
+    if (typeof Notification === 'undefined') {
+      $('surveillance-alert-status').textContent='Desktop notifications are not supported in this browser. In-app alerts remain available.'; return;
+    }
+    try {
+      const permission=await Notification.requestPermission();
+      $('surveillance-alert-status').textContent=`Browser notification permission: ${permission}. Also enable local alerts above to receive new motion candidates.`;
+    } catch (_) { $('surveillance-alert-status').textContent='Browser notification permission was unavailable. In-app alerts can still work.'; }
+  });
+  const scheduleStatus=text=>{$('surveillance-schedule-status').textContent=text;};
+  function showSchedules(data) {
+    const selected=$('surveillance-schedule-camera').value;
+    const cameraChoice=$('surveillance-schedule-camera');cameraChoice.replaceChildren();
+    const first=document.createElement('option');first.value='';first.textContent='Select saved camera…';cameraChoice.append(first);
+    for (const camera of cameras) {
+      const option=document.createElement('option');option.value=String(camera.id);option.textContent=camera.name;
+      cameraChoice.append(option);
+    }
+    if (cameras.some(camera=>String(camera.id)===selected)) cameraChoice.value=selected;
+    $('surveillance-schedules-arm').disabled=!!data.armed || !(data.schedules || []).length;
+    $('surveillance-schedules-disarm').disabled=!data.armed;
+    scheduleStatus(data.armed ? 'ARMED this session. Saved time windows may start/stop local recording while OpenRF runs. Disarm before leaving.' :
+      'DISARMED. Saved schedules do not connect to cameras. You must explicitly arm each app session.');
+    const list=$('surveillance-schedule-list');list.replaceChildren();
+    if (!(data.schedules || []).length) {const p=document.createElement('p');p.className='small muted';p.textContent='No recording schedules configured.';list.append(p);return;}
+    const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    for (const schedule of data.schedules) {
+      const pane=document.createElement('article');pane.className='surveillance-motion-scan';
+      const camera=cameras.find(camera=>camera.id===schedule.camera_id);
+      const description=document.createElement('p');
+      description.textContent=`${camera ? camera.name : 'Removed camera'} · ${schedule.weekdays.map(day=>days[day]).join(', ')} · ${schedule.start_time}–${schedule.end_time} (${schedule.time_zone}) · ${schedule.state}${schedule.detail ? ' · '+schedule.detail : ''}`;
+      const remove=document.createElement('button');remove.type='button';remove.className='btn outline';remove.textContent='Delete schedule';
+      remove.addEventListener('click',async()=>{
+        if (!confirm('Delete this recurring recording schedule? Any recording it started will stop.')) return;
+        try {await request(`/api/surveillance/schedules/${schedule.id}`,{method:'DELETE'});await refresh();}
+        catch(error){scheduleStatus(`Delete failed: ${error.message}`);}
+      });
+      pane.append(description,remove);list.append(pane);
+    }
+  }
+  const browserTimeZone=Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  $('surveillance-schedule-timezone').textContent=`Recording times use your browser time zone: ${browserTimeZone}. Same-day windows only (end after start).`;
+  $('surveillance-schedule-form').addEventListener('submit',async(event)=>{
+    event.preventDefault();
+    const body={camera_id:Number($('surveillance-schedule-camera').value),
+      weekdays:Array.from(document.querySelectorAll('[data-surveillance-day]:checked'),el=>Number(el.dataset.surveillanceDay)),
+      start_time:$('surveillance-schedule-start').value,end_time:$('surveillance-schedule-end').value,time_zone:browserTimeZone};
+    try {await request('/api/surveillance/schedules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      await refresh();scheduleStatus('Schedule saved. Explicitly arm it for this session to permit automatic recording.');}
+    catch(error){scheduleStatus(`Schedule not saved: ${error.message}`);}
+  });
+  $('surveillance-schedules-arm').addEventListener('click',async()=>{
+    if (!confirm('Arm recording schedules for this OpenRF session? Cameras may connect and record automatically within saved time windows. This never persists across app restart.')) return;
+    try {await request('/api/surveillance/schedules/arm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({armed:true})});await refresh();}
+    catch(error){scheduleStatus(`Could not arm schedules: ${error.message}`);}
+  });
+  $('surveillance-schedules-disarm').addEventListener('click',async()=>{
+    try {await request('/api/surveillance/schedules/arm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({armed:false})});await refresh();}
+    catch(error){scheduleStatus(`Could not disarm schedules: ${error.message}`);}
+  });
+  $('surveillance-schedules-refresh').addEventListener('click',refresh);
   $('surveillance-motion-refresh').addEventListener('click', refresh);
   let cleanupReview = null;
   const cleanupStatus = text => { $('surveillance-cleanup-status').textContent = text; };
@@ -439,6 +561,10 @@
   }
   document.addEventListener('openrf:surveillance-hidden', () => {stopView(); stopMonitorOnLeave();});
   window.addEventListener('pagehide', () => {stopView(); stopMonitorOnLeave();});
-  setInterval(() => {if ($('page-surveillance').classList.contains('active') && ['STARTING','MONITORING','STOPPING'].includes(liveMotion.state)) refresh();}, 4000);
+  setInterval(() => {
+    if (!$('page-surveillance').classList.contains('active')) return;
+    if (activeTab === 'cameras') refreshUsb();
+    if (['STARTING','MONITORING','STOPPING'].includes(liveMotion.state) || alertEnabled || activeTab === 'schedules') refresh();
+  }, 5000);
   if ($('page-surveillance').classList.contains('active')) refresh();
 })();
