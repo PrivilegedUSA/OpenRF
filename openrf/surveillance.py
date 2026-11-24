@@ -71,6 +71,67 @@ def usb_candidates():
     return result
 
 
+# Explicit, bounded controls for saved Linux USB cameras only. No ONVIF guessing,
+# no network discovery, and no automatic movement while listing cameras.
+V4L2_PTZ_AXES = {'pan': 'pan_absolute', 'tilt': 'tilt_absolute', 'zoom': 'zoom_absolute'}
+_PTZ_LINE = re.compile(
+    r'^\s*(pan_absolute|tilt_absolute|zoom_absolute)\s+0x[0-9a-fA-F]+\s+\(int\)\s*:\s*'
+    r'min=(-?\d+)\s+max=(-?\d+)\s+step=(\d+)\s+default=(-?\d+)\s+value=(-?\d+)', re.M)
+
+
+def usb_ptz_controls(device):
+    """User-requested read of V4L2 control ranges, not a stream or motion command."""
+    validate_usb_device(device)
+    binary = shutil.which('v4l2-ctl')
+    if binary is None:
+        return {'supported': False, 'controls': {}, 'detail': 'Install v4l-utils to inspect USB pan, tilt and zoom controls.'}
+    try:
+        proc = subprocess.run([binary, '--device', device, '--list-ctrls'],
+                              capture_output=True, text=True, timeout=5, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return {'supported': False, 'controls': {}, 'detail': 'USB control enumeration failed or timed out.'}
+    if proc.returncode:
+        return {'supported': False, 'controls': {}, 'detail': 'Cannot read V4L2 device controls; check USB access and permissions.'}
+    controls = {}
+    for match in _PTZ_LINE.finditer(proc.stdout):
+        name, minimum, maximum, step, default, value = match.groups()
+        minimum, maximum, step, default, value = map(int, (minimum, maximum, step, default, value))
+        if 0 < step <= 100000 and minimum <= value <= maximum and minimum < maximum:
+            axis = next(k for k, v in V4L2_PTZ_AXES.items() if v == name)
+            controls[axis] = {'min':minimum, 'max':maximum, 'step':step, 'default':default, 'value':value}
+    return {'supported': bool(controls), 'controls': controls,
+            'detail': 'Values reported by V4L2. A control may crop the image electronically rather than physically moving the camera.'
+                      if controls else 'The selected USB device exposes no supported V4L2 pan, tilt or zoom controls.'}
+
+
+def set_usb_ptz(device, command):
+    """One user-requested control step, clamped to an advertised V4L2 range."""
+    validate_usb_device(device)
+    if not isinstance(command, dict) or set(command) != {'axis','step'}:
+        raise SurveillanceError('Provide one pan, tilt or zoom step')
+    axis, direction = command['axis'], command['step']
+    if axis not in V4L2_PTZ_AXES or type(direction) is not int or direction not in (-1, 1):
+        raise SurveillanceError('Only single positive or negative pan, tilt and zoom steps are permitted')
+    available = usb_ptz_controls(device)
+    ctrl = available['controls'].get(axis)
+    if ctrl is None:
+        raise SurveillanceError('This device does not report the requested PTZ control')
+    target = max(ctrl['min'], min(ctrl['max'], ctrl['value'] + direction * ctrl['step']))
+    if target == ctrl['value']:
+        return {'axis': axis, 'value': target, 'state': 'AT_LIMIT'}
+    binary = shutil.which('v4l2-ctl')
+    if not binary:
+        raise SurveillanceError('v4l2-ctl is unavailable')
+    try:
+        proc = subprocess.run([binary, '--device', device, '--set-ctrl', f'{V4L2_PTZ_AXES[axis]}={target}'],
+                              capture_output=True, timeout=5, check=False)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise SurveillanceError('Camera control timed out or could not execute') from exc
+    if proc.returncode:
+        raise SurveillanceError('Camera rejected the requested PTZ change; no movement confirmed')
+    return {'axis': axis, 'value': target, 'state': 'CONTROL_APPLIED',
+            'detail': 'V4L2 control command accepted; physical movement and image change not verified.'}
+
 def camera_public(row):
     source = row['source_type'] or 'RTSP'
     host = urlsplit(row['rtsp_url']).hostname if source == 'RTSP' else row['usb_device']

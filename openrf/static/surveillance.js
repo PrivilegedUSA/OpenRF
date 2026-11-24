@@ -7,6 +7,12 @@
   let editing = null;
   const live = new Map();
   const wallTiles = new Map();
+  const viewport = new Map(); // Per-camera digital crop. This does not move the camera.
+  let latestMedia = [];
+  let latestStorage = {};
+  let latestMotion = {scans: [], events: []};
+  let latestLiveMotionEvents = [];
+
   const paused = new Set(); // Manual pause only lasts for the current Surveillance visit.
   let autoPreviewInitialized = false;
   const checks = new Map();
@@ -59,6 +65,7 @@
   }
   function showLiveMotion(data) {
     const events = data.events || [];
+    latestLiveMotionEvents = events;
     const latest = events.reduce((maximum, item) => Math.max(maximum, Number(item.id) || 0), 0);
     if (lastEventId !== null && alertEnabled) {
       const newest = events.filter(item => Number(item.id) > lastEventId).sort((a,b) => a.id-b.id);
@@ -80,9 +87,11 @@
     $('surveillance-live-motion-status').textContent = statusText;
     $('surveillance-live-motion-stop').hidden = !active;
     const list = $('surveillance-live-motion-events'); list.replaceChildren();
-    if (!events.length) { const p=document.createElement('p');p.className='small muted';
+    const selected = $('surveillance-events-camera').value;
+    const visibleEvents = selected ? events.filter(item=>String(item.camera_id)===selected) : events;
+    if (!visibleEvents.length) { const p=document.createElement('p');p.className='small muted';
       p.textContent='No live motion candidates recorded. Monitoring begins only when you explicitly start it.';list.append(p);return; }
-    for (const item of events) {
+    for (const item of visibleEvents) {
       const card=document.createElement('article');card.className='surveillance-motion-scan';
       const text=document.createElement('p');
       text.textContent=`${item.camera_name} · ${item.detected_utc} · ${(item.changed_fraction*100).toFixed(1)}% sampled pixels changed · ${item.action.replaceAll('_',' ').toLowerCase()} (not person detection)`;
@@ -133,6 +142,7 @@
   function updateLiveHeader() {
     $('surveillance-viewer').hidden = false; // Add camera remains reachable for an empty library.
     $('surveillance-live-title').textContent = `Camera previews · ${live.size} of ${MAX_LIVE} active`;
+    $('surveillance-live-grid').classList.toggle('has-multiple', cameras.length > 1);
     $('surveillance-live-status').textContent = live.size ?
       `${live.size} preview(s) requested. Previewing is separate from recording; ${recording.size} active recording(s) currently reported.` :
       'All previews paused. No camera feed is being requested by this wall.';
@@ -144,16 +154,18 @@
     pane.dataset.cameraName = camera.name;
     pane.querySelector('[data-feed-name]').textContent = camera.name;
     pane.querySelector('[data-feed-type]').textContent = `${camera.type} · ${camera.host}`;
+    pane.querySelector('[data-feed-device-ptz]').hidden = camera.type !== 'USB';
     const viewing = live.has(camera.id);
     const monitor = isMonitoring(camera.id);
     const blocked = ['STARTING','MONITORING','STOPPING'].includes(liveMotion.state) && !monitor;
     pane.querySelector('[data-feed-view]').textContent = viewing ? 'Pause preview' : 'View live';
     pane.querySelector('[data-feed-view]').setAttribute('aria-label', `${viewing ? 'Pause preview for' : 'View live from'} ${camera.name}`);
-    pane.querySelector('[data-feed-record]').textContent = recording.has(camera.id) ? 'Stop recording' : 'Record';
+    pane.querySelector('[data-feed-record]').textContent = recording.has(camera.id) ? '■ Stop' : '● Record';
     pane.querySelector('[data-feed-record]').setAttribute('aria-label', `${recording.has(camera.id) ? 'Stop recording' : 'Start recording'} ${camera.name}`);
-    pane.querySelector('[data-feed-motion]').textContent = monitor ? 'Stop motion clips' : 'Motion clips';
+    pane.querySelector('[data-feed-motion]').textContent = monitor ? 'Stop motion clips' : 'Start motion clips';
     pane.querySelector('[data-feed-motion]').disabled = blocked;
-    pane.querySelector('[data-feed-record-status]').textContent = recording.has(camera.id) ? 'Recording requested' : 'Not recording';
+    pane.querySelector('[data-feed-record-status]').textContent = recording.has(camera.id) ? 'REC · REQUESTED' : viewing ? 'PREVIEW REQUESTED' : 'PREVIEW PAUSED';
+    pane.querySelector('[data-feed-rec-badge]').hidden = !recording.has(camera.id);
     pane.classList.toggle('is-live', viewing);
     pane.classList.toggle('is-recording', recording.has(camera.id));
     if (!viewing) {
@@ -201,6 +213,55 @@
     } catch(error) { status(`Screenshot failed: ${error.message}`); }
     finally { button.disabled = false; }
   }
+  function cropState(id) {
+    if (!viewport.has(id)) viewport.set(id, {zoom:1, x:0, y:0});
+    return viewport.get(id);
+  }
+  function applyCrop(cameraId) {
+    const pane = wallTiles.get(cameraId);
+    if (!pane) return;
+    const state = cropState(cameraId);
+    const limit = 50 * (state.zoom - 1);
+    state.x = Math.max(-limit, Math.min(limit, state.x));
+    state.y = Math.max(-limit, Math.min(limit, state.y));
+    pane.querySelector('img').style.transform = `translate(${state.x}%, ${state.y}%) scale(${state.zoom})`;
+    pane.querySelector('[data-feed-zoom-label]').textContent = `${state.zoom.toFixed(1)}× digital`;
+    pane.querySelector('[data-feed-zoom-reset]').disabled = state.zoom === 1 && !state.x && !state.y;
+    pane.querySelector('[data-feed-media]').classList.toggle('is-zoomed', state.zoom > 1);
+  }
+  function zoomCrop(cameraId, direction) {
+    const state = cropState(cameraId);
+    state.zoom = Math.max(1, Math.min(3, Math.round((state.zoom + direction * 0.25)*100)/100));
+    if (state.zoom === 1) { state.x=0; state.y=0; }
+    applyCrop(cameraId);
+  }
+  function resetCrop(cameraId) {
+    viewport.set(cameraId,{zoom:1,x:0,y:0}); applyCrop(cameraId);
+  }
+  async function readDevicePTZ(camera, pane) {
+    const line = pane.querySelector('[data-feed-device-status]');
+    line.textContent = 'Checking USB camera controls on request…';
+    try {
+      const result = await request(`/api/surveillance/cameras/${camera.id}/ptz`);
+      pane._devicePTZ = result;
+      const controls = result.controls || {};
+      for (const button of pane.querySelectorAll('[data-feed-ptz-axis]')) {
+        button.disabled = !controls[button.dataset.feedPtzAxis];
+      }
+      const available = Object.keys(controls).join(', ');
+      line.textContent = available ? `Device-reported: ${available}. Movement may be electronic, not motorized.` : (result.detail || 'Camera PTZ is not supported.');
+    } catch (error) { line.textContent = `Cannot inspect device controls: ${error.message}`; }
+  }
+  async function moveDevicePTZ(camera, pane, button) {
+    const line = pane.querySelector('[data-feed-device-status]');
+    button.disabled = true;
+    try {
+      const result = await request(`/api/surveillance/cameras/${camera.id}/ptz`, {method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({axis:button.dataset.feedPtzAxis, step:Number(button.dataset.feedPtzStep)})});
+      line.textContent = `${button.dataset.feedPtzAxis}: ${result.value} (device control applied; physical movement not verified)`;
+    } catch(error) { line.textContent = `Device control failed: ${error.message}`; }
+    finally { button.disabled = false; }
+  }
   function ensureWallTile(camera) {
     if (wallTiles.has(camera.id)) return wallTiles.get(camera.id);
     const pane = document.createElement('article');
@@ -208,20 +269,74 @@
     pane.dataset.cameraName = camera.name;
     pane.setAttribute('aria-label', `Camera preview and recording controls for ${camera.name}`);
     pane.innerHTML = `<div class="surveillance-feed-heading"><div class="surveillance-feed-ident"><strong data-feed-name></strong><span class="small muted" data-feed-type></span></div>
-      <div class="button-line"><span class="surveillance-recording-indicator" data-feed-record-status>Not recording</span><button class="btn outline" type="button" data-feed-fullscreen>Full screen</button></div></div>
-      <div class="surveillance-feed-media"><img alt="Live webcam or network camera frames; video may be unavailable" /><div class="surveillance-feed-placeholder" data-feed-placeholder>Preview inactive</div></div>
-      <div class="surveillance-feed-controls button-line"><button class="btn outline" type="button" data-feed-view>View live</button>
-      <button class="btn primary" type="button" data-feed-record>Record</button>
-      <button class="btn outline" type="button" data-feed-snapshot>Screenshot</button>
-      <button class="btn outline" type="button" data-feed-motion title="Opt-in motion detection: frame changes can trigger short locally saved clips, not person detection">Motion clips</button></div>
+      <span class="surveillance-recording-indicator" data-feed-record-status>LIVE PREVIEW</span></div>
+      <div class="surveillance-feed-media" data-feed-media><img alt="Camera frames (video may be unavailable)" draggable="false" />
+      <div class="surveillance-feed-placeholder" data-feed-placeholder>Preview inactive</div>
+      <span class="surveillance-video-rec" data-feed-rec-badge hidden>● REC REQUESTED</span></div>
+      <div class="surveillance-feed-controls"><button class="btn surveillance-rec-button" type="button" data-feed-record>● Record</button>
+      <button class="btn outline" type="button" data-feed-fullscreen>Full screen</button>
+      <button class="btn outline" type="button" data-feed-view>Pause preview</button>
+      <button class="btn outline" type="button" data-feed-history>History</button></div>
+      <details class="surveillance-camera-tools"><summary>Camera tools · Zoom, snapshot, motion, PTZ</summary>
+      <div class="surveillance-camera-tools-inner">
+        <div class="surveillance-camera-tools-row"><button class="btn outline" type="button" data-feed-snapshot>Take screenshot</button>
+        <button class="btn outline" type="button" data-feed-motion title="Opt-in pixel-change detection, not person recognition">Start motion clips</button></div>
+        <div class="surveillance-camera-tools-row" role="group" aria-label="Digital zoom and pan"><span data-feed-zoom-label>1.0× digital</span>
+        <button class="btn outline" type="button" data-feed-zoom-out aria-label="Zoom out digitally">−</button>
+        <button class="btn outline" type="button" data-feed-zoom-in aria-label="Zoom in digitally">+</button>
+        <button class="btn outline" type="button" data-feed-zoom-reset>Reset view</button></div>
+        <p class="small muted">Digital zoom enlarges the preview only. Drag the image when zoomed to pan around; original recordings are unchanged.</p>
+        <details class="surveillance-device-ptz" data-feed-device-ptz><summary>Device pan / tilt / zoom (USB, when available)</summary>
+          <p class="small muted" data-feed-device-status>Open this panel to inspect supported USB camera controls. Physical movement is not guaranteed.</p>
+          <div class="surveillance-camera-tools-row" role="group" aria-label="Device controls">
+          <button class="btn outline" type="button" data-feed-ptz-axis="pan" data-feed-ptz-step="-1" disabled>Pan ◀</button>
+          <button class="btn outline" type="button" data-feed-ptz-axis="pan" data-feed-ptz-step="1" disabled>Pan ▶</button>
+          <button class="btn outline" type="button" data-feed-ptz-axis="tilt" data-feed-ptz-step="1" disabled>Tilt ▲</button>
+          <button class="btn outline" type="button" data-feed-ptz-axis="tilt" data-feed-ptz-step="-1" disabled>Tilt ▼</button>
+          <button class="btn outline" type="button" data-feed-ptz-axis="zoom" data-feed-ptz-step="1" disabled>Device zoom +</button>
+          <button class="btn outline" type="button" data-feed-ptz-axis="zoom" data-feed-ptz-step="-1" disabled>Device zoom −</button></div></details>
+      </div></details>
       <p class="small muted surveillance-feed-note" role="status" data-feed-note>Not connected.</p>`;
     pane.querySelector('[data-feed-fullscreen]').addEventListener('click', () => toggleFullscreen(pane));
     pane.querySelector('[data-feed-view]').addEventListener('click', () => live.has(camera.id) ? stopView(camera.id, true) : view(camera));
     pane.querySelector('[data-feed-record]').addEventListener('click', event => toggleRecording(camera, event.currentTarget));
+    pane.querySelector('[data-feed-history]').addEventListener('click', () => {
+      $('surveillance-recordings-camera').value = String(camera.id);
+      if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+      selectTab('recordings'); showRecordings(latestMedia, latestStorage);
+    });
     pane.querySelector('[data-feed-snapshot]').addEventListener('click', event => captureSnapshot(camera, event.currentTarget));
     pane.querySelector('[data-feed-motion]').addEventListener('click', event => toggleMotion(camera, event.currentTarget));
+    pane.querySelector('[data-feed-zoom-in]').addEventListener('click', () => zoomCrop(camera.id,1));
+    pane.querySelector('[data-feed-zoom-out]').addEventListener('click', () => zoomCrop(camera.id,-1));
+    pane.querySelector('[data-feed-zoom-reset]').addEventListener('click', () => resetCrop(camera.id));
+    let drag = null;
+    const media = pane.querySelector('[data-feed-media]');
+    media.addEventListener('pointerdown', event => {
+      if (cropState(camera.id).zoom <= 1 || event.target !== pane.querySelector('img')) return;
+      drag = {id:event.pointerId,x:event.clientX,y:event.clientY};
+      if (media.setPointerCapture) media.setPointerCapture(event.pointerId);
+    });
+    media.addEventListener('pointermove', event => {
+      if (!drag || drag.id !== event.pointerId) return;
+      const state = cropState(camera.id);
+      const width = media.clientWidth || 1, height = media.clientHeight || 1;
+      state.x += 100 * (event.clientX - drag.x) / width;
+      state.y += 100 * (event.clientY - drag.y) / height;
+      drag.x = event.clientX; drag.y = event.clientY; applyCrop(camera.id);
+    });
+    media.addEventListener('pointerup',()=>{drag=null;});
+    media.addEventListener('pointercancel',()=>{drag=null;});
+    pane.querySelector('[data-feed-device-ptz]').hidden = camera.type !== 'USB';
+    pane.querySelector('[data-feed-device-ptz]').addEventListener('toggle', event => {
+      if (event.currentTarget.open) readDevicePTZ(camera,pane);
+    });
+    for (const button of pane.querySelectorAll('[data-feed-ptz-axis]')) {
+      button.addEventListener('click',()=>moveDevicePTZ(camera,pane,button));
+    }
     wallTiles.set(camera.id, pane);
     $('surveillance-live-grid').append(pane);
+    applyCrop(camera.id);
     updateWallTile(camera);
     return pane;
   }
@@ -237,7 +352,7 @@
     for (const [id, tile] of wallTiles) {
       if (!cameras.some(camera => camera.id === id)) {
         stopView(id);
-        tile.remove(); wallTiles.delete(id); paused.delete(id);
+        tile.remove(); wallTiles.delete(id); paused.delete(id); viewport.delete(id);
       }
     }
     for (const camera of cameras) {
@@ -368,10 +483,26 @@
     updateLiveHeader();
     image.src = `/api/surveillance/cameras/${camera.id}/live`;
   }
+  function updateCameraFilters() {
+    for (const id of ['surveillance-recordings-camera','surveillance-events-camera']) {
+      const select = $(id), previous = select.value;
+      select.replaceChildren();
+      const any = document.createElement('option'); any.value = ''; any.textContent = 'All cameras'; select.append(any);
+      for (const camera of cameras) {
+        const option = document.createElement('option'); option.value = String(camera.id); option.textContent = camera.name; select.append(option);
+      }
+      if (previous && cameras.some(camera => String(camera.id) === previous)) select.value = previous;
+    }
+  }
+  $('surveillance-recordings-camera').addEventListener('change',()=>showRecordings(latestMedia, latestStorage));
+  $('surveillance-events-camera').addEventListener('change',()=>{
+    showMotionHistory(latestMotion); showLiveMotion({status:liveMotion,events:latestLiveMotionEvents});
+  });
   async function refresh() {
     try {
       const data = await request('/api/surveillance');
       cameras = data.cameras || [];
+      updateCameraFilters();
       for (const id of checks.keys()) if (!cameras.some(camera => camera.id === id)) checks.delete(id);
       // Inventory requests are local. The selected Surveillance Overview may open previews after it renders.
       for (const id of Array.from(live.keys())) if (!cameras.some(camera => camera.id === id)) stopView(id);
@@ -426,11 +557,14 @@
     $('surveillance-usb-choice').required = !rtsp && !usbManual;
   }
   function showRecordings(items, storage) {
+    latestMedia = items; latestStorage = storage;
     const grid = $('surveillance-recordings');
     grid.replaceChildren();
+    const selected = $('surveillance-recordings-camera').value;
+    items = selected ? items.filter(entry=>String(entry.camera_id)===selected) : items;
     const fmt = size => Number.isFinite(size) ? `${(size / 1048576).toFixed(1)} MiB` : 'unknown';
     $('surveillance-storage').textContent = `Local media: ${fmt(storage.recording_bytes)} · Disk free: ${fmt(storage.free_bytes)} · Maximum recording: ${storage.max_recording_seconds || '?'} seconds · up to ${storage.max_recordings || '?'} saved items.`;
-    if (!items.length) { const p = document.createElement('p'); p.className='small muted'; p.textContent='No recordings or snapshots saved.'; grid.append(p); return; }
+    if (!items.length) { const p = document.createElement('p'); p.className='small muted'; p.textContent='No recordings or snapshots for this camera selection.'; grid.append(p); return; }
     for (const entry of items) {
       const pane = document.createElement('article'); pane.className='surveillance-recording';
       const line = document.createElement('p');
@@ -472,8 +606,11 @@
     }
   }
   function showMotionHistory(data) {
+    latestMotion = data;
     const grid=$('surveillance-motion-history'); grid.replaceChildren();
-    const scans=data.scans || [], events=data.events || [];
+    const selected = $('surveillance-events-camera').value;
+    const scans=(data.scans || []).filter(item=>!selected || String(item.camera_id)===selected);
+    const events=(data.events || []).filter(item=>!selected || String(item.camera_id)===selected);
     if (!scans.length) {
       const p=document.createElement('p'); p.className='small muted';
       p.textContent='No saved-video motion scans yet. Finish a manual recording, then choose Scan for motion.';

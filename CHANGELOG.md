@@ -1,3 +1,11 @@
+## OpenRF v0.2.187 — Compact Surveillance monitoring, per-camera history and opt-in USB PTZ (2026-11-24)
+
+- Redesigned Surveillance Overview as a video-first wall: a spacious single-camera preview and compact two-column layout for multiple saved cameras, with a clear red Record/Stop button, fullscreen, Pause/Resume and History. Less-frequent snapshot, motion and zoom actions live in a collapsible Camera tools panel. Both fullscreen and the standard wall retain working controls; recording status labels distinguish a *requested* recording from verified media.
+- Added per-camera filtering to Recordings and Motion & Events, plus a direct History button on every camera tile. Existing recordings, SQLite events, local credentials, startup page, map, messaging, navigation and Weather Hub are preserved.
+- Added display-only digital zoom (1–3×), reset and drag-to-pan on compatible browser preview tiles; this does not change camera optics or saved video.
+- Added optional explicitly requested V4L2 USB pan/tilt/zoom controls: `v4l2-ctl` detects supported min/max/step values from the saved `/dev/videoN` camera and executes a single clamped control change. A reported webcam control does not prove motorized PTZ. ONVIF/network-camera PTZ and portable camera pairing are **not** implemented.
+- Tests: 577 Python cases in six non-overlapping passing groups, 149 JavaScript regression files, Chromium mocked-camera interaction, compile/syntax and release packaging checks. Hardware/PTZ, Raspberry Pi and GitHub CI remain unverified. See `docs/RELEASE_0.2.187_TESTS.md`.
+
 ## OpenRF v0.2.186 — Surveillance live-preview wall and fullscreen controls (2026-11-24)
 
 - Surveillance Overview now displays one compact tile for every saved camera, with a real preview inside each tile. Entering Surveillance Overview requests up to **two** saved camera feeds automatically; any additional cameras show a clear paused state and can be started after pausing a feed. The main OpenRF Overview does not contact cameras, and switching Surveillance tabs or leaving Surveillance cancels the preview requests. Manually paused feeds stay paused for that visit and aren't silently restarted by refreshes. No recording starts automatically.

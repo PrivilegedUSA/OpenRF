@@ -78,7 +78,7 @@ from .survey_waypoints import waypoints_geojson
 from .sensor_connections import (connections, ScanReceiptStore, BleScanReceiptStore,
     verified_wifi_observation, verified_ble_observation, browser_location_details)
 
-from .surveillance import SurveillanceStore, SurveillanceError, PreviewSlots, capability_report, probe_camera, validate_usb_device, usb_candidates
+from .surveillance import SurveillanceStore, SurveillanceError, PreviewSlots, capability_report, probe_camera, validate_usb_device, usb_candidates, usb_ptz_controls, set_usb_ptz
 from .surveillance_recording import RecordingManager
 from .surveillance_motion import MotionHistory
 from .surveillance_live_motion import LiveMotionService
@@ -203,6 +203,17 @@ class Handler(BaseHTTPRequestHandler):
                                     'motion': self.server.surveillance_motion.history(),
                                     'live_motion': {'status': self.server.surveillance_live_motion.status(),
                                                     'events': self.server.surveillance_live_motion.history()}})
+        ptz_query = re.fullmatch(r'/api/surveillance/cameras/([1-9][0-9]{0,9})/ptz', path)
+        if ptz_query:
+            if urlparse(self.path).query:
+                return self._error(400, 'Camera controls do not accept query parameters')
+            try:
+                source = self.server.surveillance_store.get_source(int(ptz_query.group(1)))
+                if source['source'] != 'USB':
+                    return self._json(200, {'supported': False, 'controls': {}, 'detail': 'ONVIF / network PTZ is not integrated yet.'})
+                return self._json(200, usb_ptz_controls(source['location']))
+            except SurveillanceError as exc:
+                return self._error(404, str(exc))
         recording_file = re.fullmatch(r'/api/surveillance/recordings/([1-9][0-9]{0,9})/file', path)
         if recording_file:
             if self.headers.get('Sec-Fetch-Site', 'same-origin') not in ('same-origin', 'none') or urlparse(self.path).query not in ('', 'download'):
@@ -1019,6 +1030,17 @@ class Handler(BaseHTTPRequestHandler):
                           self.server.surveillance_recordings.snapshot(camera))
                 return self._json(200, result)
             except SurveillanceError as exc:
+                return self._error(409, str(exc))
+        ptz_action = re.fullmatch(r'/api/surveillance/cameras/([1-9][0-9]{0,9})/ptz', path)
+        if ptz_action:
+            if urlparse(self.path).query:
+                return self._error(400, 'Camera controls do not accept query parameters')
+            try:
+                source = self.server.surveillance_store.get_source(int(ptz_action.group(1)))
+                if source['source'] != 'USB':
+                    raise SurveillanceError('Network camera PTZ is not supported in this release')
+                return self._json(200, set_usb_ptz(source['location'], self._decode_body()))
+            except (SurveillanceError, ValueError, TypeError) as exc:
                 return self._error(409, str(exc))
         probe_match = re.fullmatch(r'/api/surveillance/cameras/([1-9][0-9]{0,9})/probe', path)
         if probe_match:

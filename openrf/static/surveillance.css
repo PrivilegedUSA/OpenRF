@@ -84,3 +84,38 @@
 .surveillance-viewer:fullscreen .surveillance-feed img{max-height:60vh}
 .surveillance-tile{padding:14px 16px;border:1px solid #35616b;border-radius:10px;background:#10212b}
 @media (max-width:640px){.surveillance-live-grid{grid-template-columns:minmax(0,1fr)}.surveillance-feed{padding:12px}.surveillance-feed-controls .btn{flex:1 0 auto}}
+
+/* v0.2.187: camera-first compact monitoring grid and opt-in image controls. */
+.surveillance-live-grid{grid-template-columns:minmax(0,1fr);max-width:880px}
+.surveillance-live-grid.has-multiple{grid-template-columns:repeat(2,minmax(0,1fr));max-width:none;gap:12px}
+.surveillance-feed{padding:12px;gap:9px}
+.surveillance-live-grid.has-multiple .surveillance-feed{padding:10px}
+.surveillance-feed-heading{min-height:26px;gap:8px;align-items:center}
+.surveillance-feed-ident{gap:2px}
+.surveillance-feed-ident .muted{font-size:.72rem}
+.surveillance-feed-media{touch-action:pan-y;cursor:default}
+.surveillance-feed-media.is-zoomed{touch-action:none;cursor:grab}
+.surveillance-feed-media.is-zoomed:active{cursor:grabbing}
+.surveillance-feed-media img{transition:transform .14s ease-out;user-select:none;pointer-events:auto}
+.surveillance-video-rec{position:absolute;top:10px;right:10px;padding:5px 9px;border-radius:7px;background:#a51926;color:white;font-size:.75rem;font-weight:750;letter-spacing:.08em;pointer-events:none}
+.surveillance-video-rec[hidden]{display:none}
+.surveillance-feed-controls{gap:7px!important;display:flex;align-items:center;flex-wrap:wrap}
+.surveillance-feed-controls .btn{min-height:36px;padding:7px 11px;font-size:.82rem}
+.surveillance-feed-controls .surveillance-rec-button{background:#a92233;color:#fff;border:1px solid #c94e5c;font-weight:750}
+.surveillance-feed.is-recording .surveillance-rec-button{background:#651b27}
+.surveillance-recording-indicator{font-size:.68rem}
+.surveillance-camera-tools{border-top:1px solid #2b4b58;padding-top:8px;min-width:0}
+.surveillance-camera-tools>summary,.surveillance-device-ptz>summary{cursor:pointer;font-size:.84rem;color:#afdacb;min-height:30px;list-style:revert}
+.surveillance-camera-tools-inner{display:grid;gap:9px;padding-top:10px}
+.surveillance-camera-tools-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.surveillance-camera-tools-row .btn{min-height:36px;padding:7px 11px}
+.surveillance-camera-tools-row>span{font-size:.85rem;min-width:75px}
+.surveillance-camera-tools-inner>p{margin:0}
+.surveillance-device-ptz{border:1px solid #35616b;border-radius:8px;padding:10px}
+.surveillance-device-ptz .surveillance-camera-tools-row{margin-top:10px}
+.surveillance-history-filter{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0;font-size:.88rem}
+.surveillance-history-filter select{max-width:min(100%,320px)}
+.surveillance-feed:fullscreen .surveillance-feed-media{min-height:140px}
+.surveillance-viewer:fullscreen .surveillance-live-grid{grid-template-columns:minmax(0,1fr)}
+.surveillance-viewer:fullscreen .surveillance-live-grid.has-multiple{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:630px){.surveillance-live-grid.has-multiple{grid-template-columns:minmax(0,1fr)}.surveillance-feed-controls .btn{flex:0 1 auto}.surveillance-live-grid.has-multiple .surveillance-feed{padding:12px}}

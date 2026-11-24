@@ -1,3 +1,7 @@
+## v0.2.187 — Cleaner Surveillance camera wall
+
+Surveillance now uses a compact two-column grid when multiple cameras are saved, with one prominent **● Record** control, simple fullscreen and pause actions, a per-camera History shortcut, and a collapsed **Camera tools** area for snapshots, motion clips and digital preview zoom/drag. Camera-specific history filters appear in Recordings and Motion & Events. For Linux USB webcams, a separate explicitly opened **Device pan / tilt / zoom** panel can inspect and adjust *reported* V4L2 controls using optional `v4l2-ctl` (`v4l-utils`); a device-reported control may be electronic rather than physical movement. The features do not move cameras or record automatically. RTSP/ONVIF PTZ, Bluetooth pairing, portable-camera sleep/wake and hardware validation remain future work. See `docs/RELEASE_0.2.187_TESTS.md` for test details and limitations.
+
 ## v0.2.186 — Surveillance preview wall and fullscreen controls
 
 **Surveillance → Overview** now displays compact preview tiles for every saved camera. Opening Surveillance Overview requests up to two live feeds, without a separate View live step. More than two saved cameras remain visible but paused until a slot opens. Entering the **main OpenRF Overview** does not connect cameras; opening other Surveillance tabs or leaving Surveillance stops preview requests. Pausing a preview won't cause it to restart on subsequent status refreshes. A preview is not a recording.
