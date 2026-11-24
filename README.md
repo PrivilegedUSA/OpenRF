@@ -1,3 +1,7 @@
+## v0.2.190 — Watch a USB camera while manually recording (experimental)
+
+Surveillance now uses one USB camera capture reader for simultaneous manual MP4 recording and sampled on-screen MJPEG preview. The file is finalized when you press Stop & save. The browser preview may briefly reconnect when recording starts/stops; pause live viewing without interrupting a recording. User-triggered USB recording still releases the prior FFmpeg preview reader before it takes the device, but the **recorder's own shared output** supplies the replacement preview. This is not yet verified with actual NexiGo or Raspberry Pi hardware. Recording-history video and actions remain within the card, and the Pause overlay now sits immediately right of the centered Record button. See `docs/RELEASE_0.2.190_TESTS.md`.
+
 ## v0.2.189 — Cleaner Surveillance controls and USB recording compatibility
 
 Surveillance previews now show centered Record, Pause, Snapshot, opt-in Motion and History overlays, with separate digital zoom and supported camera PTZ on the right. History cards have bottom-aligned actions. The local server releases a USB camera's preview before user-requested recording or screenshots, so preview and capture are less likely to compete for `/dev/video0`; recording still requires stopping to finalize the MP4. No background recording has been enabled. The NexiGo/PTZ hardware behavior of this patch is not yet verified; see `docs/RELEASE_0.2.189_TESTS.md`.

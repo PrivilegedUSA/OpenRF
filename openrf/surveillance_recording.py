@@ -9,6 +9,7 @@ import sqlite3
 import subprocess
 import threading
 import time
+from queue import Queue, Empty, Full
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -30,6 +31,91 @@ def _input_args(source, location):
     raise SurveillanceError('Unsupported camera source')
 
 
+class SharedUSBPreview:
+    """Drain ONE USB FFmpeg reader and relay sampled MJPEG frames to local viewers.
+
+    Recorder owns the only V4L2 capture handle. A missing/slow browser cannot
+    stall recording; each subscriber receives up to two complete recent frames.
+    No capture starts here and nothing is persisted by the preview relay.
+    """
+    BOUNDARY = b'--openrf\r\n'
+
+    def __init__(self, process):
+        self.process = process
+        self.lock = threading.Lock()
+        self.listeners = set()
+        self.closed = threading.Event()
+        self.thread = threading.Thread(target=self._pump, name='OpenRF-USB-MJPEG-relay', daemon=True)
+        self.thread.start()
+
+    def _deliver(self, frame):
+        with self.lock:
+            listeners = tuple(self.listeners)
+        for listener in listeners:
+            try:
+                listener.put_nowait(frame)
+            except Full:
+                try:
+                    listener.get_nowait()  # Drop an OLD frame, never hold up the encoder.
+                    listener.put_nowait(frame)
+                except (Empty, Full):
+                    pass
+
+    def _pump(self):
+        pending = bytearray()
+        try:
+            while True:
+                chunk = self.process.stdout.read(16384)
+                if not chunk:
+                    break
+                pending.extend(chunk)
+                # Multipart MJPEG emitted by FFmpeg; only publish complete frames.
+                while True:
+                    start = pending.find(self.BOUNDARY)
+                    if start < 0:
+                        if len(pending) > 3 * 1024 * 1024:
+                            pending.clear()  # refuse unbounded data on corrupt output
+                        break
+                    if start:
+                        del pending[:start]
+                    next_frame = pending.find(self.BOUNDARY, len(self.BOUNDARY))
+                    if next_frame < 0:
+                        if len(pending) > 3 * 1024 * 1024:
+                            pending.clear()
+                        break
+                    frame = bytes(pending[:next_frame])
+                    del pending[:next_frame]
+                    if 24 < len(frame) <= 3 * 1024 * 1024 and b'content-type: image/jpeg' in frame[:200].lower():
+                        self._deliver(frame)
+        except (OSError, ValueError):
+            pass
+        finally:
+            try:
+                self.process.stdout.close()
+            except (OSError, ValueError, AttributeError):
+                pass
+            self.closed.set()
+
+    def stream_to(self, output):
+        listener = Queue(maxsize=2)
+        with self.lock:
+            self.listeners.add(listener)
+        try:
+            while not self.closed.is_set() or not listener.empty():
+                try:
+                    frame = listener.get(timeout=0.5)
+                except Empty:
+                    continue
+                try:
+                    output.write(frame)
+                    output.flush()
+                except (BrokenPipeError, ConnectionResetError, OSError):
+                    break
+        finally:
+            with self.lock:
+                self.listeners.discard(listener)
+
+
 class RecordingManager:
     def __init__(self, db_path):
         self.db_path = Path(db_path)
@@ -37,6 +123,7 @@ class RecordingManager:
         self.folder.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.lock = threading.RLock()
         self.active = {}
+        self.shared_usb = {}  # only while a user-requested manual USB recording is active
         self.preview_stopper = None  # Configured by the local server; no background capture.
         with self._db() as db:
             db.execute('''CREATE TABLE IF NOT EXISTS surveillance_recordings (
@@ -54,6 +141,7 @@ class RecordingManager:
         for cam_id, (ident, proc) in list(self.active.items()):
             if proc.poll() is not None:
                 self.active.pop(cam_id, None)
+                self.shared_usb.pop(cam_id, None)
                 output = self.folder / f'video-{ident:08d}.mp4'
                 valid_output = output.is_file() and output.stat().st_size > 0
                 with self._db() as db:
@@ -81,6 +169,12 @@ class RecordingManager:
         return {'recording_bytes': sum((self.folder / name).stat().st_size for name in names if (self.folder / name).is_file()),
                 'free_bytes': usage.free, 'filesystem_total_bytes': usage.total,
                 'max_recording_seconds': MAX_RECORD_SECONDS, 'max_recordings': MAX_RECORDINGS}
+
+    def shared_preview(self, camera_id):
+        """Return the active relay without opening another USB camera handle."""
+        with self.lock:
+            self._refresh()
+            return self.shared_usb.get(camera_id)
 
     def start(self, camera):
         with self.lock:
@@ -110,10 +204,23 @@ class RecordingManager:
             output = self.folder / filename
             try:
                 # H.264/MP4 maximizes standard browser playback; stop gracefully to write MP4 metadata.
-                proc = subprocess.Popen([shutil.which('ffmpeg'), '-nostdin', '-hide_banner', '-loglevel', 'error', '-y',
-                    *_input_args(camera['source'], camera['location']), '-t', str(MAX_RECORD_SECONDS),
-                    '-an', '-sn', '-dn', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
-                    '-movflags', '+faststart', '-f', 'mp4', str(output)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                usb = camera['source'] == 'USB'
+                # Single V4L2 opening: FFmpeg writes H.264 MP4 and sends a sampled
+                # MJPEG preview to stdout. The drain thread MUST run even with zero
+                # browser clients so a slow/missing viewer never blocks recording.
+                command = [shutil.which('ffmpeg'), '-nostdin', '-hide_banner', '-loglevel', 'error', '-y',
+                           *_input_args(camera['source'], camera['location']),
+                           '-map', '0:v:0', '-t', str(MAX_RECORD_SECONDS), '-an', '-sn', '-dn',
+                           '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
+                           '-movflags', '+faststart', '-f', 'mp4', str(output)]
+                if usb:
+                    command += ['-map', '0:v:0', '-t', str(MAX_RECORD_SECONDS), '-an', '-sn', '-dn',
+                                '-vf', 'fps=2,scale=960:-2', '-q:v', '6', '-f', 'mpjpeg',
+                                '-boundary_tag', 'openrf', 'pipe:1']
+                proc = subprocess.Popen(command, stdout=subprocess.PIPE if usb else subprocess.DEVNULL,
+                                        stderr=subprocess.DEVNULL, start_new_session=True)
+                if usb:
+                    self.shared_usb[camera['id']] = SharedUSBPreview(proc)
             except (OSError, SurveillanceError):
                 with self._db() as db:
                     db.execute("UPDATE surveillance_recordings SET state='FAILED', ended_utc=? WHERE id=?", (_now(), ident))
@@ -129,6 +236,7 @@ class RecordingManager:
             if not entry:
                 raise SurveillanceError('No active recording for this camera')
             ident, proc = entry
+            shared = self.shared_usb.pop(camera_id, None)
             if proc.poll() is None:
                 try:
                     os.killpg(proc.pid, signal.SIGINT)
@@ -139,6 +247,8 @@ class RecordingManager:
                 except subprocess.TimeoutExpired:
                     proc.kill()
                     proc.wait(timeout=3)
+            if shared is not None:
+                shared.closed.wait(timeout=2)
             output = self.folder / f'video-{ident:08d}.mp4'
             bytes_written = output.stat().st_size if output.is_file() else 0
             state = 'STOPPED' if bytes_written and proc.returncode in (0, 255) else 'FAILED'

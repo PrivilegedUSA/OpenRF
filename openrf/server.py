@@ -277,11 +277,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self._error(404, str(exc))
             if not capability_report()['rtsp_mjpeg_preview']:
                 return self._error(503, 'FFmpeg is missing')
+            shared_usb = None
             if camera['source'] == 'USB':
-                with self.server.surveillance_recordings.lock:
-                    self.server.surveillance_recordings._refresh()
-                    if camera['id'] in self.server.surveillance_recordings.active:
-                        return self._error(409, 'USB preview is paused during recording; stop and save before viewing again')
+                shared_usb = self.server.surveillance_recordings.shared_preview(camera['id'])
+                if shared_usb is None:
+                    with self.server.surveillance_recordings.lock:
+                        if camera['id'] in self.server.surveillance_recordings.active:
+                            return self._error(409, 'USB recording preview is unavailable; recording is still in progress')
             if not self.server.surveillance_previews.semaphore.acquire(blocking=False):
                 return self._error(429, 'Maximum two live previews; close another view first')
             self.send_response(200)
@@ -292,9 +294,15 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.close_connection = True
             try:
-                self.server.surveillance_previews.run(camera['location'], self.wfile, reserved=True, source=camera['source'], camera_id=camera['id'])
+                if shared_usb is not None:
+                    shared_usb.stream_to(self.wfile)  # same camera capture as USB recording
+                else:
+                    self.server.surveillance_previews.run(camera['location'], self.wfile, reserved=True, source=camera['source'], camera_id=camera['id'])
             except SurveillanceError:
                 pass
+            finally:
+                if shared_usb is not None:
+                    self.server.surveillance_previews.semaphore.release()
             return
         if path.startswith('/api/emergency/attempts/'):
             ident=path.rsplit('/',1)[-1]

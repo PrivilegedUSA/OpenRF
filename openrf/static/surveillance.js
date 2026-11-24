@@ -32,7 +32,7 @@
   let latestLiveMotionEvents = [];
 
   const paused = new Set(); // Manual pause only lasts for the current Surveillance visit.
-  const usbPreviewResume = new Set(); // Remember previews paused solely to free a USB capture device.
+  const usbPreviewResume = new Set(); // Preview was open before USB recording; restore it after stop.
   let autoPreviewInitialized = false;
   const checks = new Map();
   const recording = new Set();
@@ -189,7 +189,7 @@
     setCameraIcon(pane.querySelector('[data-feed-record]'), recording.has(camera.id) ? 'stop' : 'record');
     pane.querySelector('[data-feed-record]').title = recording.has(camera.id) ? 'Stop and save recording' : 'Start local recording';
     pane.querySelector('[data-feed-record]').setAttribute('aria-pressed', String(recording.has(camera.id)));
-    pane.querySelector('[data-feed-view]').disabled = recording.has(camera.id) && camera.type === 'USB';
+    pane.querySelector('[data-feed-view]').disabled = false; // USB recording shares its capture reader with preview.
     pane.querySelector('[data-feed-snapshot]').disabled = recording.has(camera.id) && camera.type === 'USB';
     pane.querySelector('[data-feed-record]').setAttribute('aria-label', `${recording.has(camera.id) ? 'Stop and save recording for' : 'Start recording from'} ${camera.name}`);
     setCameraIcon(pane.querySelector('[data-feed-motion]'), monitor ? 'stop' : 'activity');
@@ -199,7 +199,7 @@
     pane.querySelector('[data-feed-motion]').disabled = blocked;
     const media = recordingInfo.get(camera.id);
     const capture = recording.has(camera.id);
-    pane.querySelector('[data-feed-view]').title = capture && camera.type === 'USB' ? 'USB preview paused during recording' : viewing ? 'Pause preview' : 'Resume preview';
+    pane.querySelector('[data-feed-view]').title = viewing ? 'Pause preview' : 'Resume preview';
     pane.querySelector('[data-feed-record-status]').textContent = capture ? (media && media.bytes > 0 ? 'REC · WRITING FILE' : 'REC · STARTING') : viewing ? ({READY:'LIVE FRAMES',FAILED:'PREVIEW FAILED'}[previewState.get(camera.id)] || 'PREVIEW REQUESTED') : 'PREVIEW PAUSED';
     pane.querySelector('[data-feed-rec-badge]').textContent = capture ? (media && media.bytes > 0 ? '● REC · UNFINALIZED' : '● REC · STARTING') : '';
     pane.querySelector('[data-feed-rec-badge]').hidden = !capture;
@@ -210,7 +210,7 @@
     if (!viewing) {
       pane.querySelector('[data-feed-placeholder]').hidden = false;
       pane.querySelector('[data-feed-placeholder]').textContent = recording.has(camera.id) && camera.type === 'USB' ?
-        'USB preview released for recording. Stop & save to return to live view.' : paused.has(camera.id) ?
+        'Preview paused. Recording can continue without live viewing.' : paused.has(camera.id) ?
         'Preview paused. Select View live to resume.' :
         'Preview inactive. Up to two cameras can show live frames at once.';
       pane.querySelector('[data-feed-note]').textContent = 'Not connected or tested by this preview.';
@@ -225,7 +225,7 @@
     const needsPreviewPause = !stopping && camera.type === 'USB' && live.has(camera.id);
     if (needsPreviewPause) {
       usbPreviewResume.add(camera.id);
-      stopView(camera.id); // One V4L2 reader at a time; server also closes any other local preview client.
+      stopView(camera.id); // Release old USB reader; recorder will provide its OWN preview from one capture.
     }
     try {
       const result = await request(`/api/surveillance/cameras/${camera.id}/${stopping ? 'stop' : 'record'}`, {method:'POST'});
@@ -235,10 +235,14 @@
           `Recording ended with ${result.state || 'unknown'} status. See History for details; no playable video is assumed.`);
       } else {
         recording.add(camera.id);
-        status(`Capture requested for ${camera.name}. Stop & save to finalize the MP4. The USB preview is paused while capturing.`);
+        status(`Capture requested for ${camera.name}. Stop & save finalizes the MP4. USB preview now uses the recording's shared capture.`);
       }
       await refresh();
-      if (stopping && usbPreviewResume.delete(camera.id) && overviewVisible()) view(camera);
+      if (!stopping && needsPreviewPause && usbPreviewResume.has(camera.id) && overviewVisible()) view(camera);
+      if (stopping && camera.type === 'USB') {
+        usbPreviewResume.delete(camera.id);
+        if (overviewVisible() && live.has(camera.id)) { stopView(camera.id); view(camera); }
+      }
     } catch(error) {
       status(`Recording action failed: ${error.message}`);
       if (needsPreviewPause && usbPreviewResume.delete(camera.id) && overviewVisible()) view(camera);
@@ -336,10 +340,10 @@
       <div class="surveillance-overlay-top"><span class="surveillance-video-rec" data-feed-rec-badge hidden></span>
         <button class="surveillance-overlay-button surveillance-expand" type="button" data-feed-fullscreen aria-label="Expand camera" title="Expand camera">${cameraIcon('expand')}</button></div>
       <div class="surveillance-overlay-bottom" role="group" aria-label="Camera live controls">
-        <button class="surveillance-overlay-button" type="button" data-feed-view title="Pause preview" aria-label="Pause preview">${cameraIcon('pause')}</button>
+        <button class="surveillance-overlay-button surveillance-motion-button" type="button" data-feed-motion title="Start motion clips" aria-label="Start motion-triggered clips">${cameraIcon('activity')}</button>
         <button class="surveillance-overlay-button" type="button" data-feed-snapshot title="Save snapshot" aria-label="Save snapshot">${cameraIcon('camera')}</button>
         <button class="surveillance-overlay-button surveillance-record-circle" type="button" data-feed-record aria-label="Start recording" title="Start recording">${cameraIcon('record')}</button>
-        <button class="surveillance-overlay-button surveillance-motion-button" type="button" data-feed-motion title="Start motion clips" aria-label="Start motion-triggered clips">${cameraIcon('activity')}</button>
+        <button class="surveillance-overlay-button" type="button" data-feed-view title="Pause preview" aria-label="Pause preview">${cameraIcon('pause')}</button>
         <button class="surveillance-overlay-button" type="button" data-feed-history title="Camera history" aria-label="Camera history">${cameraIcon('history')}</button>
       </div>
       <div class="surveillance-overlay-zoom" role="group" aria-label="Digital zoom and camera movement">
@@ -533,7 +537,7 @@
   function view(camera) {
     if (live.has(camera.id)) return;
     if (!overviewVisible()) return;
-    if (camera.type === 'USB' && recording.has(camera.id)) { status(`Stop recording ${camera.name} before opening its USB preview.`); return; }
+    // USB recordings can now provide their own preview stream without a second V4L2 reader.
     if (live.size >= MAX_LIVE) {
       status(`Only ${MAX_LIVE} concurrent previews are supported. Pause a feed before opening another.`);
       return;

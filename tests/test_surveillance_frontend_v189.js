@@ -10,7 +10,7 @@ for (const marker of markers) assert(js.includes(marker),`missing ${marker}`);
 assert.match(js,/const ICON_PATHS =/);
 assert.match(js,/const cameraIcon = name =>/);
 assert.match(js,/usbPreviewResume\.add\(camera\.id\)/);
-assert.match(js,/stopView\(camera\.id\); \/\/ One V4L2 reader at a time/);
+assert.match(js,/stopView\(camera\.id\); \/\/ Release old USB reader/);
 assert.match(js,/const actions = document\.createElement\('div'\); actions\.className='surveillance-recording-actions'/);
 assert.match(js,/actionsLeft\.append\(scan\)/);
 assert.match(js,/actionsRight\.append\(link\)/);

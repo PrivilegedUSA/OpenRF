@@ -194,3 +194,10 @@
 @media (max-width:480px){.surveillance-recording-actions{align-items:stretch}.surveillance-recording-actions-left,.surveillance-recording-actions-right{width:100%}.surveillance-recording-actions-right{justify-content:flex-end}}
 /* The magnification badge must not take a grid slot in the small camera tiles. */
 .surveillance-overlay-zoom .surveillance-zoom-display{position:absolute;right:0;bottom:calc(100% + 4px);pointer-events:none;white-space:nowrap}
+
+/* v0.2.190: constrain media to its card at every viewport width. */
+.surveillance-recordings{grid-template-columns:minmax(0,1fr);min-width:0;width:100%;max-width:100%}
+.surveillance-recording{box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1fr);width:100%;max-width:100%;min-width:0;overflow:hidden}
+.surveillance-recording > *{min-width:0;max-width:100%;box-sizing:border-box}
+.surveillance-recording .surveillance-playback{display:block;justify-self:center;align-self:center;width:100%;max-width:640px;min-width:0;max-height:320px;object-fit:contain}
+.surveillance-recording-actions{min-width:0;max-width:100%;box-sizing:border-box}
