@@ -1,3 +1,7 @@
+## v0.2.193 — Clearer Surveillance recording-history controls
+
+Surveillance → Recordings now gives an expanded video/snapshot more breathing room above its player. Sortable table headers permanently show both up/down chevrons; the selected direction is emphasized. The recording list, existing camera and date filters, playback, download, and retention controls work as before. No webcam, audio or capture engine changes. See `docs/RELEASE_0.2.193_TESTS.md`.
+
 ## v0.2.192 — Surveillance recording previews, filtering and optional audio
 
 Surveillance → Recordings now shows small thumbnails from the beginning of finalized videos. Click a row's preview or date to open playback **inline under that row**; another selection closes the previous player. Click Date/time, Camera, Type, Status or Size to sort; filter by Today, Last 7 days, Last 30 days or All time, alongside the existing camera filter. In Surveillance → Cameras, **Include audio** is off by default: RTSP may include a track if the stream provides one, and USB cameras require selecting a separate ALSA microphone (not necessarily exposed in WSL). Audio in the saved file is verified with FFprobe when installed; playback includes standard browser volume controls. Capturing live audio, audio-device compatibility and NexiGo behavior have not been verified on physical hardware. See `docs/RELEASE_0.2.192_TESTS.md`.

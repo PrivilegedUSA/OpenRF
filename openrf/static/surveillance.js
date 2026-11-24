@@ -804,8 +804,21 @@
       if(key) {
         th.setAttribute('aria-sort',recordingSortKey===key?(recordingSortDesc?'descending':'ascending'):'none');
         const button=document.createElement('button');button.type='button';button.className='surveillance-sort-button';
-        button.textContent=label+(recordingSortKey===key?(recordingSortDesc?' ↓':' ↑'):'');
-        button.setAttribute('aria-label',`Sort recordings by ${label}`);
+        button.append(document.createTextNode(label));
+        // Always show BOTH directions; highlight the active sort direction.
+        const chevrons=document.createElementNS('http://www.w3.org/2000/svg','svg');
+        chevrons.setAttribute('viewBox','0 0 14 18');
+        chevrons.setAttribute('class','surveillance-sort-chevrons');
+        chevrons.setAttribute('aria-hidden','true');
+        for(const [direction,points] of [['up','2,7 7,2 12,7'],['down','2,11 7,16 12,11']]){
+          const arrow=document.createElementNS('http://www.w3.org/2000/svg','polyline');
+          arrow.setAttribute('points',points);
+          arrow.setAttribute('class',`surveillance-sort-${direction}`);
+          chevrons.append(arrow);
+        }
+        if(recordingSortKey===key) button.classList.add(recordingSortDesc?'is-sorted-desc':'is-sorted-asc');
+        button.append(chevrons);
+        button.setAttribute('aria-label',`Sort recordings by ${label}${recordingSortKey===key?`, currently ${recordingSortDesc?'descending':'ascending'}`:''}`);
         button.addEventListener('click',()=>{
           if(recordingSortKey===key) recordingSortDesc=!recordingSortDesc;
           else {recordingSortKey=key;recordingSortDesc=key==='started_utc'||key==='bytes';}

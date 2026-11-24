@@ -1,4 +1,4 @@
-/* OpenRF v0.2.192 weather hub — opt-in local recording and source-tagged history. */
+/* OpenRF v0.2.193 weather hub — opt-in local recording and source-tagged history. */
 (() => {
   'use strict';
   const el = id => document.getElementById(id);

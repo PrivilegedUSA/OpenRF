@@ -227,9 +227,17 @@
 .surveillance-recording-table .surveillance-sort-button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;white-space:nowrap;text-align:left}
 .surveillance-recording-table .surveillance-sort-button:hover{text-decoration:underline}
 .surveillance-recording-table .surveillance-sort-button:focus-visible{outline:2px solid #34c9b1;outline-offset:3px}
-.surveillance-recording-table .surveillance-expanded-row>td{padding:0 12px 15px;background:#10252e}
+.surveillance-recording-table .surveillance-expanded-row>td{padding:14px 12px 15px;background:#10252e}
 .surveillance-recording-table .surveillance-expanded-row:hover{background:#10252e}
 .surveillance-recording-table .surveillance-recording-detail{margin:0;max-width:100%;width:100%;min-width:0}
 .surveillance-audio-options{margin:8px 0 14px}
 .surveillance-audio-options #surveillance-audio-usb{margin:10px 0 0}
 .surveillance-audio-options[hidden],#surveillance-audio-usb[hidden]{display:none!important}
+
+/* v0.2.193: visible bidirectional sort cues, with the active direction accented. */
+.surveillance-recording-table .surveillance-sort-button{display:inline-flex;align-items:center;gap:8px;min-height:24px;line-height:1.25}
+.surveillance-recording-table .surveillance-sort-chevrons{width:15px;height:19px;flex:0 0 15px;overflow:visible;vertical-align:middle}
+.surveillance-recording-table .surveillance-sort-chevrons polyline{fill:none;stroke:#9ebbc5;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.72}
+.surveillance-recording-table .is-sorted-asc .surveillance-sort-up,
+.surveillance-recording-table .is-sorted-desc .surveillance-sort-down{stroke:#34c9b1;opacity:1;stroke-width:2.5}
+.surveillance-recording-table .surveillance-sort-button:hover .surveillance-sort-chevrons polyline{opacity:1}

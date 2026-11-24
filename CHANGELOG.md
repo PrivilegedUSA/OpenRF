@@ -1,3 +1,9 @@
+## OpenRF v0.2.193 — Surveillance recording history spacing and clear sorting (2026-11-24)
+
+- **Expanded playback spacing:** add 14px above the selected recording's inline player, matching the existing space below. Only the selected history row is affected; compact and touchscreen layouts remain within the scrolling table.
+- **Always-visible sorting:** Date/time, Camera, Type, Status and Size headings now show paired up/down chevrons even before sorting. The active direction is teal, and column headers retain `aria-sort` and keyboard-operable buttons. The underlying sorting and date/camera filtering behavior is unchanged.
+- **Safety:** display-only update; no camera connections, recording, media storage, credentials or database migrations changed. Includes focused JS regression checks. No actual webcam, Pi or installation tests. See `docs/RELEASE_0.2.193_TESTS.md`.
+
 ## OpenRF v0.2.192 — In-row recording playback, sortable history and optional audio (2026-11-24)
 
 - **Local media history:** completed MP4 videos now have first-frame JPEG thumbnails generated from existing private recordings only on request. Select a thumbnail or date to expand playback directly under that row; select again to collapse or another to switch. Routine status polls preserve the currently expanded player. No prerecorded image is presented as a live stream.
