@@ -1,3 +1,11 @@
+## OpenRF v0.2.178 — Surveillance inventory and user-started RTSP previews (2026-11-24)
+
+- Added the separate **Surveillance** workspace with add/edit/rename/remove of real RTSP camera configurations in the existing private OpenRF SQLite database. No relation to ALPR/Flock camera map layers. Saved entries show **NOT CHECKED**; inventory refresh never opens a stream or discovers a camera.
+- Added **View live** and **Stop viewing** controls for supported private IPv4 RTSP cameras with optional FFmpeg, transcoded into a local 2-fps MJPEG `<img>` preview, with at most two previews. No video is simulated; failure leaves a blank/error state. Navigating away drops the preview connection. Full-screen touchscreen view is available.
+- Bound all endpoints to the existing local HTTP server, restrict preview to same-origin, reject public/localhost/link-local IPv4 source URLs, do not expose stored credentials via JSON, and keep all configurations outside Git. Plaintext RTSP URL credentials in SQLite and local process arguments remain a limitation; use dedicated, read-only camera credentials.
+- **Not implemented in v0.2.178:** USB camera monitoring, ONVIF negotiation/discovery, multiple-camera streaming grid, recordings/playback, screenshots, storage retention, motion detection, PTZ, battery telemetry and portable Bluetooth/hotspot pairing. The Mesh Network Dashboard is the next development priority and not included in this patch.
+- **544 Python tests and 141 JavaScript suites passed in local grouped regressions**, plus compilation and syntax checks. Source-level Python/API and JavaScript tests added. No physical camera, Raspberry Pi, ONVIF, Windows PowerShell updater, WSL networking or CI release push was tested. See `docs/RELEASE_0.2.178_TESTS.md`.
+
 ## OpenRF v0.2.170 — Sidebar, weather gateway reads and icon cleanup (2026-11-21)
 
 - Reordered the left sidebar to **Overview → Messages → Map → Emergency → Analysis → Signal Viewer → Radio Receiver → Ham Radio → Sessions → Hardware → Web Browser → Weather Station → Trips & Maps → Saved**. Messages retains distinct Meshtastic, Reticulum and MeshCore subpages; App Settings remains in the footer. No default page, existing radio action or protocol data flow was changed.

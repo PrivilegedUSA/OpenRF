@@ -2,6 +2,13 @@
 
 OpenRF's original project source is licensed **GPL-3.0-or-later**; see the complete [GNU GPLv3 license text](LICENSE). Individually bundled or optional third-party components retain their own copyright and license notices.
 
+## v0.2.178 — Surveillance: camera inventory and opt-in RTSP previews
+
+- Added a distinct **Surveillance** sidebar workspace (not the ALPR/Flock map layer), persistent private SQLite camera inventory and add/rename/edit/remove controls. Saved network identities are reported **NOT CHECKED**, never as live/connected.
+- Added optional local FFmpeg RTSP-to-MJPEG live preview, started only by tapping **View live**. At most two concurrent streams and two frames per second, bounded to private IPv4 addresses; closes when leaving Surveillance. Missing FFmpeg or unresponsive camera does not result in fake footage. Preview is a low-frame-rate *actual* stream, not a high-performance full video player.
+- Credentials in RTSP URLs stay in the user's SQLite file and are omitted from API camera inventory, but are **not encrypted at rest** and can be visible to the local OS process administrator while FFmpeg runs. Use a dedicated camera account. No automatic recording, USB/ONVIF discovery, hotspot pairing, alerts, or unattended probing is implemented yet.
+- Includes isolated storage/HTTP/security and frontend regression checks, release packaging and verification notes in `docs/RELEASE_0.2.178_TESTS.md`. **No physical camera, Raspberry Pi, WSL LAN video feed or Debian installer test is claimed.**
+
 ## v0.2.177 — Verify native Linux Debian installers before distributing
 
 - **Installable OpenRF desktop:** Linux AMD64 and ARM64 `.deb` packaging remains opt-in. It bundles the Electron desktop shell and OpenRF Python/server source, with a normal app menu launcher; the installed OS must supply Python 3.11+ and GUI libraries. The original source ZIP and browser-only WSL experience still work. No automatic startup, LAN exposure or system service is added.

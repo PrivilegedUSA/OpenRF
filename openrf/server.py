@@ -5,6 +5,7 @@ import argparse
 import json
 import logging
 import os
+import re
 import signal
 import tempfile
 import sqlite3
@@ -77,12 +78,16 @@ from .survey_waypoints import waypoints_geojson
 from .sensor_connections import (connections, ScanReceiptStore, BleScanReceiptStore,
     verified_wifi_observation, verified_ble_observation, browser_location_details)
 
+from .surveillance import SurveillanceStore, SurveillanceError, PreviewSlots, capability_report
+
 STATIC_DIR = Path(__file__).resolve().parent / 'static'
 DEFAULT_DB = Path.home() / '.local' / 'share' / 'openrf' / 'openrf.sqlite3'
 
 
 class OpenRFHTTPServer(ThreadingHTTPServer):
     def server_close(self):
+        if hasattr(self, "surveillance_previews"):
+            self.surveillance_previews.close()
         if hasattr(self, 'weather_recorder'):
             self.weather_recorder.close()
         if hasattr(self, 'hotspot_manager') and self.hotspot_manager.state_file.exists():
@@ -177,6 +182,35 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host():
             return self._error(HTTPStatus.FORBIDDEN, 'Loopback-only service')
         path = urlparse(self.path).path
+        if path == '/api/surveillance':
+            return self._json(200, {'cameras': self.server.surveillance_store.list(),
+                                    'capabilities': capability_report()})
+        match = re.fullmatch(r'/api/surveillance/cameras/([1-9][0-9]{0,9})/live', path)
+        if match:
+            if self.headers.get('Sec-Fetch-Site', 'same-origin') not in ('same-origin', 'none'):
+                return self._error(403, 'Camera streams require same-origin navigation')
+            if urlparse(self.path).query:
+                return self._error(400, 'Live view does not accept query parameters')
+            try:
+                url = self.server.surveillance_store.get_url(int(match.group(1)))
+            except SurveillanceError as exc:
+                return self._error(404, str(exc))
+            if not capability_report()['rtsp_mjpeg_preview']:
+                return self._error(503, 'FFmpeg is missing')
+            if not self.server.surveillance_previews.semaphore.acquire(blocking=False):
+                return self._error(429, 'Maximum two live previews; close another view first')
+            self.send_response(200)
+            self.send_header('Content-Type', 'multipart/x-mixed-replace; boundary=openrf')
+            self.send_header('Cache-Control', 'no-store')
+            self.send_header('X-Content-Type-Options', 'nosniff')
+            self.send_header('X-Frame-Options', 'DENY')
+            self.end_headers()
+            self.close_connection = True
+            try:
+                self.server.surveillance_previews.run(url, self.wfile, reserved=True)
+            except SurveillanceError:
+                pass
+            return
         if path.startswith('/api/emergency/attempts/'):
             ident=path.rsplit('/',1)[-1]
             if not ident.isascii() or not ident.isdecimal() or len(ident)>10:
@@ -375,7 +409,6 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError as exc:
                 return self._error(503,str(exc))
         if path.startswith('/api/vector/tiles/'):
-            import re
             m=re.fullmatch(r'/api/vector/tiles/(\d{1,2})/(\d{1,8})/(\d{1,8})\.pbf',path)
             if not m:return self._error(404,'Unknown vector tile')
             try:
@@ -385,7 +418,6 @@ class Handler(BaseHTTPRequestHandler):
             except (ValueError,OSError,sqlite3.Error):
                 return self._error(404,'Vector tile unavailable outside regional coverage')
         if path.startswith('/api/vector/fonts/'):
-            import re
             m=re.fullmatch(r'/api/vector/fonts/([^/]+)/(\d{1,5})-(\d{1,5})\.pbf',path)
             if not m:return self._error(404,'Invalid font request')
             try:
@@ -833,7 +865,7 @@ class Handler(BaseHTTPRequestHandler):
             file = STATIC_DIR / 'index.html'
         elif path == '/static/hardware-tabs.js':
             file = STATIC_DIR / 'hardware-tabs.js'
-        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/browser-workspace.js', '/static/saved-trips.js', '/static/wifi-quick.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/trip-map.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/camera_alerts.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/weather.js', '/static/mesh.js', '/static/meshcore.js', '/static/messaging-tabs.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/reticulum-files.js', '/static/reticulum-tabs.js', '/static/bluetooth-files.js', '/static/camera-layers.js', '/static/chirp-import.js'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/browser-workspace.js', '/static/saved-trips.js', '/static/wifi-quick.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/trip-map.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/camera_alerts.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/weather.js', '/static/mesh.js', '/static/meshcore.js', '/static/messaging-tabs.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/reticulum-files.js', '/static/reticulum-tabs.js', '/static/bluetooth-files.js', '/static/camera-layers.js', '/static/chirp-import.js', '/static/surveillance.js', '/static/surveillance.css'):
             file = STATIC_DIR / Path(path).name
         elif path == '/static/offline-trails.js':
             file = STATIC_DIR / 'offline-trails.js'
@@ -850,6 +882,14 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host() or not self._allowed_origin():
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
+        if path == '/api/surveillance/cameras' or re.fullmatch(r'/api/surveillance/cameras/[1-9][0-9]{0,9}', path):
+            try:
+                body = self._decode_body()
+                match = re.fullmatch(r'/api/surveillance/cameras/([1-9][0-9]{0,9})', path)
+                result = self.server.surveillance_store.save(body, int(match.group(1)) if match else None)
+                return self._json(200 if match else 201, result)
+            except (SurveillanceError, ValueError, TypeError) as exc:
+                return self._error(400, str(exc))
         if path == '/api/terrain/import':
             if self.headers.get('Content-Type','').lower().split(';')[0]!='application/octet-stream':
                 return self._error(415,'Select a local .hgt terrain file')
@@ -1690,6 +1730,9 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host() or not self._allowed_origin():
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
+        match = re.fullmatch(r'/api/surveillance/cameras/([1-9][0-9]{0,9})', path)
+        if match:
+            return self._json(200, {'deleted': self.server.surveillance_store.delete(int(match.group(1)))})
         if path.startswith('/api/terrain/tiles/') and path.count('/')==4:
             try:return self._json(200,remove_terrain_hgt(self.server.terrain_directory,
                                     path.rsplit('/',1)[-1],self.server.terrain_lock))
@@ -1813,6 +1856,8 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
         server.server_close()
         raise
     server.repository = repository
+    server.surveillance_store = SurveillanceStore(repository.path)
+    server.surveillance_previews = PreviewSlots()
     server.weather_store = WeatherStore(repository.path)
     server.emergency_store = EmergencyStore(repository.path)
     server.breadcrumb_store = BreadcrumbStore(repository.path)

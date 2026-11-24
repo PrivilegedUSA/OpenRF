@@ -1,0 +1,14 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const html=fs.readFileSync('openrf/static/index.html','utf8');
+const app=fs.readFileSync('openrf/static/app.js','utf8');
+const ui=fs.readFileSync('openrf/static/surveillance.js','utf8');
+assert.match(html,/data-page="surveillance"/);
+assert.match(html,/id="page-surveillance"/);
+assert.match(html,/id="surveillance-live"/);
+assert.match(app,/openrf:surveillance-hidden/);
+assert.match(app,/openrf:surveillance-shown/);
+assert.match(ui,/removeAttribute\('src'\)/);
+assert.match(ui,/openrf:surveillance-hidden/);
+assert.match(ui,/encode|escapeHtml/);
+console.log('Surveillance frontend integration checks passed');

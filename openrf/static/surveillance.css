@@ -1,0 +1,7 @@
+.surveillance-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:12px;margin:16px 0}
+.surveillance-tile{min-width:0}.surveillance-tile .button-line{flex-wrap:wrap}
+.surveillance-camera-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:12px;align-items:end}
+.surveillance-camera-form label{display:grid;gap:6px}
+.surveillance-viewer{margin:14px 0}.surveillance-viewer img{display:block;max-width:100%;max-height:65vh;object-fit:contain;margin:auto;background:#080d13}
+.surveillance-viewer:fullscreen{background:#101d27;padding:18px;overflow:auto}
+.surveillance-viewer:fullscreen img{max-height:85vh}

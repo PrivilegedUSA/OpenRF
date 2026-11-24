@@ -10,7 +10,8 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.177">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.178">
+  <link rel="stylesheet" href="/static/surveillance.css?v=0.2.178">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -23,11 +24,11 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/map-elevation.js?v=0.2.151"></script>
   <script defer src="/static/battery-status.js?v=0.2.151"></script>
-  <script defer src="/static/wifi-quick.js?v=0.2.177"></script>
+  <script defer src="/static/wifi-quick.js?v=0.2.178"></script>
   <script defer src="/static/route-elevation.js?v=0.2.151"></script>
   <script defer src="/static/trip-map.js?v=0.2.151"></script>
-  <script defer src="/static/app.js?v=0.2.177"></script>
-  <script defer src="/static/app-settings.js?v=0.2.177"></script>
+  <script defer src="/static/app.js?v=0.2.178"></script>
+  <script defer src="/static/app-settings.js?v=0.2.178"></script>
   <script defer src="/static/browser-workspace.js?v=0.2.151"></script>
   <script defer src="/static/saved-trips.js?v=0.2.151"></script>
   <script defer src="/static/emergency-tabs.js?v=0.2.151"></script>
@@ -47,19 +48,20 @@
   <script defer src="/static/emergency-backup.js?v=0.2.151"></script>
   <script defer src="/static/field-calendar.js?v=0.2.151"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.177"></script>
-  <script defer src="/static/meshcore.js?v=0.2.177"></script>
-  <script defer src="/static/messaging-tabs.js?v=0.2.177"></script>
-  <script defer src="/static/weather.js?v=0.2.177"></script>
-  <script defer src="/static/reticulum.js?v=0.2.177"></script>
-  <script defer src="/static/reticulum-files.js?v=0.2.177"></script>
-  <script defer src="/static/bluetooth-files.js?v=0.2.177"></script>
-  <script defer src="/static/reticulum-tabs.js?v=0.2.177"></script>
+  <script defer src="/static/mesh.js?v=0.2.178"></script>
+  <script defer src="/static/meshcore.js?v=0.2.178"></script>
+  <script defer src="/static/messaging-tabs.js?v=0.2.178"></script>
+  <script defer src="/static/weather.js?v=0.2.178"></script>
+  <script defer src="/static/surveillance.js?v=0.2.178"></script>
+  <script defer src="/static/reticulum.js?v=0.2.178"></script>
+  <script defer src="/static/reticulum-files.js?v=0.2.178"></script>
+  <script defer src="/static/bluetooth-files.js?v=0.2.178"></script>
+  <script defer src="/static/reticulum-tabs.js?v=0.2.178"></script>
   <script defer src="/static/mesh_connections.js?v=0.2.104"></script>
   <script defer src="/static/wifi_halow.js?v=0.2.104"></script>
   <script defer src="/static/field_network.js?v=0.2.104"></script>
   <script defer src="/static/field_hotspot.js?v=0.2.104"></script>
-  <script defer src="/static/hardware-tabs.js?v=0.2.177"></script>
+  <script defer src="/static/hardware-tabs.js?v=0.2.178"></script>
   <script defer src="/static/offline_readiness.js?v=0.2.104"></script>
   <script defer src="/static/camera-layers.js?v=0.2.114"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
@@ -67,7 +69,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.177</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.178</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -88,6 +90,7 @@
         <button class="nav-btn" data-page="sessions"><span class="nav-icon" aria-hidden="true">◷</span><span class="nav-label">Sessions</span></button>
         <button class="nav-btn" data-page="hardware"><span class="nav-icon" aria-hidden="true">▤</span><span class="nav-label">Hardware</span></button>
         <button class="nav-btn" data-page="browser" type="button"><span class="nav-icon" aria-hidden="true">◎</span><span class="nav-label">Web Browser</span></button>
+        <button class="nav-btn" data-page="surveillance" type="button"><span class="nav-icon" aria-hidden="true">▣</span><span class="nav-label">Surveillance</span></button>
         <button class="nav-btn" data-page="weather" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2M5.6 5.6 7 7M3 12h2M17 7l1.4-1.4M13 9a4 4 0 0 0-6 3"/><path d="M7 19h11a4 4 0 0 0 .2-8A6.5 6.5 0 0 0 5.6 13a3.1 3.1 0 0 0 1.4 6Z"/></svg></span><span class="nav-label">Weather Station</span></button>
         <button class="nav-btn" data-page="trips" type="button"><span class="nav-icon" aria-hidden="true">▧</span><span class="nav-label">Trips &amp; Maps</span></button>
         <button class="nav-btn" data-page="discoveries"><span class="nav-icon" aria-hidden="true">◈</span><span class="nav-label">Saved</span></button>
@@ -156,6 +159,26 @@
         <div class="panel trip-library-section"><div class="panel-title"><h3>Downloaded &amp; imported map packages</h3><span class="pill">MBTILES · OFFLINE</span></div><p class="muted small">Choose <strong>Use on map</strong> to select a local raster and see its declared coverage. For safety, currently selected maps must be switched off before removal. Deletion needs the exact filename confirmation.</p><div id="trip-library-list" class="trip-library-list" role="list" aria-label="Installed offline map packages"></div></div>
         <div class="panel trip-library-section"><div class="panel-title"><h3>Saved region plans</h3><span class="pill">PLANS · NO TILES</span></div><p class="muted small">These are previously saved geographic boundaries and zoom choices. A plan by itself does not include imagery or a route. Open Map settings to build/download map tiles for a plan.</p><div id="trip-library-areas" class="trip-library-list" role="list" aria-label="Saved map region plans"></div></div>
         <div class="panel trip-library-section"><h3>Before the trip</h3><p class="muted small">Even a downloaded trip raster map can contain gaps. Confirm actual route tile coverage, an installed Valhalla road or walking graph, battery/GNSS health, and applicable access rules separately. Numeric HGT terrain data and offline routes are not included in these raster packs. Navigation route geometry is not stored by the trip download.</p><button class="btn outline" id="trip-library-readiness" type="button">Open device readiness</button></div>
+      </section>
+      <section class="page surveillance-page" id="page-surveillance" aria-label="Local surveillance camera hub">
+        <div class="section-heading"><div><h2>Surveillance</h2><p>Private LAN camera inventory and on-demand, low-frame-rate RTSP previews. No automatic streams, recordings or cloud service.</p></div><span class="pill">LOCAL · OPT-IN</span></div>
+        <div class="panel"><div class="panel-title"><h3>Camera inventory</h3><button class="btn outline" type="button" id="surveillance-refresh">Refresh saved cameras</button></div>
+          <p class="small muted" id="surveillance-capabilities">Capabilities not checked.</p><p class="small muted" id="surveillance-status" role="status">Inventory not loaded.</p>
+          <div class="surveillance-grid" id="surveillance-grid"></div>
+        </div>
+        <div class="panel surveillance-viewer" id="surveillance-viewer" hidden>
+          <div class="panel-title"><h3 id="surveillance-live-title">Live camera</h3><div class="button-line"><button class="btn outline" type="button" id="surveillance-fullscreen">Full screen</button><button class="btn outline" type="button" id="surveillance-close-live">Stop viewing</button></div></div>
+          <img id="surveillance-live" alt="On-demand camera preview; appears only when actual RTSP video frames arrive">
+          <p class="small muted" id="surveillance-live-status" role="status">Not connected.</p>
+        </div>
+        <div class="panel"><div class="panel-title"><h3>Add or edit an RTSP camera</h3><span class="pill">LAN IPv4 ONLY</span></div>
+          <form id="surveillance-form" class="surveillance-camera-form">
+            <label>Camera name<input class="field" id="surveillance-name" maxlength="64" placeholder="Front door" required></label>
+            <label>Private RTSP URL<input class="field" id="surveillance-url" maxlength="1024" placeholder="rtsp://192.168.1.50:554/stream1" autocomplete="off" spellcheck="false" required></label>
+            <div class="button-line"><button type="submit" class="btn primary" id="surveillance-save">Add camera</button><button type="button" class="btn outline" id="surveillance-cancel" hidden>Cancel edit</button></div>
+          </form>
+          <p class="small muted">Enter a camera's actual local RTSP stream URL, including login details only if the camera requires them. The URL stays in OpenRF's private local SQLite database and is never returned to the browser after saving. This version accepts explicit private IPv4 hosts only. Camera credentials are stored locally, not encrypted at rest. Use a dedicated low-privilege camera account. FFmpeg must be installed on Linux. Viewing opens a stream only after you tap View live; leaving Surveillance or tapping Stop closes it. Frame previews are limited to two simultaneous streams and up to 2 fps, not full-performance video. USB, ONVIF discovery, recording, screenshots and wireless camera pairing remain planned.</p>
+        </div>
       </section>
       <section class="page weather-page" id="page-weather" aria-label="Offline weather station hub">
         <div class="section-heading"><div><h2>Weather Station</h2><p>Local observations, historical records and user-requested reads from supported LAN gateways. Nothing connects or collects automatically.</p></div><span class="pill">OFFLINE · LOCAL HISTORY</span></div>

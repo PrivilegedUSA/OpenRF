@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const SELECTED_PAGE_SESSION_KEY = 'openrf.selected-page.v1';
 const MAP_VECTOR_PREFERENCE_KEY = 'openrf.map.vector-preference.v1';
 const MAP_BASEMAP_PREFERENCE_KEY = 'openrf.map.basemap.v1';
-const VALID_PAGES = new Set(['map','overview','emergency','scanner','spectrum','radio','weather','messages','reticulum','meshcore','hamradio','discoveries','trips','browser','sessions','hardware','settings']);
+const VALID_PAGES = new Set(['map','overview','emergency','scanner','spectrum','radio','weather','messages','reticulum','meshcore','hamradio','discoveries','trips','browser','sessions','hardware','settings','surveillance']);
 function rememberedBaseMap(){
   try {const value=window.localStorage?.getItem(MAP_BASEMAP_PREFERENCE_KEY);
     return ['default','satellite','topographic'].includes(value)?value:'default';}
@@ -465,7 +465,7 @@ function showPage(page, options = {}) {
   $('messages-nav-toggle').classList.toggle('active', page === 'messages' || page === 'reticulum' || page === 'meshcore');
   revealSelectedSidebarPage(page);
   document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === `page-${page}`));
-  const titles = {overview:'Field overview',emergency:'Emergency readiness',map:'Survey map',scanner:'Signal analysis',spectrum:'Spectrum & Waterfall',radio:'Radio receiver',weather:'Weather Station',messages:'Meshtastic messages',reticulum:'Reticulum messages',meshcore:'MeshCore messages',hamradio:'Ham radio channel lists',discoveries:'Saved discoveries',trips:'Trips & Maps',browser:'Web browser',sessions:'Investigations',hardware:'Hardware manager',settings:'App settings'};
+  const titles = {overview:'Field overview',emergency:'Emergency readiness',map:'Survey map',scanner:'Signal analysis',spectrum:'Spectrum & Waterfall',radio:'Radio receiver',weather:'Weather Station',surveillance:'Surveillance',messages:'Meshtastic messages',reticulum:'Reticulum messages',meshcore:'MeshCore messages',hamradio:'Ham radio channel lists',discoveries:'Saved discoveries',trips:'Trips & Maps',browser:'Web browser',sessions:'Investigations',hardware:'Hardware manager',settings:'App settings'};
   $('page-title').textContent = titles[page] || 'OpenRF'; $('page-crumb').textContent = page === 'messages' ? 'MESHTASTIC' : page.toUpperCase();
   // Page-specific headings are the one visible title on non-map workspaces.
   // The old topbar H1 is intentionally hidden; do not focus a hidden node.
@@ -476,6 +476,7 @@ function showPage(page, options = {}) {
   }
   if (page === 'spectrum') document.dispatchEvent(new Event('openrf:spectrum-shown'));
   if (page === 'radio') document.dispatchEvent(new Event('openrf:radio-shown'));
+  document.dispatchEvent(new Event(page === 'surveillance' ? 'openrf:surveillance-shown' : 'openrf:surveillance-hidden'));
   if (page === 'weather') document.dispatchEvent(new Event('openrf:weather-shown'));
   else document.dispatchEvent(new Event('openrf:weather-hidden'));
   if (page === 'messages') document.dispatchEvent(new Event('openrf:messages-shown'));
