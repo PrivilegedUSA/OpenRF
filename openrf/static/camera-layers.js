@@ -162,18 +162,30 @@
     }catch(error){setSnapshotStatus(`Snapshot file import unavailable: ${error.message}`,true);}
     finally{button.disabled=false;}
   });
+  // Import messages must not share the viewport status: a pan, zoom or
+  // delayed saved-area request can otherwise erase the outcome of an import.
+  const setImportStatus=(message,phase='idle')=>{
+    const el=get('camera-import-status');if(!el)return;
+    el.textContent=message;el.dataset.phase=phase;el.classList.toggle('error',phase==='failed');
+  };
   get('camera-import-osm').addEventListener('click',async()=>{
     const button=get('camera-import-osm'),b=bounds();
-    if(!usable(b)){setStatus('Zoom into a local area first (not across the date line).',true);return;}
-    if(b[2]-b[0]>8||b[3]-b[1]>8){setStatus('Zoom closer: import is limited to a visible area no bigger than 8° × 8°.',true);return;}
-    button.disabled=true;setStatus('Querying OSM/Overpass for camera reports within the visible map bounds. No GPS track is sent…');
+    if(button.disabled)return;
+    if(!usable(b)){setImportStatus('Zoom into a local area first (not across the date line).','failed');return;}
+    if(b[2]-b[0]>8||b[3]-b[1]>8){setImportStatus('Zoom closer: import is limited to a visible area no bigger than 8° × 8°.','failed');return;}
+    button.disabled=true;button.textContent='Importing camera reports…';
+    setImportStatus('Querying OSM/Overpass for ALPR, speed and red-light camera reports. This may take up to a minute or longer if the first server fails. No GPS track is sent.','loading');
     try{
       const result=await api('/api/cameras/import-osm','POST',{bounds:b});
+      const counts=result.import.counts||{},total=result.import.matched;
       // Import never changes saved layer visibility; user chooses what the map shows.
-      lastKey='';await refresh(true);
-      setStatus(`Found ${result.import.matched} OSM camera report(s): ${result.import.counts?.ALPR??0} ALPR, ${result.import.counts?.RED_LIGHT??0} red-light, ${result.import.counts?.SPEED??0} speed. Local offline copy saved. If zero, the map has no tagged entries in this area—not proof that no cameras exist.`);
-    }catch(e){setStatus(`Could not import cameras: ${e.message}`,true);}
-    finally{button.disabled=false;}
+      lastKey='';
+      const hidden=['ALPR','RED_LIGHT','SPEED'].filter(kind=>counts[kind]>0&&!enabled().has(kind));
+      const names={ALPR:'ALPR / Flock',RED_LIGHT:'Red-light cameras',SPEED:'Speed cameras'};
+      setImportStatus(`Import complete: ${total} OSM camera report(s) — ${counts.ALPR??0} ALPR, ${counts.RED_LIGHT??0} red-light, ${counts.SPEED??0} speed. ${total?'Saved locally for offline use.':'No tagged cameras returned in this area; this is not proof that none exist.'}${hidden.length?' Enable '+hidden.map(kind=>names[kind]).join(', ')+' to display the imported reports.':''}`,'complete');
+      await refresh(true);
+    }catch(e){setImportStatus(`Could not import cameras: ${e.message}`,'failed');}
+    finally{button.disabled=false;button.textContent='Import OSM cameras in view (online)';}
   });
   get('camera-manual-form').addEventListener('submit',async event=>{
     event.preventDefault();const button=event.currentTarget.querySelector('button[type=submit]');button.disabled=true;

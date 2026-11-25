@@ -3043,13 +3043,13 @@ body.map-workspace .topbar .header-wifi-button{background:#0c2833e8;color:#a9e7d
 
 /* Smaller borderless mesh pins; the clustering algorithm and data are unchanged. */
 #page-map .public-mesh-pin,#page-map .mesh-network-pin {
-  display:grid;place-items:center;width:20px;height:20px;min-width:20px;min-height:20px;
+  display:grid;place-items:center;width:16px;height:16px;min-width:16px;min-height:16px;
   padding:0;border-radius:50%;font-size:10px;line-height:1;font-weight:700;
   color:#fff;background:#176b79;box-shadow:0 1px 4px #0005;
 }
 #page-map .public-mesh-pin[data-kind="repeater"] {background:#176b79;border-radius:7px;}
 #page-map .public-mesh-pin[data-kind="cluster"] {
-  width:auto;min-width:24px;height:24px;padding:0 4px;border-radius:12px;background:#164957;
+  width:auto;min-width:20px;height:20px;padding:0 3px;border-radius:10px;background:#164957;
 }
 #page-map .mesh-network-pin[data-protocol="Meshtastic"] {background:#397b3d;}
 #page-map .mesh-network-pin[data-protocol="MeshCore"] {background:#176b79;}
@@ -3075,3 +3075,10 @@ body.map-workspace .topbar .header-wifi-button{background:#0c2833e8;color:#a9e7d
 
 /* Header actions float over the map too; scope to the map workspace. */
 body.map-workspace .topbar button {border:0!important;}
+
+/* Regional import feedback stays beside the action, separate from viewport updates. */
+#map-survey-panel #camera-area-import {margin:10px 7px 12px;}
+#map-survey-panel #camera-import-osm {width:100%;min-height:42px;white-space:normal;border:0;}
+#map-survey-panel #camera-area-import p {margin:7px 0;line-height:1.45;overflow-wrap:anywhere;}
+#map-survey-panel #camera-import-status.error {color:#ffb0a9;}
+#map-survey-panel #camera-import-status[data-phase="loading"] {color:#a5eee4;}

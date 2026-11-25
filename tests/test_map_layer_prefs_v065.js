@@ -58,4 +58,4 @@ let restored=meshControls();boot(restored);assert.deepEqual(restored.slice(9).ma
 stored.set('openrf-map-layer-visibility-v1',JSON.stringify({version:1,kinds:{WIFI:false},cameras:{ALPR:true}}));restored=meshControls();boot(restored);assert(restored.slice(9).every(x=>!x.checked));assert.equal(restored[0].checked,false);
 assert(fs.readFileSync('openrf/static/public-mesh.js','utf8').includes('OpenRFMapLayerPreferences?.save?.()'));
 assert(fs.readFileSync('openrf/static/mesh-dashboard.js','utf8').includes('OpenRFMapLayerPreferences?.save?.()'));
-assert(css.includes('width:20px;height:20px;min-width:20px;min-height:20px'));assert(css.includes('min-width:24px;height:24px;padding:0 4px'));
+assert(css.includes('width:16px;height:16px;min-width:16px;min-height:16px'));assert(css.includes('min-width:20px;height:20px;padding:0 3px'));

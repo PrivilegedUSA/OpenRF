@@ -167,6 +167,11 @@ def _parse_overpass(document):
     elements = document['elements']
     if len(elements) > MAX_ELEMENTS:
         raise ValueError('Too many OSM camera records in view; zoom in and retry.')
+    # Some responses also include standalone member nodes. Resolve only
+    # explicitly tagged enforcement device references, not from/to positions.
+    node_positions = {e['id']: e for e in elements if isinstance(e,dict)
+                      and e.get('type')=='node' and type(e.get('id')) is int
+                      and 'lat' in e and 'lon' in e}
     features = {}
     def add(kind, osm_id, coordinates, tags, category):
         if type(osm_id) is not int or osm_id < 1 or not isinstance(coordinates,dict): return
@@ -203,7 +208,7 @@ def _parse_overpass(document):
                 for member in members:
                     if isinstance(member,dict) and member.get('type')=='node' and member.get('role')=='device':
                         for category in sorted(categories):
-                            add('node',member.get('ref'),member,tags,category)
+                            add('node',member.get('ref'),member if 'lat' in member and 'lon' in member else node_positions.get(member.get('ref')),tags,category)
     return {'type':'FeatureCollection','features':list(features.values())}
 
 
@@ -213,11 +218,11 @@ def _read_osm_area(bounds):
     errors = []
     for endpoint in OVERPASS_ENDPOINTS:
         request = urllib.request.Request(endpoint, data=payload, headers={
-            'User-Agent': 'OpenRF/0.2.211 (offline-first; user-initiated OSM area lookup)',
+            'User-Agent': 'OpenRF/0.2.212 (offline-first; user-initiated OSM area lookup)',
             'Content-Type': 'application/x-www-form-urlencoded',
             'Accept': 'application/json'})
         try:
-            with urllib.request.urlopen(request, timeout=20) as reply:
+            with urllib.request.urlopen(request, timeout=45) as reply:
                 raw = reply.read(MAX_RESPONSE + 1)
             if len(raw) > MAX_RESPONSE:
                 raise ValueError('OSM area response is too large; zoom in and retry.')
@@ -229,7 +234,14 @@ def _read_osm_area(bounds):
             return _parse_overpass(json.loads(raw))
         except (urllib.error.URLError, TimeoutError, OSError, ValueError,
                 json.JSONDecodeError, UnicodeError) as exc:
-            errors.append(f'{endpoint.split("/")[2]}: {type(exc).__name__}')
+            host=endpoint.split('/')[2]
+            if isinstance(exc,urllib.error.HTTPError): reason=f'HTTP {exc.code}'
+            elif isinstance(exc,TimeoutError) or (isinstance(exc,urllib.error.URLError) and isinstance(exc.reason,TimeoutError)): reason='network timeout'
+            elif isinstance(exc,urllib.error.URLError): reason='network connection failed'
+            elif isinstance(exc,ValueError) and not isinstance(exc,(json.JSONDecodeError,UnicodeError)): reason=str(exc)
+            elif isinstance(exc,(json.JSONDecodeError,UnicodeError)): reason='invalid JSON response'
+            else: reason=type(exc).__name__
+            errors.append(f'{host}: {reason}')
     raise ValueError('Area query failed at both OSM servers (' + ', '.join(errors) +
                      '). Try again when online or zoom into a smaller area; saved camera pins remain offline.')
 

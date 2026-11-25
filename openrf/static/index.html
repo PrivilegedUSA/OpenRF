@@ -10,8 +10,8 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.211">
-  <link rel="stylesheet" href="/static/surveillance.css?v=0.2.211">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.212">
+  <link rel="stylesheet" href="/static/surveillance.css?v=0.2.212">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -24,14 +24,14 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/map-elevation.js?v=0.2.151"></script>
   <script defer src="/static/battery-status.js?v=0.2.151"></script>
-  <script defer src="/static/wifi-quick.js?v=0.2.211"></script>
+  <script defer src="/static/wifi-quick.js?v=0.2.212"></script>
   <script defer src="/static/route-elevation.js?v=0.2.151"></script>
   <script defer src="/static/trip-map.js?v=0.2.151"></script>
-  <script defer src="/static/tab-session.js?v=0.2.211"></script>
-  <script defer src="/static/public-mesh.js?v=0.2.211"></script>
-  <script defer src="/static/mesh-dashboard.js?v=0.2.211"></script>
-  <script defer src="/static/app.js?v=0.2.211"></script>
-  <script defer src="/static/app-settings.js?v=0.2.211"></script>
+  <script defer src="/static/tab-session.js?v=0.2.212"></script>
+  <script defer src="/static/public-mesh.js?v=0.2.212"></script>
+  <script defer src="/static/mesh-dashboard.js?v=0.2.212"></script>
+  <script defer src="/static/app.js?v=0.2.212"></script>
+  <script defer src="/static/app-settings.js?v=0.2.212"></script>
   <script defer src="/static/browser-workspace.js?v=0.2.151"></script>
   <script defer src="/static/saved-trips.js?v=0.2.151"></script>
   <script defer src="/static/emergency-tabs.js?v=0.2.151"></script>
@@ -51,28 +51,28 @@
   <script defer src="/static/emergency-backup.js?v=0.2.151"></script>
   <script defer src="/static/field-calendar.js?v=0.2.151"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.211"></script>
-  <script defer src="/static/meshcore.js?v=0.2.211"></script>
-  <script defer src="/static/messaging-tabs.js?v=0.2.211"></script>
-  <script defer src="/static/weather.js?v=0.2.211"></script>
-  <script defer src="/static/surveillance.js?v=0.2.211"></script>
-  <script defer src="/static/reticulum.js?v=0.2.211"></script>
-  <script defer src="/static/reticulum-files.js?v=0.2.211"></script>
-  <script defer src="/static/bluetooth-files.js?v=0.2.211"></script>
-  <script defer src="/static/reticulum-tabs.js?v=0.2.211"></script>
+  <script defer src="/static/mesh.js?v=0.2.212"></script>
+  <script defer src="/static/meshcore.js?v=0.2.212"></script>
+  <script defer src="/static/messaging-tabs.js?v=0.2.212"></script>
+  <script defer src="/static/weather.js?v=0.2.212"></script>
+  <script defer src="/static/surveillance.js?v=0.2.212"></script>
+  <script defer src="/static/reticulum.js?v=0.2.212"></script>
+  <script defer src="/static/reticulum-files.js?v=0.2.212"></script>
+  <script defer src="/static/bluetooth-files.js?v=0.2.212"></script>
+  <script defer src="/static/reticulum-tabs.js?v=0.2.212"></script>
   <script defer src="/static/mesh_connections.js?v=0.2.104"></script>
   <script defer src="/static/wifi_halow.js?v=0.2.104"></script>
   <script defer src="/static/field_network.js?v=0.2.104"></script>
   <script defer src="/static/field_hotspot.js?v=0.2.104"></script>
-  <script defer src="/static/hardware-tabs.js?v=0.2.211"></script>
+  <script defer src="/static/hardware-tabs.js?v=0.2.212"></script>
   <script defer src="/static/offline_readiness.js?v=0.2.104"></script>
-  <script defer src="/static/camera-layers.js?v=0.2.211"></script>
+  <script defer src="/static/camera-layers.js?v=0.2.212"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
 </head>
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.211</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.212</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -832,13 +832,18 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
               <label><input type="checkbox" data-map-kind="WIFI" checked> <i class="layer-dot wifi"></i> Wi-Fi</label>
               <label><input type="checkbox" data-map-kind="BLE" checked> <i class="layer-dot ble"></i> BLE</label>
               <label><input type="checkbox" data-map-kind="RF" checked> <i class="layer-dot rf"></i> RF</label>
-              <label><input type="checkbox" data-map-kind="CELLULAR" checked> <i class="layer-dot cellular"></i> Cellular observations</label>
+              <label><input type="checkbox" data-map-kind="CELLULAR" checked> <i class="layer-dot cellular"></i> Cellular</label>
               <label><input type="checkbox" data-map-kind="INFRASTRUCTURE" checked> <i class="layer-dot infrastructure"></i> Infrastructure</label>
               <label><input type="checkbox" data-map-kind="MANUAL" checked> <i class="layer-dot manual"></i> Manual</label>
               <label><input type="checkbox" data-camera-type="ALPR"> <i class="layer-dot camera-alpr"></i> ALPR / Flock</label>
               <label><input type="checkbox" data-camera-type="RED_LIGHT"> <i class="layer-dot camera-red"></i> Red-light cameras</label>
               <label><input type="checkbox" data-camera-type="SPEED"> <i class="layer-dot camera-speed"></i> Speed cameras</label>
             </div>
+            <section id="camera-area-import" aria-label="Regional camera import">
+              <button type="button" class="btn outline" id="camera-import-osm">Import OSM cameras in view (online)</button>
+              <p id="camera-import-status" class="small muted" role="status" aria-live="polite">Zoom to a city or county to import ALPR, speed and red-light camera reports. Only the visible map bounds are sent to Overpass.</p>
+              <p id="camera-map-status" class="small muted" role="status" aria-live="polite">All camera layers off. No network requests happen automatically.</p>
+            </section>
             <section class="camera-map-manager" id="public-mesh-manager" aria-label="Public mesh directory layers">
               <strong class="camera-section-heading">Public mesh network</strong>
               <div class="map-layer-options"><label><input type="checkbox" id="public-mesh-nodes" data-public-mesh-layer="nodes"> <i class="mesh-layer-dot" aria-hidden="true"></i> MeshCore nodes</label><label><input type="checkbox" id="public-mesh-repeaters" data-public-mesh-layer="repeaters"> <i class="mesh-layer-dot repeater" aria-hidden="true"></i> MeshCore repeaters</label></div>
@@ -851,15 +856,12 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
             <section class="camera-map-manager" id="camera-map-manager" aria-label="Camera locations and imports">
               <strong class="camera-section-heading">Camera locations</strong>
               <p class="small muted">Camera pins are infrastructure reports, not RF detections or proof of current operation. Community-mapped locations are not independently verified.</p>
-              <p id="camera-map-status" class="small muted" role="status" aria-live="polite">All camera layers off. No network requests happen automatically.</p>
               <div class="camera-action-buttons">
                 <button type="button" class="btn outline" id="camera-refresh">Reload saved area</button>
                 <button type="button" class="btn outline" id="camera-download-national">Download / update nationwide ALPRs (online)</button>
               </div>
               <p id="camera-snapshot-status" class="small muted" role="status" aria-live="polite">National ALPR snapshot: checking local status…</p>
               <p class="small muted">The nationwide download is <strong>optional</strong> and starts only when you press the button. OpenRF retrieves the published U.S. FlockHopper/OSM camera snapshot once, stores it in local private SQLite, and shows only cameras in the visible map area. Later map use is offline. No GPS fixes, RF observations, or travel history are uploaded. Sources: <a href="https://github.com/flockhopper3/deflock-data" target="_blank" rel="noopener noreferrer">FlockHopper</a> / DeFlock-compatible OSM tags; © OpenStreetMap contributors (ODbL 1.0). Community mapped means <strong>not verified or necessarily operational</strong>. Refreshes replace only the downloaded snapshot, not your private camera reports.</p>
-              <p class="small muted">Import community-mapped ALPR, speed and red-light enforcement cameras in the visible area. Sends map bounds to Overpass only on request; use a small area.</p>
-              <button type="button" class="btn outline" id="camera-import-osm">Import OSM cameras in view (online)</button>
               <details class="camera-advanced-import"><summary>Advanced: alternative imports</summary>
                 <p class="small muted">If direct download is blocked, manually download a compatible national GeoJSON / GeoJSON.gz snapshot to your computer, then import it here. Your file is processed locally and is not uploaded to an outside service. The data's origin cannot be independently verified.</p>
                 <label class="small" for="camera-import-file">Select local snapshot file</label>

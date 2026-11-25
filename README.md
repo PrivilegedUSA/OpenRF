@@ -1,3 +1,7 @@
+## OpenRF v0.2.212 — Map import feedback and compact markers
+
+The regional camera import now sits immediately below the camera switches, with independent progress/result messages. Cellular label restored; mesh markers reduced to 16px, clusters to 20px minimum. See `docs/RELEASE_0.2.212_TESTS.md`.
+
 ## OpenRF v0.2.211 — Persistent mesh layers and regional camera import
 
 Public and local mesh layer switches persist using browser-local preferences. Mesh pins are smaller with unchanged label font sizes. The regional OSM import in Map → Layers → Camera locations now supports tagged ALPR, speed and red-light enforcement devices, saved locally as community reports. Enable the relevant camera switches to display them. The nationwide snapshot still covers ALPR only. Cellular observations are distinct from public tower locations or carrier coverage; those public layers and additional public mesh providers remain planned. See `docs/RELEASE_0.2.211_TESTS.md`.

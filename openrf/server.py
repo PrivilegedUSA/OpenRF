@@ -1735,11 +1735,11 @@ class Handler(BaseHTTPRequestHandler):
                 if set(body) != {'bounds'}:
                     raise ValueError('Import requires only the selected map bounds.')
                 if not self.server.alpr_import_lock.acquire(blocking=False):
-                    return self._error(409,'ALPR import is already running.')
+                    return self._error(409,'Camera area import is already running.')
                 try:
                     return self._json(200,{'import':camera_catalog.import_feed(self.repo,body['bounds'])})
                 except (ValueError,OSError,TimeoutError) as exc:
-                    return self._error(503,f'ALPR download/import unavailable: {exc}')
+                    return self._error(503,f'Camera area import unavailable: {exc}')
                 finally:
                     self.server.alpr_import_lock.release()
             if path == '/api/radio/start':

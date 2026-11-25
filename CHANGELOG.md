@@ -1,3 +1,9 @@
+# v0.2.212 — Map import feedback and compact markers
+
+- Regional camera import moved below the layer grid, with separate persistent feedback, busy state and per-type counts. Improve provider failure diagnostics and read timeout.
+- Restore Cellular label and shrink individual mesh pins to 16px, clusters to 20px minimum, keeping 10px text.
+- Preserve all saved layer preferences and existing cache. See `docs/RELEASE_0.2.212_TESTS.md`.
+
 # v0.2.211 — Map layer persistence and regional enforcement camera import
 
 - Persist local and public mesh visibility, including restored local refresh when entering Map.
