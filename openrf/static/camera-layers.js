@@ -10,7 +10,34 @@
   const enabled=()=>new Set(controls.filter(c=>c.checked).map(c=>c.dataset.cameraType));
   const setStatus=(message,error=false)=>{const el=get('camera-map-status');el.textContent=message;el.classList.toggle('error',error);};
   const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  let snapshotPoll=null,snapshotWasRunning=false;
+  let snapshotPoll=null,snapshotWasRunning=false,trafficWasRunning=false,trafficPoll=null,startingNational=false;
+  function nationalButtons(){
+    const both=get('camera-download-national'),alpr=get('camera-alpr-only'),traffic=get('camera-traffic-only');
+    if(both)both.disabled=startingNational||snapshotWasRunning||trafficWasRunning;
+    if(alpr)alpr.disabled=startingNational||snapshotWasRunning;
+    if(traffic)traffic.disabled=startingNational||trafficWasRunning;
+  }
+  function setTrafficStatus(message,error=false){const el=get('camera-traffic-status');if(el){el.textContent=message;el.classList.toggle('error',error);}}
+  async function trafficStatus(){
+    try{
+      const response=await fetch('/api/cameras/traffic-snapshot',{cache:'no-store'});
+      const result=await response.json();if(!response.ok)throw Error(result.error||'Local status unavailable');
+      const info=result.snapshot||{},wasRunning=trafficWasRunning;trafficWasRunning=!!result.running;nationalButtons();
+      const bar=get('camera-traffic-progress');
+      if(bar){bar.hidden=!result.running&&result.phase!=='ready';bar.removeAttribute('value');if(result.phase==='ready')bar.value=100;else if(result.phase==='downloading'&&result.total_bytes>0)bar.value=Math.min(100,100*result.downloaded_bytes/result.total_bytes);}
+      const baseline=info.updated_utc?`${Number(info.speed_count||0).toLocaleString()} speed · ${Number(info.red_light_count||0).toLocaleString()} red-light saved offline (updated ${info.updated_utc}).`:'No nationwide speed / red-light snapshot downloaded yet.';
+      if(result.running){
+        const labels={connecting:'Connecting to SpeedCams.world',downloading:'Downloading speed / red-light',validating:'Processing traffic camera reports',saving:'Saving traffic cameras'};
+        const bytes=result.phase==='downloading'?` · ${Number(result.downloaded_bytes||0).toLocaleString()} bytes${result.total_bytes>0?` (${Math.floor(100*result.downloaded_bytes/result.total_bytes)}%)`:' (total unknown)'}`:'';
+        setTrafficStatus(`${labels[result.phase]||'Updating traffic cameras'}${bytes}. ${baseline}`);
+        if(trafficPoll===null)trafficPoll=setTimeout(()=>{trafficPoll=null;trafficStatus();},1000);
+      }else{
+        if(trafficPoll!==null){clearTimeout(trafficPoll);trafficPoll=null;}
+        setTrafficStatus(result.phase==='failed'?`${baseline} SpeedCams.world update failed: ${result.error||'Unknown error'}. Saved cameras remain available.`:baseline,result.phase==='failed');
+        if(wasRunning&&result.phase==='ready'){lastKey='';refresh(true);}
+      }
+    }catch(error){setTrafficStatus(`Traffic snapshot status unavailable: ${error.message}; retrying.`,true);if(trafficPoll===null)trafficPoll=setTimeout(()=>{trafficPoll=null;trafficStatus();},2000);}
+  }
   function setSnapshotStatus(message,error=false){
     const target=get('camera-snapshot-status');
     if(!target)return;
@@ -23,7 +50,7 @@
       const result=await response.json();if(!response.ok)throw Error(result.error||'Local status unavailable');
       const info=result.snapshot||{},count=Number(info.count||0),wasRunning=snapshotWasRunning;
       snapshotWasRunning=!!result.running;
-      if(button)button.disabled=!!result.running;
+      nationalButtons();
       const bar=get('camera-snapshot-progress');
       if(bar){bar.hidden=!result.running&&result.phase!=='ready';bar.removeAttribute('value');if(result.phase==='ready')bar.value=100;else if(result.phase==='downloading'&&result.total_bytes>0)bar.value=Math.min(100,100*result.downloaded_bytes/result.total_bytes);}
       if(result.running){
@@ -39,7 +66,7 @@
           lastKey='';refresh(true);
         }
       }
-    }catch(error){if(button)button.disabled=false;setSnapshotStatus(`Local national snapshot status unavailable: ${error.message}`,true);}
+    }catch(error){setSnapshotStatus(`Local national snapshot status unavailable: ${error.message}; retrying.`,true);if(snapshotPoll===null)snapshotPoll=setTimeout(()=>{snapshotPoll=null;snapshotStatus();},2000);}
   }
 
   const bounds=()=>{
@@ -140,16 +167,22 @@
     if(enabled().size)refresh(true);else{entries=[];setStatus('All camera layers disabled. No camera network activity.');}
   }));
   get('camera-refresh').addEventListener('click',()=>refresh(true));
-  get('camera-download-national')?.addEventListener('click',async()=>{
-    const button=get('camera-download-national');button.disabled=true;
-    setSnapshotStatus('Starting optional nationwide ALPR download. The map location and GPS history will not be sent.');
+  async function startNational(scope){
+    if(startingNational)return;startingNational=true;nationalButtons();
+    const endpoint=scope==='alpr'?'/api/cameras/snapshot/update':scope==='traffic'?'/api/cameras/traffic-snapshot/update':'/api/cameras/nationwide/update';
     try{
-      const result=await api('/api/cameras/snapshot/update','POST',{});
-      snapshotWasRunning=!!result.running;
-      await snapshotStatus();
-    }catch(error){button.disabled=false;setSnapshotStatus(`National ALPR download could not start: ${error.message}`,true);}
-  });
-  snapshotStatus();
+      const result=await api(endpoint,'POST',{});
+      if(scope==='both'){snapshotWasRunning=!!result.alpr?.running;trafficWasRunning=!!result.traffic?.running;}
+      else if(scope==='alpr')snapshotWasRunning=!!result.running;else trafficWasRunning=!!result.running;
+      await Promise.all([snapshotStatus(),trafficStatus()]);
+      lastKey='';refresh(true);
+    }catch(error){if(scope!=='traffic')setSnapshotStatus(`National update could not start: ${error.message}`,true);if(scope!=='alpr')setTrafficStatus(`National update could not start: ${error.message}`,true);}
+    finally{startingNational=false;nationalButtons();}
+  }
+  get('camera-download-national')?.addEventListener('click',()=>startNational('both'));
+  get('camera-alpr-only')?.addEventListener('click',()=>startNational('alpr'));
+  get('camera-traffic-only')?.addEventListener('click',()=>startNational('traffic'));
+  snapshotStatus();trafficStatus();
   get('camera-import-upload')?.addEventListener('click',async()=>{
     const file=get('camera-import-file')?.files?.[0];
     if(!file){setSnapshotStatus('Select a local .geojson, .json or .gz file first.',true);return;}

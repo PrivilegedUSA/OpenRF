@@ -46,7 +46,7 @@ from .field_network import readiness_report as field_network_readiness_report
 from .field_hotspot import HotspotManager, HotspotError
 from .offline_navigation_readiness import (readiness_report as offline_navigation_readiness_report,
                                            route_coverage_report)
-from . import camera_jobs, camera_catalog, chirp_channels, national_alpr, camera_routes
+from . import camera_jobs, camera_catalog, chirp_channels, national_alpr, national_traffic, camera_routes
 from .sdr_survey import capture_sites_geojson
 from .routing import local_route, local_status, RouteUnavailable, RouteError
 from .gnss import read_local_gpsd
@@ -107,6 +107,8 @@ class OpenRFHTTPServer(ThreadingHTTPServer):
                 self.hotspot_manager.stop({}, internal=True)
             except (HotspotError, OSError) as exc:
                 logging.warning('OpenRF-owned hotspot cleanup needs manual retry: %s', type(exc).__name__)
+        if hasattr(self, 'national_traffic_manager'):
+            self.national_traffic_manager.close()
         if hasattr(self, 'national_alpr_manager'):
             self.national_alpr_manager.close()
         if hasattr(self, 'radio_receiver'):
@@ -553,6 +555,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, {'version': __version__, 'platform': 'Linux / Raspberry Pi', 'mode': 'local-only', 'scan_active': self.server.sdr_captures.status()['running']})
         if path == '/api/cameras/import-status':
             return self._json(200, self.server.camera_import_manager.status())
+        if path == '/api/cameras/traffic-snapshot':
+            return self._json(200, self.server.national_traffic_manager.status())
         if path == '/api/cameras/snapshot':
             return self._json(200, self.server.national_alpr_manager.status())
         if path == '/api/cameras':
@@ -1725,6 +1729,20 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json(202, self.server.mesh_manager.send(body))
                 except MeshError as exc:
                     return self._error(exc.status, str(exc), exc.code)
+            if path == '/api/cameras/nationwide/update':
+                if body: raise ValueError('Nationwide download accepts an empty JSON object only.')
+                results={}
+                for name,manager in [('alpr',self.server.national_alpr_manager),('traffic',self.server.national_traffic_manager)]:
+                    try: results[name]=manager.start()
+                    except national_alpr.SnapshotError:
+                        results[name]=manager.status()  # Existing job continues.
+                    except Exception as exc:
+                        results[name]={'error':str(exc),'phase':'failed','running':False}
+                return self._json(202,results)
+            if path == '/api/cameras/traffic-snapshot/update':
+                if body: raise ValueError('Nationwide download accepts an empty JSON object only.')
+                try: return self._json(202,self.server.national_traffic_manager.start())
+                except national_alpr.SnapshotError as exc: return self._error(409,str(exc))
             if path == '/api/cameras/snapshot/update':
                 if body:
                     raise ValueError('Nationwide download accepts an empty JSON object only.')
@@ -2214,6 +2232,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.hotspot_manager = HotspotManager(repository.path.parent / 'field-network')
     server.camera_import_manager = camera_jobs.ImportManager(repository)
     server.national_alpr_manager = national_alpr.UpdateManager(repository)
+    server.national_traffic_manager = national_traffic.UpdateManager(repository)
     from .mesh_monitor import MeshMonitor, SnapshotCoordinator
     from .mesh_dashboard import dashboard
     from .public_mesh import PublicMeshDirectory

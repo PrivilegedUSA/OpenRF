@@ -34,8 +34,9 @@ def utc_now():
 
 
 def init(connection):
-    from . import national_alpr
+    from . import national_alpr, national_traffic
     national_alpr.init(connection)
+    national_traffic.init(connection)
     connection.executescript('''
     CREATE TABLE IF NOT EXISTS camera_sites (
       id INTEGER PRIMARY KEY,
@@ -127,18 +128,26 @@ def list_sites(repo, bounds, limit=1000, types=None):
     # Manual/local reports stay independent of public nationwide snapshots.
     # Use indexed local bounding-box lookups and never send the entire nationwide
     # collection to the browser. Preserve local reports ahead of public records.
-    from . import national_alpr
+    from . import national_alpr, national_traffic
     saved=[dict(row) for row in rows[:limit]]
     seen={str(row['source_id']) for row in rows if 'source_id' in row.keys() and row['source_id']}
     remaining=max(0,limit-len(saved))
+    traffic=[]
+    traffic_types=[t for t in types if t!='ALPR']
+    if traffic_types:
+        with repo._lock, repo._connect() as db:
+            traffic=national_traffic.sites_in_bounds(db,(west,south,east,north),traffic_types,remaining+1)
+    traffic_truncated=len(traffic)>remaining
+    saved+=traffic[:remaining]
+    remaining=max(0,limit-len(saved))
     national=[]
-    if remaining and 'ALPR' in types:
+    if 'ALPR' in types:
         with repo._lock, repo._connect() as db:
             national=national_alpr.sites_in_bounds(db,(west,south,east,north),remaining+len(seen)+1)
         national=[site for site in national if site['id'] not in seen]
     combined=saved+national[:remaining]
-    return {'sites':combined, 'truncated':len(rows)>limit or len(national)>remaining,
-            'attribution':ATTRIBUTION + '; ' + national_alpr.ATTRIBUTION,
+    return {'sites':combined, 'truncated':len(rows)>limit or traffic_truncated or len(national)>remaining,
+            'attribution':ATTRIBUTION + '; ' + national_alpr.ATTRIBUTION + '; ' + national_traffic.SOURCE,
             'camera_positions':'reported infrastructure; not RF detections or proof of operation'}
 
 
@@ -246,7 +255,7 @@ def _read_osm_part(bounds, progress, errors, types=None):
     for endpoint in OVERPASS_ENDPOINTS:
         progress(phase="connecting", provider=endpoint, errors=list(errors), received_bytes=0, total_bytes=None)
         request = urllib.request.Request(endpoint, data=payload, headers={
-            'User-Agent': 'OpenRF/0.2.216 (offline-first; user-initiated OSM area lookup)',
+            'User-Agent': 'OpenRF/0.2.217 (offline-first; user-initiated OSM area lookup)',
             'Content-Type': 'application/x-www-form-urlencoded',
             'Accept': 'application/json'})
         try:

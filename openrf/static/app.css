@@ -3101,3 +3101,9 @@ body.map-workspace .topbar button {border:0!important;}
 #map-survey-panel .camera-map-manager{border-bottom:0;margin:10px 0 0;padding:10px 2px 6px;}
 #map-survey-panel #camera-area-import{margin:8px 7px;}
 #map-survey-panel #camera-import-osm{min-height:38px;padding:6px 4px;font-size:12px;}
+
+/* Compact nationwide traffic status and optional regional import. */
+#map-survey-panel #camera-traffic-status{border-left:3px solid #34c9b1;padding:7px 11px;margin:8px 7px;background:rgba(32,117,114,.10);font-size:12px}
+#map-survey-panel #camera-traffic-status.error{border-left-color:#ff7974;color:#ffb0a9}
+#map-survey-panel #camera-area-import summary{cursor:pointer;font-size:12px}
+#map-survey-panel #camera-area-import button{width:100%;margin-top:7px}

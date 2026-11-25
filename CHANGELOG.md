@@ -1,3 +1,7 @@
+## OpenRF v0.2.217 — Nationwide camera databases
+
+One optional update starts independent ALPR and speed/red-light snapshot jobs. Traffic data from [SpeedCams.world](https://speedcams.world/download/united-states), © OpenStreetMap contributors ([ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/)), saved in separate local SQLite tables. Counts and provider errors displayed separately; regional Overpass import remains under Advanced. Nationwide describes geographic scope, not completeness or verified operation. Traffic provider live connectivity unverified; mobile reports excluded. No personal data transmitted, no private reports or existing cache deleted.
+
 ## OpenRF v0.2.216 — Separate traffic-camera downloads
 
 Regional map imports request speed and red-light cameras only; nationwide ALPR download remains independent. Both actions share one Camera locations section. Single dividers separate map-layer sections. Existing data and preferences retained.

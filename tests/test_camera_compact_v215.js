@@ -5,7 +5,7 @@ const script=fs.readFileSync('openrf/static/camera-layers.js','utf8');
 const camera=html.indexOf('id="camera-map-manager"');
 assert(camera<html.indexOf('id="camera-import-osm"') && html.indexOf('id="camera-import-osm"')<html.indexOf('id="public-mesh-manager"'));
 assert(html.includes('<details class="camera-download-info"><summary>About the nationwide download</summary>'));
-assert(html.includes('>Update US ALPRs</button>'));
+assert(html.includes('>Update US cameras</button>'));
 assert(css.includes('#camera-map-manager .camera-action-buttons .btn{min-height:38px'));
 assert(script.includes('&types=${encodeURIComponent(types)}'));
 assert(script.includes('Smaller-area retry: section ${result.part} of ${result.parts}'));
