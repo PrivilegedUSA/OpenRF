@@ -1,6 +1,6 @@
 """Private, offline-first catalog of *reported* fixed camera infrastructure.
 
-ALPR map imports are explicitly requested by the operator. Network requests
+Camera map imports are explicitly requested by the operator. Network requests
 never include the user's GPS position, and imported OSM data isn't "verified".
 """
 from __future__ import annotations
@@ -66,7 +66,7 @@ def bbox_value(value, *, narrow=False):
     ):
         raise ValueError('Map bounds must be valid and may not cross the date line.')
     if narrow and (east-west > 8 or north-south > 8):
-        raise ValueError('Zoom into an area no larger than 8° × 8° before importing ALPR map data.')
+        raise ValueError('Zoom into an area no larger than 8° × 8° before importing camera map data.')
     return west, south, east, north
 
 
@@ -147,12 +147,16 @@ def _overpass_query(bounds):
     # Validated and normalized; never inject user-controlled query fragments.
     west, south, east, north = bbox_value(bounds, narrow=True)
     box = f'{south:.6f},{west:.6f},{north:.6f},{east:.6f}'
-    # Same OSM tags read by the FlockHopper ingestion pipeline. Ways are
-    # represented by Overpass-calculated centers, NOT exact lens positions.
+    # Relations are returned with member geometry; use only actual device
+    # node positions, never the center of an enforcement zone or intersection.
     return (f'[out:json][timeout:25];('
             f'node["man_made"="surveillance"]["surveillance:type"="ALPR"]({box});'
             f'way["man_made"="surveillance"]["surveillance:type"="ALPR"]({box});'
-            f');out center tags;')
+            f'node["highway"="speed_camera"]({box});'
+            f'node["highway"="red_light_camera"]({box});'
+            f'node["man_made"="surveillance"]["surveillance"="red_light"]["surveillance:type"="camera"]({box});'
+            f'relation["type"="enforcement"]["enforcement"~"(^|;)(maxspeed|traffic_signals|red_light_camera)(;|$)"]({box});'
+            f');out geom;')
 
 
 def _parse_overpass(document):
@@ -163,35 +167,44 @@ def _parse_overpass(document):
     elements = document['elements']
     if len(elements) > MAX_ELEMENTS:
         raise ValueError('Too many OSM camera records in view; zoom in and retry.')
-    features = []
+    features = {}
+    def add(kind, osm_id, coordinates, tags, category):
+        if type(osm_id) is not int or osm_id < 1 or not isinstance(coordinates,dict): return
+        try: lon,lat=float(coordinates['lon']),float(coordinates['lat'])
+        except (KeyError,ValueError,TypeError): return
+        if not (math.isfinite(lon) and math.isfinite(lat) and -180<=lon<=180 and -90<=lat<=90): return
+        ident=f'{kind}/{osm_id}'
+        features.setdefault((ident,category),{'type':'Feature','id':ident,
+            'geometry':{'type':'Point','coordinates':[lon,lat]},'properties':{
+                'camera_type':category,'brand':tags.get('brand') or tags.get('manufacturer') or '',
+                'direction':tags.get('camera:direction') or tags.get('direction') or ''}})
+        if len(features)>MAX_ELEMENTS: raise ValueError('Too many camera devices in view; zoom in and retry.')
     for element in elements:
-        if not isinstance(element, dict) or element.get('type') not in ('node', 'way'):
-            continue
-        kind = element['type']
-        coordinates = element if kind == 'node' else element.get('center')
-        if not isinstance(coordinates, dict):
-            continue
-        tags = element.get('tags')
-        if not isinstance(tags, dict):
-            continue
-        if tags.get('man_made') != 'surveillance' or str(tags.get('surveillance:type', '')).upper() != 'ALPR':
-            continue
-        try:
-            lon = float(coordinates['lon'])
-            lat = float(coordinates['lat'])
-        except (KeyError, ValueError, TypeError):
-            continue
-        if not (math.isfinite(lon) and math.isfinite(lat) and -180 <= lon <= 180 and -90 <= lat <= 90):
-            continue
-        osm_id = element.get('id')
-        if type(osm_id) is not int or osm_id < 1:
-            continue
-        features.append({'type': 'Feature', 'id': f'{kind}/{osm_id}',
-                         'geometry': {'type': 'Point', 'coordinates': [lon, lat]},
-                         'properties': {
-                             'brand': tags.get('brand') or tags.get('manufacturer') or '',
-                             'direction': tags.get('camera:direction') or tags.get('direction') or ''}})
-    return {'type': 'FeatureCollection', 'features': features}
+        if not isinstance(element,dict): continue
+        kind=element.get('type'); tags=element.get('tags')
+        if not isinstance(tags,dict): continue
+        if kind in ('node','way') and tags.get('man_made')=='surveillance' and str(tags.get('surveillance:type','')).upper()=='ALPR':
+            # Preserve legacy center responses; out geom ways have bounds instead.
+            coordinates=element if kind=='node' else element.get('center')
+            if kind=='way' and not coordinates:
+                bounds=element.get('bounds')
+                if isinstance(bounds,dict):
+                    try: coordinates={'lat':(float(bounds['minlat'])+float(bounds['maxlat']))/2,'lon':(float(bounds['minlon'])+float(bounds['maxlon']))/2}
+                    except (KeyError,TypeError,ValueError): pass
+            add(kind,element.get('id'),coordinates,tags,'ALPR')
+        if kind=='node':
+            if tags.get('highway')=='speed_camera': add(kind,element.get('id'),element,tags,'SPEED')
+            if tags.get('highway')=='red_light_camera' or (tags.get('man_made')=='surveillance' and tags.get('surveillance')=='red_light' and tags.get('surveillance:type')=='camera'):
+                add(kind,element.get('id'),element,tags,'RED_LIGHT')
+        if kind=='relation' and tags.get('type')=='enforcement':
+            categories={ {'maxspeed':'SPEED','traffic_signals':'RED_LIGHT','red_light_camera':'RED_LIGHT'}[tag.strip()] for tag in str(tags.get('enforcement','')).split(';') if tag.strip() in ('maxspeed','traffic_signals','red_light_camera') }
+            members=element.get('members')
+            if categories and isinstance(members,list):
+                for member in members:
+                    if isinstance(member,dict) and member.get('type')=='node' and member.get('role')=='device':
+                        for category in sorted(categories):
+                            add('node',member.get('ref'),member,tags,category)
+    return {'type':'FeatureCollection','features':list(features.values())}
 
 
 def _read_osm_area(bounds):
@@ -200,7 +213,7 @@ def _read_osm_area(bounds):
     errors = []
     for endpoint in OVERPASS_ENDPOINTS:
         request = urllib.request.Request(endpoint, data=payload, headers={
-            'User-Agent': 'OpenRF/0.2.55 (offline-first; user-initiated OSM area lookup)',
+            'User-Agent': 'OpenRF/0.2.211 (offline-first; user-initiated OSM area lookup)',
             'Content-Type': 'application/x-www-form-urlencoded',
             'Accept': 'application/json'})
         try:
@@ -239,13 +252,17 @@ def import_feed(repo, bounds, fetch=None):
         prop=feature.get('properties') or {}
         if not isinstance(prop,dict):prop={}
         ext=prop.get('osmId') or prop.get('osm_id') or feature.get('id')
+        category=prop.get('camera_type','ALPR')
+        if category not in TYPES: continue
         # Use stable geometry signature if the published feed has no OSM id.
         source_id='flockhopper-osm:'+str(ext) if ext is not None else 'flockhopper-point:'+hashlib.sha256(f'{lat:.6f}/{lon:.6f}'.encode()).hexdigest()[:24]
+        if category!='ALPR': source_id='osm-enforcement:'+category+':'+source_id
         brand=str(prop.get('brand') or prop.get('manufacturer') or '').strip()[:70]
         label=(f'Community-mapped {brand} ALPR' if brand else 'Community-mapped ALPR')[:160]
+        if category!='ALPR': label='Community-mapped '+('speed camera' if category=='SPEED' else 'red-light camera')
         direction=str(prop.get('direction') or '').strip()[:80]
-        rows.append(('ALPR','COMMUNITY_MAPPED',label,lat,lon,direction,'',
-                     'OpenStreetMap community surveillance mapping (Overpass/DeFlock compatible)',
+        rows.append((category,'COMMUNITY_MAPPED',label,lat,lon,direction,'',
+                     ('OpenStreetMap community surveillance mapping (Overpass/DeFlock compatible)' if category=='ALPR' else 'OpenStreetMap community enforcement mapping (Overpass)'),
                      ('https://www.openstreetmap.org/'+str(ext) if isinstance(ext,str) and ext.startswith(('node/','way/')) and ext.split('/',1)[1].isdigit() else 'https://www.openstreetmap.org/'),source_id,utc_now()))
         if len(rows)>=20000:break  # single-area ingest safety cap
     with repo._lock, repo._connect() as db:
@@ -256,6 +273,6 @@ def import_feed(repo, bounds, fetch=None):
           latitude=excluded.latitude,longitude=excluded.longitude,direction=excluded.direction,
           label=excluded.label,updated_utc=excluded.updated_utc
         WHERE camera_sites.state='COMMUNITY_MAPPED' ''',rows)
-    return {'matched':len(rows),'source':FEED_URL,'state':'COMMUNITY_MAPPED',
+    return {'matched':len(rows),'counts':{kind:sum(row[0]==kind for row in rows) for kind in TYPES},'source':FEED_URL,'state':'COMMUNITY_MAPPED',
             'note':'Community-mapped OSM coordinates, not independently verified; may be outdated.',
             'attribution':ATTRIBUTION}

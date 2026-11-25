@@ -166,13 +166,13 @@
     const button=get('camera-import-osm'),b=bounds();
     if(!usable(b)){setStatus('Zoom into a local area first (not across the date line).',true);return;}
     if(b[2]-b[0]>8||b[3]-b[1]>8){setStatus('Zoom closer: import is limited to a visible area no bigger than 8° × 8°.',true);return;}
-    button.disabled=true;setStatus('Querying OSM/Overpass for ALPR reports within the visible map bounds. No GPS track is sent…');
+    button.disabled=true;setStatus('Querying OSM/Overpass for camera reports within the visible map bounds. No GPS track is sent…');
     try{
       const result=await api('/api/cameras/import-osm','POST',{bounds:b});
       // Import never changes saved layer visibility; user chooses what the map shows.
       lastKey='';await refresh(true);
-      setStatus(`Found ${result.import.matched} OSM community-mapped ALPR location(s) in this area. Local offline copy saved. If zero, the map has no tagged entries in this area—not proof that no cameras exist.`);
-    }catch(e){setStatus(`Could not import ALPRs: ${e.message}`,true);}
+      setStatus(`Found ${result.import.matched} OSM camera report(s): ${result.import.counts?.ALPR??0} ALPR, ${result.import.counts?.RED_LIGHT??0} red-light, ${result.import.counts?.SPEED??0} speed. Local offline copy saved. If zero, the map has no tagged entries in this area—not proof that no cameras exist.`);
+    }catch(e){setStatus(`Could not import cameras: ${e.message}`,true);}
     finally{button.disabled=false;}
   });
   get('camera-manual-form').addEventListener('submit',async event=>{

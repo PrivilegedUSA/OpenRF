@@ -63,14 +63,16 @@ $('map-follow-hud').querySelector('.map-follow-extras').append(navSignalIndicato
 // camera locations, observations or coordinates enter this preference record.
 const MAP_LAYER_STORAGE_KEY = 'openrf-map-layer-visibility-v1';
 function mapLayerInputs() {
-  return [...document.querySelectorAll('#map-survey-panel [data-map-kind], #map-survey-panel [data-camera-type]')];
+  return [...document.querySelectorAll('#map-survey-panel [data-map-kind], #map-survey-panel [data-camera-type], #map-survey-panel [data-mesh-layer], #map-survey-panel [data-public-mesh-layer]')];
 }
 function saveMapLayerVisibility() {
-  const prefs = {version:1, kinds:{}, cameras:{}};
+  const prefs = {version:1, kinds:{}, cameras:{}, mesh:{}, publicMesh:{}};
   for (const input of mapLayerInputs()) {
     const kind = input.dataset.mapKind;
     if (kind) prefs.kinds[kind] = Boolean(input.checked);
     else if (input.dataset.cameraType) prefs.cameras[input.dataset.cameraType] = Boolean(input.checked);
+    else if (input.dataset.meshLayer) prefs.mesh[input.dataset.meshLayer] = Boolean(input.checked);
+    else if (input.dataset.publicMeshLayer) prefs.publicMesh[input.dataset.publicMeshLayer] = Boolean(input.checked);
   }
   try { window.localStorage?.setItem(MAP_LAYER_STORAGE_KEY, JSON.stringify(prefs)); return true; }
   catch (_) { return false; } // Disabled storage/private browsing: use current session.
@@ -82,8 +84,8 @@ function restoreMapLayerVisibility() {
   if (saved && !Array.isArray(saved) && saved.version === 1) {
     for (const input of mapLayerInputs()) {
       const kind = input.dataset.mapKind;
-      const group = kind ? saved.kinds : saved.cameras;
-      const key = kind || input.dataset.cameraType;
+      const group = kind ? saved.kinds : input.dataset.cameraType ? saved.cameras : input.dataset.meshLayer ? saved.mesh : saved.publicMesh;
+      const key = kind || input.dataset.cameraType || input.dataset.meshLayer || input.dataset.publicMeshLayer;
       if (group && Object.prototype.hasOwnProperty.call(group, key) && typeof group[key] === 'boolean')
         input.checked = group[key];
     }
@@ -519,7 +521,7 @@ function showPage(page, options = {}) {
   if (page === 'browser') document.dispatchEvent(new Event('openrf:browser-shown'));
   else document.dispatchEvent(new Event('openrf:browser-hidden'));
   if (page === 'trips') document.dispatchEvent(new Event('openrf:trips-shown'));
-  if (page === 'map') { startMap(); if (options.autoLocate !== false) locateMap(false); renderMapSurveyPanel(); setTimeout(() => { state.map?.resize(); state.rasterMap?.resize(); }, 80); }
+  if (page === 'map') { document.dispatchEvent(new Event('openrf:map-shown')); startMap(); if (options.autoLocate !== false) locateMap(false); renderMapSurveyPanel(); setTimeout(() => { state.map?.resize(); state.rasterMap?.resize(); }, 80); }
   window.scrollTo(0, 0);
 }
 

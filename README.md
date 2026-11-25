@@ -1,3 +1,7 @@
+## OpenRF v0.2.211 — Persistent mesh layers and regional camera import
+
+Public and local mesh layer switches persist using browser-local preferences. Mesh pins are smaller with unchanged label font sizes. The regional OSM import in Map → Layers → Camera locations now supports tagged ALPR, speed and red-light enforcement devices, saved locally as community reports. Enable the relevant camera switches to display them. The nationwide snapshot still covers ALPR only. Cellular observations are distinct from public tower locations or carrier coverage; those public layers and additional public mesh providers remain planned. See `docs/RELEASE_0.2.211_TESTS.md`.
+
 ## OpenRF v0.2.210 — Map palette refinement
 
 Red-light cameras are red, speed cameras yellow and ALPR/Flock orange. Includes the compact borderless map styling from v0.2.209. See `docs/RELEASE_0.2.210_TESTS.md`.

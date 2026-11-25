@@ -1,3 +1,11 @@
+# v0.2.211 — Map layer persistence and regional enforcement camera import
+
+- Persist local and public mesh visibility, including restored local refresh when entering Map.
+- Reduce mesh pins to 20px and cluster minimum size to 24px; preserve 10px labels and camera palette.
+- Extend bounded, explicit OSM camera import to speed and red-light devices; keep community provenance, existing nationwide ALPR cache and private reports.
+- Clarify cellular observation label. Public tower, carrier coverage and additional public mesh providers remain planned.
+- See `docs/RELEASE_0.2.211_TESTS.md`.
+
 # v0.2.210 — Camera palette correction
 
 - Red-light cameras red; speed cameras yellow; ALPR/Flock remains orange. Synchronize both renderers, layer swatches and camera keys. Preserve v0.2.209 map styling and cached data.

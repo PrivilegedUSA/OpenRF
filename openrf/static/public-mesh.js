@@ -95,7 +95,7 @@
     try{
       const res=await fetch('/api/mesh/public'+(action?'/'+action:''),action?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:true})}:{cache:'no-store'});
       const data=await res.json();if(!res.ok)throw Error(data.error||'HTTP '+res.status);snapshot=data;
-      if(action==='refresh'){el('public-mesh-nodes').checked=true;progressView({phase:'complete'});}
+      if(action==='refresh'){el('public-mesh-nodes').checked=true;window.OpenRFMapLayerPreferences?.save?.();progressView({phase:'complete'});}
       if(action==='clear')el('public-mesh-progress-wrap').hidden=true;
       close();redraw?.();
     }catch(e){error='Directory request failed: '+e.message;if(action==='refresh')progressView({phase:'failed',error:e.message});}
@@ -103,7 +103,7 @@
   }
   window.OpenRFPublicMesh={vector,raster,close,set redraw(fn){redraw=fn;}};
   document.addEventListener('DOMContentLoaded',()=>{
-    for(const id of ['public-mesh-nodes','public-mesh-repeaters'])el(id).addEventListener('change',()=>{close();redraw?.();});
+    for(const id of ['public-mesh-nodes','public-mesh-repeaters'])el(id).addEventListener('change',()=>{window.OpenRFMapLayerPreferences?.save?.();close();redraw?.();});
     el('public-mesh-download').addEventListener('click',()=>request('refresh'));
     el('public-mesh-clear').addEventListener('click',()=>{if(window.confirm('Delete the downloaded public MeshCore snapshot? Local radio data is unaffected.'))request('clear');});
     request();

@@ -50,3 +50,12 @@ assert(css.includes('#page-map .map-directions-body ol {\n  max-height:none;\n  
 assert(css.includes('right:62px;'),'leave room for right map tools');
 assert(css.includes('#page-map .map-sheet-close,\n#page-map .map-tool-close'),'consistent centered borderless X');
 console.log('PASS v0.2.76 map layers persist safely; directions have one scroll area and compact close controls');
+// Mesh toggles use the same browser-local storage record, preserving older defaults.
+stored.clear();
+const meshControls=()=>[...controls(),...['Meshtastic','MeshCore','Reticulum','infrastructure'].map(meshLayer=>({dataset:{meshLayer},checked:false})),...['nodes','repeaters'].map(publicMeshLayer=>({dataset:{publicMeshLayer},checked:false}))];
+let m=meshControls();const meshBoot=boot(m);m[9].checked=true;m[11].checked=true;m[13].checked=true;meshBoot.win.OpenRFMapLayerPreferences.save();
+let restored=meshControls();boot(restored);assert.deepEqual(restored.slice(9).map(x=>x.checked),[true,false,true,false,true,false]);
+stored.set('openrf-map-layer-visibility-v1',JSON.stringify({version:1,kinds:{WIFI:false},cameras:{ALPR:true}}));restored=meshControls();boot(restored);assert(restored.slice(9).every(x=>!x.checked));assert.equal(restored[0].checked,false);
+assert(fs.readFileSync('openrf/static/public-mesh.js','utf8').includes('OpenRFMapLayerPreferences?.save?.()'));
+assert(fs.readFileSync('openrf/static/mesh-dashboard.js','utf8').includes('OpenRFMapLayerPreferences?.save?.()'));
+assert(css.includes('width:20px;height:20px;min-width:20px;min-height:20px'));assert(css.includes('min-width:24px;height:24px;padding:0 4px'));
