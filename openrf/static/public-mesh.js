@@ -67,15 +67,35 @@
       snapshot.state==='expired'?'Cache expired (30 days); refresh to show nodes.':snapshot.state==='unavailable'?'Local public directory cache unavailable.':'No public directory downloaded yet.';
     if(busy)msg+=' Working…';if(error)msg+=' '+error;s.textContent=msg;
   }
+  function progressView(data){
+    const bar=el('public-mesh-progress'),wrap=el('public-mesh-progress-wrap'),label=el('public-mesh-progress-text');
+    const phase=data.phase, received=data.received_bytes||0,total=data.total_bytes;
+    const mib=n=>(n/1048576).toFixed(1)+' MiB';
+    wrap.hidden=false;bar.removeAttribute('value');
+    if(phase==='downloading'){
+      if(total>0){bar.value=Math.min(100,100*received/total);label.textContent=`Downloading ${mib(received)} / ${mib(total)} · ${Math.floor(bar.value)}%`;}
+      else label.textContent=`Downloading ${mib(received)} · total size unknown`;
+    }else{
+      label.textContent=({connecting:'Connecting to MeshCore…',parsing:'Reading downloaded JSON…',processing:'Validating node records…',saving:'Saving offline directory…',complete:'Download complete',failed:data.error||'Download failed',idle:'Connecting…'})[phase]||'Working…';
+      if(phase==='complete')bar.value=100;
+    }
+  }
   async function request(action){
     if(busy)return;busy=true;status();for(const id of ['public-mesh-download','public-mesh-clear'])el(id).disabled=true;
-    let error='';try{
+    let error='',poll=null,finished=false;
+    if(action==='refresh'){
+      progressView({phase:'connecting'});
+      const update=async()=>{try{const res=await fetch('/api/mesh/public/status',{cache:'no-store'});if(res.ok){const data=await res.json();if(!finished)progressView(data);}}catch(_){}finally{if(!finished)poll=setTimeout(update,500);}};
+      poll=setTimeout(update,300);
+    }
+    try{
       const res=await fetch('/api/mesh/public'+(action?'/'+action:''),action?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:true})}:{cache:'no-store'});
       const data=await res.json();if(!res.ok)throw Error(data.error||'HTTP '+res.status);snapshot=data;
-      if(action==='refresh')el('public-mesh-nodes').checked=true;
+      if(action==='refresh'){el('public-mesh-nodes').checked=true;progressView({phase:'complete'});}
+      if(action==='clear')el('public-mesh-progress-wrap').hidden=true;
       close();redraw?.();
-    }catch(e){error='Directory request failed: '+e.message;}
-    finally{busy=false;for(const id of ['public-mesh-download','public-mesh-clear'])el(id).disabled=false;status(error);}
+    }catch(e){error='Directory request failed: '+e.message;if(action==='refresh')progressView({phase:'failed',error:e.message});}
+    finally{finished=true;clearTimeout(poll);busy=false;for(const id of ['public-mesh-download','public-mesh-clear'])el(id).disabled=false;status(error);}
   }
   window.OpenRFPublicMesh={vector,raster,close,set redraw(fn){redraw=fn;}};
   document.addEventListener('DOMContentLoaded',()=>{

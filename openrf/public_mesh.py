@@ -10,10 +10,16 @@ import re
 import tempfile
 import threading
 import time
+from urllib.error import HTTPError, URLError
+from http.client import IncompleteRead
+import socket
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 URL = 'https://map.meshcore.io/api/v1/nodes'
-MAX_BYTES = 64 * 1024 * 1024
+MAX_BYTES = 128 * 1024 * 1024
+NETWORK_TIMEOUT = 90
+DOWNLOAD_DEADLINE = 300
+FAILURE_RETRY = 30
 MAX_ROWS = 200_000
 MIN_REFRESH = 300
 MAX_CACHE_AGE = 30 * 86400
@@ -26,14 +32,43 @@ class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, *args, **kwargs):
         return None
 
-def fetch_meshcore():
-    request = Request(URL, headers={'Accept':'application/json', 'User-Agent':'OpenRF/0.2.206 (manual public directory snapshot; https://openrf.app)'})
-    with build_opener(NoRedirect()).open(request, timeout=20) as response:
-        if response.headers.get('Content-Encoding','identity').lower() != 'identity':
-            raise DirectoryError('Unexpected response encoding')
-        raw = response.read(MAX_BYTES + 1)
-    if len(raw) > MAX_BYTES:
-        raise DirectoryError('Provider response exceeds download limit')
+def fetch_meshcore(progress=lambda **fields: None):
+    request = Request(URL, headers={'Accept':'application/json', 'Accept-Encoding':'identity', 'User-Agent':'OpenRF/0.2.207 (manual public directory snapshot; https://openrf.app)'})
+    started = time.monotonic()
+    try:
+        with build_opener(NoRedirect()).open(request, timeout=NETWORK_TIMEOUT) as response:
+            if response.headers.get('Content-Encoding','identity').lower() != 'identity':
+                raise DirectoryError('Unexpected response encoding from MeshCore')
+            length = response.headers.get('Content-Length')
+            total = int(length) if length and length.isdecimal() else None
+            if total is not None and total > MAX_BYTES:
+                raise DirectoryError('Provider response exceeds 128 MiB download limit')
+            progress(phase='downloading', received_bytes=0, total_bytes=total)
+            raw = bytearray()
+            while True:
+                if time.monotonic()-started > DOWNLOAD_DEADLINE:
+                    raise DirectoryError('Directory transfer exceeded five-minute deadline')
+                chunk = response.read1(256*1024)
+                if not chunk: break
+                raw.extend(chunk)
+                if len(raw)>MAX_BYTES:
+                    raise DirectoryError('Provider response exceeds 128 MiB download limit')
+                progress(phase='downloading', received_bytes=len(raw), total_bytes=total)
+            if total is not None and len(raw)!=total:
+                raise DirectoryError('Incomplete directory transfer; previous snapshot retained')
+    except HTTPError as exc:
+        error = DirectoryError(f'MeshCore HTTP {exc.code}; previous snapshot retained')
+        if exc.code in (429,503):
+            retry=exc.headers.get('Retry-After','') if exc.headers else ''
+            error.retry_seconds=max(MIN_REFRESH,int(retry)) if retry.isdecimal() and len(retry)<10 else MIN_REFRESH
+        raise error from exc
+    except (TimeoutError, socket.timeout) as exc:
+        raise DirectoryError('MeshCore network timed out; previous snapshot retained') from exc
+    except URLError as exc:
+        raise DirectoryError(f'MeshCore connection failed ({type(exc.reason).__name__}); previous snapshot retained') from exc
+    except (OSError, IncompleteRead) as exc:
+        raise DirectoryError(f'MeshCore transfer interrupted ({type(exc).__name__}); previous snapshot retained') from exc
+    progress(phase='parsing', received_bytes=len(raw), total_bytes=total)
     try:
         return json.loads(raw)
     except (UnicodeError, ValueError) as exc:
@@ -84,6 +119,17 @@ class PublicMeshDirectory:
         self.fetcher = fetcher
         self.lock = threading.Lock()
         self.last_attempt = float('-inf')
+        self.retry_delay = MIN_REFRESH
+        self.progress_lock = threading.Lock()
+        self.progress = {'phase':'idle','received_bytes':0,'total_bytes':None}
+
+    def _progress(self, **fields):
+        with self.progress_lock:
+            self.progress.update(fields)
+
+    def download_status(self):
+        with self.progress_lock:
+            return {**self.progress, 'retry_seconds':max(0,math.ceil(self.retry_delay-(time.monotonic()-self.last_attempt)))}
 
     def snapshot(self):
         try:
@@ -107,15 +153,27 @@ class PublicMeshDirectory:
             raise DirectoryError('Directory action already running')
         try:
             now = time.monotonic()
-            if now-self.last_attempt < MIN_REFRESH:
-                raise DirectoryError('Please allow five minutes between download attempts')
+            if now-self.last_attempt < self.retry_delay:
+                raise DirectoryError(f'Please wait {math.ceil(self.retry_delay-(now-self.last_attempt))} seconds before retrying')
             self.last_attempt = now
+            self.retry_delay = MIN_REFRESH
+            self._progress(phase='connecting', received_bytes=0, total_bytes=None, error=None)
             try:
-                result = normalize(self.fetcher())
-            except DirectoryError:
+                payload = self.fetcher(self._progress) if self.fetcher is fetch_meshcore else self.fetcher()
+                self._progress(phase='processing')
+                result = normalize(payload)
+                del payload
+            except DirectoryError as exc:
+                self.retry_delay = getattr(exc,'retry_seconds',FAILURE_RETRY)
+                self.last_attempt = time.monotonic()
+                self._progress(phase='failed',error=str(exc))
                 raise
             except Exception as exc:
-                raise DirectoryError('MeshCore provider download failed; previous snapshot retained') from exc
+                self.retry_delay = FAILURE_RETRY
+                self.last_attempt = time.monotonic()
+                self._progress(phase='failed',error='Directory processing failed')
+                raise DirectoryError(f'MeshCore directory failed ({type(exc).__name__}); previous snapshot retained') from exc
+            self._progress(phase='saving')
             result.update(schema=1,downloaded_at=time.time())
             raw = json.dumps(result,ensure_ascii=True,separators=(',',':'),allow_nan=False).encode('utf-8')
             if len(raw)>MAX_BYTES: raise DirectoryError('Normalized directory exceeds storage limit')
@@ -127,7 +185,15 @@ class PublicMeshDirectory:
                 os.replace(tmp,self.path)
             finally:
                 if tmp is not None: tmp.unlink(missing_ok=True)
+            self._progress(phase='complete',cached_count=len(result['nodes']))
+            self.last_attempt = time.monotonic()
             return {**result,'state':'cached','cached_count':len(result['nodes'])}
+        except (OSError,DirectoryError) as exc:
+            if self.download_status()['phase'] == 'saving':
+                self.retry_delay = FAILURE_RETRY
+                self.last_attempt = time.monotonic()
+                self._progress(phase='failed',error='Cache save failed')
+            raise
         finally:
             self.lock.release()
 
@@ -136,6 +202,7 @@ class PublicMeshDirectory:
             raise DirectoryError('Directory action already running')
         try:
             self.path.unlink(missing_ok=True)
+            self._progress(phase='idle',received_bytes=0,total_bytes=None,error=None)
             return {'state':'empty','nodes':[],'cached_count':0}
         finally:
             self.lock.release()

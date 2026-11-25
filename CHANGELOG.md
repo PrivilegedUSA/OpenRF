@@ -1,3 +1,9 @@
+# v0.2.207 — Public directory download reliability
+
+- Stream directory transfers with byte-based progress, processing and saving stages. Increase read timeout and response cap; retain cached data on errors.
+- Shorter retry delay after ordinary failures; preserve provider throttling.
+- See `docs/RELEASE_0.2.207_TESTS.md`.
+
 # v0.2.206 — Public MeshCore directory foundation
 
 - Add manual public MeshCore snapshot download, bounded offline cache, source-labelled public layers and screen-space map clustering.

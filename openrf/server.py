@@ -806,6 +806,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, self.repo.stats())
         if path == '/api/radio/status':
             return self._json(200, self.server.radio_receiver.status())
+        if path == '/api/mesh/public/status':
+            return self._json(200, self.server.public_mesh.download_status())
         if path == '/api/mesh/public':
             return self._json(200, self.server.public_mesh.snapshot())
         if path == '/api/mesh/dashboard':
