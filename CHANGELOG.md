@@ -1,3 +1,9 @@
+## v0.2.224
+
+- Add an independent offline public cellular reference catalog: FCC ULS/HIFLD tower snapshot from a documented public ArcGIS layer, server-side refresh, record-count progress, previous snapshot retained on incomplete response, viewport limits, selectable details and Snap to location. Public records are not proof of active towers or consumer-carrier ownership.
+- Add local OpenCellID CSV/GZIP logical-cell estimate imports (US MCCs) and FCC modeled coverage GeoJSON regional packs with carrier/date/technology/environment provenance, independent toggles and vector/raster rendering. Offline imports require manually acquired source files; no credentials or GIS datasets bundled. Automatic OpenCellID and FCC coverage downloads deferred.
+- No existing camera or mesh database migration. See docs/CELLULAR_REFERENCE.md for source caveats, attribution and commands.
+
 ## v0.2.223
 
 - Use C/M/R on public mesh markers; preserve network initials on clusters with a compact upper-right count badge (99+ for larger counts; full count in details). Mixed-network overlap badges retain their separate letters and show the total count.

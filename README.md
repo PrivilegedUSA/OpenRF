@@ -1,4 +1,4 @@
-## OpenRF v0.2.223 — Mesh network initials and count badges
+## OpenRF v0.2.224 — Mesh network initials and count badges
 
 C/M/R markers retain their network identity when clustered; compact count badges show group size. No database or provider changes.
 
@@ -1240,3 +1240,7 @@ The existing **Map → Layers** overlay has an optional **Download / update nati
 **Optional offline Valhalla road routing**, not additional visible map tiles, now supports four profiles: existing Northern California, all California, western US (including Nevada), and the whole United States. The expanded graph source files and output are separate from managed project code, stored under `~/.local/share/openrf/valhalla/`; downloads require explicit commands, adequate storage/RAM and a working Docker daemon. Full-US routing is **not** a lightweight bundle: the raw extract is roughly 11.4 GB and the processing/output needs considerably more space. The release ZIP includes none of it.
 
 Read [Offline Valhalla routing region setup](docs/VALHALLA_ROUTING_REGIONS.md) and start with `bash tools/setup-valhalla-wsl.sh --plan --region west` from Ubuntu. To install California instead, run `bash tools/setup-valhalla-wsl.sh --install --region california`. This **does not** configure online geocoding, prebuilt map visuals or camera avoidance. The existing v0.2.52 right-side map layout, offline Amador/Calaveras basemap and radio tools are unchanged.
+
+### Public cellular reference (v0.2.224)
+
+See [Cellular reference layers and offline imports](docs/CELLULAR_REFERENCE.md) for tower downloads, estimated cell data, FCC carrier coverage and source limitations.

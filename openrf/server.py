@@ -813,6 +813,17 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, self.repo.stats())
         if path == '/api/radio/status':
             return self._json(200, self.server.radio_receiver.status())
+        if path == '/api/cellular/reference/status':
+            try: return self._json(200, self.server.cellular_catalog.status())
+            except (OSError, sqlite3.Error): return self._error(503, 'Cellular reference cache unavailable')
+        if path == '/api/cellular/reference/view':
+            try:
+                q = parse_qs(urlparse(self.path).query)
+                bounds = q.get('bbox',[''])[0].split(',')
+                if len(bounds)!=4: raise ValueError('Four viewport bounds required')
+                return self._json(200,self.server.cellular_catalog.view(bounds,q.get('kind',[]),q.get('carrier',[]),q.get('profile',[])))
+            except (ValueError, TypeError) as exc: return self._error(400,str(exc))
+            except (OSError, sqlite3.Error): return self._error(503,'Cellular reference cache unavailable')
         if path == '/api/mesh/public/reticulum/status':
             return self._json(200, self.server.public_reticulum.download_status())
         if path == '/api/mesh/public/reticulum':
@@ -1037,7 +1048,7 @@ class Handler(BaseHTTPRequestHandler):
             file = STATIC_DIR / 'index.html'
         elif path == '/static/hardware-tabs.js':
             file = STATIC_DIR / 'hardware-tabs.js'
-        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/tab-session.js', '/static/browser-workspace.js', '/static/saved-trips.js', '/static/wifi-quick.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/trip-map.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/camera_alerts.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/weather.js', '/static/mesh.js', '/static/meshcore.js', '/static/mesh-dashboard.js', '/static/public-mesh.js', '/static/messaging-tabs.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/reticulum-files.js', '/static/reticulum-tabs.js', '/static/bluetooth-files.js', '/static/camera-layers.js', '/static/chirp-import.js', '/static/surveillance.js', '/static/surveillance.css'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/tab-session.js', '/static/browser-workspace.js', '/static/saved-trips.js', '/static/wifi-quick.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/trip-map.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/camera_alerts.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/weather.js', '/static/mesh.js', '/static/meshcore.js', '/static/mesh-dashboard.js', '/static/public-mesh.js', '/static/cellular-map.js', '/static/messaging-tabs.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/reticulum-files.js', '/static/reticulum-tabs.js', '/static/bluetooth-files.js', '/static/camera-layers.js', '/static/chirp-import.js', '/static/surveillance.js', '/static/surveillance.css'):
             file = STATIC_DIR / Path(path).name
         elif path == '/static/offline-trails.js':
             file = STATIC_DIR / 'offline-trails.js'
@@ -1054,6 +1065,13 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host() or not self._allowed_origin() or self.headers.get('Sec-Fetch-Site') == 'cross-site':
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
+        if path == '/api/cellular/reference/refresh':
+            try:
+                body = self._decode_body()
+                if not isinstance(body,dict) or set(body)!={'confirm'} or body['confirm'] is not True: raise ValueError('Explicit confirmation required')
+                return self._json(202,self.server.cellular_catalog.refresh())
+            except ValueError as exc: return self._error(400,str(exc))
+            except (OSError, sqlite3.Error): return self._error(503,'Cellular reference cache unavailable')
         if path in ('/api/mesh/public/refresh','/api/mesh/public/clear','/api/mesh/public/meshtastic/refresh','/api/mesh/public/meshtastic/clear','/api/mesh/public/reticulum/refresh','/api/mesh/public/reticulum/clear'):
             from .public_mesh import DirectoryError
             try:
@@ -2247,6 +2265,8 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     from .public_mesh import PublicMeshDirectory, fetch_meshtastic, normalize_meshtastic, fetch_reticulum, normalize_reticulum
     server.public_reticulum = PublicMeshDirectory(repository.path.parent / 'public-reticulum.json', fetch_reticulum, normalizer=normalize_reticulum, provider='REPMAP', max_cache_age=7*86400)
     server.public_meshtastic = PublicMeshDirectory(repository.path.parent / 'public-meshtastic.json', fetch_meshtastic, normalizer=normalize_meshtastic, provider='MeshMap.net', max_cache_age=7*86400)
+    from .cellular_catalog import Catalog
+    server.cellular_catalog = Catalog(repository.path.parent / 'cellular-reference.sqlite3')
     server.public_mesh = PublicMeshDirectory(repository.path.parent / 'public-meshcore.json')
     server.mesh_snapshot = SnapshotCoordinator(lambda: dashboard(server.mesh_manager, server.meshcore_manager, server.reticulum_manager))
     if server.mesh_history is not None:

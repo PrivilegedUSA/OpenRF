@@ -457,6 +457,7 @@ function closeHeaderMessageMenu(returnFocus = false){
 // Only primary-map feature info is dismissed; preserve navigation and route state.
 function closeMapFeatureInfo() {
   window.OpenRFPublicMesh?.close();
+  window.OpenRFCellular?.close();
   const popup=state.mapFeaturePopup;
   state.mapFeaturePopup=null;
   popup?.remove();
@@ -1619,6 +1620,7 @@ function startMap() {
       updateMap();
       window.OpenRFMeshDashboard?.vector(state.map,true);
       window.OpenRFPublicMesh?.vector(state.map,true);
+      window.OpenRFCellular?.vector(state.map,true);
       updateBrowserLocationMarker();applyPendingLocation();
       renderAreaOverlay();renderNavigationOverlay();applyNavigationFit();
       const url=openrfMapStyleUrl();
@@ -2053,6 +2055,7 @@ function updateMap() {
   window.OpenRFCameras?.updateVector(state.map);
   window.OpenRFMeshDashboard?.vector(state.map);
   window.OpenRFPublicMesh?.vector(state.map);
+  window.OpenRFCellular?.vector(state.map);
 }
 function switchToRasterMap(reason) {
   closeMapFeatureInfo();
@@ -2280,6 +2283,7 @@ function startRasterMap(reason, view = null) {
       window.OpenRFCameras?.renderRaster(nextPins,raster,width,height);
       window.OpenRFMeshDashboard?.raster(nextPins,raster,width,height,worldPixel);
       window.OpenRFPublicMesh?.raster(nextPins,raster,width,height,worldPixel);
+      window.OpenRFCellular?.raster(nextPins,raster,width,height,worldPixel,pixelWorld);
       pins.replaceChildren(nextPins);
       renderAreaOverlay();
       renderNavigationOverlay();
@@ -5944,3 +5948,5 @@ refreshNavigationDestinations().catch(e=>{ $('nav-destination-list').textContent
 if(typeof window!=='undefined' && window.OpenRFMeshDashboard) window.OpenRFMeshDashboard.redraw=()=>{if(state.rasterMap)state.rasterMap.render();else if(state.mapReady)window.OpenRFMeshDashboard.vector(state.map);};
 
 if(typeof window!=='undefined' && window.OpenRFPublicMesh) window.OpenRFPublicMesh.redraw=()=>{if(state.rasterMap)state.rasterMap.render();else if(state.mapReady)window.OpenRFPublicMesh.vector(state.map,true);};
+
+if(typeof window!=='undefined' && window.OpenRFCellular){window.OpenRFCellular.pickBlocked=()=>Boolean(state.navPicking||state.areaChoosing);window.OpenRFCellular.redraw=()=>{if(state.rasterMap)state.rasterMap.render();else if(state.mapReady)window.OpenRFCellular.vector(state.map,true);};}
