@@ -33,7 +33,7 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 def _fetch_directory(url, provider, progress):
-    request = Request(url, headers={'Accept':'application/json', 'Accept-Encoding':'identity', 'User-Agent':'OpenRF/0.2.221 (manual public directory snapshot; https://openrf.app)'})
+    request = Request(url, headers={'Accept':'application/json', 'Accept-Encoding':'identity', 'User-Agent':'OpenRF/0.2.222 (manual public directory snapshot; https://openrf.app)'})
     started = time.monotonic()
     try:
         with build_opener(NoRedirect()).open(request, timeout=NETWORK_TIMEOUT) as response:

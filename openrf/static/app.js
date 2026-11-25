@@ -468,13 +468,40 @@ function closeMapFeatureInfo() {
     updateMap();
   }
 }
-function showMapFeaturePopup(popup,map) {
+// Focus reported feature coordinates, not a new GPS fix or navigation target.
+function validMapFeatureLocation(lon,lat) {
+  return Number.isFinite(lon)&&Number.isFinite(lat)&&Math.abs(lon)<=180&&Math.abs(lat)<=90;
+}
+function snapToMapFeature(lon,lat) {
+  if(!validMapFeatureLocation(lon,lat))return false;
+  if(!document.body.classList.contains('map-workspace'))showPage('map',{autoLocate:false});
+  if(!$('map-survey-panel').hidden)setMapSurveyOpen(false);
+  if(state.navFollowId!==null){
+    state.navFollowCameraSuspended=true;
+    const note=$('map-follow-camera-note');if(note)note.textContent='Map moved manually · tap the crosshair to resume following.';
+  }
+  const current=state.map&&state.mapReady?state.map.getZoom():state.rasterMap?.zoom;
+  state.mapNavigationEpoch++;
+  state.pendingLocationView={center:[lon,lat],zoom:Math.max(17,Number.isFinite(current)?current:0),epoch:state.mapNavigationEpoch,manual:true};
+  applyPendingLocation();return true;
+}
+function makeMapFeatureSnapButton(lon,lat) {
+  const b=document.createElement('button');b.type='button';b.className='map-feature-snap btn mini';
+  b.textContent='Snap to location';b.title='Center and zoom to this reported map position';
+  b.disabled=!validMapFeatureLocation(lon,lat);
+  b.addEventListener('click',e=>{e.stopPropagation();snapToMapFeature(lon,lat);});return b;
+}
+function showMapFeaturePopup(popup,map,coords) {
   closeMapFeatureInfo();
   state.mapFeaturePopup=popup;
   popup.on('close',()=>{if(state.mapFeaturePopup===popup)state.mapFeaturePopup=null;});
   popup.addTo(map);
+  if(Array.isArray(coords)&&validMapFeatureLocation(...coords)){
+    const content=popup.getElement()?.querySelector('.maplibregl-popup-content');
+    if(content)content.prepend(makeMapFeatureSnapButton(...coords));
+  }
 }
-window.OpenRFMapFeatureInfo={close:closeMapFeatureInfo,show:showMapFeaturePopup};
+window.OpenRFMapFeatureInfo={close:closeMapFeatureInfo,show:showMapFeaturePopup,snap:snapToMapFeature,snapButton:makeMapFeatureSnapButton,openSheet:()=>setMapSurveyOpen(true)};
 function showPage(page, options = {}) {
   closeMapFeatureInfo();
   if(page!=='map' && !$('map-survey-panel').hidden)setMapSurveyOpen(false);
@@ -1082,6 +1109,7 @@ function renderMapObservationDetail() {
   }).join('');
   out.hidden=false;
   out.innerHTML=`<div class="map-detail-head"><strong>Saved survey observation #${escapeHTML(record.id)}</strong><button type="button" id="map-detail-close" class="map-detail-close" aria-label="Close observation details">×</button></div>
+    <button type="button" class="map-feature-snap btn mini" data-map-detail-zoom="${escapeHTML(record.id)}">Snap to location</button>
     <p><strong>${escapeHTML(record.label)}</strong> · ${escapeHTML(record.kind)} · ${escapeHTML(record.source)}</p>
     ${record.identifier ? `<p class="small muted">Identifier ${escapeHTML(record.identifier)}</p>` : ''}
     <p class="small muted">${escapeHTML(stamp(record.observed_at))} · ${escapeHTML(record.source_device || 'Source device unspecified')}</p>
@@ -1092,8 +1120,7 @@ function renderMapObservationDetail() {
     <p class="small muted">Observer position ${Number(record.latitude).toFixed(5)}, ${Number(record.longitude).toFixed(5)}${record.accuracy_m != null ? ` · reported ±${escapeHTML(record.accuracy_m)} m` : ' · accuracy not reported'} · ${escapeHTML(record.location_source || 'Location source unspecified')}. This is NOT a transmitter position.</p>
     ${record.notes ? `<p class="small muted">${escapeHTML(record.notes)}</p>` : ''}
     ${record.source==='DEMO' ? '<strong class="map-demo-warning">SYNTHETIC DEMO / HISTORICAL — NOT LIVE</strong>' : ''}
-    ${seriesBlocks || '<p class="small muted">No compatible recorded signal-history series. An identifier and real numeric measurement are needed for comparison.</p>'}
-    <div class="button-line"><button type="button" class="btn mini outline" data-map-detail-zoom="${escapeHTML(record.id)}">Center on saved point</button></div>`;
+    ${seriesBlocks || '<p class="small muted">No compatible recorded signal-history series. An identifier and real numeric measurement are needed for comparison.</p>'}`;
 }
 function selectMapObservation(id) {
   if(!mapVisibleObservations().some(o=>o.id===id)) return;
@@ -1646,12 +1673,12 @@ function startMap() {
     state.map.on('click', 'survey-sdr-sites', evt => {
       if (state.navPicking || state.areaChoosing || !evt.features?.length) return;
       const site=evt.features[0].properties;
-      showMapFeaturePopup(new maplibregl.Popup().setLngLat(evt.lngLat).setHTML(`<strong>RECORDED SDR survey site</strong><br>Browser operator position ±${escapeHTML(site.accuracy_m)} m, not verified antenna or transmitter<br>Capture ${escapeHTML(site.capture_id)} · ${escapeHTML(site.start_mhz)}–${escapeHTML(site.stop_mhz)} MHz · NOT LIVE`),state.map);
+      showMapFeaturePopup(new maplibregl.Popup().setLngLat(evt.lngLat).setHTML(`<strong>RECORDED SDR survey site</strong><br>Browser operator position ±${escapeHTML(site.accuracy_m)} m, not verified antenna or transmitter<br>Capture ${escapeHTML(site.capture_id)} · ${escapeHTML(site.start_mhz)}–${escapeHTML(site.stop_mhz)} MHz · NOT LIVE`),state.map,evt.features[0].geometry?.coordinates);
     });
     state.map.on('click', 'survey-waypoints', evt => {
       if (state.navPicking || !evt.features?.length) return;
       const w = evt.features[0].properties;
-      showMapFeaturePopup(new maplibregl.Popup().setLngLat(evt.lngLat).setHTML(`<strong>Survey waypoint #${escapeHTML(w.id)}</strong><br>Browser-reported observer position, not RF detection<br>${escapeHTML(w.note || '')}`),state.map);
+      showMapFeaturePopup(new maplibregl.Popup().setLngLat(evt.lngLat).setHTML(`<strong>Survey waypoint #${escapeHTML(w.id)}</strong><br>Browser-reported observer position, not RF detection<br>${escapeHTML(w.note || '')}`),state.map,evt.features[0].geometry?.coordinates);
     });
     state.map.on('error', evt => {
       if(!evt.error)return;
@@ -5766,8 +5793,8 @@ $('map-observation-detail').addEventListener('click',event=>{
   const zoom=event.target.closest('[data-map-detail-zoom]');
   if(zoom){
     const item=state.observations.find(o=>String(o.id)===zoom.dataset.mapDetailZoom);
-    if(item&&state.map)state.map.flyTo({center:[item.longitude,item.latitude],zoom:15});
-    else if(item&&state.rasterMap)state.rasterMap.flyTo({center:[item.longitude,item.latitude],zoom:15});
+    if(item)snapToMapFeature(item.longitude,item.latitude);
+    return;
   }
   const view=event.target.closest('[data-map-series]');
   if(view){

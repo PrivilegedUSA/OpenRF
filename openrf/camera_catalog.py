@@ -255,7 +255,7 @@ def _read_osm_part(bounds, progress, errors, types=None):
     for endpoint in OVERPASS_ENDPOINTS:
         progress(phase="connecting", provider=endpoint, errors=list(errors), received_bytes=0, total_bytes=None)
         request = urllib.request.Request(endpoint, data=payload, headers={
-            'User-Agent': 'OpenRF/0.2.221 (offline-first; user-initiated OSM area lookup)',
+            'User-Agent': 'OpenRF/0.2.222 (offline-first; user-initiated OSM area lookup)',
             'Content-Type': 'application/x-www-form-urlencoded',
             'Accept': 'application/json'})
         try:

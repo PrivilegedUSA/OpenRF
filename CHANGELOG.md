@@ -1,3 +1,8 @@
+## v0.2.222
+
+- Remove visible mesh marker outlines, retain bright colors and compact overlap badges. Match marker and cluster sizes across networks.
+- Add Snap to location for public mesh nodes (each listed node in a cluster), local mesh details, cameras, survey observations and vector waypoints/SDR sites. Preserve actual coordinates and pause navigation camera following without changing the route.
+
 ## v0.2.221
 
 - Replace public mesh marker repulsion and leader lines with compact anchored overlap badges and separate network detail sections.

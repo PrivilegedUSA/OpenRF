@@ -112,7 +112,7 @@
           const p=document.createElement('p');p.textContent=line;div.append(p);
         }
         if(c.source_url){const a=document.createElement('a');a.href=c.source_url;a.target='_blank';a.rel='noopener noreferrer';a.textContent='Open recorded source';div.append(a);}
-        window.OpenRFMapFeatureInfo.show(new maplibregl.Popup({className:'openrf-camera-map-popup',maxWidth:'290px'}).setLngLat(event.lngLat).setDOMContent(div),map);
+        window.OpenRFMapFeatureInfo.show(new maplibregl.Popup({className:'openrf-camera-map-popup',maxWidth:'290px'}).setLngLat(event.lngLat).setDOMContent(div),map,[c.longitude,c.latitude]);
       });
     }
     updateVector(map);onViewportChanged();
@@ -134,8 +134,10 @@
       pin.style.backgroundColor=colors[c.type];pin.style.left=`${width/2+dx}px`;pin.style.top=`${height/2+dy}px`;
       pin.title=`${c.type} · ${c.state} · ${c.label} · ${c.source} · lens heading: ${c.direction||'unknown'}`;
       pin.setAttribute('aria-label',pin.title);pin.addEventListener('click',e=>{
-        e.stopPropagation();window.OpenRFMapFeatureInfo.close();const box=get('camera-selected');box.hidden=false;
+        e.stopPropagation();window.OpenRFMapFeatureInfo.close();window.OpenRFMapFeatureInfo.openSheet();const box=get('camera-selected');box.hidden=false;
         box.textContent=`${c.type} · ${c.state}: ${c.label}. Source: ${c.source}. Mapped lens heading: ${c.direction||'unknown'}. This is a reported camera location, not proof of operation or actual viewing coverage.`;
+        box.prepend(window.OpenRFMapFeatureInfo.snapButton(c.longitude,c.latitude));
+        const sheet=get('map-survey-panel');if(sheet)sheet.scrollTop=Math.max(0,box.offsetTop-sheet.offsetTop-18);
       });fragment.append(pin);
     }
     onViewportChanged();

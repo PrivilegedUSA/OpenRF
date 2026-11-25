@@ -1,3 +1,7 @@
+## OpenRF v0.2.222 — Borderless mesh pins and feature focus
+
+Consistent compact mesh pin sizes and Snap to location actions for reported map features. No data or provider changes.
+
 ## OpenRF v0.2.221 — High-contrast mesh markers
 
 Bright mesh colors, anchored multi-network overlap badges with separate network details, no marker repulsion or leader lines. Existing coordinates and caches unchanged.

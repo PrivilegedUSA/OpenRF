@@ -48,13 +48,15 @@
     const head=text('div','');head.className='public-mesh-detail-head';head.append(title,dismiss);
     const body=text('div','');body.className='public-mesh-detail-body';body.append(text('p','Public directory snapshots · reported positions, not verified reachability. Meshtastic and Reticulum positions are approximate. An overlapping badge lists separate networks at a shared display anchor; individual reported coordinates are shown below.'));
     p.replaceChildren(head,body);
+    const snap=n=>window.OpenRFMapFeatureInfo?.snapButton?.(n.lon,n.lat);
+    if(g.nodes.length===1){const action=snap(g.nodes[0]);if(action)head.insertBefore(action,dismiss);}
     const nets=[...new Set(g.nodes.map(n=>n.network))].sort((a,b)=>networkOrder.indexOf(a)-networkOrder.indexOf(b));
     for(const net of nets){
       const nodes=g.nodes.filter(n=>n.network===net);
       if(nets.length>1){const heading=text('strong',`${net} · ${nodes.length} reported node${nodes.length===1?'':'s'}`);heading.className='public-mesh-detail-network';heading.dataset.network=net;body.append(heading);}
     for(const n of nodes.slice(0,30)){
       const d=text('div','');d.className='public-mesh-node-detail';
-      d.append(text('strong',n.name),text('p',`${n.network} · ${n.reported_role||n.role} · ${n.lat}, ${n.lon}`),text('p',`Directory updated: ${n.updated||'Unavailable'} · source: ${n.source||'Unavailable'}`),text('p',`Identifier: ${n.id}`));body.append(d);
+      d.append(text('strong',n.name),text('p',`${n.network} · ${n.reported_role||n.role} · ${n.lat}, ${n.lon}`),text('p',`Directory updated: ${n.updated||'Unavailable'} · source: ${n.source||'Unavailable'}`),text('p',`Identifier: ${n.id}`));if(g.nodes.length>1){const action=snap(n);if(action)d.append(action);}body.append(d);
     }
     if(nodes.length>30)body.append(text('p','Zoom in to inspect the remaining nodes in this network.'));
     }
