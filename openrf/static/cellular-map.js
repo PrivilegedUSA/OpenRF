@@ -1,14 +1,29 @@
 'use strict';
 (() => {
-  const colors={towers:'#f07b8d',estimates:'#bc9cff',att:'#3498ff',tmobile:'#f13c95',verizon:'#ff5353',other:'#f0ce58',aggregate:'#66d9a6'};
+  const colors={towers:'#f07b8d',estimates:'#bc9cff',att:'#3498ff',tmobile:'#f13c95',verizon:'#ff5353',other:'#f0ce58',aggregate:'#fff39a'};
   const labels={towers:'Public tower records',estimates:'Estimated cells',att:'AT&T',tmobile:'T-Mobile',verizon:'Verizon',other:'Other carriers',aggregate:'Any provider (aggregate)'};
+  // Examples verified against the providers' own network disclosures, 2026-11-25.
+  const carrierInfo={
+    att:['AT&T network','Examples: AT&T and Cricket Wireless.'],
+    tmobile:['T-Mobile network','Examples: T-Mobile, Metro by T-Mobile, Mint Mobile and Google Fi (uses T-Mobile; other connections may be available).'],
+    verizon:['Verizon network','Examples: Verizon, Visible and Spectrum Mobile.'],
+    aggregate:['Any provider (aggregate)','Shows combined coverage from an imported statewide aggregate pack, not a live union of your selected carrier maps. A colored area does not identify which carrier is available.']
+  };
+  const carrierCaveat='Examples only; network arrangements can change. Your plan, device and roaming permissions may differ. FCC modeled coverage does not guarantee reception.';
+  function carrierInfoText(key){const info=carrierInfo[key];return info?{title:info[0],body:info[1]+' '+(key==='aggregate'?'Blank areas do not establish absence of service.':carrierCaveat)}:null;}
+  function bindCarrierInfo(doc){const panel=doc.getElementById('cellular-carrier-info'),title=doc.getElementById('cellular-carrier-info-title'),body=doc.getElementById('cellular-carrier-info-text'),close=doc.getElementById('cellular-carrier-info-close');if(!panel||!title||!body||!close)return;const buttons=[...doc.querySelectorAll('[data-carrier-info]')];let active=null;
+    function dismiss(restore=false){const prior=active;active=null;panel.hidden=true;for(const b of buttons)b.setAttribute('aria-expanded','false');if(restore)prior?.focus();}
+    for(const b of buttons)b.addEventListener('click',()=>{if(active===b){dismiss();return;}const info=carrierInfoText(b.dataset.carrierInfo);if(!info)return;active=b;title.textContent=info.title;body.textContent=info.body;panel.hidden=false;for(const item of buttons)item.setAttribute('aria-expanded',String(item===b));});
+    close.addEventListener('click',()=>dismiss(true));panel.addEventListener('keydown',event=>{if(event.key==='Escape'){event.stopPropagation();dismiss(true);}});
+    for(const b of buttons)b.addEventListener('keydown',event=>{if(event.key==='Escape'&&active){event.stopPropagation();dismiss(true);}});
+  }
   const empty=()=>({type:'FeatureCollection',features:[]});
   function wrap(lon){return ((lon+180)%360+360)%360-180;}
   function bounds(w,s,e,n){return [e-w>=360?-180:wrap(w),Math.max(-90,s),e-w>=360?180:wrap(e),Math.min(90,n)];}
   function pointFeatures(points){return {type:'FeatureCollection',features:points.map((p,i)=>({type:'Feature',geometry:{type:'Point',coordinates:[p.lon,p.lat]},properties:{index:i,id:p.id,kind:p.kind}}))};}
   function coverageFeatures(polygons){return {type:'FeatureCollection',features:polygons.map(p=>({type:'Feature',geometry:{type:'Polygon',coordinates:p.polygon},properties:{carrier:p.carrier,pack:p.pack,opacity:p.overview?p.opacity:0.24}}))};}
   function rasterPath(polygon,project){return polygon.map(r=>r.map((p,i)=>{const q=project(...p);return `${i?'L':'M'}${q.x.toFixed(1)} ${q.y.toFixed(1)}`;}).join(' ')+' Z').join(' ');}
-  if(typeof module!=='undefined'){module.exports={bounds,pointFeatures,coverageFeatures,rasterPath};return;}
+  if(typeof module!=='undefined'){module.exports={bounds,pointFeatures,coverageFeatures,rasterPath,carrierInfoText,bindCarrierInfo,colors};return;}
   const el=id=>document.getElementById(id), api='/api/cellular/reference';
   const inputs=()=>[...document.querySelectorAll('[data-cellular-kind],[data-cellular-carrier]')];
   const selection=()=>({kinds:inputs().filter(e=>e.checked&&e.dataset.cellularKind).map(e=>e.dataset.cellularKind),carriers:inputs().filter(e=>e.checked&&e.dataset.cellularCarrier).map(e=>e.dataset.cellularCarrier),profiles:{...chosen}});
@@ -62,6 +77,6 @@
     xhr.onload=async()=>{let data;try{data=JSON.parse(xhr.responseText);}catch(_){fail('Unexpected local server response.');return;}if(xhr.status!==201){fail(data.error||`HTTP ${xhr.status}`);return;}button.disabled=false;bar.hidden=true;message.textContent=`Saved ${data.count.toLocaleString()} coverage polygons offline.`;const i=inputs().find(i=>i.dataset.cellularCarrier===data.carrier);if(i)i.checked=true;delete chosen[data.carrier];lastKey='';requested='';epoch++;await status();const imported=Object.values(datasets).find(d=>d.carrier===data.carrier&&d.pack===data.pack);if(imported){chosen[data.carrier]=JSON.stringify([data.carrier,imported.vintage,imported.technology,imported.environment]);renderProfiles(Object.values(datasets).filter(d=>d.carrier));lastKey='';requested='';epoch++;}save();redraw?.();};xhr.send(file);
   }
   window.OpenRFCellular={vector,raster,close,pickBlocked:null,set redraw(fn){redraw=fn;}};
-  document.addEventListener('DOMContentLoaded',()=>{if(!el('cellular-download'))return;el('cellular-coverage-form')?.addEventListener('submit',importCoverage);try{const saved=JSON.parse(localStorage.getItem(preferenceKey)||'null');if(saved?.profiles&&typeof saved.profiles==='object')chosen=saved.profiles;if(saved)for(const i of inputs())i.checked=(i.dataset.cellularKind?saved.kinds:saved.carriers)?.includes(i.dataset.cellularKind||i.dataset.cellularCarrier)||false;}catch(_){}
+  document.addEventListener('DOMContentLoaded',()=>{if(!el('cellular-download'))return;bindCarrierInfo(document);el('cellular-coverage-form')?.addEventListener('submit',importCoverage);try{const saved=JSON.parse(localStorage.getItem(preferenceKey)||'null');if(saved?.profiles&&typeof saved.profiles==='object')chosen=saved.profiles;if(saved)for(const i of inputs())i.checked=(i.dataset.cellularKind?saved.kinds:saved.carriers)?.includes(i.dataset.cellularKind||i.dataset.cellularCarrier)||false;}catch(_){}
     for(const i of inputs())i.addEventListener('change',()=>{save();close();coverageAvailability();redraw?.();});el('cellular-reload').onclick=()=>{lastKey='';requested='';epoch++;status();redraw?.();};el('cellular-download').onclick=async()=>{el('cellular-download').disabled=true;try{const r=await fetch(api+'/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:true})});if(!r.ok)throw Error((await r.json()).error||r.status);const i=inputs().find(i=>i.dataset.cellularKind==='towers');i.checked=true;save();await status();redraw?.();}catch(e){el('cellular-tower-status').textContent='Download could not start: '+e.message;el('cellular-download').disabled=false;}};status().then(()=>redraw?.());});
 })();

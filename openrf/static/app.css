@@ -3179,4 +3179,10 @@ body.map-workspace .topbar button {border:0!important;}
 /* v0.2.229 — local cellular coverage import */
 .cellular-import-form{display:grid;gap:8px;margin:8px 7px}.cellular-import-form label{display:grid;gap:4px;font-size:12px}.cellular-import-form label.switchline{display:flex;align-items:flex-start}.cellular-import-form .field{width:100%;min-width:0}.cellular-import-form progress{width:100%;height:6px;accent-color:#34c9b1}.cellular-import-form progress[hidden]{display:none}.cellular-import-form .error{color:#ffb0a9}
 
-.cellular-dot.aggregate{background:#66d9a6}
+.cellular-dot.aggregate{background:#fff39a}
+/* Carrier name is an independent information action, never a checkbox label. */
+.cellular-carrier-tile{display:flex;align-items:center;gap:7px;padding:10px;border-radius:8px;background:#132834;font-size:12px;color:#cee0e7;min-height:45px;min-width:0}
+#page-map .cellular-carrier-name{background:transparent;color:inherit;padding:0;text-align:left;font:inherit;min-width:0;flex:1;cursor:pointer;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
+#page-map .cellular-carrier-name:focus-visible,#page-map #cellular-carrier-info-close:focus-visible{outline:2px solid #34c9b1;outline-offset:3px}
+.cellular-carrier-info{margin:8px 0;padding:10px;background:#162e39;border-radius:8px;color:#cee0e7}.cellular-carrier-info[hidden]{display:none!important}.cellular-carrier-info-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.cellular-carrier-info p{margin:6px 0 0;line-height:1.5}#cellular-carrier-info-close{background:transparent;color:inherit;font-size:20px;padding:2px 6px;cursor:pointer}
+

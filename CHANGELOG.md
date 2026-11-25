@@ -1,3 +1,7 @@
+## v0.2.230
+
+- Keep AT&T, T-Mobile, Verizon and Any provider in the main coverage grid. Carrier names open an offline information panel independently of their checkboxes, with selected network-brand examples and service caveats. Move independent regional carrier packs under Advanced, preserving their preference and import support. Use pale lemon for aggregate coverage in both renderers and the legend. No coverage database format changes, rebuilds or downloads.
+
 ## v0.2.229
 
 - Keep FCC compiled coverage visible at state and nationwide views using a bounded, cached density overview; detailed H3 polygons remain at local zoom. Explicitly label coarse report cells as not full-cell service. Independent carrier profiles, original state packs and all other data preserved. First overview is prepared locally and may take longer. No new external download.
