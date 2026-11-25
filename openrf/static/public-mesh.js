@@ -71,7 +71,8 @@
     const bar=el('public-mesh-progress'),wrap=el('public-mesh-progress-wrap'),label=el('public-mesh-progress-text');
     const phase=data.phase, received=data.received_bytes||0,total=data.total_bytes;
     const mib=n=>(n/1048576).toFixed(1)+' MiB';
-    wrap.hidden=false;bar.removeAttribute('value');
+    wrap.hidden=false;bar.hidden=false;bar.removeAttribute('value');
+    if(phase==='failed'){bar.value=0;bar.hidden=true;label.textContent=data.error||'Download failed';return;}
     if(phase==='downloading'){
       if(total>0){bar.value=Math.min(100,100*received/total);label.textContent=`Downloading ${mib(received)} / ${mib(total)} · ${Math.floor(bar.value)}%`;}
       else label.textContent=`Downloading ${mib(received)} · total size unknown`;

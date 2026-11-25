@@ -1,3 +1,10 @@
+# v0.2.208 — Public MeshCore record parsing and terminal progress
+
+- Read advertised `adv_lat` / `adv_lon` decimal-degree positions; retain compatibility with older `lat` / `lon` fixtures, reject invalid or missing advertised positions, and report rejected record counts on total validation failure.
+- Stop and hide the animated progress bar on failure; retain the error and permit explicit retry.
+- Mock FFmpeg discovery in two surveillance unit tests so runners without optional media tools exercise the intended code paths. Runtime surveillance code unchanged.
+- See `docs/RELEASE_0.2.208_TESTS.md`.
+
 # v0.2.207 — Public directory download reliability
 
 - Stream directory transfers with byte-based progress, processing and saving stages. Increase read timeout and response cap; retain cached data on errors.

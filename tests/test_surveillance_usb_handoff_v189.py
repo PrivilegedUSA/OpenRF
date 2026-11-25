@@ -73,8 +73,11 @@ class UsbPreviewHandoff(unittest.TestCase):
             device = Path(tmp)/'video0';device.touch()
             def busy(camera_id): raise SurveillanceError('USB preview is still releasing the device')
             manager.preview_stopper=busy
-            with self.assertRaisesRegex(SurveillanceError,'still releasing'):
+            with patch('openrf.surveillance_recording.shutil.which', return_value='/usr/bin/ffmpeg'), \
+                 patch('openrf.surveillance_recording.subprocess.Popen') as popen, \
+                 self.assertRaisesRegex(SurveillanceError,'still releasing'):
                 manager.start({'id':4,'name':'DEMO','source':'USB','location':str(device)})
+            popen.assert_not_called()
             self.assertEqual(manager.list(),[])
 
 if __name__ == '__main__': unittest.main()

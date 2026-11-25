@@ -33,7 +33,7 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 def fetch_meshcore(progress=lambda **fields: None):
-    request = Request(URL, headers={'Accept':'application/json', 'Accept-Encoding':'identity', 'User-Agent':'OpenRF/0.2.207 (manual public directory snapshot; https://openrf.app)'})
+    request = Request(URL, headers={'Accept':'application/json', 'Accept-Encoding':'identity', 'User-Agent':'OpenRF/0.2.208 (manual public directory snapshot; https://openrf.app)'})
     started = time.monotonic()
     try:
         with build_opener(NoRedirect()).open(request, timeout=NETWORK_TIMEOUT) as response:
@@ -75,7 +75,7 @@ def fetch_meshcore(progress=lambda **fields: None):
         raise DirectoryError('Provider did not return supported JSON') from exc
 
 def _number(value, limit):
-    return type(value) in (float,int) and math.isfinite(value) and abs(value) <= limit
+    return type(value) in (float,int) and abs(value) <= limit and math.isfinite(value)
 
 def _text(value, limit=128):
     return value[:limit] if isinstance(value,str) else None
@@ -93,7 +93,13 @@ def normalize(payload):
         if not isinstance(row,dict):
             invalid += 1; continue
         ident = row.get('public_key')
-        lat,lon = row.get('lat'),row.get('lon')
+        # Official map uses advertised decimal-degree positions. Preserve the
+        # older lat/lon adapter shape only if neither advertised field exists.
+        # Never fall back from a null or invalid advertised position.
+        if 'adv_lat' in row or 'adv_lon' in row:
+            lat,lon = row.get('adv_lat'),row.get('adv_lon')
+        else:
+            lat,lon = row.get('lat'),row.get('lon')
         if not isinstance(ident,str) or not re.fullmatch(r'[0-9a-fA-F]{64}',ident) or not _number(lat,85.05112878) or not _number(lon,180) or (lat==0 and lon==0):
             invalid += 1; continue
         ident = ident.lower()
@@ -110,7 +116,7 @@ def normalize(payload):
                         'role':role,'lat':lat,'lon':lon,'updated':_text(row.get('updated_date',row.get('last_seen'))),
                         'inserted':_text(row.get('inserted_date')),'source':_text(row.get('source'),64)}
     if payload and not nodes:
-        raise DirectoryError('No valid geographic records; previous snapshot retained')
+        raise DirectoryError(f'No valid geographic records ({invalid:,} of {len(payload):,} rejected); previous snapshot retained')
     return {'nodes':list(nodes.values()),'received':len(payload),'rejected':invalid,'duplicates':duplicates}
 
 class PublicMeshDirectory:

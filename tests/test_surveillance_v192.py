@@ -102,14 +102,16 @@ class FFmpegAudioCommand(unittest.TestCase):
             manager = RecordingManager(Path(temp) / 'local.sqlite3')
             camera = {'id': 1, 'name': 'DEMO private camera', 'source': 'RTSP',
                       'location': 'rtsp://192.168.1.4/stream', 'record_audio': True}
-            with patch('openrf.surveillance_recording.subprocess.Popen', side_effect=OSError('fake process')) as popen:
+            with patch('openrf.surveillance_recording.shutil.which', return_value='/usr/bin/ffmpeg'), \
+                 patch('openrf.surveillance_recording.subprocess.Popen', side_effect=OSError('fake process')) as popen:
                 with self.assertRaises(SurveillanceError):
                     manager.start(camera)
             command = popen.call_args.args[0]
             self.assertIn('0:a:0?', command)
             self.assertIn('aac', command)
             camera['record_audio'] = False
-            with patch('openrf.surveillance_recording.subprocess.Popen', side_effect=OSError('fake process')) as popen:
+            with patch('openrf.surveillance_recording.shutil.which', return_value='/usr/bin/ffmpeg'), \
+                 patch('openrf.surveillance_recording.subprocess.Popen', side_effect=OSError('fake process')) as popen:
                 with self.assertRaises(SurveillanceError):
                     manager.start(camera)
             command = popen.call_args.args[0]

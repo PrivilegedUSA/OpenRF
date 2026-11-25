@@ -1,6 +1,6 @@
-## OpenRF v0.2.207 — Public mesh directory foundation
+## OpenRF v0.2.208 — Public MeshCore directory compatibility
 
-Map layers now include a separate public MeshCore directory with manual download, offline cache and clustered markers; local radio layers remain independent. Public Meshtastic and Reticulum providers are planned, not yet integrated. See `docs/RELEASE_0.2.207_TESTS.md`.
+Map layers now include a separate public MeshCore directory with manual download, offline cache and clustered markers; local radio layers remain independent. Public Meshtastic and Reticulum providers are planned, not yet integrated. See `docs/RELEASE_0.2.208_TESTS.md`.
 
 ## OpenRF v0.2.205 — Map layer and feature-info fixes
 
