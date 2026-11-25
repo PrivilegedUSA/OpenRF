@@ -51,10 +51,20 @@ def coords(lon, lat):
 
 
 def arcgis(params):
-    request = Request(TOWER_URL + '?' + urlencode({'f':'json', **params}), headers={'User-Agent':'OpenRF/0.2.224 (manual FCC public data download; https://openrf.app)', 'Accept':'application/json'})
+    # ArcGIS query supports form POST. Long GET URLs can produce HTTP 404.
+    encoded = urlencode({'f':'json', **params})
+    headers = {'User-Agent':'OpenRF/0.2.225 (manual FCC public data download; https://openrf.app)', 'Accept':'application/json'}
+    request = Request(TOWER_URL, data=encoded.encode('ascii'), headers={**headers,'Content-Type':'application/x-www-form-urlencoded'}, method='POST')
+    # Some proxies reject POST. Only fall back to a deliberately short GET.
     for attempt in range(3):
         try:
-            with urlopen(request, timeout=35) as response:
+            try:
+                response = urlopen(request, timeout=35)
+            except HTTPError as exc:
+                if exc.code not in (404,405,413,414,501) or len(TOWER_URL)+1+len(encoded)>1800: raise
+                exc.close()
+                response = urlopen(Request(TOWER_URL+'?'+encoded,headers=headers),timeout=35)
+            with response:
                 raw = response.read(24 * 1024**2 + 1)
                 if len(raw) > 24 * 1024**2: raise ValueError('Tower provider response too large')
             data = json.loads(raw)
@@ -72,9 +82,29 @@ def tower_records(progress, query=arcgis):
     if not isinstance(ids,list) or not ids or len(ids)>MAX_TOWERS or any(type(i) is not int or i<0 for i in ids) or len(set(ids))!=len(ids):
         raise ValueError('Invalid or empty tower ID list; previous snapshot retained')
     total = len(ids); rejected = 0; completed = 0
-    for offset in range(0,total,250):
-        batch = ids[offset:offset+250]
-        data = query({'objectIds':','.join(map(str,batch)), 'outFields':'FID,Licensee,Callsign,LocCity,LocState,LicStatus,StrucType', 'returnGeometry':'true','outSR':'4326'})
+    progress(phase='downloading', completed=0,total=total,rejected=0)
+    # If a gateway rejects the large request, use smaller batches for the
+    # remainder of this job. Do not restart or publish an incomplete snapshot.
+    def pages(batch):
+        nonlocal batch_size
+        try:
+            data = query({'objectIds':','.join(map(str,batch)), 'outFields':'FID,Licensee,Callsign,LocCity,LocState,LicStatus,StrucType', 'returnGeometry':'true','outSR':'4326'})
+        except HTTPError as exc:
+            if exc.code not in (404,405,413,414,501) or len(batch)<=50: raise
+            exc.close()
+            batch_size=50
+            for start in range(0,len(batch),batch_size):
+                yield from pages(batch[start:start+batch_size])
+            return
+        yield batch,data
+    def all_pages():
+        offset=0
+        while offset<total:
+            batch=ids[offset:offset+batch_size]
+            yield from pages(batch)
+            offset+=len(batch)
+    batch_size=250
+    for batch,data in all_pages():
         features = data.get('features')
         if not isinstance(features,list) or data.get('exceededTransferLimit') or {f.get('attributes',{}).get('FID') for f in features} != set(batch) or len(features)!=len(batch):
             raise ValueError('Incomplete tower provider page; previous snapshot retained')
@@ -201,7 +231,9 @@ class Catalog:
             count=self.replace_points('towers',records(),TOWER_SOURCE)
             self._progress(phase='complete',count=count)
         except Exception as exc:
-            self._progress(phase='failed',error=f'{type(exc).__name__}: {str(exc)[:250]}; previous snapshot retained')
+            completed=self.job.get('completed',0); total=self.job.get('total',0)
+            saved='previous snapshot retained' if 'towers' in self.metadata() else 'no tower snapshot saved'
+            self._progress(phase='failed',error=f'FCC/HIFLD tower download: {type(exc).__name__}: {str(exc)[:200]}; {completed:,}/{total:,} records fetched; {saved}')
 
     def view(self,bounds,kinds,carriers,profiles=()):
         w,s,e,n=map(number,bounds)

@@ -1,10 +1,10 @@
-# Public cellular reference layers (v0.2.224)
+# Public cellular reference layers (v0.2.225)
 
 OpenRF separates publicly listed tower/license locations, estimated logical cells, modeled coverage, and local RF observations. None proves a tower is active or that a handset will receive service. No position or scan data is sent to a provider. No account is needed for the tower layer; external dataset access may have its own terms.
 
 ## Public towers — automatic nationwide snapshot
 
-In Map → Layers → Cellular infrastructure & coverage, choose **Download / update US towers**. This uses the FCC Universal Licensing System-derived HIFLD cellular tower feature service (`https://services.arcgis.com/0ZRg6WRC7mxSLyKX/ArcGIS/rest/services/Cellular_Towers/FeatureServer/0`). This is a public replicated dataset, not a complete list of all operational mobile network sites. Metadata lists a last edit in August 2025; current licensing status is not guaranteed. The publisher warns of coordinate/licensing errors. Licensee is not necessarily the consumer carrier. Source record count progress is measured from the returned ID list (not bytes), and the previous complete snapshot is retained if any page fails. No silent partial refresh. The local database remains outside Git and source bundles. No live connectivity validation in development.
+In Map → Layers → Cellular infrastructure & coverage, choose **Download / update US towers**. This uses the FCC Universal Licensing System-derived HIFLD cellular tower feature service (`https://services.arcgis.com/0ZRg6WRC7mxSLyKX/ArcGIS/rest/services/Cellular_Towers/FeatureServer/0`). This is a public replicated dataset, not a complete list of all operational mobile network sites. Metadata lists a last edit in August 2025; current licensing status is not guaranteed. The publisher warns of coordinate/licensing errors. Licensee is not necessarily the consumer carrier. Requests use form POST to avoid URL length limits, with short GET compatibility fallback and smaller 50-ID batches if a gateway rejects a large request. Source record count progress is measured from the returned ID list (not bytes), and the previous complete snapshot is retained if any page fails. No silent partial refresh. The local database remains outside Git and source bundles. No live connectivity validation in development.
 
 ## Estimated sites — OpenCellID country downloads (manual import)
 

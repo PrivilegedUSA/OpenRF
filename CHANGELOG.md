@@ -1,3 +1,8 @@
+## v0.2.225
+
+- Fix likely mid-download ArcGIS HTTP 404 caused by long GET query strings: use form POST, short GET compatibility fallback, and bounded smaller batches when gateway rejects a request. Preserve atomic replacement and show failed record counts and whether an earlier snapshot exists.
+- No cellular schema, map styling or other cache changes. Live provider verification pending.
+
 ## v0.2.224
 
 - Add an independent offline public cellular reference catalog: FCC ULS/HIFLD tower snapshot from a documented public ArcGIS layer, server-side refresh, record-count progress, previous snapshot retained on incomplete response, viewport limits, selectable details and Snap to location. Public records are not proof of active towers or consumer-carrier ownership.
