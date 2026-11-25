@@ -3086,3 +3086,18 @@ body.map-workspace .topbar button {border:0!important;}
 /* Camera job progress, scoped to the existing Map layers sheet. */
 #map-survey-panel #camera-import-progress,#map-survey-panel #camera-snapshot-progress{width:100%;height:8px;accent-color:#34c9b1;margin:6px 0 2px;}
 #map-survey-panel #camera-import-status:is([data-phase="connecting"],[data-phase="downloading"],[data-phase="processing"],[data-phase="saving"]){color:#a5eee4;}
+
+/* Compact camera controls, independent of the mesh directory layout. */
+#map-survey-panel #camera-map-manager{margin:10px 0 12px;padding:10px 2px;border-bottom:0;}
+#map-survey-panel #camera-map-manager > p{margin:5px 7px;line-height:1.4;}
+#map-survey-panel #camera-map-manager .camera-action-buttons{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:8px 7px;}
+#map-survey-panel #camera-map-manager .camera-action-buttons .btn{min-height:38px;padding:6px 4px;font-size:12px;line-height:1.2;}
+#map-survey-panel #camera-map-manager #camera-snapshot-status{margin:8px 7px;padding:6px 8px;}
+#map-survey-panel #camera-map-manager :is(.camera-download-info,.camera-advanced-import,#camera-add-manual){margin:8px 7px;padding:0;font-size:12px;}
+#map-survey-panel #camera-map-manager :is(.camera-download-info,.camera-advanced-import,#camera-add-manual) summary{font-size:12px;line-height:1.5;}
+#map-survey-panel #camera-map-manager .camera-download-info p{line-height:1.5;overflow-wrap:anywhere;}
+
+/* One separator per layer section, not two adjacent borders. */
+#map-survey-panel .camera-map-manager{border-bottom:0;margin:10px 0 0;padding:10px 2px 6px;}
+#map-survey-panel #camera-area-import{margin:8px 7px;}
+#map-survey-panel #camera-import-osm{min-height:38px;padding:6px 4px;font-size:12px;}

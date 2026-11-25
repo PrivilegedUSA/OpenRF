@@ -111,14 +111,19 @@ def add_manual(repo, record):
         return {'id':cur.lastrowid,'type':kind,'state':state}
 
 
-def list_sites(repo, bounds, limit=1000):
+def list_sites(repo, bounds, limit=1000, types=None):
     west,south,east,north=bbox_value(bounds)
     if type(limit) is not int or limit<1 or limit>1500: raise ValueError('Invalid result limit')
+    if types is None: types = sorted(TYPES)
+    if not isinstance(types, (list, tuple)) or not types or any(t not in TYPES for t in types):
+        raise ValueError('Invalid camera categories')
+    types = sorted(set(types))
+    placeholders = ','.join('?' for _ in types)
     with repo._lock, repo._connect() as db:
         rows=db.execute('''SELECT id,type,state,label,latitude,longitude,direction,notes,source_id,
             source,source_url,updated_utc FROM camera_sites
             WHERE longitude>=? AND longitude<=? AND latitude>=? AND latitude<=?
-            AND state!='REMOVED' ORDER BY id DESC LIMIT ?''', (west,east,south,north,limit+1)).fetchall()
+            AND state!='REMOVED' AND type IN (''' + placeholders + ''') ORDER BY id DESC LIMIT ?''', (west,east,south,north,*types,limit+1)).fetchall()
     # Manual/local reports stay independent of public nationwide snapshots.
     # Use indexed local bounding-box lookups and never send the entire nationwide
     # collection to the browser. Preserve local reports ahead of public records.
@@ -127,7 +132,7 @@ def list_sites(repo, bounds, limit=1000):
     seen={str(row['source_id']) for row in rows if 'source_id' in row.keys() and row['source_id']}
     remaining=max(0,limit-len(saved))
     national=[]
-    if remaining:
+    if remaining and 'ALPR' in types:
         with repo._lock, repo._connect() as db:
             national=national_alpr.sites_in_bounds(db,(west,south,east,north),remaining+len(seen)+1)
         national=[site for site in national if site['id'] not in seen]
@@ -144,23 +149,34 @@ def remove(repo, ident):
         return bool(cur.rowcount)
 
 
-def _overpass_query(bounds):
-    # Validated and normalized; never inject user-controlled query fragments.
+def import_types(types=None):
+    """Validate explicit categories; legacy clients may omit the selection."""
+    if types is None:
+        return sorted(TYPES)
+    if not isinstance(types, (list, tuple)) or not types or any(not isinstance(t,str) or t not in TYPES for t in types):
+        raise ValueError('Invalid camera import categories')
+    return sorted(set(types))
+
+
+def _overpass_query(bounds, types=None):
     west, south, east, north = bbox_value(bounds, narrow=True)
+    types = import_types(types)
     box = f'{south:.6f},{west:.6f},{north:.6f},{east:.6f}'
-    # Keep relation member references but retrieve coordinates only for device
-    # nodes. Avoid downloading full road geometry for enforcement relations.
-    return (f'[out:json][timeout:25];('
-            f'node["man_made"="surveillance"]["surveillance:type"="ALPR"]({box});'
-            f'way["man_made"="surveillance"]["surveillance:type"="ALPR"]({box});'
-            f'node["highway"="speed_camera"]({box});'
-            f'node["highway"="red_light_camera"]({box});'
-            f'node["enforcement"="traffic_signals"]["surveillance:type"="camera"]({box});'
-            f'node["enforcement"="maxspeed"]["surveillance:type"="camera"]({box});'
-            f'node["man_made"="surveillance"]["surveillance"="red_light"]["surveillance:type"="camera"]({box});'
-            f');out center qt;'
-            f'relation["type"="enforcement"]["enforcement"~"(^|;)[[:space:]]*(maxspeed|traffic_signals|red_light_camera)[[:space:]]*(;|$)"]({box})'
-            f'->.enforcement;.enforcement out body qt;node(r.enforcement:"device");out body qt;')
+    nodes, enforcement = [], []
+    if 'ALPR' in types:
+        nodes += [f'{kind}["man_made"="surveillance"]["surveillance:type"="ALPR"]({box});' for kind in ('node','way')]
+    if 'SPEED' in types:
+        nodes += [f'node["highway"="speed_camera"]({box});', f'node["enforcement"="maxspeed"]["surveillance:type"="camera"]({box});']
+        enforcement += ['maxspeed']
+    if 'RED_LIGHT' in types:
+        nodes += [f'node["highway"="red_light_camera"]({box});', f'node["enforcement"="traffic_signals"]["surveillance:type"="camera"]({box});', f'node["man_made"="surveillance"]["surveillance"="red_light"]["surveillance:type"="camera"]({box});']
+        enforcement += ['traffic_signals','red_light_camera']
+    query = '[out:json][timeout:25];(' + ''.join(nodes) + ');out center qt;'
+    if enforcement:
+        tags = '|'.join(enforcement)
+        query += (f'relation["type"="enforcement"]["enforcement"~"(^|;)[[:space:]]*({tags})[[:space:]]*(;|$)"]({box})'
+                  '->.enforcement;.enforcement out body qt;node(r.enforcement:"device");out body qt;')
+    return query
 
 
 def _parse_overpass(document):
@@ -216,15 +232,21 @@ def _parse_overpass(document):
     return {'type':'FeatureCollection','features':list(features.values())}
 
 
-def _read_osm_area(bounds, progress=None):
+class AreaQueryError(ValueError):
+    def __init__(self, message, retryable=False):
+        super().__init__(message)
+        self.retryable = retryable
+
+
+def _read_osm_part(bounds, progress, errors, types=None):
     progress = progress or (lambda **kw: None)
-    query = _overpass_query(bounds)
+    query = _overpass_query(bounds, types)
     payload = urllib.parse.urlencode({'data': query}).encode('utf-8')
-    errors = []
+    retryable = []
     for endpoint in OVERPASS_ENDPOINTS:
         progress(phase="connecting", provider=endpoint, errors=list(errors), received_bytes=0, total_bytes=None)
         request = urllib.request.Request(endpoint, data=payload, headers={
-            'User-Agent': 'OpenRF/0.2.214 (offline-first; user-initiated OSM area lookup)',
+            'User-Agent': 'OpenRF/0.2.216 (offline-first; user-initiated OSM area lookup)',
             'Content-Type': 'application/x-www-form-urlencoded',
             'Accept': 'application/json'})
         try:
@@ -261,16 +283,49 @@ def _read_osm_area(bounds, progress=None):
             elif isinstance(exc,ValueError) and not isinstance(exc,(json.JSONDecodeError,UnicodeError)): reason=str(exc)
             elif isinstance(exc,(json.JSONDecodeError,UnicodeError)): reason='invalid JSON response'
             else: reason=type(exc).__name__
+            retryable.append(reason in ('HTTP 502','HTTP 503','HTTP 504','network timeout'))
             errors.append(f'{host}: {reason}')
             progress(errors=list(errors))
-    raise ValueError('Area query failed at both OSM servers (' + ', '.join(errors) +
-                     '). Try again when online or zoom into a smaller area; saved camera pins remain offline.')
+    raise AreaQueryError('Area query failed at both OSM servers (' + ', '.join(errors) +
+                         '). Try again when online or zoom into a smaller area; saved camera pins remain offline.',
+                         retryable=bool(retryable) and all(retryable))
 
 
-def import_feed(repo, bounds, fetch=None, progress=None):
+def _read_osm_area(bounds, progress=None, types=None):
+    progress = progress or (lambda **kw: None)
+    west,south,east,north = bbox_value(bounds, narrow=True)
+    errors = []
+    try:
+        return _read_osm_part(bounds, progress, errors, types)
+    except AreaQueryError as exc:
+        # One bounded subdivision only, and only for gateway/timeouts, not
+        # offline, malformed responses or rate limits. Never save partial areas.
+        if not exc.retryable or max(east-west,north-south) < 0.75:
+            raise
+    midx,midy=(west+east)/2,(south+north)/2
+    parts=[(west,south,midx,midy),(midx,south,east,midy),
+           (west,midy,midx,north),(midx,midy,east,north)]
+    features={}
+    for index, part in enumerate(parts,1):
+        progress(phase='connecting', part=index, parts=len(parts), completed_parts=index-1,
+                 received_bytes=0,total_bytes=None)
+        try:
+            document=_read_osm_part(part, progress, errors, types)
+        except AreaQueryError as exc:
+            raise ValueError(f'Smaller-area retry failed in section {index} of {len(parts)}. No partial import saved. {exc}') from exc
+        for feature in document['features']:
+            features[(feature['id'],feature['properties']['camera_type'])]=feature
+        if len(features)>MAX_ELEMENTS:
+            raise ValueError('Combined OSM result is too large; zoom in. No partial import saved.')
+        progress(completed_parts=index)
+    return {'type':'FeatureCollection','features':list(features.values())}
+
+
+def import_feed(repo, bounds, fetch=None, progress=None, types=None):
     progress = progress or (lambda **kw: None)
     west,south,east,north=bbox_value(bounds,narrow=True)
-    document=fetch() if fetch is not None else _read_osm_area(bounds)
+    types = import_types(types)
+    document=fetch() if fetch is not None else _read_osm_area(bounds, progress, types)
     if not isinstance(document,dict) or document.get('type')!='FeatureCollection' or not isinstance(document.get('features'),list):
         raise ValueError('Published feed did not contain GeoJSON features.')
     progress(phase='processing')
@@ -288,7 +343,7 @@ def import_feed(repo, bounds, fetch=None, progress=None):
         if not isinstance(prop,dict):prop={}
         ext=prop.get('osmId') or prop.get('osm_id') or feature.get('id')
         category=prop.get('camera_type','ALPR')
-        if category not in TYPES: continue
+        if category not in types: continue
         # Use stable geometry signature if the published feed has no OSM id.
         source_id='flockhopper-osm:'+str(ext) if ext is not None else 'flockhopper-point:'+hashlib.sha256(f'{lat:.6f}/{lon:.6f}'.encode()).hexdigest()[:24]
         if category!='ALPR': source_id='osm-enforcement:'+category+':'+source_id
@@ -309,6 +364,6 @@ def import_feed(repo, bounds, fetch=None, progress=None):
           latitude=excluded.latitude,longitude=excluded.longitude,direction=excluded.direction,
           label=excluded.label,updated_utc=excluded.updated_utc
         WHERE camera_sites.state='COMMUNITY_MAPPED' ''',rows)
-    return {'matched':len(rows),'counts':{kind:sum(row[0]==kind for row in rows) for kind in TYPES},'source':FEED_URL,'state':'COMMUNITY_MAPPED',
+    return {'matched':len(rows),'counts':{kind:sum(row[0]==kind for row in rows) for kind in TYPES},'types':types,'source':FEED_URL,'state':'COMMUNITY_MAPPED',
             'note':'Community-mapped OSM coordinates, not independently verified; may be outdated.',
             'attribution':ATTRIBUTION}

@@ -6,7 +6,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
  const controls=['ALPR','RED_LIGHT','SPEED'].map(cameraType=>({dataset:{cameraType},checked:cameraType!=='SPEED',addEventListener(){}}));
  const map={getBounds:()=>({getWest:()=>area[0],getSouth:()=>area[1],getEast:()=>area[2],getNorth:()=>area[3]}),getSource:()=>null,addSource(){},addLayer(){},on(){}};
  const state={map,mapReady:false};
- function boot(){const window={};vm.runInNewContext(fs.readFileSync('openrf/static/camera-layers.js','utf8'),{window,state,document:{getElementById:el,querySelectorAll:()=>controls},setTimeout:f=>{timers.push(f);return timers.length},clearTimeout(){},fetch:async url=>({ok:true,json:async()=>url.includes('import-status')?job:{sites:[]}}),api:async()=>{requests++;return job={phase:'downloading',running:true,received_bytes:25,total_bytes:100,provider:'OSM'}}});return window;}
+ function boot(){const window={};vm.runInNewContext(fs.readFileSync('openrf/static/camera-layers.js','utf8'),{window,state,document:{getElementById:el,querySelectorAll:()=>controls},setTimeout:f=>{timers.push(f);return timers.length},clearTimeout(){},fetch:async url=>({ok:true,json:async()=>url.includes('import-status')?job:{sites:[]}}),api:async(url,method,body)=>{assert.equal(url,'/api/cameras/import-osm');assert.equal(JSON.stringify(body.types),'["SPEED","RED_LIGHT"]');requests++;return job={phase:'downloading',running:true,received_bytes:25,total_bytes:100,provider:'OSM'}}});return window;}
  const tick=()=>new Promise(resolve=>setImmediate(resolve));
  const window=boot();await tick();
  const button=el('camera-import-osm'),status=el('camera-import-status');

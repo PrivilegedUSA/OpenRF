@@ -1,3 +1,14 @@
+## OpenRF v0.2.216 — Separate traffic-camera downloads
+
+Regional map imports request speed and red-light cameras only; nationwide ALPR download remains independent. Both actions share one Camera locations section. Single dividers separate map-layer sections. Existing data and preferences retained.
+
+# v0.2.215 — Compact camera controls and regional retry
+
+- Move Camera locations immediately below regional import; shorten buttons and collapse download details.
+- Retry transient regional gateway/timeouts as four smaller sequential queries, with all-or-nothing saving and truthful section/byte status.
+- Filter camera map requests by selected categories before the result limit; retain the old unfiltered API for other callers.
+- No schema changes or cache deletion. See `docs/RELEASE_0.2.215_TESTS.md`.
+
 # v0.2.214 — Basemap overlay restoration and independent camera import jobs
 
 - Recreated the requested recovery release from the known-good v0.2.212 bundle; the previous undeliverable v0.2.214 archive was unavailable.

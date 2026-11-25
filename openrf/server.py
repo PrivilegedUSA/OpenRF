@@ -557,11 +557,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, self.server.national_alpr_manager.status())
         if path == '/api/cameras':
             params = parse_qs(urlparse(self.path).query)
-            if set(params)-{'bounds'} or len(params.get('bounds',[]))!=1:
+            if set(params)-{'bounds','types'} or len(params.get('bounds',[]))!=1 or len(params.get('types',[]))>1:
                 return self._error(400,'Provide map bounds [west,south,east,north].')
             try:
                 bounds=json.loads(params['bounds'][0])
-                return self._json(200,camera_catalog.list_sites(self.repo,bounds))
+                types=params['types'][0].split(',') if 'types' in params else None
+                return self._json(200,camera_catalog.list_sites(self.repo,bounds,types=types))
             except (ValueError,TypeError,json.JSONDecodeError) as exc:
                 return self._error(400,str(exc))
         if path == '/api/radio/profiles':
@@ -1734,10 +1735,12 @@ class Handler(BaseHTTPRequestHandler):
             if path == '/api/cameras':
                 return self._json(201,{'camera':camera_catalog.add_manual(self.repo,body)})
             if path in ('/api/cameras/import-osm', '/api/cameras/import-start'):
-                if set(body) != {'bounds'}:
-                    raise ValueError('Import requires only the selected map bounds.')
+                if set(body) not in ({'bounds'}, {'bounds', 'types'}):
+                    raise ValueError('Import requires map bounds and optional camera categories.')
+                if 'types' in body and body['types'] is None:
+                    raise ValueError('Invalid camera import categories')
                 try:
-                    return self._json(202, self.server.camera_import_manager.start(body['bounds']))
+                    return self._json(202, self.server.camera_import_manager.start(body['bounds'], body.get('types')))
                 except RuntimeError as exc:
                     return self._error(409, str(exc))
             if path == '/api/radio/start':
