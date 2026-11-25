@@ -1065,6 +1065,39 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host() or not self._allowed_origin() or self.headers.get('Sec-Fetch-Site') == 'cross-site':
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
+        if path == '/api/cellular/reference/coverage/import':
+            from .cellular_catalog import MAX_FILE, CARRIERS
+            from datetime import date
+            self.close_connection = True
+            if self.headers.get('Content-Type','').split(';')[0].lower() != 'application/octet-stream':
+                return self._error(415,'Select a local WGS84 GeoJSON coverage file')
+            try:
+                length = int(self.headers.get('Content-Length','0'))
+                if not 1 <= length <= MAX_FILE:
+                    return self._error(413,'Coverage file must be 1 byte–128 MiB; split large regional files')
+                q = parse_qs(urlparse(self.path).query, keep_blank_values=True)
+                limits = {'carrier':16,'pack':80,'date':10,'technology':60,'environment':80,'confirm':4}
+                if set(q) != set(limits) or any(len(q[k]) != 1 or not q[k][0].strip() or len(q[k][0]) > v for k,v in limits.items()):
+                    raise ValueError('Carrier, pack name, date, technology, environment and explicit confirmation required')
+                meta = {k:v[0].strip() for k,v in q.items()}
+                if meta['carrier'] not in CARRIERS or meta['confirm'] != 'true':
+                    raise ValueError('Valid carrier and explicit confirmation required')
+                if date.fromisoformat(meta['date']).isoformat() != meta['date']:
+                    raise ValueError('Use an ISO coverage date YYYY-MM-DD')
+                with tempfile.TemporaryDirectory(prefix='openrf-coverage-') as folder:
+                    f = Path(folder)/'coverage.geojson'
+                    with f.open('wb') as out:
+                        remaining = length
+                        while remaining:
+                            chunk = self.rfile.read(min(remaining, 1024*1024))
+                            if not chunk: raise ValueError('Incomplete local file transfer')
+                            out.write(chunk); remaining -= len(chunk)
+                    count = self.server.cellular_catalog.replace_coverage(meta['carrier'],meta['pack'],f,meta['date'],meta['technology'],meta['environment'])
+                return self._json(201,{'count':count,'carrier':meta['carrier'],'pack':meta['pack']})
+            except (ValueError,TypeError,AttributeError,IndexError,OverflowError) as exc:
+                return self._error(400,'Coverage import failed: '+str(exc)[:240])
+            except (OSError,sqlite3.Error):
+                return self._error(503,'Local coverage import or storage unavailable; previous pack retained')
         if path == '/api/cellular/reference/refresh':
             try:
                 body = self._decode_body()

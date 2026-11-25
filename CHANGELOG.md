@@ -1,3 +1,8 @@
+## v0.2.226
+
+- Separate RF (light amber), ALPR (saturated orange), public towers (rose) and saved cellular observations (slate) in both renderers and legends. Move Cellular observations into the cellular section without changing its persisted key.
+- Show explicit missing carrier coverage data and viewport polygon counts. Add local GeoJSON coverage pack import form with actual transfer progress, validation, atomic cache replacement and per-carrier profile selection. Raw FCC GIS files still require conversion; no automated coverage download or live measurements. Existing tower, camera, mesh and coverage data retained.
+
 ## v0.2.225
 
 - Fix likely mid-download ArcGIS HTTP 404 caused by long GET query strings: use form POST, short GET compatibility fallback, and bounded smaller batches when gateway rejects a request. Preserve atomic replacement and show failed record counts and whether an earlier snapshot exists.

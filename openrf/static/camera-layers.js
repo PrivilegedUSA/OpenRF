@@ -5,7 +5,7 @@
   const get=id=>document.getElementById(id);
   const controls=[...document.querySelectorAll('[data-camera-type]')];
   if (!get('camera-map-manager') || !controls.length) return;
-  const colors={ALPR:'#ee7828',RED_LIGHT:'#d82f49',SPEED:'#e4bf28'};
+  const colors={ALPR:'#ed5e20',RED_LIGHT:'#d82f49',SPEED:'#e4bf28'};
   let entries=[],lastKey='',fetchTimer=null,fetchEpoch=0,active=false;
   const enabled=()=>new Set(controls.filter(c=>c.checked).map(c=>c.dataset.cameraType));
   const setStatus=(message,error=false)=>{const el=get('camera-map-status');el.textContent=message;el.classList.toggle('error',error);};

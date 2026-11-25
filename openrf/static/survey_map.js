@@ -10,7 +10,7 @@
   'use strict';
   const KINDS = Object.freeze(['WIFI','BLE','RF','CELLULAR','INFRASTRUCTURE','MANUAL']);
   const WIRELESS = Object.freeze(['WIFI','BLE','RF','CELLULAR']);
-  const KIND_COLORS = Object.freeze({WIFI:'#53a9ff',BLE:'#ae8cff',RF:'#efaa53',CELLULAR:'#f07b8d',INFRASTRUCTURE:'#e9f0f1',MANUAL:'#30dec0'});
+  const KIND_COLORS = Object.freeze({WIFI:'#53a9ff',BLE:'#ae8cff',RF:'#ffc080',CELLULAR:'#9baebd',INFRASTRUCTURE:'#e9f0f1',MANUAL:'#30dec0'});
   const METRIC_COLORS = Object.freeze({high:'#34c9b1',medium:'#f6cd69',low:'#ec8293',unavailable:'#728b95',demo:'#efa947'});
   const WINDOWS = Object.freeze({all:0,day:86400000,week:604800000,month:2592000000});
   const number = value => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));

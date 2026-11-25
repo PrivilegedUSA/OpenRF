@@ -4,6 +4,7 @@ import threading
 import unittest
 import urllib.request
 from pathlib import Path
+from openrf import __version__
 from openrf.storage import Repository
 from openrf.server import create_server
 
@@ -26,7 +27,7 @@ class SurveyMapAssetTests(unittest.TestCase):
                     self.assertIn('javascript',response.headers.get('Content-Type',''))
                 with urllib.request.urlopen(origin+'/',timeout=4) as response:
                     html=response.read().decode('utf-8')
-                    self.assertIn('/static/survey_map.js?v=0.2.76',html)
+                    self.assertIn(f'/static/survey_map.js?v={__version__}',html)
                     self.assertIn('id="map-observation-detail"',html)
                 self.assertEqual(before,repo.list_observations())
             finally:

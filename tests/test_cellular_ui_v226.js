@@ -1,0 +1,10 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs');const r=f=>fs.readFileSync('openrf/static/'+f,'utf8');
+const h=r('index.html'),css=r('app.css'),j=r('cellular-map.js'),survey=r('survey_map.js');
+assert.equal((h.match(/data-map-kind="CELLULAR"/g)||[]).length,1);
+assert.ok(h.indexOf('data-map-kind="CELLULAR"')>h.indexOf('id="cellular-map-manager"'));
+assert.ok(h.indexOf('data-map-kind="CELLULAR"')<h.indexOf('id="mesh-map-manager"'));
+assert.match(j,/towers:'#f07b8d'/);assert.match(css,/\.cellular-dot\{[^}]*background:#f07b8d/);
+assert.match(survey,/RF:'#ffc080',CELLULAR:'#9baebd'/);assert.match(css,/\.layer-dot\.rf \{background:#ffc080\}/);
+assert.match(j,/No saved coverage pack for/);assert.match(j,/xhr\.upload\.onprogress/);assert.match(j,/coverage\/import\?/);assert.match(h,/id="cellular-coverage-form"/);assert.match(j,/Validating polygons and saving offline/);
+console.log('Cellular palette and offline import controls passed');

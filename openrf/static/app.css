@@ -50,7 +50,7 @@
 .map-layer-options label { display:flex;align-items:center;gap:7px;padding:10px;border:1px solid #30505c;border-radius:8px;background:#132834;font-size:12px;color:#cee0e7;min-height:45px; }
 .map-layer-options input { accent-color:#38dbc4;width:17px;height:17px;flex:0 0 17px;min-width:17px;min-height:17px; }
 .layer-dot {display:inline-block;width:10px;height:10px;border-radius:50%;flex:0 0 10px;}
-.layer-dot.wifi {background:#53a9ff}.layer-dot.ble {background:#ae8cff}.layer-dot.rf {background:#efaa53}.layer-dot.cellular {background:#f07b8d}.layer-dot.infrastructure {background:#e9f0f1}.layer-dot.manual {background:#30dec0}
+.layer-dot.wifi {background:#53a9ff}.layer-dot.ble {background:#ae8cff}.layer-dot.rf {background:#ffc080}.layer-dot.cellular {background:#9baebd}.layer-dot.infrastructure {background:#e9f0f1}.layer-dot.manual {background:#30dec0}
 .map-sheet-meta,.map-sheet-status { color:#aac5cf;font-size:11px;line-height:1.5;padding:10px 0; }
 .map-sheet-scan {display:flex;flex-wrap:wrap;gap:8px;}
 .map-sheet-scan .btn { flex:1 1 auto;min-height:43px;white-space:normal; }
@@ -62,7 +62,7 @@
 .map-live-row span{color:#9fbac5;text-align:right;}
 .map-live-row strong{max-width:54%;overflow-wrap:anywhere;}
 .map-wrap .map-legend {bottom:34px;left:auto;right:13px;}
-.raster-pin.kind-wifi{background:#53a9ff}.raster-pin.kind-ble{background:#ae8cff}.raster-pin.kind-rf{background:#efaa53}.raster-pin.kind-cellular{background:#f07b8d}.raster-pin.kind-infrastructure{background:#e9f0f1}
+.raster-pin.kind-wifi{background:#53a9ff}.raster-pin.kind-ble{background:#ae8cff}.raster-pin.kind-rf{background:#ffc080}.raster-pin.kind-cellular{background:#9baebd}.raster-pin.kind-infrastructure{background:#e9f0f1}
 .raster-pin.demo{background:#efa947}
 
 /* Width 900 accommodates the 5-inch 720x1280 portrait touchscreen. */
@@ -1116,7 +1116,7 @@ body.map-workspace .topbar .menu-toggle:focus-visible,
 .camera-layer-toggles{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0}
 .camera-layer-toggles label{font-size:12px;display:flex;align-items:center;gap:4px;white-space:nowrap}
 .camera-key{font-size:20px;line-height:12px}
-.camera-key.alpr{color:#ee7828}.camera-key.red-light{color:#d82f49}.camera-key.speed{color:#e4bf28}
+.camera-key.alpr{color:#ed5e20}.camera-key.red-light{color:#d82f49}.camera-key.speed{color:#e4bf28}
 .camera-manual-form,.chirp-import-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
 .camera-manual-form label,.chirp-import-form label{display:grid;gap:5px;font-size:12px}
 .camera-coordinates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
@@ -1128,7 +1128,7 @@ body.map-workspace .topbar .menu-toggle:focus-visible,
 @media(max-width:620px){.camera-manual-form,.chirp-import-form{grid-template-columns:1fr}}
 
 /* v0.2.55: one consistent checkbox grid and spaced camera actions. */
-#map-survey-panel .layer-dot.camera-alpr{background:#ee7828}
+#map-survey-panel .layer-dot.camera-alpr{background:#ed5e20}
 #map-survey-panel .layer-dot.camera-red{background:#d82f49}
 #map-survey-panel .layer-dot.camera-speed{background:#e4bf28}
 #map-survey-panel .camera-map-manager{margin:14px 0 12px;padding:13px 2px 12px;border:0;border-top:1px solid #355d62;border-bottom:1px solid #355d62;border-radius:0}
@@ -3171,7 +3171,10 @@ body.map-workspace .topbar button {border:0!important;}
   pointer-events:none;
 }
 /* Public cellular reference overlays (separate from RF observations). */
-.cellular-dot{display:inline-block;width:9px;height:9px;flex:none;border-radius:50%;background:#ffae57}.cellular-dot.estimate{background:#bc9cff}.cellular-dot.att{background:#3498ff}.cellular-dot.tmobile{background:#f13c95}.cellular-dot.verizon{background:#ff5353}.cellular-dot.other{background:#f0ce58}
+.cellular-dot{display:inline-block;width:9px;height:9px;flex:none;border-radius:50%;background:#f07b8d}.cellular-dot.estimate{background:#bc9cff}.cellular-dot.att{background:#3498ff}.cellular-dot.tmobile{background:#f13c95}.cellular-dot.verizon{background:#ff5353}.cellular-dot.other{background:#f0ce58}
 #cellular-progress{width:100%;height:6px;accent-color:#34c9b1}#cellular-progress-wrap[hidden]{display:none}#cellular-map-manager>button{width:100%}
 .cellular-raster-coverage{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.cellular-raster-pin{position:absolute;transform:translate(-50%,-50%);min-width:10px;min-height:10px;padding:0 2px;border:0;border-radius:12px;color:#101d27;font-size:9px;font-weight:700;line-height:14px;pointer-events:auto;cursor:pointer}
 #cellular-map-legend[hidden],#cellular-credits[hidden]{display:none!important}#cellular-profiles label{display:block;margin:6px 0}#cellular-profiles select{font-size:11px;padding:6px}
+
+/* v0.2.226 — local cellular coverage import */
+.cellular-import-form{display:grid;gap:8px;margin:8px 7px}.cellular-import-form label{display:grid;gap:4px;font-size:12px}.cellular-import-form label.switchline{display:flex;align-items:flex-start}.cellular-import-form .field{width:100%;min-width:0}.cellular-import-form progress{width:100%;height:6px;accent-color:#34c9b1}.cellular-import-form progress[hidden]{display:none}.cellular-import-form .error{color:#ffb0a9}

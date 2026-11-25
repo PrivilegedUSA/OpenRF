@@ -1,4 +1,4 @@
-# Public cellular reference layers (v0.2.225)
+# Public cellular reference layers (v0.2.226)
 
 OpenRF separates publicly listed tower/license locations, estimated logical cells, modeled coverage, and local RF observations. None proves a tower is active or that a handset will receive service. No position or scan data is sent to a provider. No account is needed for the tower layer; external dataset access may have its own terms.
 
@@ -40,3 +40,6 @@ After importing either dataset, choose **Reload saved cellular data** in OpenRF,
 ## Limits
 
 No automatic carrier attribution for physical towers, no signal-strength heatmaps, no inferred reception, no estimated-tower triangulation, no automatic FCC coverage download. A 2,500-point viewport limit per point category and 150,000-vertex limit per coverage carrier bound rendering cost. At large scales zoom in to inspect the complete layer. All local file imports and tower downloads are explicit. A tower download job survives browser reload but not backend restart; SQLite rollback protects previous snapshots. See actual provider terms and dataset metadata.
+
+## In-app import (v0.2.226)
+Download a regional raw mobile coverage file from the FCC portal (By Provider). Convert only the selected single profile to RFC 7946 GeoJSON using the steps above. In Map layers → Cellular infrastructure & coverage → Import carrier coverage for offline use, enter carrier, pack name, as-of date, technology/speed and environment, select the file, and confirm. The local HTTP transfer never sends data to a third-party service. Existing packs remain on failed validation. No FCC API credentials are collected, and automatic coverage downloads are not implemented. Coverage switches indicate missing packs; a blank area is not a no-service finding. The former general Cellular toggle now lives here as Cellular observations and retains its previous setting.
