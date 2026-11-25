@@ -24,16 +24,18 @@
       const result=await response.json();if(!response.ok)throw Error(result.error||'Local status unavailable');
       const info=result.snapshot||{},wasRunning=trafficWasRunning;trafficWasRunning=!!result.running;nationalButtons();
       const bar=get('camera-traffic-progress');
-      if(bar){bar.hidden=!result.running&&result.phase!=='ready';bar.removeAttribute('value');if(result.phase==='ready')bar.value=100;else if(result.phase==='downloading'&&result.total_bytes>0)bar.value=Math.min(100,100*result.downloaded_bytes/result.total_bytes);}
+      if(bar){bar.hidden=!result.running;bar.removeAttribute('value');if(result.phase==='ready')bar.value=100;else if(result.phase==='downloading'&&result.total_bytes>0)bar.value=Math.min(100,100*result.downloaded_bytes/result.total_bytes);}
       const baseline=info.updated_utc?`${Number(info.speed_count||0).toLocaleString()} speed · ${Number(info.red_light_count||0).toLocaleString()} red-light saved offline (updated ${info.updated_utc}).`:'No nationwide speed / red-light snapshot downloaded yet.';
+      const supplemental=(info.supplements||[]).reduce((sum,r)=>sum+Number(r.count||0),0);
+      const saved=baseline+(supplemental?` Includes ${supplemental.toLocaleString()} Chicago agency reports; overlapping reports may exist.`:'');
       if(result.running){
-        const labels={connecting:'Connecting to SpeedCams.world',downloading:'Downloading speed / red-light',validating:'Processing traffic camera reports',saving:'Saving traffic cameras'};
+        const labels={connecting:'Connecting',downloading:'Downloading speed / red-light',validating:'Processing traffic camera reports',saving:'Saving traffic cameras'};
         const bytes=result.phase==='downloading'?` · ${Number(result.downloaded_bytes||0).toLocaleString()} bytes${result.total_bytes>0?` (${Math.floor(100*result.downloaded_bytes/result.total_bytes)}%)`:' (total unknown)'}`:'';
-        setTrafficStatus(`${labels[result.phase]||'Updating traffic cameras'}${bytes}. ${baseline}`);
+        setTrafficStatus(`${result.provider_name||'SpeedCams.world'}: ${labels[result.phase]||'Updating traffic cameras'}${bytes}. ${saved}`);
         if(trafficPoll===null)trafficPoll=setTimeout(()=>{trafficPoll=null;trafficStatus();},1000);
       }else{
         if(trafficPoll!==null){clearTimeout(trafficPoll);trafficPoll=null;}
-        setTrafficStatus(result.phase==='failed'?`${baseline} SpeedCams.world update failed: ${result.error||'Unknown error'}. Saved cameras remain available.`:baseline,result.phase==='failed');
+        setTrafficStatus(result.phase==='failed'?`${saved} Traffic update failed: ${result.error||'Unknown error'}. Saved cameras remain available.`:result.partial?`${saved} Some sources failed: ${result.error}. Previous reports retained.`:saved,result.phase==='failed'||!!result.partial);
         if(wasRunning&&result.phase==='ready'){lastKey='';refresh(true);}
       }
     }catch(error){setTrafficStatus(`Traffic snapshot status unavailable: ${error.message}; retrying.`,true);if(trafficPoll===null)trafficPoll=setTimeout(()=>{trafficPoll=null;trafficStatus();},2000);}
@@ -52,7 +54,7 @@
       snapshotWasRunning=!!result.running;
       nationalButtons();
       const bar=get('camera-snapshot-progress');
-      if(bar){bar.hidden=!result.running&&result.phase!=='ready';bar.removeAttribute('value');if(result.phase==='ready')bar.value=100;else if(result.phase==='downloading'&&result.total_bytes>0)bar.value=Math.min(100,100*result.downloaded_bytes/result.total_bytes);}
+      if(bar){bar.hidden=!result.running;bar.removeAttribute('value');if(result.phase==='ready')bar.value=100;else if(result.phase==='downloading'&&result.total_bytes>0)bar.value=Math.min(100,100*result.downloaded_bytes/result.total_bytes);}
       if(result.running){
         const label=result.phase==='downloading'?'Downloading':result.phase==='validating'?'Importing and validating':result.phase==='saving'?'Saving':'Updating';
         setSnapshotStatus(`${label} national ALPR snapshot… ${Number(result.downloaded_bytes||0).toLocaleString()} bytes received${result.phase==='downloading'&&result.total_bytes>0?` (${Math.floor(100*result.downloaded_bytes/result.total_bytes)}%)`:result.phase==='downloading'?' (total unknown)':''}; ${Number(result.processed||0).toLocaleString()} features processed. Keep OpenRF running.`);

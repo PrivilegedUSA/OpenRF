@@ -1,3 +1,7 @@
+## OpenRF v0.2.218 — Public Meshtastic map and camera progress cleanup
+
+Manual MeshMap.net directory refresh, separate offline cache, approximate public node/ router layers and compact camera progress bars. The nationwide traffic refresh additionally downloads official Chicago speed and red-light camera reports from the City Data Portal (portal terms apply). Each source has an independent cache; counts are source reports and can overlap. This site provides applications using data that has been modified for use from its original source, www.cityofchicago.org, the official website of the City of Chicago. No agency data is distributed in this source archive. See CHANGELOG.md.
+
 ## OpenRF v0.2.217 — Nationwide camera databases
 
 One optional update starts independent ALPR and speed/red-light snapshot jobs. Traffic data from [SpeedCams.world](https://speedcams.world/download/united-states), © OpenStreetMap contributors ([ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/)), saved in separate local SQLite tables. Counts and provider errors displayed separately; regional Overpass import remains under Advanced. Nationwide describes geographic scope, not completeness or verified operation. Traffic provider live connectivity unverified; mobile reports excluded. No personal data transmitted, no private reports or existing cache deleted.

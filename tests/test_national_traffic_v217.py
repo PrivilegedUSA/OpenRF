@@ -36,7 +36,7 @@ class TrafficTests(unittest.TestCase):
             def geturl(self):return t.URL
         def run(data,declared):
             reply=Reply(data);reply.headers={'Content-Length':str(declared)}
-            with patch.object(t.urllib.request,'urlopen',return_value=reply) as request:
+            with patch.object(manager,'supplements',return_value=[]),patch.object(t.urllib.request,'urlopen',return_value=reply) as request:
                 manager.start();manager.thread.join(3)
                 self.assertEqual(request.call_args.args[0].full_url,t.URL)
             return manager.status()
@@ -60,7 +60,7 @@ class TrafficTests(unittest.TestCase):
             class Reply(io.BytesIO):
                 def geturl(self):return t.URL
             reply=Reply(raw);reply.headers={'Content-Length':str(len(raw))}
-            with patch.object(server.national_alpr_manager,'start',side_effect=OSError('simulated ALPR error')),patch.object(t.urllib.request,'urlopen',return_value=reply):
+            with patch.object(server.national_alpr_manager,'start',side_effect=OSError('simulated ALPR error')),patch.object(server.national_traffic_manager,'supplements',return_value=[]),patch.object(t.urllib.request,'urlopen',return_value=reply):
                 code,result=request('POST','/api/cameras/nationwide/update',{})
                 self.assertEqual(code,202);self.assertEqual(result['alpr']['phase'],'failed')
                 server.national_traffic_manager.thread.join(3)

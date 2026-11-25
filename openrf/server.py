@@ -813,6 +813,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, self.repo.stats())
         if path == '/api/radio/status':
             return self._json(200, self.server.radio_receiver.status())
+        if path == '/api/mesh/public/meshtastic/status':
+            return self._json(200, self.server.public_meshtastic.download_status())
+        if path == '/api/mesh/public/meshtastic':
+            return self._json(200, self.server.public_meshtastic.snapshot())
         if path == '/api/mesh/public/status':
             return self._json(200, self.server.public_mesh.download_status())
         if path == '/api/mesh/public':
@@ -1046,13 +1050,14 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host() or not self._allowed_origin() or self.headers.get('Sec-Fetch-Site') == 'cross-site':
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
-        if path in ('/api/mesh/public/refresh','/api/mesh/public/clear'):
+        if path in ('/api/mesh/public/refresh','/api/mesh/public/clear','/api/mesh/public/meshtastic/refresh','/api/mesh/public/meshtastic/clear'):
             from .public_mesh import DirectoryError
             try:
                 body = self._decode_body()
                 if not isinstance(body, dict) or set(body) != {'confirm'} or body['confirm'] is not True:
                     raise ValueError('Explicit confirmation required')
-                result = self.server.public_mesh.refresh() if path.endswith('/refresh') else self.server.public_mesh.clear()
+                directory = self.server.public_meshtastic if '/meshtastic/' in path else self.server.public_mesh
+                result = directory.refresh() if path.endswith('/refresh') else directory.clear()
                 return self._json(200, result)
             except ValueError as exc:
                 return self._error(400, str(exc))
@@ -2235,7 +2240,8 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.national_traffic_manager = national_traffic.UpdateManager(repository)
     from .mesh_monitor import MeshMonitor, SnapshotCoordinator
     from .mesh_dashboard import dashboard
-    from .public_mesh import PublicMeshDirectory
+    from .public_mesh import PublicMeshDirectory, fetch_meshtastic, normalize_meshtastic
+    server.public_meshtastic = PublicMeshDirectory(repository.path.parent / 'public-meshtastic.json', fetch_meshtastic, normalizer=normalize_meshtastic, provider='MeshMap.net', max_cache_age=7*86400)
     server.public_mesh = PublicMeshDirectory(repository.path.parent / 'public-meshcore.json')
     server.mesh_snapshot = SnapshotCoordinator(lambda: dashboard(server.mesh_manager, server.meshcore_manager, server.reticulum_manager))
     if server.mesh_history is not None:

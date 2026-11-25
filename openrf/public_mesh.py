@@ -32,13 +32,13 @@ class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, *args, **kwargs):
         return None
 
-def fetch_meshcore(progress=lambda **fields: None):
-    request = Request(URL, headers={'Accept':'application/json', 'Accept-Encoding':'identity', 'User-Agent':'OpenRF/0.2.208 (manual public directory snapshot; https://openrf.app)'})
+def _fetch_directory(url, provider, progress):
+    request = Request(url, headers={'Accept':'application/json', 'Accept-Encoding':'identity', 'User-Agent':'OpenRF/0.2.218 (manual public directory snapshot; https://openrf.app)'})
     started = time.monotonic()
     try:
         with build_opener(NoRedirect()).open(request, timeout=NETWORK_TIMEOUT) as response:
             if response.headers.get('Content-Encoding','identity').lower() != 'identity':
-                raise DirectoryError('Unexpected response encoding from MeshCore')
+                raise DirectoryError(f'Unexpected response encoding from {provider}')
             length = response.headers.get('Content-Length')
             total = int(length) if length and length.isdecimal() else None
             if total is not None and total > MAX_BYTES:
@@ -57,22 +57,31 @@ def fetch_meshcore(progress=lambda **fields: None):
             if total is not None and len(raw)!=total:
                 raise DirectoryError('Incomplete directory transfer; previous snapshot retained')
     except HTTPError as exc:
-        error = DirectoryError(f'MeshCore HTTP {exc.code}; previous snapshot retained')
+        error = DirectoryError(f'{provider} HTTP {exc.code}; previous snapshot retained')
         if exc.code in (429,503):
             retry=exc.headers.get('Retry-After','') if exc.headers else ''
             error.retry_seconds=max(MIN_REFRESH,int(retry)) if retry.isdecimal() and len(retry)<10 else MIN_REFRESH
         raise error from exc
     except (TimeoutError, socket.timeout) as exc:
-        raise DirectoryError('MeshCore network timed out; previous snapshot retained') from exc
+        raise DirectoryError(f'{provider} network timed out; previous snapshot retained') from exc
     except URLError as exc:
-        raise DirectoryError(f'MeshCore connection failed ({type(exc.reason).__name__}); previous snapshot retained') from exc
+        raise DirectoryError(f'{provider} connection failed ({type(exc.reason).__name__}); previous snapshot retained') from exc
     except (OSError, IncompleteRead) as exc:
-        raise DirectoryError(f'MeshCore transfer interrupted ({type(exc).__name__}); previous snapshot retained') from exc
+        raise DirectoryError(f'{provider} transfer interrupted ({type(exc).__name__}); previous snapshot retained') from exc
     progress(phase='parsing', received_bytes=len(raw), total_bytes=total)
     try:
         return json.loads(raw)
     except (UnicodeError, ValueError) as exc:
         raise DirectoryError('Provider did not return supported JSON') from exc
+
+def fetch_meshcore(progress=lambda **fields: None):
+    return _fetch_directory(URL, 'MeshCore', progress)
+
+MESHTASTIC_URL = 'https://meshmap.net/nodes.json'
+
+def fetch_meshtastic(progress=lambda **fields: None):
+    return _fetch_directory(MESHTASTIC_URL, 'MeshMap.net', progress)
+
 
 def _number(value, limit):
     return type(value) in (float,int) and abs(value) <= limit and math.isfinite(value)
@@ -119,10 +128,45 @@ def normalize(payload):
         raise DirectoryError(f'No valid geographic records ({invalid:,} of {len(payload):,} rejected); previous snapshot retained')
     return {'nodes':list(nodes.values()),'received':len(payload),'rejected':invalid,'duplicates':duplicates}
 
+def normalize_meshtastic(payload):
+    # MeshMap.net NodeDB: decimal uint32 keys, integer 1e-7 degree positions.
+    # Only retain geographic map metadata, never MQTT topics, messages, telemetry
+    # or neighbors. Do not reconstruct precision or infer radio reachability.
+    from datetime import datetime, timezone
+    if not isinstance(payload, dict) or not payload or len(payload) > MAX_ROWS:
+        raise DirectoryError('Empty, unsupported or oversized MeshMap.net response; previous snapshot retained')
+    nodes = {}
+    invalid = duplicates = 0
+    for key, row in payload.items():
+        if not isinstance(key, str) or not re.fullmatch(r'[0-9]{1,10}', key) or not 0 < int(key) < 4294967295 or not isinstance(row, dict):
+            invalid += 1; continue
+        lat, lon = row.get('latitude'), row.get('longitude')
+        if type(lat) is not int or type(lon) is not int or abs(lat) > 850511287 or abs(lon) > 1800000000 or (lat == 0 and lon == 0):
+            invalid += 1; continue
+        # Never increase precision; public map positions are approximate.
+        lat, lon = round(lat / 1e7, 3), round(lon / 1e7, 3)
+        ident = f'!{int(key):08x}'
+        if ident in nodes:
+            duplicates += 1; continue
+        raw_role = row.get('role')
+        role = 'Repeater' if raw_role in ('ROUTER', 'ROUTER_CLIENT', 'REPEATER', 'ROUTER_LATE') else _text(raw_role, 40) or 'Unknown'
+        seen = row.get('seenBy')
+        stamps = [v for v in seen.values() if type(v) is int and 0 < v <= time.time()+300] if isinstance(seen,dict) else []
+        updated = datetime.fromtimestamp(max(stamps), timezone.utc).isoformat() if stamps else None
+        nodes[ident] = dict(id=ident, name=_text(row.get('longName')) or 'Unnamed node', role=role, lat=lat, lon=lon,
+                            updated=updated, source='MeshMap.net', reported_role=_text(raw_role,40), hardware=_text(row.get('hwModel'),64))
+    if not nodes:
+        raise DirectoryError('No valid geographic Meshtastic records; previous snapshot retained')
+    return dict(nodes=list(nodes.values()),received=len(payload),rejected=invalid,duplicates=duplicates)
+
+
 class PublicMeshDirectory:
-    def __init__(self, path: Path, fetcher=fetch_meshcore):
+    def __init__(self, path: Path, fetcher=fetch_meshcore, *, normalizer=normalize, provider="MeshCore", max_cache_age=MAX_CACHE_AGE):
         self.path = path
         self.fetcher = fetcher
+        self.normalizer = normalizer
+        self.provider = provider
+        self.max_cache_age = max_cache_age
         self.lock = threading.Lock()
         self.last_attempt = float('-inf')
         self.retry_delay = MIN_REFRESH
@@ -146,7 +190,7 @@ class PublicMeshDirectory:
             age = max(0,time.time()-data['downloaded_at'])
             if data.get('schema')!=1 or not isinstance(data['nodes'],list) or len(data['nodes'])>MAX_ROWS:
                 raise ValueError('Invalid cache')
-            if age > MAX_CACHE_AGE:
+            if age > self.max_cache_age:
                 return {**data,'nodes':[],'state':'expired','cached_count':len(data['nodes'])}
             return {**data,'state':'cached','cached_count':len(data['nodes'])}
         except FileNotFoundError:
@@ -165,9 +209,9 @@ class PublicMeshDirectory:
             self.retry_delay = MIN_REFRESH
             self._progress(phase='connecting', received_bytes=0, total_bytes=None, error=None)
             try:
-                payload = self.fetcher(self._progress) if self.fetcher is fetch_meshcore else self.fetcher()
+                payload = self.fetcher(self._progress) if self.fetcher in (fetch_meshcore, fetch_meshtastic) else self.fetcher()
                 self._progress(phase='processing')
-                result = normalize(payload)
+                result = self.normalizer(payload)
                 del payload
             except DirectoryError as exc:
                 self.retry_delay = getattr(exc,'retry_seconds',FAILURE_RETRY)
@@ -178,7 +222,7 @@ class PublicMeshDirectory:
                 self.retry_delay = FAILURE_RETRY
                 self.last_attempt = time.monotonic()
                 self._progress(phase='failed',error='Directory processing failed')
-                raise DirectoryError(f'MeshCore directory failed ({type(exc).__name__}); previous snapshot retained') from exc
+                raise DirectoryError(f'{self.provider} directory failed ({type(exc).__name__}); previous snapshot retained') from exc
             self._progress(phase='saving')
             result.update(schema=1,downloaded_at=time.time())
             raw = json.dumps(result,ensure_ascii=True,separators=(',',':'),allow_nan=False).encode('utf-8')

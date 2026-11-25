@@ -3107,3 +3107,9 @@ body.map-workspace .topbar button {border:0!important;}
 #map-survey-panel #camera-traffic-status.error{border-left-color:#ff7974;color:#ffb0a9}
 #map-survey-panel #camera-area-import summary{cursor:pointer;font-size:12px}
 #map-survey-panel #camera-area-import button{width:100%;margin-top:7px}
+
+/* v0.2.218: consistent progress appearance, hidden terminal bars. */
+#map-survey-panel #camera-traffic-progress{width:100%;height:8px;accent-color:#34c9b1;margin:6px 0 2px;}
+#map-survey-panel progress[hidden],#map-survey-panel [id$="progress-wrap"][hidden]{display:none!important;}
+#page-map .public-mesh-pin[data-network="Meshtastic"]{background:#286b3b;border-color:#9ce2aa;}
+#page-map .public-mesh-pin[data-network="Meshtastic"][data-kind="repeater"]{background:#286b3b;}

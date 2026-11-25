@@ -15,29 +15,31 @@
   function selected(nodes,all,repeaters){return all?nodes:repeaters?nodes.filter(n=>n.role==='Repeater'):[];}
   if(typeof module!=='undefined'){module.exports={groups,selected};return;}
   const el=id=>document.getElementById(id);
-  let snapshot={nodes:[],state:'empty'},busy=false,markers=[],activeMap=null,redraw=null;
-  const enabled=()=>selected(snapshot.nodes,el('public-mesh-nodes')?.checked,el('public-mesh-repeaters')?.checked);
+  let markers=[],activeMap=null,redraw=null;
+  const directories=[{prefix:'public-mesh',label:'MeshCore',endpoint:'/api/mesh/public',age:30},{prefix:'public-meshtastic',label:'Meshtastic',endpoint:'/api/mesh/public/meshtastic',age:7}].map(d=>({...d,snapshot:{nodes:[],state:'empty'},busy:false}));
+  const enabled=()=>directories.flatMap(d=>selected(d.snapshot.nodes,el(d.prefix+'-nodes')?.checked,el(d.prefix+'-repeaters')?.checked).map(n=>({...n,network:d.label})));
+  const network=g=>new Set(g.nodes.map(n=>n.network)).size===1?g.nodes[0].network:'Mixed';
   function text(tag,value){const e=document.createElement(tag);e.textContent=value;return e;}
   function close(){const p=el('public-mesh-detail');if(p){p.hidden=true;p.replaceChildren();}}
   function details(g){
     window.OpenRFMapFeatureInfo?.close();const p=el('public-mesh-detail');if(!p)return;
-    const title=text('strong',g.nodes.length===1?'Public MeshCore node':`${g.nodes.length} public MeshCore nodes in this map cluster`);
+    const title=text('strong',g.nodes.length===1?`Public ${network(g)} node`:`${g.nodes.length} public ${network(g)==='Mixed'?'mesh':network(g)} nodes in this map cluster`);
     const dismiss=text('button','');dismiss.type='button';dismiss.className='map-sheet-close';dismiss.setAttribute('aria-label','Close public mesh node details');dismiss.title='Close details';dismiss.addEventListener('click',close);
     const head=text('div','');head.className='public-mesh-detail-head';head.append(title,dismiss);
-    const body=text('div','');body.className='public-mesh-detail-body';body.append(text('p','Official MeshCore Map · published locations, not verified reachability.'));
+    const body=text('div','');body.className='public-mesh-detail-body';body.append(text('p','Public directory snapshots · reported positions, not verified reachability. Meshtastic positions are approximate.'));
     p.replaceChildren(head,body);
     for(const n of g.nodes.slice(0,30)){
       const d=text('div','');d.className='public-mesh-node-detail';
-      d.append(text('strong',n.name),text('p',`${n.role} · ${n.lat}, ${n.lon}`),text('p',`Directory updated: ${n.updated||'Unavailable'} · source: ${n.source||'Unavailable'}`),text('p',`Identifier: ${n.id}`));body.append(d);
+      d.append(text('strong',n.name),text('p',`${n.network} · ${n.reported_role||n.role} · ${n.lat}, ${n.lon}`),text('p',`Directory updated: ${n.updated||'Unavailable'} · source: ${n.source||'Unavailable'}`),text('p',`Identifier: ${n.id}`));body.append(d);
     }
     if(g.nodes.length>30)body.append(text('p','Zoom in to inspect the remaining nodes.'));
     p.hidden=false;
   }
   function marker(g,raster=false){
-    const b=text('button',g.nodes.length>1?String(g.nodes.length):g.nodes[0].role==='Repeater'?'P+':'P');
+    const b=text('button',g.nodes.length>1?String(g.nodes.length):g.nodes[0].network==='Meshtastic'?(g.nodes[0].role==='Repeater'?'M+':'M'):(g.nodes[0].role==='Repeater'?'P+':'P'));
     b.type='button';b.className='public-mesh-pin'+(raster?' public-mesh-raster-pin':'');
-    b.dataset.kind=g.nodes.length>1?'cluster':g.nodes[0].role==='Repeater'?'repeater':'node';
-    b.title=g.nodes.length>1?`${g.nodes.length} public directory nodes`:g.nodes[0].name+' · public MeshCore directory';b.setAttribute('aria-label',b.title);
+    b.dataset.network=network(g);b.dataset.kind=g.nodes.length>1?'cluster':g.nodes[0].role==='Repeater'?'repeater':'node';
+    b.title=g.nodes.length>1?`${g.nodes.length} public directory nodes`:g.nodes[0].name+' · public '+g.nodes[0].network+' directory';b.setAttribute('aria-label',b.title);
     b.addEventListener('click',e=>{e.stopPropagation();details(g);});return b;
   }
   function clearMarkers(){for(const m of markers)m.remove();markers=[];}
@@ -64,14 +66,14 @@
       const b=marker(g,true);b.style.left=`${g.x}px`;b.style.top=`${g.y}px`;parent.append(b);
     }
   }
-  function status(error=''){
-    const s=el('public-mesh-status');if(!s)return;
+  function status(d,error=''){
+    const {snapshot,busy}=d;const s=el(d.prefix+'-status');if(!s)return;
     let msg=snapshot.state==='cached'?`${snapshot.cached_count.toLocaleString()} mapped public nodes · ${snapshot.rejected||0} rejected · ${snapshot.duplicates||0} duplicate records · downloaded ${new Date(snapshot.downloaded_at*1000).toLocaleString()}.`:
-      snapshot.state==='expired'?'Cache expired (30 days); refresh to show nodes.':snapshot.state==='unavailable'?'Local public directory cache unavailable.':'No public directory downloaded yet.';
+      snapshot.state==='expired'?`Cache expired (${d.age} days); refresh to show nodes.`:snapshot.state==='unavailable'?'Local public directory cache unavailable.':'No public directory downloaded yet.';
     if(busy)msg+=' Working…';if(error)msg+=' '+error;s.textContent=msg;
   }
-  function progressView(data){
-    const bar=el('public-mesh-progress'),wrap=el('public-mesh-progress-wrap'),label=el('public-mesh-progress-text');
+  function progressView(d,data){
+    const bar=el(d.prefix+'-progress'),wrap=el(d.prefix+'-progress-wrap'),label=el(d.prefix+'-progress-text');
     const phase=data.phase, received=data.received_bytes||0,total=data.total_bytes;
     const mib=n=>(n/1048576).toFixed(1)+' MiB';
     wrap.hidden=false;bar.hidden=false;bar.removeAttribute('value');
@@ -80,32 +82,35 @@
       if(total>0){bar.value=Math.min(100,100*received/total);label.textContent=`Downloading ${mib(received)} / ${mib(total)} · ${Math.floor(bar.value)}%`;}
       else label.textContent=`Downloading ${mib(received)} · total size unknown`;
     }else{
-      label.textContent=({connecting:'Connecting to MeshCore…',parsing:'Reading downloaded JSON…',processing:'Validating node records…',saving:'Saving offline directory…',complete:'Download complete',failed:data.error||'Download failed',idle:'Connecting…'})[phase]||'Working…';
+      label.textContent=({connecting:`Connecting to ${d.label}…`,parsing:'Reading downloaded JSON…',processing:'Validating node records…',saving:'Saving offline directory…',complete:'Download complete',failed:data.error||'Download failed',idle:'Connecting…'})[phase]||'Working…';
       if(phase==='complete')bar.value=100;
     }
   }
-  async function request(action){
-    if(busy)return;busy=true;status();for(const id of ['public-mesh-download','public-mesh-clear'])el(id).disabled=true;
+  async function request(d,action){
+    if(d.busy)return;d.busy=true;status(d);for(const suffix of ['download','clear'])el(d.prefix+'-'+suffix).disabled=true;
     let error='',poll=null,finished=false;
     if(action==='refresh'){
-      progressView({phase:'connecting'});
-      const update=async()=>{try{const res=await fetch('/api/mesh/public/status',{cache:'no-store'});if(res.ok){const data=await res.json();if(!finished)progressView(data);}}catch(_){}finally{if(!finished)poll=setTimeout(update,500);}};
+      progressView(d,{phase:'connecting'});
+      const update=async()=>{try{const res=await fetch(d.endpoint+'/status',{cache:'no-store'});if(res.ok){const data=await res.json();if(!finished)progressView(d,data);}}catch(_){}finally{if(!finished)poll=setTimeout(update,500);}};
       poll=setTimeout(update,300);
     }
     try{
-      const res=await fetch('/api/mesh/public'+(action?'/'+action:''),action?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:true})}:{cache:'no-store'});
-      const data=await res.json();if(!res.ok)throw Error(data.error||'HTTP '+res.status);snapshot=data;
-      if(action==='refresh'){el('public-mesh-nodes').checked=true;window.OpenRFMapLayerPreferences?.save?.();progressView({phase:'complete'});}
-      if(action==='clear')el('public-mesh-progress-wrap').hidden=true;
+      const res=await fetch(d.endpoint+(action?'/'+action:''),action?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:true})}:{cache:'no-store'});
+      const data=await res.json();if(!res.ok)throw Error(data.error||'HTTP '+res.status);d.snapshot=data;
+      if(action==='refresh'){el(d.prefix+'-nodes').checked=true;window.OpenRFMapLayerPreferences?.save?.();progressView(d,{phase:'complete'});el(d.prefix+'-progress-wrap').hidden=true;}
+      if(action==='clear')el(d.prefix+'-progress-wrap').hidden=true;
       close();redraw?.();
-    }catch(e){error='Directory request failed: '+e.message;if(action==='refresh')progressView({phase:'failed',error:e.message});}
-    finally{finished=true;clearTimeout(poll);busy=false;for(const id of ['public-mesh-download','public-mesh-clear'])el(id).disabled=false;status(error);}
+    }catch(e){error='Directory request failed: '+e.message;if(action==='refresh')progressView(d,{phase:'failed',error:e.message});}
+    finally{finished=true;clearTimeout(poll);d.busy=false;for(const suffix of ['download','clear'])el(d.prefix+'-'+suffix).disabled=false;status(d,error);}
   }
   window.OpenRFPublicMesh={vector,raster,close,set redraw(fn){redraw=fn;}};
   document.addEventListener('DOMContentLoaded',()=>{
-    for(const id of ['public-mesh-nodes','public-mesh-repeaters'])el(id).addEventListener('change',()=>{window.OpenRFMapLayerPreferences?.save?.();close();redraw?.();});
-    el('public-mesh-download').addEventListener('click',()=>request('refresh'));
-    el('public-mesh-clear').addEventListener('click',()=>{if(window.confirm('Delete the downloaded public MeshCore snapshot? Local radio data is unaffected.'))request('clear');});
-    request();
+    for(const d of directories){
+      if(!el(d.prefix+'-nodes'))continue;
+      for(const suffix of ['nodes','repeaters'])el(d.prefix+'-'+suffix).addEventListener('change',()=>{window.OpenRFMapLayerPreferences?.save?.();close();redraw?.();});
+      el(d.prefix+'-download').addEventListener('click',()=>request(d,'refresh'));
+      el(d.prefix+'-clear').addEventListener('click',()=>{if(window.confirm(`Delete the downloaded public ${d.label} snapshot? Local radio data is unaffected.`))request(d,'clear');});
+      request(d);
+    }
   });
 })();

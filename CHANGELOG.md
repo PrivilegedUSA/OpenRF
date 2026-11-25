@@ -1,3 +1,12 @@
+## v0.2.218
+
+- Supplement the US OSM traffic snapshot with separate Chicago official speed and red-light feeds; retain each previous cache on source failure and report partial success. Published locations are not proof of active operation; source records can overlap. No agency data bundled.
+
+- Add public Meshtastic map directory using MeshMap.net `nodes.json`, separate from existing MeshCore and local radio records. Manual refresh only, atomic offline snapshot, 7-day cache expiry; source positions are approximate and not verified reachability. No message, telemetry, neighbor or MQTT topic history saved.
+- Move nationwide camera progress bars below their respective status counts, match teal styling, hide when no longer running.
+- Public mesh map groups combine enabled networks on both map renderers; green Meshtastic pins and source-labeled details.
+- MeshMap.net endpoint and schema reviewed against upstream documentation; live transfer not verified in development environment. Provider source code AGPL-3.0; no upstream code or dataset bundled. Public dataset redistribution terms not established.
+
 ## OpenRF v0.2.217 — Nationwide camera databases
 
 One optional update starts independent ALPR and speed/red-light snapshot jobs. Traffic data from [SpeedCams.world](https://speedcams.world/download/united-states), © OpenStreetMap contributors ([ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/)), saved in separate local SQLite tables. Counts and provider errors displayed separately; regional Overpass import remains under Advanced. Nationwide describes geographic scope, not completeness or verified operation. Traffic provider live connectivity unverified; mobile reports excluded. No personal data transmitted, no private reports or existing cache deleted.

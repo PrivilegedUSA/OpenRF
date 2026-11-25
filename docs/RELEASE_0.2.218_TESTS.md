@@ -1,0 +1,7 @@
+# Release 0.2.218 verification and acceptance
+
+Based on complete 0.2.217 source, including the Meshtastic and camera UI changes and the supplementary Chicago data refresh. The Chicago agency feeds are documented at https://data.cityofchicago.org/resource/4i42-qv3h.json and https://data.cityofchicago.org/resource/thvf-6diy.json; the existing OSM source remains separate. Chicago's portal terms apply; this site provides applications using data that has been modified for use from its original source, www.cityofchicago.org, the official website of the City of Chicago. No upstream data bundled. Counts are source reports and may overlap. The new supplement table is additive; only a successfully validated source replaces its own rows.
+
+Acceptance: start OpenRF, update US cameras, verify both OSM and Chicago results or explicit partial errors; check progress bars disappear when finished and counts remain. Enable Meshtastic nodes, manually refresh and inspect approximate public locations, switch basemaps, restart offline and verify separate MeshCore and Meshtastic caches. Refresh failures must not remove previous snapshots. No Reticulum public directory in this release.
+
+Live DNS for MeshMap.net and data.cityofchicago.org failed in the development environment; provider HTTP flows were exercised with fixtures. No live hardware or rendered browser tests. No guarantee of complete geographic coverage, actual camera operation or mesh reachability.

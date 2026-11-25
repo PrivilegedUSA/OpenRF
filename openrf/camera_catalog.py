@@ -147,7 +147,7 @@ def list_sites(repo, bounds, limit=1000, types=None):
         national=[site for site in national if site['id'] not in seen]
     combined=saved+national[:remaining]
     return {'sites':combined, 'truncated':len(rows)>limit or traffic_truncated or len(national)>remaining,
-            'attribution':ATTRIBUTION + '; ' + national_alpr.ATTRIBUTION + '; ' + national_traffic.SOURCE,
+            'attribution':ATTRIBUTION + '; ' + national_alpr.ATTRIBUTION + '; ' + national_traffic.ATTRIBUTION,
             'camera_positions':'reported infrastructure; not RF detections or proof of operation'}
 
 
@@ -255,7 +255,7 @@ def _read_osm_part(bounds, progress, errors, types=None):
     for endpoint in OVERPASS_ENDPOINTS:
         progress(phase="connecting", provider=endpoint, errors=list(errors), received_bytes=0, total_bytes=None)
         request = urllib.request.Request(endpoint, data=payload, headers={
-            'User-Agent': 'OpenRF/0.2.217 (offline-first; user-initiated OSM area lookup)',
+            'User-Agent': 'OpenRF/0.2.218 (offline-first; user-initiated OSM area lookup)',
             'Content-Type': 'application/x-www-form-urlencoded',
             'Accept': 'application/json'})
         try:
