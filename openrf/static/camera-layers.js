@@ -79,7 +79,7 @@
           const p=document.createElement('p');p.textContent=line;div.append(p);
         }
         if(c.source_url){const a=document.createElement('a');a.href=c.source_url;a.target='_blank';a.rel='noopener noreferrer';a.textContent='Open recorded source';div.append(a);}
-        new maplibregl.Popup({className:'openrf-camera-map-popup',maxWidth:'290px'}).setLngLat(event.lngLat).setDOMContent(div).addTo(map);
+        window.OpenRFMapFeatureInfo.show(new maplibregl.Popup({className:'openrf-camera-map-popup',maxWidth:'290px'}).setLngLat(event.lngLat).setDOMContent(div),map);
       });
     }
     updateVector(map);onViewportChanged();
@@ -101,7 +101,7 @@
       pin.style.backgroundColor=colors[c.type];pin.style.left=`${width/2+dx}px`;pin.style.top=`${height/2+dy}px`;
       pin.title=`${c.type} · ${c.state} · ${c.label} · ${c.source} · lens heading: ${c.direction||'unknown'}`;
       pin.setAttribute('aria-label',pin.title);pin.addEventListener('click',e=>{
-        e.stopPropagation();const box=get('camera-selected');box.hidden=false;
+        e.stopPropagation();window.OpenRFMapFeatureInfo.close();const box=get('camera-selected');box.hidden=false;
         box.textContent=`${c.type} · ${c.state}: ${c.label}. Source: ${c.source}. Mapped lens heading: ${c.direction||'unknown'}. This is a reported camera location, not proof of operation or actual viewing coverage.`;
       });fragment.append(pin);
     }
@@ -132,8 +132,10 @@
     fetchTimer=setTimeout(()=>{fetchTimer=null;refresh();},450);
   }
   controls.forEach(el=>el.addEventListener('change',()=>{
+    window.OpenRFMapFeatureInfo.close();
     window.OpenRFMapLayerPreferences?.save?.();
-    lastKey='';if(enabled().size)refresh(true);else{entries=[];updateVector(state.map);state.rasterMap?.render();setStatus('All camera layers disabled. No camera network activity.');}
+    ++fetchEpoch;lastKey='';updateVector(state.map);state.rasterMap?.render();
+    if(enabled().size)refresh(true);else{entries=[];setStatus('All camera layers disabled. No camera network activity.');}
   }));
   get('camera-refresh').addEventListener('click',()=>refresh(true));
   get('camera-download-national')?.addEventListener('click',async()=>{

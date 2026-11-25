@@ -1,3 +1,7 @@
+## OpenRF v0.2.205 — Map layer and feature-info fixes
+
+Mesh layers now show reported position counts and inventory availability. Camera and survey feature popups dismiss on workspace/menu changes and layer changes. The mesh map uses locally available radio node positions, not a public mesh directory. See `docs/RELEASE_0.2.205_TESTS.md`.
+
 ## OpenRF v0.2.201 — Combined mesh monitoring
 
 Passive background recording, cached Reticulum topology evidence, infrastructure and collector diagnostics. See `docs/RELEASE_0.2.201_TESTS.md`.

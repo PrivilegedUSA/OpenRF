@@ -48,7 +48,7 @@
 .map-sheet-close { flex:0 0 40px;height:40px;border:1px solid #43626d;background:#132e38;color:#e8f7f8;border-radius:8px;font-size:23px; }
 .map-layer-options { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px; }
 .map-layer-options label { display:flex;align-items:center;gap:7px;padding:10px;border:1px solid #30505c;border-radius:8px;background:#132834;font-size:12px;color:#cee0e7;min-height:45px; }
-.map-layer-options input { accent-color:#38dbc4;width:17px;height:17px; }
+.map-layer-options input { accent-color:#38dbc4;width:17px;height:17px;flex:0 0 17px;min-width:17px;min-height:17px; }
 .layer-dot {display:inline-block;width:10px;height:10px;border-radius:50%;flex:0 0 10px;}
 .layer-dot.wifi {background:#53a9ff}.layer-dot.ble {background:#ae8cff}.layer-dot.rf {background:#efaa53}.layer-dot.cellular {background:#f07b8d}.layer-dot.infrastructure {background:#e9f0f1}.layer-dot.manual {background:#30dec0}
 .map-sheet-meta,.map-sheet-status { color:#aac5cf;font-size:11px;line-height:1.5;padding:10px 0; }
@@ -2980,3 +2980,6 @@ body.map-workspace .topbar .header-wifi-button{background:#0c2833e8;color:#a9e7d
 #page-mesh-network .mesh-network-pager button:disabled{opacity:.45;cursor:default}
 #page-mesh-network .mesh-network-detail canvas{display:block;max-width:100%;height:auto}
 @media(max-width:850px){#page-mesh-network .filters > .field{flex-basis:100%}}
+
+#mesh-map-manager .camera-section-heading{margin-bottom:10px}
+#mesh-map-manager .map-layer-options label{min-width:0;overflow-wrap:anywhere}

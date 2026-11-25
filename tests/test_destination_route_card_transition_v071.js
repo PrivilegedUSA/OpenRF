@@ -43,7 +43,7 @@ const state={map,mapReady:true,navPicking:false,navPickedPoint:null,navPickPanRe
 const mapSearchForm=$('map-destination-form'),mapSearchPanel=$('map-destination-panel'),mapSearchToggle=$('map-search-toggle');
 mapSearchForm.hidden=true;
 const keyHandlers={};
-const context={state,$,mapSearchForm,mapSearchPanel,mapSearchToggle,Math,Date,window:{addEventListener(k,fn){keyHandlers[k]=fn;}},
+const context={closeMapFeatureInfo(){},state,$,mapSearchForm,mapSearchPanel,mapSearchToggle,Math,Date,window:{addEventListener(k,fn){keyHandlers[k]=fn;}},
   requestAnimationFrame(cb){cb();},updateNavOverlayLayout(){},navAddressTimer:null,
   stopNavigationFollow(){},renderDirectionsReview(){},renderNavigationOverlay(){},renderRoadAvoidList(){},syncMapPickedAction(){},
   cameraPanelVisibility(){},showPage(){},setNavigationStatus(){},setMapDestinationStatus(){},cancelAreaChoosing(){},

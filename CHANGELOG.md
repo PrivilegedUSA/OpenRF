@@ -1,3 +1,10 @@
+# v0.2.205 — Map layer and feature-info fixes
+
+- Give Mesh nodes heading more breathing room and prevent long labels from shrinking checkboxes.
+- Display located/unlocated counts, disconnected or unavailable inventories and refresh errors in Map layers; retain the last successful snapshot on transient request failure. No automatic radio connection or coordinate inference.
+- Dismiss primary-map feature popups when another map surface or workspace opens or layer settings change. Remove disabled camera markers immediately and invalidate outstanding camera inventory requests.
+- See `docs/RELEASE_0.2.205_TESTS.md`.
+
 # v0.2.204 — Touchscreen and final stabilization
 
 - Reorder the Mesh Network workspace, bound table rendering to 50 rows, preserve loaded history and interface expansion, and serialize settings actions with refreshes.

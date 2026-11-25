@@ -143,6 +143,7 @@ function syncNavigation() {
   document.querySelector('.main').inert = compact && navigationOpen;
 }
 function setNavigationOpen(open, restoreFocus = true) {
+  if(open)closeMapFeatureInfo();
   const wasOpen = navigationOpen;
   navigationOpen = !!open && compactNavigation.matches;
   syncNavigation();
@@ -261,7 +262,7 @@ function setMapSearchCollapsed(collapsed, restoreFocus = false) {
   // When opening search, immediately take the old route chooser out of the
   // pointer/keyboard path. It may return if search is simply dismissed;
   // starting a new destination pick invalidates it for good.
-  if (!isCollapsed) $('map-route-choices').hidden = true;
+  if (!isCollapsed) {closeMapFeatureInfo();$('map-route-choices').hidden = true;}
   // Editing a destination and reviewing a route are mutually exclusive map
   // surfaces. Hide the old route sheets without discarding their route data.
   $('page-map').classList.toggle('map-search-editing', !isCollapsed);
@@ -338,6 +339,7 @@ function closeMapToolOverlay(restoreFocus = false) {
   if (old && restoreFocus) document.querySelector(`[data-map-tool="${old}"]`)?.focus({preventScroll:true});
 }
 function openMapToolOverlay(kind) {
+  closeMapFeatureInfo();
   if (!Object.hasOwn(mapToolGroups, kind)) return;
   if (activeMapTool === kind && !mapToolOverlay.hidden) {closeMapToolOverlay(true);return;}
   if (state.navPicking) {state.navPicking=false;syncDestinationPickMode();renderNavigationOverlay();}
@@ -450,7 +452,29 @@ function closeHeaderMessageMenu(returnFocus = false){
   $('mesh-header-button').setAttribute('aria-expanded','false');
   if(returnFocus)$('mesh-header-button').focus();
 }
+// Only primary-map feature info is dismissed; preserve navigation and route state.
+function closeMapFeatureInfo() {
+  const popup=state.mapFeaturePopup;
+  state.mapFeaturePopup=null;
+  popup?.remove();
+  const camera=$('camera-selected');
+  if(camera){camera.hidden=true;camera.textContent='';}
+  if(state.mapObservationId!=null){
+    state.mapObservationId=null;
+    renderMapObservationDetail();
+    updateMap();
+  }
+}
+function showMapFeaturePopup(popup,map) {
+  closeMapFeatureInfo();
+  state.mapFeaturePopup=popup;
+  popup.on('close',()=>{if(state.mapFeaturePopup===popup)state.mapFeaturePopup=null;});
+  popup.addTo(map);
+}
+window.OpenRFMapFeatureInfo={close:closeMapFeatureInfo,show:showMapFeaturePopup};
 function showPage(page, options = {}) {
+  closeMapFeatureInfo();
+  if(page!=='map' && !$('map-survey-panel').hidden)setMapSurveyOpen(false);
   if(!VALID_PAGES.has(page))page='map';
   closeHeaderMessageMenu();
   rememberPage(page);
@@ -1070,8 +1094,8 @@ function renderMapObservationDetail() {
 }
 function selectMapObservation(id) {
   if(!mapVisibleObservations().some(o=>o.id===id)) return;
-  state.mapObservationId=id;
   setMapSurveyOpen(true);
+  state.mapObservationId=id;
   renderMapObservationDetail();
   // Scroll only the Layers sheet; never shift the map viewport on a five-inch display.
   const sheet=$('map-survey-panel'),detail=$('map-observation-detail');
@@ -1117,6 +1141,7 @@ function renderMapSurveyPanel() {
   updateCaptureButtons();
 }
 function setMapSurveyOpen(open) {
+  closeMapFeatureInfo();
   if(open)$('map-navigation-options').open=false;
   $('map-survey-panel').hidden = !open;
   $('map-survey-toggle').setAttribute('aria-expanded', String(open));
@@ -1615,12 +1640,12 @@ function startMap() {
     state.map.on('click', 'survey-sdr-sites', evt => {
       if (state.navPicking || state.areaChoosing || !evt.features?.length) return;
       const site=evt.features[0].properties;
-      new maplibregl.Popup().setLngLat(evt.lngLat).setHTML(`<strong>RECORDED SDR survey site</strong><br>Browser operator position ±${escapeHTML(site.accuracy_m)} m, not verified antenna or transmitter<br>Capture ${escapeHTML(site.capture_id)} · ${escapeHTML(site.start_mhz)}–${escapeHTML(site.stop_mhz)} MHz · NOT LIVE`).addTo(state.map);
+      showMapFeaturePopup(new maplibregl.Popup().setLngLat(evt.lngLat).setHTML(`<strong>RECORDED SDR survey site</strong><br>Browser operator position ±${escapeHTML(site.accuracy_m)} m, not verified antenna or transmitter<br>Capture ${escapeHTML(site.capture_id)} · ${escapeHTML(site.start_mhz)}–${escapeHTML(site.stop_mhz)} MHz · NOT LIVE`),state.map);
     });
     state.map.on('click', 'survey-waypoints', evt => {
       if (state.navPicking || !evt.features?.length) return;
       const w = evt.features[0].properties;
-      new maplibregl.Popup().setLngLat(evt.lngLat).setHTML(`<strong>Survey waypoint #${escapeHTML(w.id)}</strong><br>Browser-reported observer position, not RF detection<br>${escapeHTML(w.note || '')}`).addTo(state.map);
+      showMapFeaturePopup(new maplibregl.Popup().setLngLat(evt.lngLat).setHTML(`<strong>Survey waypoint #${escapeHTML(w.id)}</strong><br>Browser-reported observer position, not RF detection<br>${escapeHTML(w.note || '')}`),state.map);
     });
     state.map.on('error', evt => {
       if(!evt.error)return;
@@ -1996,6 +2021,7 @@ function updateMap() {
   window.OpenRFMeshDashboard?.vector(state.map);
 }
 function switchToRasterMap(reason) {
+  closeMapFeatureInfo();
   ++state.mapAttempt;
   // Preserve the current overview so a pending GPS fix animates in fallback too.
   let camera=state.preferredView;
@@ -5438,6 +5464,7 @@ $('messages-nav-toggle').addEventListener('click', () => {
   setMessagesSubpagesOpen($('messages-nav-subpages').hidden);
 });
 $('mesh-header-button').addEventListener('click',()=>{
+  closeMapFeatureInfo();
   const menu=$('header-messages-choices');
   menu.hidden=!menu.hidden;
   $('mesh-header-button').setAttribute('aria-expanded',String(!menu.hidden));
@@ -5455,6 +5482,12 @@ document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',(
 document.querySelectorAll('[data-jump]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.jump)));
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
 $('map-add-observation').addEventListener('click',()=>openObservation());
+document.addEventListener('click',event=>{
+  if(event.target.closest?.('#header-wifi-button,#field-clock-button,#map-style,#map-vector-source'))closeMapFeatureInfo();
+},true);
+document.addEventListener('change',event=>{
+  if(event.target.closest?.('#map-survey-panel input'))closeMapFeatureInfo();
+},true);
 document.addEventListener('openrf:sdr-sites-changed', refreshSdrSitesOnly);
 $('sdr-sites-show-map').addEventListener('change',updateMap);
 $('sdr-sites-session-filter').addEventListener('change',()=>{updateSdrSiteMapCount();updateMap();});
