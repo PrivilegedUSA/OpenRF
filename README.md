@@ -1,3 +1,7 @@
+## OpenRF v0.2.223 — Mesh network initials and count badges
+
+C/M/R markers retain their network identity when clustered; compact count badges show group size. No database or provider changes.
+
 ## OpenRF v0.2.222 — Borderless mesh pins and feature focus
 
 Consistent compact mesh pin sizes and Snap to location actions for reported map features. No data or provider changes.

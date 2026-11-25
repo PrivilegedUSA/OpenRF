@@ -1,3 +1,9 @@
+## v0.2.223
+
+- Use C/M/R on public mesh markers; preserve network initials on clusters with a compact upper-right count badge (99+ for larger counts; full count in details). Mixed-network overlap badges retain their separate letters and show the total count.
+- Replace plus suffixes with existing rounded-square infrastructure marker shapes and role details, including local mesh markers. Preserve borderless 19 px ordinary markers, exact reported coordinates, and existing Snap to location behavior.
+- No data, cache, provider, or schema changes. Cellular map development is deferred.
+
 ## v0.2.222
 
 - Remove visible mesh marker outlines, retain bright colors and compact overlap badges. Match marker and cluster sizes across networks.

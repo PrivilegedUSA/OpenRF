@@ -15,17 +15,17 @@
   // Network clusters retain independent membership. A compact multi-network
   // badge replaces overlapping pins at an existing anchor, never displaced pins.
   const networkOrder=['MeshCore','Meshtastic','Reticulum'];
-  const shortName=n=>({MeshCore:'P',Meshtastic:'M',Reticulum:'R'})[n]||'?';
+  const shortName=n=>({MeshCore:'C',Meshtastic:'M',Reticulum:'R'})[n]||'?';
   function layout(nodes,project,w,h){
     const raw=groups(nodes,project,w,h,48).sort((a,b)=>a.x-b.x||a.y-b.y||networkOrder.indexOf(a.nodes[0].network)-networkOrder.indexOf(b.nodes[0].network));
-    const used=new Map(),result=[],tile=48;
+    const used=new Map(),result=[],tile=56;
     // Use a fixed maximum badge footprint so widening a badge cannot hide a
     // nearby independent pin. Keep the first anchor rather than repelling pins.
     for(const g of raw){
       const i=Math.floor(g.x/tile),j=Math.floor(g.y/tile);let hit=null,best=Infinity;
       for(let x=i-1;x<=i+1;x++)for(let y=j-1;y<=j+1;y++)for(const q of used.get(`${x}:${y}`)||[]){
         const dx=Math.abs(g.x-q.x),dy=Math.abs(g.y-q.y),d=dx*dx+dy*dy;
-        if(dx<46&&dy<24&&d<best){hit=q;best=d;}
+        if(dx<50&&dy<29&&d<best){hit=q;best=d;}
       }
       if(hit){hit.parts.push(g);for(const n of g.nodes)hit.nodes.push(n);}
       else{const q={x:g.x,y:g.y,nodes:[...g.nodes],parts:[g]};result.push(q);const key=`${i}:${j}`;if(!used.has(key))used.set(key,[]);used.get(key).push(q);}
@@ -64,14 +64,15 @@
   }
   function marker(g,raster=false){
     const net=network(g),mixed=net==='Mixed';
-    const b=text('button',mixed?'':g.nodes.length>1?String(g.nodes.length):shortName(net)+(g.nodes[0].role==='Repeater'?'+':''));
+    const b=text('button',mixed?'':shortName(net));
     b.type='button';b.className='public-mesh-pin'+(raster?' public-mesh-raster-pin':'');
+    if(g.nodes.length>1)b.dataset.count=g.nodes.length>99?'99+':String(g.nodes.length);
     b.dataset.network=net;b.dataset.kind=mixed?'overlap':g.nodes.length>1?'cluster':g.nodes[0].role==='Repeater'?'repeater':'node';
     if(mixed){
       const names=networkOrder.filter(n=>g.nodes.some(node=>node.network===n));
       for(const n of names){const dot=text('span',shortName(n));dot.className='public-mesh-overlap-dot';dot.dataset.network=n;b.append(dot);}
       b.title=names.map(n=>`${n}: ${g.nodes.filter(node=>node.network===n).length}`).join(' · ')+' · Select to inspect overlapping nodes';
-    }else b.title=g.nodes.length>1?`${g.nodes.length} public ${net} directory nodes`:g.nodes[0].name+' · public '+net+' directory';
+    }else b.title=g.nodes.length>1?`${g.nodes.length} public ${net} directory nodes`:g.nodes[0].name+' · public '+net+' directory · '+(g.nodes[0].reported_role||g.nodes[0].role||'Unknown role');
     b.setAttribute('aria-label',b.title);
     b.addEventListener('click',e=>{e.stopPropagation();details(g);});return b;
   }
