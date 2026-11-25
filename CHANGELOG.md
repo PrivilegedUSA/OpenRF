@@ -1,3 +1,8 @@
+## v0.2.219
+
+- Add public Reticulum directory from REPMAP `/data` with independent offline cache, purple markers, transport filter and source attribution. Only operator-published positions; no IP or name-derived estimates, local announcements or messages. Seven-day cache expiry. Live download not verified; provider data redistribution terms not established; no dataset bundled.
+- Retry transient traffic download errors up to two times (2/4 second default delay, honor Retry-After up to 30 seconds; longer waits deferred). Keep cached source records and separate warnings from successful saved counts.
+
 ## v0.2.218
 
 - Supplement the US OSM traffic snapshot with separate Chicago official speed and red-light feeds; retain each previous cache on source failure and report partial success. Published locations are not proof of active operation; source records can overlap. No agency data bundled.

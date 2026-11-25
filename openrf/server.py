@@ -813,6 +813,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, self.repo.stats())
         if path == '/api/radio/status':
             return self._json(200, self.server.radio_receiver.status())
+        if path == '/api/mesh/public/reticulum/status':
+            return self._json(200, self.server.public_reticulum.download_status())
+        if path == '/api/mesh/public/reticulum':
+            return self._json(200, self.server.public_reticulum.snapshot())
         if path == '/api/mesh/public/meshtastic/status':
             return self._json(200, self.server.public_meshtastic.download_status())
         if path == '/api/mesh/public/meshtastic':
@@ -1050,13 +1054,13 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host() or not self._allowed_origin() or self.headers.get('Sec-Fetch-Site') == 'cross-site':
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
-        if path in ('/api/mesh/public/refresh','/api/mesh/public/clear','/api/mesh/public/meshtastic/refresh','/api/mesh/public/meshtastic/clear'):
+        if path in ('/api/mesh/public/refresh','/api/mesh/public/clear','/api/mesh/public/meshtastic/refresh','/api/mesh/public/meshtastic/clear','/api/mesh/public/reticulum/refresh','/api/mesh/public/reticulum/clear'):
             from .public_mesh import DirectoryError
             try:
                 body = self._decode_body()
                 if not isinstance(body, dict) or set(body) != {'confirm'} or body['confirm'] is not True:
                     raise ValueError('Explicit confirmation required')
-                directory = self.server.public_meshtastic if '/meshtastic/' in path else self.server.public_mesh
+                directory = self.server.public_reticulum if '/reticulum/' in path else self.server.public_meshtastic if '/meshtastic/' in path else self.server.public_mesh
                 result = directory.refresh() if path.endswith('/refresh') else directory.clear()
                 return self._json(200, result)
             except ValueError as exc:
@@ -2240,7 +2244,8 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.national_traffic_manager = national_traffic.UpdateManager(repository)
     from .mesh_monitor import MeshMonitor, SnapshotCoordinator
     from .mesh_dashboard import dashboard
-    from .public_mesh import PublicMeshDirectory, fetch_meshtastic, normalize_meshtastic
+    from .public_mesh import PublicMeshDirectory, fetch_meshtastic, normalize_meshtastic, fetch_reticulum, normalize_reticulum
+    server.public_reticulum = PublicMeshDirectory(repository.path.parent / 'public-reticulum.json', fetch_reticulum, normalizer=normalize_reticulum, provider='REPMAP', max_cache_age=7*86400)
     server.public_meshtastic = PublicMeshDirectory(repository.path.parent / 'public-meshtastic.json', fetch_meshtastic, normalizer=normalize_meshtastic, provider='MeshMap.net', max_cache_age=7*86400)
     server.public_mesh = PublicMeshDirectory(repository.path.parent / 'public-meshcore.json')
     server.mesh_snapshot = SnapshotCoordinator(lambda: dashboard(server.mesh_manager, server.meshcore_manager, server.reticulum_manager))

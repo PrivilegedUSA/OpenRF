@@ -33,7 +33,7 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 def _fetch_directory(url, provider, progress):
-    request = Request(url, headers={'Accept':'application/json', 'Accept-Encoding':'identity', 'User-Agent':'OpenRF/0.2.218 (manual public directory snapshot; https://openrf.app)'})
+    request = Request(url, headers={'Accept':'application/json', 'Accept-Encoding':'identity', 'User-Agent':'OpenRF/0.2.219 (manual public directory snapshot; https://openrf.app)'})
     started = time.monotonic()
     try:
         with build_opener(NoRedirect()).open(request, timeout=NETWORK_TIMEOUT) as response:
@@ -81,6 +81,12 @@ MESHTASTIC_URL = 'https://meshmap.net/nodes.json'
 
 def fetch_meshtastic(progress=lambda **fields: None):
     return _fetch_directory(MESHTASTIC_URL, 'MeshMap.net', progress)
+
+
+RETICULUM_URL = 'https://repmap.arg0net.org/data'
+
+def fetch_reticulum(progress=lambda **fields: None):
+    return _fetch_directory(RETICULUM_URL, 'REPMAP', progress)
 
 
 def _number(value, limit):
@@ -160,6 +166,37 @@ def normalize_meshtastic(payload):
     return dict(nodes=list(nodes.values()),received=len(payload),rejected=invalid,duplicates=duplicates)
 
 
+def normalize_reticulum(payload):
+    # REPMAP /data: only operator-published geographic infrastructure. Never
+    # infer a position from IP, WHOIS, names, or private message destinations.
+    from datetime import datetime, timezone
+    if not isinstance(payload, list) or not payload or len(payload) > MAX_ROWS:
+        raise DirectoryError('Empty, unsupported or oversized REPMAP response; previous snapshot retained')
+    nodes = {}
+    rejected = duplicates = unmapped = 0
+    for row in payload:
+        if not isinstance(row, dict):
+            rejected += 1; continue
+        kind = row.get('type')
+        if kind not in ('BackboneInterface','TCPServerInterface','RNodeInterface','I2PInterface','KISSInterface','AX25KISSInterface','UDPInterface','WeaveInterface','TCPClientInterface'):
+            rejected += 1; continue
+        if row.get('location_source') not in ('coordinates_only', 'manual') or row.get('geolocated') is not True:
+            unmapped += 1; continue
+        lat, lon = row.get('latitude'), row.get('longitude')
+        ident = row.get('discovery_hash')
+        if not isinstance(ident,str) or not re.fullmatch(r'[0-9a-fA-F]{32}|[0-9a-fA-F]{64}',ident) or not _number(lat,85.05112878) or not _number(lon,180) or (lat==0 and lon==0):
+            rejected += 1; continue
+        ident = ident.lower()
+        if ident in nodes:
+            duplicates += 1; continue
+        stamp = row.get('last_heard')
+        updated = datetime.fromtimestamp(stamp,timezone.utc).isoformat() if type(stamp) in (float,int) and 0<stamp<=time.time()+300 else None
+        nodes[ident] = dict(id=ident, name=_text(row.get('name')) or 'Public interface', role='Repeater' if row.get('transport') is True or kind in ('BackboneInterface','TCPServerInterface') else 'Interface', lat=round(lat,3), lon=round(lon,3), updated=updated, source='REPMAP', reported_role=kind, location_quality='Operator-published approximate position')
+    if not nodes:
+        raise DirectoryError('No valid operator-published Reticulum positions; previous snapshot retained')
+    return dict(nodes=list(nodes.values()),received=len(payload),rejected=rejected,duplicates=duplicates,unmapped=unmapped)
+
+
 class PublicMeshDirectory:
     def __init__(self, path: Path, fetcher=fetch_meshcore, *, normalizer=normalize, provider="MeshCore", max_cache_age=MAX_CACHE_AGE):
         self.path = path
@@ -209,7 +246,7 @@ class PublicMeshDirectory:
             self.retry_delay = MIN_REFRESH
             self._progress(phase='connecting', received_bytes=0, total_bytes=None, error=None)
             try:
-                payload = self.fetcher(self._progress) if self.fetcher in (fetch_meshcore, fetch_meshtastic) else self.fetcher()
+                payload = self.fetcher(self._progress) if self.fetcher in (fetch_meshcore, fetch_meshtastic, fetch_reticulum) else self.fetcher()
                 self._progress(phase='processing')
                 result = self.normalizer(payload)
                 del payload

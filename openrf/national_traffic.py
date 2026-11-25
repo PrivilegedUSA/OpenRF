@@ -10,6 +10,9 @@ import json
 import math
 import threading
 import urllib.request
+import urllib.error
+import time
+from email.utils import parsedate_to_datetime
 from .national_alpr import now_utc, SnapshotError
 
 URL = 'https://speedcams.world/downloads/us/us-all.csv'
@@ -176,7 +179,7 @@ class UpdateManager:
         return self.status()
     def download(self,url,accept):
         self.update(phase='connecting',provider=url,downloaded_bytes=0,total_bytes=None,processed=0)
-        req=urllib.request.Request(url,headers={'User-Agent':'OpenRF/0.2.218 (user-initiated offline camera download)','Accept':accept,'Accept-Encoding':'identity'})
+        req=urllib.request.Request(url,headers={'User-Agent':'OpenRF/0.2.219 (user-initiated offline camera download)','Accept':accept,'Accept-Encoding':'identity'})
         with urllib.request.urlopen(req,timeout=40) as reply:
             if not reply.geturl().startswith('https://'): raise SnapshotError('Insecure traffic download redirect.')
             try: total=int(reply.headers.get('Content-Length','0')) or None
@@ -193,6 +196,26 @@ class UpdateManager:
                 self.update(downloaded_bytes=len(raw))
             if total is not None and len(raw)!=total: raise SnapshotError('Incomplete traffic HTTP response.')
         return raw
+    def download_with_retry(self,url,accept):
+        # Only retry transient network/gateway failures; never retry bad data.
+        for attempt in range(1,4):
+            if self.cancel.is_set(): raise SnapshotError('Update cancelled during shutdown.')
+            try:
+                self.update(attempt=attempt,retry_seconds=0)
+                return self.download(url,accept)
+            except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+                delay=2**attempt
+                if isinstance(exc,urllib.error.HTTPError):
+                    if exc.code not in (408,429,500,502,503,504): raise
+                    header=exc.headers.get('Retry-After') if exc.headers else None
+                    if header:
+                        try:
+                            requested=int(header) if header.isdecimal() else math.ceil(parsedate_to_datetime(header).timestamp()-time.time())
+                        except (TypeError,ValueError,OverflowError): requested=delay
+                        delay=max(delay,requested)
+                if attempt==3 or delay>30: raise
+                self.update(phase='retrying',attempt=attempt+1,retry_seconds=delay,downloaded_bytes=0,total_bytes=None)
+                if self.cancel.wait(delay): raise SnapshotError('Update cancelled during shutdown.')
     def supplements(self):
         return [(f'Chicago {category}',url,category) for category,url in CHICAGO.items()]
     def run(self):
@@ -201,7 +224,7 @@ class UpdateManager:
             if self.cancel.is_set(): break
             try:
                 self.update(provider_name=name)
-                raw=self.download(url,'application/json' if category else 'text/csv, */*')
+                raw=self.download_with_retry(url,'application/json' if category else 'text/csv, */*')
                 if category:
                     processed+=ingest_chicago(self.repo,raw,category,self.update,self.cancel.is_set)
                 else:

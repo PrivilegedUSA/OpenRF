@@ -16,7 +16,7 @@
   if(typeof module!=='undefined'){module.exports={groups,selected};return;}
   const el=id=>document.getElementById(id);
   let markers=[],activeMap=null,redraw=null;
-  const directories=[{prefix:'public-mesh',label:'MeshCore',endpoint:'/api/mesh/public',age:30},{prefix:'public-meshtastic',label:'Meshtastic',endpoint:'/api/mesh/public/meshtastic',age:7}].map(d=>({...d,snapshot:{nodes:[],state:'empty'},busy:false}));
+  const directories=[{prefix:'public-mesh',label:'MeshCore',endpoint:'/api/mesh/public',age:30},{prefix:'public-meshtastic',label:'Meshtastic',endpoint:'/api/mesh/public/meshtastic',age:7},{prefix:'public-reticulum',label:'Reticulum',endpoint:'/api/mesh/public/reticulum',age:7}].map(d=>({...d,snapshot:{nodes:[],state:'empty'},busy:false}));
   const enabled=()=>directories.flatMap(d=>selected(d.snapshot.nodes,el(d.prefix+'-nodes')?.checked,el(d.prefix+'-repeaters')?.checked).map(n=>({...n,network:d.label})));
   const network=g=>new Set(g.nodes.map(n=>n.network)).size===1?g.nodes[0].network:'Mixed';
   function text(tag,value){const e=document.createElement(tag);e.textContent=value;return e;}
@@ -26,7 +26,7 @@
     const title=text('strong',g.nodes.length===1?`Public ${network(g)} node`:`${g.nodes.length} public ${network(g)==='Mixed'?'mesh':network(g)} nodes in this map cluster`);
     const dismiss=text('button','');dismiss.type='button';dismiss.className='map-sheet-close';dismiss.setAttribute('aria-label','Close public mesh node details');dismiss.title='Close details';dismiss.addEventListener('click',close);
     const head=text('div','');head.className='public-mesh-detail-head';head.append(title,dismiss);
-    const body=text('div','');body.className='public-mesh-detail-body';body.append(text('p','Public directory snapshots · reported positions, not verified reachability. Meshtastic positions are approximate.'));
+    const body=text('div','');body.className='public-mesh-detail-body';body.append(text('p','Public directory snapshots · reported positions, not verified reachability. Meshtastic and Reticulum positions are approximate.'));
     p.replaceChildren(head,body);
     for(const n of g.nodes.slice(0,30)){
       const d=text('div','');d.className='public-mesh-node-detail';
@@ -36,7 +36,7 @@
     p.hidden=false;
   }
   function marker(g,raster=false){
-    const b=text('button',g.nodes.length>1?String(g.nodes.length):g.nodes[0].network==='Meshtastic'?(g.nodes[0].role==='Repeater'?'M+':'M'):(g.nodes[0].role==='Repeater'?'P+':'P'));
+    const b=text('button',g.nodes.length>1?String(g.nodes.length):g.nodes[0].network==='Reticulum'?(g.nodes[0].role==='Repeater'?'R+':'R'):g.nodes[0].network==='Meshtastic'?(g.nodes[0].role==='Repeater'?'M+':'M'):(g.nodes[0].role==='Repeater'?'P+':'P'));
     b.type='button';b.className='public-mesh-pin'+(raster?' public-mesh-raster-pin':'');
     b.dataset.network=network(g);b.dataset.kind=g.nodes.length>1?'cluster':g.nodes[0].role==='Repeater'?'repeater':'node';
     b.title=g.nodes.length>1?`${g.nodes.length} public directory nodes`:g.nodes[0].name+' · public '+g.nodes[0].network+' directory';b.setAttribute('aria-label',b.title);
@@ -70,7 +70,7 @@
     const {snapshot,busy}=d;const s=el(d.prefix+'-status');if(!s)return;
     let msg=snapshot.state==='cached'?`${snapshot.cached_count.toLocaleString()} mapped public nodes · ${snapshot.rejected||0} rejected · ${snapshot.duplicates||0} duplicate records · downloaded ${new Date(snapshot.downloaded_at*1000).toLocaleString()}.`:
       snapshot.state==='expired'?`Cache expired (${d.age} days); refresh to show nodes.`:snapshot.state==='unavailable'?'Local public directory cache unavailable.':'No public directory downloaded yet.';
-    if(busy)msg+=' Working…';if(error)msg+=' '+error;s.textContent=msg;
+    if(snapshot.state==='cached'&&snapshot.unmapped)msg+=` ${snapshot.unmapped.toLocaleString()} inferred or missing positions omitted.`;if(busy)msg+=' Working…';if(error)msg+=' '+error;s.textContent=msg;
   }
   function progressView(d,data){
     const bar=el(d.prefix+'-progress'),wrap=el(d.prefix+'-progress-wrap'),label=el(d.prefix+'-progress-text');

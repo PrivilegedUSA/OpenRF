@@ -3113,3 +3113,9 @@ body.map-workspace .topbar button {border:0!important;}
 #map-survey-panel progress[hidden],#map-survey-panel [id$="progress-wrap"][hidden]{display:none!important;}
 #page-map .public-mesh-pin[data-network="Meshtastic"]{background:#286b3b;border-color:#9ce2aa;}
 #page-map .public-mesh-pin[data-network="Meshtastic"][data-kind="repeater"]{background:#286b3b;}
+
+/* Public Reticulum map and independent camera provider status. */
+#page-map .public-mesh-pin[data-network="Reticulum"]{background:#584188;border-color:#c8b8f4;}
+#page-map .public-mesh-pin[data-network="Reticulum"][data-kind="repeater"]{background:#584188;}
+#map-survey-panel #camera-traffic-warning{color:#f5c37e;border-left:3px solid #dca34b;padding:6px 10px;margin:4px 7px;background:rgba(180,110,25,.10);overflow-wrap:anywhere;}
+#map-survey-panel #camera-traffic-warning[hidden]{display:none!important;}

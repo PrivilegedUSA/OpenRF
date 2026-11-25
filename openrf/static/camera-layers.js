@@ -18,6 +18,7 @@
     if(traffic)traffic.disabled=startingNational||trafficWasRunning;
   }
   function setTrafficStatus(message,error=false){const el=get('camera-traffic-status');if(el){el.textContent=message;el.classList.toggle('error',error);}}
+  function trafficWarning(message=''){const el=get('camera-traffic-warning');if(el){el.textContent=message;el.hidden=!message;}}
   async function trafficStatus(){
     try{
       const response=await fetch('/api/cameras/traffic-snapshot',{cache:'no-store'});
@@ -29,16 +30,18 @@
       const supplemental=(info.supplements||[]).reduce((sum,r)=>sum+Number(r.count||0),0);
       const saved=baseline+(supplemental?` Includes ${supplemental.toLocaleString()} Chicago agency reports; overlapping reports may exist.`:'');
       if(result.running){
-        const labels={connecting:'Connecting',downloading:'Downloading speed / red-light',validating:'Processing traffic camera reports',saving:'Saving traffic cameras'};
+        trafficWarning('');
+        const labels={retrying:`Retrying in ${result.retry_seconds||0}s (attempt ${result.attempt||2})`,connecting:'Connecting',downloading:'Downloading speed / red-light',validating:'Processing traffic camera reports',saving:'Saving traffic cameras'};
         const bytes=result.phase==='downloading'?` · ${Number(result.downloaded_bytes||0).toLocaleString()} bytes${result.total_bytes>0?` (${Math.floor(100*result.downloaded_bytes/result.total_bytes)}%)`:' (total unknown)'}`:'';
         setTrafficStatus(`${result.provider_name||'SpeedCams.world'}: ${labels[result.phase]||'Updating traffic cameras'}${bytes}. ${saved}`);
         if(trafficPoll===null)trafficPoll=setTimeout(()=>{trafficPoll=null;trafficStatus();},1000);
       }else{
         if(trafficPoll!==null){clearTimeout(trafficPoll);trafficPoll=null;}
-        setTrafficStatus(result.phase==='failed'?`${saved} Traffic update failed: ${result.error||'Unknown error'}. Saved cameras remain available.`:result.partial?`${saved} Some sources failed: ${result.error}. Previous reports retained.`:saved,result.phase==='failed'||!!result.partial);
+        setTrafficStatus(saved);
+        trafficWarning(result.phase==='failed'?`Traffic update failed: ${result.error||'Unknown error'}. Saved cameras remain available.`:result.partial?`Some sources failed: ${result.error}. Previous reports retained.`:'');
         if(wasRunning&&result.phase==='ready'){lastKey='';refresh(true);}
       }
-    }catch(error){setTrafficStatus(`Traffic snapshot status unavailable: ${error.message}; retrying.`,true);if(trafficPoll===null)trafficPoll=setTimeout(()=>{trafficPoll=null;trafficStatus();},2000);}
+    }catch(error){trafficWarning(`Traffic snapshot status unavailable: ${error.message}; retrying.`);if(trafficPoll===null)trafficPoll=setTimeout(()=>{trafficPoll=null;trafficStatus();},2000);}
   }
   function setSnapshotStatus(message,error=false){
     const target=get('camera-snapshot-status');
@@ -178,7 +181,7 @@
       else if(scope==='alpr')snapshotWasRunning=!!result.running;else trafficWasRunning=!!result.running;
       await Promise.all([snapshotStatus(),trafficStatus()]);
       lastKey='';refresh(true);
-    }catch(error){if(scope!=='traffic')setSnapshotStatus(`National update could not start: ${error.message}`,true);if(scope!=='alpr')setTrafficStatus(`National update could not start: ${error.message}`,true);}
+    }catch(error){if(scope!=='traffic')setSnapshotStatus(`National update could not start: ${error.message}`,true);if(scope!=='alpr')trafficWarning(`National update could not start: ${error.message}`);}
     finally{startingNational=false;nationalButtons();}
   }
   get('camera-download-national')?.addEventListener('click',()=>startNational('both'));

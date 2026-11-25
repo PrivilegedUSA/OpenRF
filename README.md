@@ -1,3 +1,7 @@
+## OpenRF v0.2.219 — Public Reticulum map and camera retry
+
+Manual REPMAP public infrastructure snapshot, independent offline cache and layers; excludes estimated locations. Temporary traffic-provider errors retry with bounded backoff and separate warnings. See changelog.
+
 ## OpenRF v0.2.218 — Public Meshtastic map and camera progress cleanup
 
 Manual MeshMap.net directory refresh, separate offline cache, approximate public node/ router layers and compact camera progress bars. The nationwide traffic refresh additionally downloads official Chicago speed and red-light camera reports from the City Data Portal (portal terms apply). Each source has an independent cache; counts are source reports and can overlap. This site provides applications using data that has been modified for use from its original source, www.cityofchicago.org, the official website of the City of Chicago. No agency data is distributed in this source archive. See CHANGELOG.md.
