@@ -18,11 +18,11 @@ class CompilerRules(unittest.TestCase):
         with self.assertRaises(ValueError): f.attributes({**row,'environmnt':5},'5gnr')
         self.assertEqual(f.carrier('Unknown Verizon-like company'),'other')
 
-    def test_discovery_requires_matched_release(self):
+    def test_discovery_allows_partial_matched_release(self):
         with tempfile.TemporaryDirectory() as d:
             p=Path(d); (p/'bdc_06_4GLTE_mobile_broadband_h3_J26_10nov2026.zip').touch(); (p/'bdc_06_Cable_fixed_broadband_J26_10nov2026.zip').touch()
             groups=f.discover(p); self.assertEqual(len(groups),1)
-            with self.assertRaises(ValueError): f.select_groups(groups,'06')
+            self.assertEqual(len(f.select_groups(groups,'06')),1)
 
     def test_invalid_geometry(self):
         with self.assertRaises(ValueError): list(f.polygon_parts({'type':'Polygon','coordinates':[[[0,0],[1,0],[1,1],[0,1]]]},lambda x,y:(x,y)))

@@ -22,7 +22,7 @@ from urllib.error import HTTPError, URLError
 TOWER_URL = 'https://services.arcgis.com/0ZRg6WRC7mxSLyKX/ArcGIS/rest/services/Cellular_Towers/FeatureServer/0/query'
 TOWER_SOURCE = 'FCC ULS / HIFLD public cellular tower layer'
 ESTIMATE_SOURCE = 'OpenCellID (CC BY-SA 4.0)'
-CARRIERS = ('att', 'tmobile', 'verizon', 'other')
+CARRIERS = ('att', 'tmobile', 'verizon', 'other', 'aggregate')
 MAX_TOWERS = 500_000
 MAX_CELLS = 10_000_000
 MAX_FILE = 128 * 1024**2
@@ -53,7 +53,7 @@ def coords(lon, lat):
 def arcgis(params):
     # ArcGIS query supports form POST. Long GET URLs can produce HTTP 404.
     encoded = urlencode({'f':'json', **params})
-    headers = {'User-Agent':'OpenRF/0.2.227 (manual FCC public data download; https://openrf.app)', 'Accept':'application/json'}
+    headers = {'User-Agent':'OpenRF/0.2.228 (manual FCC public data download; https://openrf.app)', 'Accept':'application/json'}
     request = Request(TOWER_URL, data=encoded.encode('ascii'), headers={**headers,'Content-Type':'application/x-www-form-urlencoded'}, method='POST')
     # Some proxies reject POST. Only fall back to a deliberately short GET.
     for attempt in range(3):

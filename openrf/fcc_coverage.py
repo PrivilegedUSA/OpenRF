@@ -20,8 +20,18 @@ import tempfile
 import zipfile
 import zlib
 
-PATTERN = re.compile(r'bdc_(\d{2})_(4GLTE|5GNR|MobileVoice)_mobile_(?:broadband|voice)_h3_([JD]\d{2})_(\d{1,2}[a-z]{3}\d{4})\.zip', re.I)
-REQUIRED = {'4glte','5gnr','mobilevoice'}
+PATTERN = re.compile(r'bdc_(\d{2})_(?:(\d{6})_)?(4GLTE|5GNR(?:_7_1|_35_3)?|MobileVoice)_mobile_(?:broadband|voice)_h3_([JD]\d{2})_(\d{1,2}[a-z]{3}\d{4})\.zip', re.I)
+# FCC provider/holding-company identifiers, not MCC/MNC identifiers.
+# https://docs.fcc.gov/public/attachments/FCC-20-40A1.pdf
+PROVIDERS = {'130077': ('att','AT&T'), '130403': ('tmobile','T-Mobile'), '131425': ('verizon','Verizon')}
+
+def source_identity(path):
+    match=PATTERN.fullmatch(Path(path).name)
+    return match.group(2) if match else None
+
+def base_kind(kind):
+    return kind.split('_',1)[0]
+
 SOURCE = 'FCC BDC H3 resolution 9 (provider-modeled; not measured reception)'
 SCHEMA = 1
 
@@ -31,9 +41,10 @@ def discover(folder):
     for path in sorted(Path(folder).iterdir()):
         m = PATTERN.fullmatch(path.name)
         if not m or not path.is_file(): continue
-        state, kind, filing, release = m.groups()
+        state, provider, kind, filing, release = m.groups()
         date = datetime.strptime(release,'%d%b%Y').date().isoformat()
-        group = groups.setdefault((state,filing.upper(),date),{})
+        key=(state,filing.upper(),date)+((provider,) if provider else ())
+        group = groups.setdefault(key,{})
         if kind.lower() in group: raise ValueError('Duplicate source for '+str((state,filing,date,kind)))
         group[kind.lower()] = path
     return groups
@@ -46,15 +57,20 @@ def auto_folder():
     return found[0]
 
 
-def select_groups(groups, state=None, release=None):
-    selected = {}
-    for key, files in sorted(groups.items(),key=lambda item:item[0][2]):
-        if state and key[0]!=state or release and key[2]!=release: continue
-        selected[key[0]]=(key,files)
+def matching_groups(groups, state=None, release=None, provider=None, aggregate=False):
+    matches={k:v for k,v in groups.items() if (not state or k[0]==state) and (not release or k[2]==release)}
+    if provider: return {k:v for k,v in matches.items() if len(k)==4 and k[3]==provider}
+    if aggregate: return {k:v for k,v in matches.items() if len(k)==3}
+    # Prefer provider-specific data when available, but retain aggregate-only states.
+    states={k[0] for k in matches if len(k)==4}
+    return {k:v for k,v in matches.items() if len(k)==4 or k[0] not in states}
+
+
+def select_groups(groups, state=None, release=None, provider=None, aggregate=False):
+    selected={}
+    for key,files in sorted(matching_groups(groups,state,release,provider,aggregate).items(),key=lambda item:item[0][2]):
+        selected[(key[0],key[3] if len(key)==4 else '')]=(key,files)
     if not selected: raise ValueError('No matching FCC H3 archives found')
-    for key, files in selected.values():
-        missing=REQUIRED-files.keys()
-        if missing: raise ValueError(f'{key}: missing {", ".join(sorted(missing))}; choose a complete matching release')
     return list(selected.values())
 
 
@@ -88,8 +104,11 @@ def inspect_zip(path, kind):
                 if fields[pos]==13: break
                 if len(fields)-pos<32: raise ValueError('Invalid DBF field descriptor')
                 names.append(fields[pos:pos+11].split(b'\0',1)[0].decode('ascii').lower())
-            required=[('brandname','brand_name'),('providerid','provider_id','provider_i'),('h3_res9_id','h3_res9','h3id','h3_id'),('environmnt','environment','environmen')]
-            if kind!='mobilevoice': required.extend([('technology','tech'),('mindown','min_down'),('minup','min_up')])
+            required=[('h3_res9_id','h3_res9','h3id','h3_id'),('environmnt','environment','environmen')]
+            if not source_identity(path):
+                has_brand=bool(set(names)&{'brandname','brand_name'}); has_provider=bool(set(names)&{'providerid','provider_id','provider_i'})
+                if has_brand != has_provider: raise ValueError('Incomplete carrier identity fields; cannot classify statewide coverage')
+            if base_kind(kind)!='mobilevoice': required.extend([('technology','tech'),('mindown','min_down'),('minup','min_up')])
             missing=['/'.join(aliases) for aliases in required if not set(aliases)&set(names)]
             if missing: raise ValueError('Missing DBF fields '+', '.join(missing)+'; found '+', '.join(names))
         return count,names,sum(i.file_size for i in parts.values())
@@ -109,11 +128,26 @@ def field(row,*aliases):
     raise ValueError('Missing required FCC field '+ '/'.join(aliases)+'; available: '+', '.join(sorted(row)))
 
 
-def attributes(row,kind):
+def attributes(row,kind,source_provider=None):
     row={k.lower():v for k,v in row.items()}
-    brand=str(field(row,'brandname','brand_name')).strip()
-    provider=str(field(row,'providerid','provider_id','provider_i')).strip()
+    brand_value=next((row[k] for k in ('brandname','brand_name') if row.get(k) not in (None,'')),None)
+    provider_value=next((row[k] for k in ('providerid','provider_id','provider_i') if row.get(k) not in (None,'')),None)
+    if source_provider:
+        if provider_value is not None and str(provider_value).strip().removesuffix('.0')!=source_provider:
+            raise ValueError('Provider ID in row conflicts with archive filename')
+        provider=source_provider
+        group,brand=PROVIDERS.get(provider,('other',str(brand_value or f'FCC provider {provider}').strip()))
+        if brand_value and carrier(str(brand_value)) not in ('other',group): raise ValueError('Carrier name conflicts with archive provider ID')
+    elif brand_value is None and provider_value is None:
+        if any(k in row for k in ('brandname','brand_name','providerid','provider_id','provider_i')): raise ValueError('Blank provider identity in attributed statewide data')
+        group,brand,provider='aggregate','Any provider (statewide aggregate)','aggregate'
+    else:
+        if brand_value is None or provider_value is None: raise ValueError('Incomplete provider identity')
+        brand,provider=str(brand_value).strip(),str(provider_value).strip()
+        group=carrier(brand)
     if not brand or len(brand)>200 or not provider: raise ValueError('Invalid provider identity')
+    tier=kind
+    kind=base_kind(kind)
     cell=str(field(row,'h3_res9_id','h3_res9','h3id','h3_id')).strip().lower()
     if not re.fullmatch(r'89[0-9a-f]{13}',cell): raise ValueError('Expected H3 resolution 9 index: '+cell[:60])
     env=str(field(row,'environmnt','environment','environmen')).strip()
@@ -127,7 +161,8 @@ def attributes(row,kind):
         options={'4glte':{(400,5,1):'4G LTE 5/1 Mbps'},'5gnr':{(500,7,1):'5G NR 7/1 Mbps',(500,35,3):'5G NR 35/3 Mbps'}}
         tech=options[kind].get((code,down,up))
         if not tech: raise ValueError(f'Unexpected {kind} technology/speed profile: {code}, {down}, {up}')
-    return cell,carrier(brand),brand,provider,tech,env
+    if tier=='5gnr_7_1' and tech!='5G NR 7/1 Mbps' or tier=='5gnr_35_3' and tech!='5G NR 35/3 Mbps': raise ValueError('5G speed tier conflicts with archive filename')
+    return cell,group,brand,provider,tech,env
 
 
 def polygon_parts(geometry, transform):
@@ -170,12 +205,20 @@ def build_group(key, files, output, progress=print):
         from pyproj import CRS, Transformer
     except ImportError as e:
         raise ValueError('Compiler dependencies missing: sudo apt install python3-pyshp python3-pyproj; run /usr/bin/python3') from e
-    state, filing, vintage=key
+    state, filing, vintage=key[:3]
+    source_provider=key[3] if len(key)==4 else None
     for kind,path in sorted(files.items()):
+        if source_identity(path)!=source_provider: raise ValueError('Source provider does not match selected pack')
         count,names,_=inspect_zip(path,kind)
         progress(f'Preflight {path.name}: {count:,} rows · fields: '+', '.join(names))
     output=Path(output); output.mkdir(parents=True,exist_ok=True)
-    final=output/f'fcc-{state}.sqlite3'
+    final=output/(f'fcc-{state}-{source_provider}.sqlite3' if source_provider else f'fcc-{state}.sqlite3')
+    if final.exists():
+        with open_pack(final) as old:
+            previous=json.loads(old.execute("SELECT value FROM metadata WHERE key='manifest'").fetchone()[0])
+        previous_kinds={base_kind(PATTERN.fullmatch(x['file']).group(3).lower()) if not source_provider else PATTERN.fullmatch(x['file']).group(3).lower() for x in previous['sources'] if PATTERN.fullmatch(x['file'])}
+        new_kinds={kind if source_provider else base_kind(kind) for kind in files}
+        if previous_kinds-new_kinds: raise ValueError('Refresh would remove previously installed source profiles; restore missing archives: '+', '.join(sorted(previous_kinds-new_kinds)))
     with tempfile.TemporaryDirectory(prefix='.fcc-build-',dir=output) as tmp:
         work=Path(tmp); dbpath=work/'pack.sqlite3'; source_info=[]
         with closing(sqlite3.connect(dbpath)) as db:
@@ -201,7 +244,7 @@ def build_group(key, files, output, progress=print):
                     for record in reader.iterShapeRecords():
                         count+=1
                         try:
-                            cell,*profile=attributes(record.record.as_dict(),kind); profile=tuple(profile)
+                            cell,*profile=attributes(record.record.as_dict(),kind,source_provider); profile=tuple(profile)
                             pid=profile_ids.get(profile)
                             if pid is None:
                                 pid=db.execute('INSERT INTO profiles(carrier,brand,provider,technology,environment) VALUES (?,?,?,?,?)',profile).lastrowid; profile_ids[profile]=pid
@@ -228,10 +271,10 @@ def build_group(key, files, output, progress=print):
             for c,t,n in db.execute('SELECT p.carrier,p.technology,count(DISTINCT m.shape) FROM profiles p JOIN membership m ON p.id=m.profile GROUP BY 1,2 ORDER BY 1,2'):
                 layers.append({'carrier':c,'technology':t,'environment':'Outdoor stationary (all)','count':n})
             if not layers: raise ValueError('Empty pack')
-            meta={'format':'openrf-fcc-h3','version':SCHEMA,'state':state,'filing':filing,'vintage':vintage,'source':SOURCE,'sources':source_info,'layers':layers,'saved_at':datetime.now(timezone.utc).isoformat(timespec='seconds')}
+            meta={'format':'openrf-fcc-h3','version':SCHEMA,'state':state,'provider_id':source_provider,'filing':filing,'vintage':vintage,'source':SOURCE,'sources':source_info,'layers':layers,'saved_at':datetime.now(timezone.utc).isoformat(timespec='seconds')}
             db.execute('INSERT INTO metadata VALUES (?,?)',('manifest',json.dumps(meta))); db.commit()
             if db.execute('PRAGMA quick_check').fetchone()!=('ok',): raise ValueError('SQLite validation failed')
-        # Publish only after ALL three archives succeed. A stopped/failed build leaves old pack intact.
+        # Publish only after all selected archives succeed. A stopped/failed build leaves old pack intact.
         os.replace(dbpath,final)
     digest=hashlib.sha256()
     with final.open('rb') as f:
@@ -249,12 +292,14 @@ def open_pack(path):
 
 def pack_metadata(folder):
     result={}
-    for path in sorted(Path(folder).glob('fcc-??.sqlite3')):
+    for path in sorted(Path(folder).glob('fcc-*.sqlite3')):
+        if not re.fullmatch(r'fcc-\d{2}(?:-\d{6})?\.sqlite3',path.name): continue
         with open_pack(path) as db:
             manifest=json.loads(db.execute("SELECT value FROM metadata WHERE key='manifest'").fetchone()[0])
-        if manifest['format']!='openrf-fcc-h3' or manifest['version']!=SCHEMA or path.name!=f"fcc-{manifest['state']}.sqlite3": raise ValueError('Unsupported FCC pack: '+path.name)
+        expected=f"fcc-{manifest['state']}"+('-'+manifest['provider_id'] if manifest.get('provider_id') else '')+'.sqlite3'
+        if manifest['format']!='openrf-fcc-h3' or manifest['version']!=SCHEMA or path.name!=expected: raise ValueError('Unsupported FCC pack: '+path.name)
         for i,layer in enumerate(manifest['layers']):
-            key=f"coverage:fcc:{manifest['state']}:{i}"
+            key=f"coverage:fcc:{path.stem}:{i}"
             result[key]={**layer,'pack':f"FCC state {manifest['state']}",'vintage':manifest['vintage'],'source':manifest['source'],'saved_at':manifest['saved_at'],'fcc_file':path.name,'filing':manifest['filing']}
     return result
 
@@ -280,7 +325,9 @@ def view_pack(path, layer, bounds, budget):
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('command',choices=('scan','build')); p.add_argument('--input-dir',type=Path); p.add_argument('--state',help='Two-digit state FIPS, e.g. 06'); p.add_argument('--release',help='Release date YYYY-MM-DD'); p.add_argument('--db',type=Path,default=Path.home()/'.local/share/openrf/openrf.sqlite3')
+    scope=p.add_mutually_exclusive_group(); scope.add_argument('--provider',help='Six-digit FCC provider ID'); scope.add_argument('--aggregate',action='store_true',help='Only statewide archives without a provider ID')
     a=p.parse_args()
+    if a.provider and not re.fullmatch(r'\d{6}',a.provider): p.error('--provider must contain six digits')
     try:
         folder=a.input_dir or auto_folder(); groups=discover(folder)
         if not groups: raise ValueError('No matching files in '+str(folder))
@@ -288,11 +335,9 @@ def main():
         def progress(msg): print(msg,flush=True)
         if a.command=='scan':
             failed=False; matched=0
-            for key,files in sorted(groups.items()):
-                if a.state and key[0]!=a.state or a.release and key[2]!=a.release: continue
+            for key,files in sorted(matching_groups(groups,a.state,a.release,a.provider,a.aggregate).items()):
                 matched+=1
-                print(key, 'missing: '+', '.join(sorted(REQUIRED-files.keys())) if REQUIRED-files.keys() else 'complete set',flush=True)
-                if REQUIRED-files.keys(): failed=True
+                print(key, PROVIDERS.get(key[3],('other','FCC provider '+key[3]))[1] if len(key)==4 else 'Statewide archive(s)', f'· {len(files)} selected source(s); partial sets supported',flush=True)
                 for kind,path in files.items():
                     try:
                         count,names,size=inspect_zip(path,kind)
@@ -300,7 +345,7 @@ def main():
                     except (ValueError,zipfile.BadZipFile) as exc: failed=True; print(f'  INVALID {path.name}: {exc}',flush=True)
             if not matched: raise ValueError("No matching state/release")
             return 1 if failed else 0
-        for key,files in select_groups(groups,a.state,a.release): build_group(key,files,a.db.parent/'fcc-coverage',progress)
+        for key,files in select_groups(groups,a.state,a.release,a.provider,a.aggregate): build_group(key,files,a.db.parent/'fcc-coverage',progress)
         return 0
     except (OSError,ValueError,sqlite3.Error,zipfile.BadZipFile,RuntimeError) as exc:
         print(f'FCC compiler stopped: {exc}. Any previously completed state pack is retained.',flush=True); return 1

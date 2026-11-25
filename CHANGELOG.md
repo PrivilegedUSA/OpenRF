@@ -1,3 +1,7 @@
+## v0.2.228
+
+- Recognize provider-specific FCC H3 ZIP filenames and split 5G speed tiers; derive missing provider identity from the six-digit archive identifier, keep unknown providers separate from named carriers, validate conflicting row IDs and speed tiers. Accept partial source sets with independent state/provider packs and protect previously installed profiles from accidental removal. Add a separate statewide aggregate coverage toggle for unattributed statewide sources. Provider-scoped scan/build skips unrelated corrupt statewide files. No actual provider archives tested; synthetic schema fixtures passed.
+
 ## v0.2.227
 
 - Add local FCC H3 ZIP coverage compiler with state discovery, measured row progress, source metadata, compressed shared geometry and R-tree queries. Atomic state pack publication; map reads offline packs directly without GIS dependencies. Preserve existing manual packs and all other databases. See docs/FCC_COVERAGE_COMPILER.md. Actual full California source files not available for validation; no hosted nationwide download yet.
