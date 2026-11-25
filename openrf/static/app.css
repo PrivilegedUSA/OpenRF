@@ -2958,3 +2958,25 @@ body.map-workspace .topbar .header-wifi-button{background:#0c2833e8;color:#a9e7d
 
 /* Match the Surveillance camera glyph to the other line icons in the navigation. */
 .sidebar .nav-btn[data-page="surveillance"] .nav-icon svg{display:block;width:20px;height:20px;color:inherit}
+
+.mesh-network-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px}.mesh-network-overview .panel{min-width:0;overflow-wrap:anywhere}.mesh-network-overview strong{color:#34c9b1}.mesh-network-table{overflow:auto;max-height:440px}.mesh-network-table table{width:100%;border-collapse:collapse;text-align:left;font-size:.85rem}.mesh-network-table td,.mesh-network-table th{padding:9px;border-bottom:1px solid #35616b;vertical-align:middle}.mesh-network-table td:first-child{min-width:145px}.mesh-network-detail dl{display:grid;grid-template-columns:minmax(100px,1fr) 2fr;gap:8px;overflow-wrap:anywhere}.mesh-network-detail dd{margin:0}.mesh-network-pin{border:2px solid #d1fff5;background:#17695f;color:white;border-radius:50%;width:30px;height:30px;font-weight:bold;cursor:pointer;pointer-events:auto}.mesh-network-raster-pin{position:absolute;transform:translate(-50%,-50%)}@media(max-width:850px){.mesh-network-overview{grid-template-columns:1fr}}
+
+.mesh-network-pin[data-protocol="MeshCore"]{background:#865b20;border-color:#ffe1a2}.mesh-network-pin[data-protocol="Reticulum"]{background:#584188;border-color:#e1d5ff}.mesh-network-pin.mesh-network-infrastructure{border-radius:6px;width:34px}
+
+/* Mesh workspace: compact, bounded, touch-friendly at the 7-inch target. */
+#page-mesh-network > .panel{margin-bottom:12px;min-width:0}
+#page-mesh-network .filters{flex-wrap:wrap;gap:8px;margin:12px 0}
+#page-mesh-network .filters > .field{flex:1 1 145px;width:auto;min-height:44px}
+#page-mesh-network .filters > label{flex:1 1 140px;min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#page-mesh-network .filters input[type=checkbox]{width:22px;height:22px;accent-color:var(--accent)}
+#page-mesh-network .filters input[type=number]{max-width:110px;min-height:44px}
+#page-mesh-network .btn{min-height:44px;white-space:normal;overflow-wrap:anywhere}
+#page-mesh-network summary{cursor:pointer;min-height:44px;padding:10px 0;font-weight:700}
+#page-mesh-network .mesh-network-table{max-width:100%;max-height:360px;overscroll-behavior:contain}
+#page-mesh-network .mesh-network-table th{position:sticky;top:0;background:var(--panel);z-index:1}
+#page-mesh-network .mesh-network-table td{overflow-wrap:anywhere;min-width:85px}
+#page-mesh-network .mesh-network-table td:first-child{min-width:145px;max-width:220px}
+#page-mesh-network .mesh-network-pager{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;flex-wrap:wrap}
+#page-mesh-network .mesh-network-pager button:disabled{opacity:.45;cursor:default}
+#page-mesh-network .mesh-network-detail canvas{display:block;max-width:100%;height:auto}
+@media(max-width:850px){#page-mesh-network .filters > .field{flex-basis:100%}}

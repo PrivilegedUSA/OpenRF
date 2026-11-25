@@ -10,6 +10,7 @@ import asyncio
 from collections import deque
 from datetime import datetime, timezone
 import importlib.util
+import math
 import re
 import threading
 from concurrent.futures import TimeoutError as FutureTimeout
@@ -57,6 +58,11 @@ def _contact_rows(payload):
         name = name.encode('utf-8', 'replace').decode('utf-8')
         contacts[public_key] = {'public_key': public_key, 'name': name[:80],
                                 'type': str(contact.get('type', 'unknown'))[:30]}
+        row = contacts[public_key]
+        for field in ('adv_lat', 'adv_lon', 'last_advert', 'lastmod'):
+            value = contact.get(field)
+            if type(value) in (int, float) and math.isfinite(value):
+                row[field] = value
     return contacts
 
 

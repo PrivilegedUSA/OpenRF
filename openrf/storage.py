@@ -5,6 +5,8 @@ import csv
 import io
 import json
 import math
+import os
+import stat
 import sqlite3
 import threading
 from contextlib import contextmanager
@@ -121,6 +123,13 @@ class Repository:
     def __init__(self, path: str | Path):
         self.path = Path(path).expanduser()
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        # The main DB includes observations, emergency records and camera credentials.
+        fd = os.open(self.path, os.O_RDWR | os.O_CREAT | os.O_NONBLOCK | getattr(os, 'O_NOFOLLOW', 0), 0o600)
+        try:
+            if not stat.S_ISREG(os.fstat(fd).st_mode): raise ValueError('OpenRF database must be a regular file')
+            os.fchmod(fd, 0o600)
+        finally:
+            os.close(fd)
         self._lock = threading.RLock()
         self._initialize()
 

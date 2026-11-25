@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const SELECTED_PAGE_SESSION_KEY = 'openrf.selected-page.v1';
 const MAP_VECTOR_PREFERENCE_KEY = 'openrf.map.vector-preference.v1';
 const MAP_BASEMAP_PREFERENCE_KEY = 'openrf.map.basemap.v1';
-const VALID_PAGES = new Set(['map','overview','emergency','scanner','spectrum','radio','weather','messages','reticulum','meshcore','hamradio','discoveries','trips','browser','sessions','hardware','settings','surveillance']);
+const VALID_PAGES = new Set(['map','overview','emergency','scanner','spectrum','radio','weather','messages','reticulum','meshcore','hamradio','discoveries','trips','browser','sessions','hardware','settings','surveillance','mesh-network']);
 function rememberedBaseMap(){
   try {const value=window.localStorage?.getItem(MAP_BASEMAP_PREFERENCE_KEY);
     return ['default','satellite','topographic'].includes(value)?value:'default';}
@@ -470,7 +470,7 @@ function showPage(page, options = {}) {
   $('messages-nav-toggle').classList.toggle('active', page === 'messages' || page === 'reticulum' || page === 'meshcore');
   revealSelectedSidebarPage(page);
   document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === `page-${page}`));
-  const titles = {overview:'Field overview',emergency:'Emergency readiness',map:'Survey map',scanner:'Signal analysis',spectrum:'Spectrum & Waterfall',radio:'Radio receiver',weather:'Weather Station',surveillance:'Surveillance',messages:'Meshtastic messages',reticulum:'Reticulum messages',meshcore:'MeshCore messages',hamradio:'Ham radio channel lists',discoveries:'Saved discoveries',trips:'Trips & Maps',browser:'Web browser',sessions:'Investigations',hardware:'Hardware manager',settings:'App settings'};
+  const titles = {overview:'Field overview',emergency:'Emergency readiness',map:'Survey map',scanner:'Signal analysis',spectrum:'Spectrum & Waterfall',radio:'Radio receiver',weather:'Weather Station',surveillance:'Surveillance','mesh-network':'Mesh Network',messages:'Meshtastic messages',reticulum:'Reticulum messages',meshcore:'MeshCore messages',hamradio:'Ham radio channel lists',discoveries:'Saved discoveries',trips:'Trips & Maps',browser:'Web browser',sessions:'Investigations',hardware:'Hardware manager',settings:'App settings'};
   $('page-title').textContent = titles[page] || 'OpenRF'; $('page-crumb').textContent = page === 'messages' ? 'MESHTASTIC' : page.toUpperCase();
   // Page-specific headings are the one visible title on non-map workspaces.
   // The old topbar H1 is intentionally hidden; do not focus a hidden node.
@@ -486,6 +486,7 @@ function showPage(page, options = {}) {
   else document.dispatchEvent(new Event('openrf:weather-hidden'));
   if (page === 'messages') document.dispatchEvent(new Event('openrf:messages-shown'));
   if (page === 'reticulum') document.dispatchEvent(new Event('openrf:reticulum-shown'));
+  if (page === 'mesh-network') document.dispatchEvent(new Event('openrf:mesh-network-shown'));
   if (page === 'meshcore') document.dispatchEvent(new Event('openrf:meshcore-shown'));
   if (page === 'hardware') document.dispatchEvent(new Event('openrf:hardware-shown'));
   if (page === 'emergency') document.dispatchEvent(new Event('openrf:emergency-shown'));
@@ -1992,6 +1993,7 @@ function updateMap() {
     properties:{id:w.id,note:w.note,accuracy_m:w.accuracy_m,source:'BROWSER_REPORTED'}
   }))});
   window.OpenRFCameras?.updateVector(state.map);
+  window.OpenRFMeshDashboard?.vector(state.map);
 }
 function switchToRasterMap(reason) {
   ++state.mapAttempt;
@@ -2216,6 +2218,7 @@ function startRasterMap(reason, view = null) {
         }
       }
       window.OpenRFCameras?.renderRaster(nextPins,raster,width,height);
+      window.OpenRFMeshDashboard?.raster(nextPins,raster,width,height,worldPixel);
       pins.replaceChildren(nextPins);
       renderAreaOverlay();
       renderNavigationOverlay();
@@ -5869,3 +5872,5 @@ refresh().catch(e=>flash(`OpenRF data refresh failed: ${e.message}. The server m
 refreshOfflineMaps().catch(e=>{ $('offline-map-status').textContent = `Unable to list local maps: ${e.message}`; });
 refreshAreaPlans().catch(e=>{ $('area-saved-detail').textContent = `Saved area plans unavailable: ${e.message}`; });
 refreshNavigationDestinations().catch(e=>{ $('nav-destination-list').textContent=`Local destinations unavailable: ${e.message}`; });
+
+if(typeof window!=='undefined' && window.OpenRFMeshDashboard) window.OpenRFMeshDashboard.redraw=()=>{if(state.rasterMap)state.rasterMap.render();else if(state.mapReady)window.OpenRFMeshDashboard.vector(state.map);};

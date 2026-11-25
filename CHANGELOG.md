@@ -1,3 +1,59 @@
+# v0.2.204 — Touchscreen and final stabilization
+
+- Reorder the Mesh Network workspace, bound table rendering to 50 rows, preserve loaded history and interface expansion, and serialize settings actions with refreshes.
+- Add touch-sized controls, an offline Chromium smoke test, and a hardware acceptance checklist.
+- See `docs/RELEASE_0.2.204_TESTS.md`.
+
+# v0.2.203 — Resource and privacy stabilization
+
+- Single-flight passive inventory, skip occupied managers, fail-soft history storage and explicit storage usage.
+- Close database handles across affected workspaces, restrict primary and node DB permissions, redact API request details and reject cross-site API reads.
+- Clear history now disables recording atomically. See `docs/RELEASE_0.2.203_TESTS.md`.
+
+# v0.2.202 — Corrective stabilization
+
+- Separate and migrate mesh observation history; compact the main database, preserve existing history, document separate offline backup.
+- Explicit background consent, telemetry validation, complete cached route evidence, truthful collector outcomes and joined shutdown.
+- Correlate Reticulum IPC replies, prevent new commands behind timed-out requests; fix weather version and unread regression fixture.
+- See `docs/RELEASE_0.2.202_TESTS.md`.
+
+# v0.2.201 — Combined mesh monitoring release
+
+- Opt-in background cache snapshot collection, persisted 15–600 second interval (default 30), automatic retention, collector diagnostics and shutdown.
+- Searchable Reticulum cached next-hop association diagrams, expiry and interface context, and reported infrastructure inventory.
+- No inferred neighbors, active radio requests, or verified reachability claims.
+
+# v0.2.200 — Network activity and health
+
+- Per-protocol inventory age, location, infrastructure and cached telemetry summaries.
+- Recent source timestamps link to node details; no active radio polling.
+- Unknown ages and missing measurements remain explicit.
+
+# v0.2.199 — Local mesh history
+
+- Opt-in changed inventory snapshots in the local SQLite database, with retention and explicit clearing.
+- Node history includes cached telemetry, reported positions, source timestamps and capture times.
+- History is sampled only on dashboard/map refresh; no new radio commands.
+
+## OpenRF v0.2.198 — Node conversation shortcuts
+
+Open node-specific Meshtastic history across recorded channels without changing the current draft or destination; sending is disabled in this history-only filter. Open MeshCore client threads and saved Reticulum contact threads using existing messaging pages. Block draft reassignment and attachment/recording interruption; cached Reticulum paths are not assumed to be LXMF contacts. Add close and scroll-to-details controls. No automatic connections or transmissions. See `docs/RELEASE_0.2.198_TESTS.md`.
+
+## OpenRF v0.2.197 — Reticulum cached destinations and interfaces
+
+Read the running RNS instance’s existing path table and interface counters on dashboard refresh. Merge saved aliases by destination hash; distinguish cached paths from verified reachability, last-heard times and LXMF contacts. No path requests, announcements, connections, geographic inference or new persistence. See `docs/RELEASE_0.2.197_TESTS.md`.
+
+## OpenRF v0.2.196 — MeshCore map inventory
+
+Preserve SDK contact advert coordinates and timestamps, identify repeater roles, and distinguish map markers by protocol and infrastructure. Stored advert timestamps are not local reception times. Use the existing MeshCore contact refresh to update the inventory. No automatic radio requests or new storage.
+
+## OpenRF v0.2.195 — Mesh Network Dashboard, Stage 1
+
+- Add read-only protocol summaries, searchable and sortable node inventory, node details, and messaging shortcuts.
+- Snapshot the connected Meshtastic SDK node database; preserve historical correspondent and saved-contact provenance.
+- Add opt-in shared vector/raster map layers for reported mesh positions and infrastructure. MeshCore and Reticulum positions are not yet supported by their existing adapters.
+- No new persistent data, automatic connections, radio commands or topology inference. See `docs/RELEASE_0.2.195_TESTS.md`.
+
 ## OpenRF v0.2.194 — Surveillance history table compactness and sort affordances (2026-11-24)
 
 - **History filters:** camera and date-range selects share a row on typical desktop/7-inch layouts, with responsive grid sizing; they stack on narrow content widths.

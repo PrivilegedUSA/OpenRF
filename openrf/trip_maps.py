@@ -13,6 +13,7 @@ import math
 import os
 import secrets
 import sqlite3
+from contextlib import closing
 import threading
 import time
 from pathlib import Path
@@ -171,7 +172,7 @@ def download_trip(folder: Path, plan: dict, map_id: str, lock: threading.Lock,
         try:
             fd = os.open(stage, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
             os.close(fd)
-            with sqlite3.connect(stage) as db:
+            with closing(sqlite3.connect(stage)) as db, db:
                 db.execute('CREATE TABLE metadata (name TEXT, value TEXT)')
                 db.execute('CREATE TABLE tiles (zoom_level INTEGER, tile_column INTEGER, tile_row INTEGER, tile_data BLOB)')
                 db.execute('CREATE UNIQUE INDEX tile_index ON tiles (zoom_level,tile_column,tile_row)')

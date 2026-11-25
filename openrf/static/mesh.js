@@ -109,7 +109,7 @@
     el('mesh-connect').disabled=!canConnect;
     el('mesh-disconnect').disabled=!state.connected||state.busy;
     el('mesh-set-mode').disabled=state.busy;
-    el('mesh-send').disabled=!state.connected||state.mode!=='normal'||state.busy||
+    el('mesh-send').disabled=el('mesh-conversation').value.startsWith('node:')||!state.connected||state.mode!=='normal'||state.busy||
       new TextEncoder().encode(el('mesh-text').value).length>180;
     el('mesh-link-badge').textContent=state.connected?'USB LINK CONNECTED':'NOT CONNECTED';
   }
@@ -199,9 +199,10 @@
     for(const key of keys){
       const [node,channel]=key.split('|');selector.append(new Option(`${node} · channel ${channel}`,key));
     }
-    selector.value=keys.includes(selected)?selected:'all';
-    el('mesh-reply-conversation').disabled=selector.value==='all'||!state.connected;
-    const filtered=selector.value==='all'?latestRows:latestRows.filter(m=>conversationKey(m)===selector.value);
+    if(selected.startsWith('node:'))selector.append(new Option(`${selected.slice(5)} · all recorded channels`,selected));
+    selector.value=keys.includes(selected)||selected.startsWith('node:')?selected:'all';
+    el('mesh-reply-conversation').disabled=selector.value==='all'||selector.value.startsWith('node:')||!state.connected;
+    const filtered=selector.value==='all'?latestRows:latestRows.filter(m=>selector.value.startsWith('node:')?String(m.node||'').toLowerCase()===selector.value.slice(5):conversationKey(m)===selector.value);
     const signature=JSON.stringify([selector.value,filtered]);
     if(signature===lastRenderedSignature)return;
     lastRenderedSignature=signature;
@@ -233,7 +234,7 @@
         m.delivery==='ROUTING_ERROR_REPORTED'?'Radio reported a routing error; delivery not confirmed.':
         'Submitted to connected radio; delivery not confirmed.';
       article.append(title,text,delivery);
-      if(m.direction==='IN' && /^![0-9a-fA-F]{8}$/.test(m.node||'') && state.connected){
+      if(!selector.value.startsWith('node:') && m.direction==='IN' && /^![0-9a-fA-F]{8}$/.test(m.node||'') && state.connected){
         const reply=document.createElement('button');reply.type='button';reply.className='mesh-message-reply';
         reply.textContent='Reply to this node';
         reply.addEventListener('click',()=>{
@@ -268,13 +269,21 @@
     catch(error){note(error.message,true);return null;}
     finally{state.busy=false;renderButtons();}
   }
+  document.addEventListener('openrf:mesh-node-conversation',event=>{
+    const {protocol,id}=event.detail||{};if(protocol!=='Meshtastic'||!/^![0-9a-f]{8}$/.test(id))return;
+    window.OpenRFMessagingTabs?.meshtastic?.open('inbox');
+    const selector=el('mesh-conversation'),key='node:'+id;
+    selector.append(new Option(`${id} · all recorded channels`,key));selector.value=key;
+    renderMessages(latestRows);renderButtons();scrollMeshToLatest();note('Node history across all recorded channels. Select a channel conversation or All messages to compose. Existing draft and destination are unchanged.');void loadMessages();
+  });
   el('mesh-conversation').addEventListener('change',()=>{
     renderMessages(latestRows);
+    renderButtons();
     scrollMeshToLatest();
   });
   el('mesh-reply-conversation').addEventListener('click',()=>{
     const key=el('mesh-conversation').value;
-    if(key==='all'||!state.connected)return;
+    if(key==='all'||key.startsWith('node:')||!state.connected)return;
     const [node,channel]=key.split('|');
     if(!/^![0-9a-fA-F]{8}$/.test(node)){
       note('This conversation has no verified-format destination node. Choose a direct node manually.',true);return;
@@ -319,6 +328,7 @@
   document.addEventListener('openrf:connections-changed',refresh);
   el('mesh-compose').addEventListener('submit',async event=>{
     event.preventDefault();
+    if(el('mesh-conversation').value.startsWith('node:')){note('Select a channel conversation or All messages before sending.',true);return;}
     if(state.busy||!state.connected||state.mode!=='normal'){
       note('Connect a real USB node in Normal mode before sending.',true);return;
     }

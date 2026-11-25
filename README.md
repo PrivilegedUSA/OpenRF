@@ -1,3 +1,27 @@
+## OpenRF v0.2.201 — Combined mesh monitoring
+
+Passive background recording, cached Reticulum topology evidence, infrastructure and collector diagnostics. See `docs/RELEASE_0.2.201_TESTS.md`.
+
+## OpenRF v0.2.200 — Network activity and health
+
+Expandable mesh inventory statistics and source-timestamp activity summaries. See `docs/RELEASE_0.2.200_TESTS.md`.
+
+## OpenRF v0.2.199 — Node conversation shortcuts
+
+Open node-specific Meshtastic history across recorded channels without changing the current draft or destination; sending is disabled in this history-only filter. Open MeshCore client threads and saved Reticulum contact threads using existing messaging pages. Block draft reassignment and attachment/recording interruption; cached Reticulum paths are not assumed to be LXMF contacts. Add close and scroll-to-details controls. No automatic connections or transmissions. See `docs/RELEASE_0.2.199_TESTS.md`.
+
+## OpenRF v0.2.197 — Reticulum cached destinations and interfaces
+
+Read the running RNS instance’s existing path table and interface counters on dashboard refresh. Merge saved aliases by destination hash; distinguish cached paths from verified reachability, last-heard times and LXMF contacts. No path requests, announcements, connections, geographic inference or new persistence. See `docs/RELEASE_0.2.197_TESTS.md`.
+
+## OpenRF v0.2.196 — MeshCore map inventory
+
+Preserve SDK contact advert coordinates and timestamps, identify repeater roles, and distinguish map markers by protocol and infrastructure. Stored advert timestamps are not local reception times. Use the existing MeshCore contact refresh to update the inventory. No automatic radio requests or new storage.
+
+## v0.2.195 — Mesh Network Dashboard
+
+Open Mesh Network in the sidebar to inspect local radio node records and contacts, search and sort the inventory, and view reported positions through the existing Map layers. No automatic radio connection or transmission. See `docs/RELEASE_0.2.195_TESTS.md`.
+
 ## v0.2.194 — More readable Surveillance history table
 
 Surveillance → Recordings now displays Camera history and Date range on a single row when there is enough space, with each dropdown resizing to fit. Narrow layouts still stack the fields rather than overflowing. History-table column headings are slightly larger, and every sortable header has smaller filled up/down triangles, with the active direction highlighted. All camera capture, sorting, playback, downloads and deletion logic is unchanged. See `docs/RELEASE_0.2.194_TESTS.md`.

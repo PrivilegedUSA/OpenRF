@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import shutil
 import sqlite3
+from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -95,7 +96,7 @@ def report(database_path, *, power_root=Path('/sys/class/power_supply'), disk_us
     if path.is_file():
         try:
             # SQLite URI read-only; quick_check(1) is diagnostic, not a backup.
-            with sqlite3.connect(path.resolve().as_uri()+'?mode=ro',uri=True,timeout=2) as connection:
+            with closing(sqlite3.connect(path.resolve().as_uri()+'?mode=ro',uri=True,timeout=2)) as connection:
                 value=connection.execute('PRAGMA quick_check(1)').fetchone()
             db={'state':'READABLE' if value and value[0]=='ok' else 'CHECK_FAILED',
                 'quick_check': 'OK' if value and value[0]=='ok' else 'FAILED'}

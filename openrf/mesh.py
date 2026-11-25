@@ -13,6 +13,7 @@ import importlib.util
 import os
 import re
 import sqlite3
+from contextlib import contextmanager
 import stat
 import threading
 from pathlib import Path
@@ -154,6 +155,7 @@ class MeshManager:
         if self._history_path is not None:
             self._init_history()
 
+    @contextmanager
     def _db(self):
         if self._history_path is None:
             raise MeshError('Persistent message history is not configured.', 'history_unavailable', 503)
@@ -161,7 +163,10 @@ class MeshManager:
         connection = sqlite3.connect(self._history_path, timeout=5)
         # Linux local-data is private to the current user even with a broad umask.
         self._history_path.chmod(0o600)
-        return connection
+        try:
+            with connection: yield connection
+        finally:
+            connection.close()
 
     def _init_history(self):
         # Private data is created only in local-data, never in a release or Git.
@@ -191,6 +196,18 @@ class MeshManager:
                     'observed_in_messages': node in observed, 'online_verified': False}
                     for node in sorted(observed | set(aliases)) if NODE_ID.fullmatch(node)][:100],
                     'source': 'LOCAL_MESSAGES_AND_SAVED_ALIASES_NOT_LIVE_SCAN'}
+
+    def radio_nodes(self):
+        """Snapshot the already connected SDK's in-memory database; no requests."""
+        import copy
+        with self._lock:
+            if self._state != 'CONNECTED' or self._bridge is None:
+                return {}
+            interface = getattr(self._bridge, 'interface', None)
+            nodes = getattr(interface, 'nodes', None)
+            if not isinstance(nodes, dict):
+                return {}
+            return copy.deepcopy(nodes)
 
     def set_alias(self, payload):
         if not isinstance(payload, dict) or set(payload) != {'node', 'alias'}:

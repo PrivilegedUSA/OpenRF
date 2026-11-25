@@ -90,6 +90,8 @@ DEFAULT_DB = Path.home() / '.local' / 'share' / 'openrf' / 'openrf.sqlite3'
 
 class OpenRFHTTPServer(ThreadingHTTPServer):
     def server_close(self):
+        if hasattr(self, "mesh_monitor"):
+            self.mesh_monitor.close()
         if hasattr(self, "surveillance_schedules"):
             self.surveillance_schedules.close()
         if hasattr(self, "surveillance_previews"):
@@ -148,6 +150,12 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(raw)
 
+    def log_request(self, code='-', size='-'):
+        # Do not expose private identifiers, search queries, attachment tokens or GPS in logs.
+        path = urlparse(self.path).path
+        category = '/api/' + path.split('/')[2] if path.startswith('/api/') else '/static' if path.startswith('/static/') else '/'
+        self.log_message('%s %s %s %s', self.command, category, str(code), str(size))
+
     def _json(self, status: int, obj):
         raw = json.dumps(obj, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
         self._send(status, raw, 'application/json; charset=utf-8')
@@ -165,7 +173,7 @@ class Handler(BaseHTTPRequestHandler):
         return not origin or origin.lower() in {f'http://localhost:{self.server.server_port}', f'http://127.0.0.1:{self.server.server_port}'}
 
     def _decode_body(self):
-        if not self.headers.get('Content-Type', '').lower().startswith('application/json'):
+        if self.headers.get('Content-Type', '').split(';',1)[0].strip().lower() != 'application/json':
             raise ValueError('Content-Type must be application/json')
         length = int(self.headers.get('Content-Length', '0'))
         request_path = urlparse(self.path).path
@@ -192,6 +200,8 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host():
             return self._error(HTTPStatus.FORBIDDEN, 'Loopback-only service')
         path = urlparse(self.path).path
+        if path.startswith('/api/') and (not self._allowed_origin() or self.headers.get('Sec-Fetch-Site') == 'cross-site'):
+            return self._error(403, 'Cross-origin API requests are not allowed')
         if path == '/api/surveillance/audio-devices':
             return self._json(200, usb_audio_candidates())
         if path == '/api/surveillance/usb-devices':
@@ -401,7 +411,7 @@ class Handler(BaseHTTPRequestHandler):
                 'restore_preview_command':'python3 -m openrf.restore --preview --backup /path/to/backup.orfbak',
                 'restore_command':'python3 -m openrf.restore --backup /path/to/backup.orfbak',
                 'scope':'OpenRF primary SQLite database only; not map caches, external radio histories or local files',
-                'note':'Encryption requires optional cryptography library. Stop OpenRF fully before CLI restore; a safety copy is retained. Passphrase is never saved.'})
+                'note':'Mesh node history is stored separately and not included. Encryption requires optional cryptography library. Stop OpenRF fully before CLI restore; a safety copy is retained. Passphrase is never saved.'})
         if path == '/api/emergency/preflight':
             return self._json(200,{'checks':self.server.emergency_store.preflight(),
                 'note':'Manual confirmations are local and historical; not proof of live hardware readiness.'})
@@ -796,6 +806,35 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, self.repo.stats())
         if path == '/api/radio/status':
             return self._json(200, self.server.radio_receiver.status())
+        if path == '/api/mesh/dashboard':
+            from .mesh_monitor import topology, SnapshotBusy
+            try:
+                result = self.server.mesh_snapshot()
+            except SnapshotBusy:
+                return self._error(503, 'Mesh inventory is busy; retry shortly')
+            result['topology'] = topology(result['nodes'])
+            try:
+                if self.server.mesh_history is None:
+                    raise OSError('Mesh history unavailable')
+                result['collector'] = self.server.mesh_monitor.status()
+                result['history_usage'] = self.server.mesh_history.usage()
+                result['history_settings'] = self.server.mesh_history.settings()
+                if result['history_settings']['enabled'] and not result['history_settings']['background_enabled']:
+                    self.server.mesh_history.record(result['nodes'])
+            except (OSError, ValueError, sqlite3.Error):
+                result['history_error'] = 'Local history storage unavailable'
+            return self._json(200, result)
+        if path == '/api/mesh/dashboard/history':
+            params = parse_qs(urlparse(self.path).query)
+            protocol = params.get('protocol', [''])[0]
+            ident = params.get('id', [''])[0]
+            if protocol not in ('Meshtastic','MeshCore','Reticulum') or not ident or len(ident)>128:
+                return self._error(400, 'Invalid node identity')
+            try:
+                if self.server.mesh_history is None: raise OSError('History unavailable')
+                return self._json(200, self.server.mesh_history.history(protocol, ident))
+            except (OSError, sqlite3.Error, ValueError):
+                return self._error(503, 'Local mesh history unavailable')
         if path == '/api/mesh/status':
             return self._json(200, self.server.mesh_manager.status())
         if path == '/api/mesh/connections':
@@ -979,7 +1018,7 @@ class Handler(BaseHTTPRequestHandler):
             file = STATIC_DIR / 'index.html'
         elif path == '/static/hardware-tabs.js':
             file = STATIC_DIR / 'hardware-tabs.js'
-        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/tab-session.js', '/static/browser-workspace.js', '/static/saved-trips.js', '/static/wifi-quick.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/trip-map.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/camera_alerts.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/weather.js', '/static/mesh.js', '/static/meshcore.js', '/static/messaging-tabs.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/reticulum-files.js', '/static/reticulum-tabs.js', '/static/bluetooth-files.js', '/static/camera-layers.js', '/static/chirp-import.js', '/static/surveillance.js', '/static/surveillance.css'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/tab-session.js', '/static/browser-workspace.js', '/static/saved-trips.js', '/static/wifi-quick.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/trip-map.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/camera_alerts.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/weather.js', '/static/mesh.js', '/static/meshcore.js', '/static/mesh-dashboard.js', '/static/messaging-tabs.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/reticulum-files.js', '/static/reticulum-tabs.js', '/static/bluetooth-files.js', '/static/camera-layers.js', '/static/chirp-import.js', '/static/surveillance.js', '/static/surveillance.css'):
             file = STATIC_DIR / Path(path).name
         elif path == '/static/offline-trails.js':
             file = STATIC_DIR / 'offline-trails.js'
@@ -993,9 +1032,22 @@ class Handler(BaseHTTPRequestHandler):
         self._send(200, raw, mime)
 
     def do_POST(self):
-        if not self._allowed_host() or not self._allowed_origin():
+        if not self._allowed_host() or not self._allowed_origin() or self.headers.get('Sec-Fetch-Site') == 'cross-site':
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
+        if path in ('/api/mesh/dashboard/history/settings','/api/mesh/dashboard/history/clear'):
+            try:
+                if self.server.mesh_history is None: raise OSError('History unavailable')
+                data = self._decode_body()
+                if path.endswith('/clear'):
+                    if not isinstance(data, dict) or set(data) != {'confirm'} or data['confirm'] is not True:
+                        raise ValueError('Explicit confirmation required')
+                    return self._json(200, self.server.mesh_history.clear())
+                return self._json(200, self.server.mesh_history.configure(data))
+            except (ValueError, TypeError) as exc:
+                return self._error(400, str(exc))
+            except (OSError, sqlite3.Error):
+                return self._error(503, 'Local mesh history unavailable')
         if path == '/api/surveillance/schedules' or path == '/api/surveillance/schedules/arm':
             if urlparse(self.path).query:
                 return self._error(400, 'Schedule action does not accept query parameters')
@@ -2093,6 +2145,12 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
         server.server_close()
         raise
     server.repository = repository
+    from .mesh_history import MeshHistory
+    try:
+        server.mesh_history = MeshHistory.separate(repository.path)
+    except (OSError, ValueError, sqlite3.Error):
+        logging.warning('Mesh history unavailable; existing data retained. Other workspaces remain available.')
+        server.mesh_history = None
     server.surveillance_store = SurveillanceStore(repository.path)
     server.surveillance_recordings = RecordingManager(repository.path)
     server.surveillance_motion = MotionHistory(server.surveillance_recordings)
@@ -2137,6 +2195,11 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.hotspot_manager = HotspotManager(repository.path.parent / 'field-network')
     server.alpr_import_lock = threading.Lock()
     server.national_alpr_manager = national_alpr.UpdateManager(repository)
+    from .mesh_monitor import MeshMonitor, SnapshotCoordinator
+    from .mesh_dashboard import dashboard
+    server.mesh_snapshot = SnapshotCoordinator(lambda: dashboard(server.mesh_manager, server.meshcore_manager, server.reticulum_manager))
+    if server.mesh_history is not None:
+        server.mesh_monitor = MeshMonitor(server.mesh_history, server.mesh_snapshot)
     return server
 
 

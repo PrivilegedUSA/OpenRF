@@ -944,6 +944,13 @@
     state.unread=0;publishUnread();
     note('Reticulum messages marked as read on this tab.');
   });
+  document.addEventListener('openrf:mesh-node-conversation',event=>{
+    const {protocol,id}=event.detail||{};if(protocol!=='Reticulum'||!threadAddress(id))return;
+    if(state.activeThread===id){window.OpenRFReticulumTabs?.open?.('inbox');return;}
+    if(state.busy||state.attachment||voicePending||voiceRecorder){sendNote('Finish the current attachment or recording before switching conversations.',true);return;}
+    if(!state.contacts.some(c=>c.address===id)){contactNote('Destination is not a saved LXMF contact. Open Contacts to verify it.',true);window.OpenRFReticulumTabs?.open?.('contacts');return;}
+    window.OpenRFReticulumTabs?.open?.('inbox');openThread(id);
+  });
   document.addEventListener('openrf:reticulum-shown',async()=>{
     await refreshInbox();
     if(state.activeThread!==null)scrollToLatest();

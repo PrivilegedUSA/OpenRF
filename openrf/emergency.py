@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import contextmanager
 import threading
 import hashlib
 from datetime import datetime, timezone
@@ -118,10 +119,14 @@ class EmergencyStore:
                 item_key TEXT PRIMARY KEY,
                 confirmed_utc TEXT NOT NULL)''')
 
+    @contextmanager
     def _connect(self):
         db = sqlite3.connect(self.path, timeout=10)
         db.row_factory = sqlite3.Row
-        return db
+        try:
+            with db: yield db
+        finally:
+            db.close()
 
     def list(self):
         with self.lock, self._connect() as db:

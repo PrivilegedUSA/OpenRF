@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import math
 import sqlite3
+from contextlib import contextmanager
 import threading
 from datetime import datetime, timezone
 from xml.sax.saxutils import escape
@@ -49,10 +50,14 @@ class BreadcrumbStore:
             # A browser watch cannot survive process termination; never mark stale records LIVE.
             db.execute("UPDATE breadcrumb_sessions SET state='INTERRUPTED',stopped_utc=? WHERE state='RECORDING'",(_utc(),))
 
+    @contextmanager
     def _connect(self):
         db=sqlite3.connect(self.path,timeout=5)
         db.row_factory=sqlite3.Row
-        return db
+        try:
+            with db: yield db
+        finally:
+            db.close()
 
     def sessions(self):
         with self.lock,self._connect() as db:

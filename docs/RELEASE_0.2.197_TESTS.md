@@ -1,0 +1,11 @@
+# v0.2.197 — Reticulum dashboard
+
+Based on complete v0.2.196 bundle. Changed Reticulum worker, dashboard adapter and JS, static HTTP allowlist, index labels, version identifiers, documentation and regression tests. No surveillance code changes or database migration.
+
+The existing running RNS instance supplies `get_path_table()` and local interface statistics. Cached destination hashes are not necessarily LXMF addresses, live peers, physical devices or direct neighbors. Cache timestamps are not last-heard timestamps. Saved aliases merge by hash; expired entries are labeled. No route request or announce is issued. No geographic positions are inferred. The first 1,000 unique cached paths are returned, prioritizing non-expired and newer entries. Interface reports retain the existing 20-interface cap. No new persistent history is created. Unsupported SDK methods are labeled unavailable, and saved contacts survive cache-read failure.
+
+API reference: https://github.com/markqvist/Reticulum/blob/master/RNS/Reticulum.py (get_path_table); https://github.com/attermann/ReticulumAPI/blob/master/docs/api-reference.md (path fields).
+
+Local tests on Python 3.13.5: 8 dashboard tests, 57 Reticulum tests (including static HTTP asset checks), 1 release version consistency test, 15 Reticulum JavaScript files and 3 dashboard JavaScript files plus release asset version check passed. Python compilation and dashboard JS syntax passed. Full Python and JS suites not run; RNS/LXMF libraries unavailable in test environment; no physical radios, Pi, visual browser or GitHub CI verification. Fixed inherited dashboard JS HTTP 404 and Electron version drift detected during testing.
+
+Manual acceptance: update with the standard PowerShell updater, launch `python3 -m openrf` in WSL, open Mesh Network with Reticulum stopped and confirm saved contacts remain visible. Enable Reticulum manually in the existing messaging screen, then refresh dashboard. Inspect cached destinations and interface counters; compare to local RNS diagnostics. Check that no position is plotted for unlocated destinations and that stopping Reticulum removes cache entries but retains contacts. Verify existing messages and surveillance workflows independently.

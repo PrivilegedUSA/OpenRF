@@ -229,6 +229,11 @@
     if(state.connected)await request('/api/meshcore/refresh',{});
     await refreshStatus();
   }));
+  document.addEventListener('openrf:mesh-node-conversation',event=>{
+    const {protocol,id}=event.detail||{};if(protocol!=='MeshCore'||! /^[0-9a-f]{64}$/.test(id))return;
+    if(state.busy||(state.selected!==id&&el('meshcore-text').value.trim())){messageNotice('Finish or clear the current draft before opening another node.');return;}
+    openThread(id);
+  });
   el('meshcore-back').addEventListener('click',closeThread);
   el('meshcore-text').addEventListener('input',updateControls);
   el('meshcore-port').addEventListener('change',updateControls);

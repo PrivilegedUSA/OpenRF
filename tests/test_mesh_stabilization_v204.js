@@ -1,0 +1,11 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {pageRows,filterNodes}=require('../openrf/static/mesh-dashboard.js');
+const rows=Array.from({length:120},(_,i)=>({name:`Node ${String(i).padStart(3,'0')}`,protocol:'Meshtastic'}));
+assert.equal(pageRows(rows,0).rows.length,50);
+assert.equal(pageRows(rows,2).rows.length,20);
+assert.equal(pageRows(rows,999).page,2);
+assert.equal(pageRows(rows,-1).page,0);
+assert.deepEqual(pageRows([],4),{page:0,pages:1,rows:[]});
+assert.equal(pageRows(filterNodes(rows,'Node 000','all','name'),2).rows.length,1);
+console.log('PASS dashboard pagination, filter shrink and empty inventory');

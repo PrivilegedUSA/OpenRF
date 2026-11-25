@@ -6,6 +6,7 @@ import os
 import shutil
 import signal
 import sqlite3
+from contextlib import contextmanager
 import subprocess
 import threading
 import time
@@ -138,10 +139,14 @@ class RecordingManager:
                 db.execute('ALTER TABLE surveillance_recordings ADD COLUMN audio_present INTEGER')
             db.execute("UPDATE surveillance_recordings SET state='INTERRUPTED', ended_utc=? WHERE state='RECORDING'", (_now(),))
 
+    @contextmanager
     def _db(self):
         db = sqlite3.connect(str(self.db_path), timeout=10)
         db.row_factory = sqlite3.Row
-        return db
+        try:
+            with db: yield db
+        finally:
+            db.close()
 
     def _audio_in_file(self, path):
         """Check finalized local MP4 audio stream without assuming requested audio was saved."""

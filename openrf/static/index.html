@@ -10,8 +10,8 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/openrf-icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/static/app.css?v=0.2.194">
-  <link rel="stylesheet" href="/static/surveillance.css?v=0.2.194">
+  <link rel="stylesheet" href="/static/app.css?v=0.2.204">
+  <link rel="stylesheet" href="/static/surveillance.css?v=0.2.204">
   <script defer src="/static/vendor/maplibre-gl.js"></script>
   <script defer src="/static/history-analysis.js"></script>
   <script defer src="/static/spectrum-analysis.js?v=0.2.76"></script>
@@ -24,12 +24,13 @@
   <script defer src="/static/camera_alerts.js?v=0.2.76"></script>
   <script defer src="/static/map-elevation.js?v=0.2.151"></script>
   <script defer src="/static/battery-status.js?v=0.2.151"></script>
-  <script defer src="/static/wifi-quick.js?v=0.2.194"></script>
+  <script defer src="/static/wifi-quick.js?v=0.2.204"></script>
   <script defer src="/static/route-elevation.js?v=0.2.151"></script>
   <script defer src="/static/trip-map.js?v=0.2.151"></script>
-  <script defer src="/static/tab-session.js?v=0.2.194"></script>
-  <script defer src="/static/app.js?v=0.2.194"></script>
-  <script defer src="/static/app-settings.js?v=0.2.194"></script>
+  <script defer src="/static/tab-session.js?v=0.2.204"></script>
+  <script defer src="/static/mesh-dashboard.js?v=0.2.204"></script>
+  <script defer src="/static/app.js?v=0.2.204"></script>
+  <script defer src="/static/app-settings.js?v=0.2.204"></script>
   <script defer src="/static/browser-workspace.js?v=0.2.151"></script>
   <script defer src="/static/saved-trips.js?v=0.2.151"></script>
   <script defer src="/static/emergency-tabs.js?v=0.2.151"></script>
@@ -49,20 +50,20 @@
   <script defer src="/static/emergency-backup.js?v=0.2.151"></script>
   <script defer src="/static/field-calendar.js?v=0.2.151"></script>
   <script defer src="/static/radio.js?v=0.2.76"></script>
-  <script defer src="/static/mesh.js?v=0.2.194"></script>
-  <script defer src="/static/meshcore.js?v=0.2.194"></script>
-  <script defer src="/static/messaging-tabs.js?v=0.2.194"></script>
-  <script defer src="/static/weather.js?v=0.2.194"></script>
-  <script defer src="/static/surveillance.js?v=0.2.194"></script>
-  <script defer src="/static/reticulum.js?v=0.2.194"></script>
-  <script defer src="/static/reticulum-files.js?v=0.2.194"></script>
-  <script defer src="/static/bluetooth-files.js?v=0.2.194"></script>
-  <script defer src="/static/reticulum-tabs.js?v=0.2.194"></script>
+  <script defer src="/static/mesh.js?v=0.2.204"></script>
+  <script defer src="/static/meshcore.js?v=0.2.204"></script>
+  <script defer src="/static/messaging-tabs.js?v=0.2.204"></script>
+  <script defer src="/static/weather.js?v=0.2.204"></script>
+  <script defer src="/static/surveillance.js?v=0.2.204"></script>
+  <script defer src="/static/reticulum.js?v=0.2.204"></script>
+  <script defer src="/static/reticulum-files.js?v=0.2.204"></script>
+  <script defer src="/static/bluetooth-files.js?v=0.2.204"></script>
+  <script defer src="/static/reticulum-tabs.js?v=0.2.204"></script>
   <script defer src="/static/mesh_connections.js?v=0.2.104"></script>
   <script defer src="/static/wifi_halow.js?v=0.2.104"></script>
   <script defer src="/static/field_network.js?v=0.2.104"></script>
   <script defer src="/static/field_hotspot.js?v=0.2.104"></script>
-  <script defer src="/static/hardware-tabs.js?v=0.2.194"></script>
+  <script defer src="/static/hardware-tabs.js?v=0.2.204"></script>
   <script defer src="/static/offline_readiness.js?v=0.2.104"></script>
   <script defer src="/static/camera-layers.js?v=0.2.114"></script>
   <script defer src="/static/chirp-import.js?v=0.2.77"></script>
@@ -70,7 +71,7 @@
 <body>
   <div class="app">
     <aside id="main-sidebar" class="sidebar" aria-label="Main navigation">
-      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.194</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
+      <div class="brand"><div class="brand-identity"><img src="/static/assets/openrf-wordmark-light.png" alt="OpenRF" class="brand-wordmark" width="1325" height="375"><small>FIELD CONSOLE · 0.2.204</small></div><button type="button" id="menu-close" class="menu-close" aria-label="Close navigation menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>
       <div class="sidebar-group-title">WORKSPACE</div>
       <nav class="nav">
         <button class="nav-btn active" data-page="overview"><span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Overview</span></button>
@@ -82,6 +83,7 @@
             <button class="nav-btn nav-subpage" id="meshcore-nav-item" data-page="meshcore" type="button"><span class="nav-label">MeshCore</span><span class="mesh-unread-badge mesh-nav-unread" id="meshcore-nav-unread" hidden>0</span></button>
           </div>
         </div>
+        <button class="nav-btn" data-page="mesh-network" type="button"><span class="nav-icon" aria-hidden="true">⌘</span><span class="nav-label">Mesh Network</span></button>
         <button class="nav-btn" data-page="map"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15M15 6v15"/></svg></span><span class="nav-label">Map</span></button>
         <button class="nav-btn" data-page="emergency"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 22 20H2L12 2.5Z"/><path d="M12 8.5v5.5"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></svg></span><span class="nav-label">Emergency</span></button>
         <button class="nav-btn" data-page="scanner"><span class="nav-icon" aria-hidden="true">≋</span><span class="nav-label">Analysis</span></button>
@@ -836,6 +838,7 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
               <label><input type="checkbox" data-camera-type="RED_LIGHT"> <i class="layer-dot camera-red"></i> Red-light cameras</label>
               <label><input type="checkbox" data-camera-type="SPEED"> <i class="layer-dot camera-speed"></i> Speed cameras</label>
             </div>
+            <section class="camera-map-manager" aria-label="Mesh node layers"><strong>Mesh nodes</strong><div class="map-layer-options"><label><input type="checkbox" data-mesh-layer="Meshtastic"> Meshtastic</label><label><input type="checkbox" data-mesh-layer="MeshCore"> MeshCore</label><label><input type="checkbox" data-mesh-layer="Reticulum"> Reticulum</label><label><input type="checkbox" data-mesh-layer="infrastructure"> Repeaters / infrastructure</label></div><p class="small muted">Reported positions only; may be stale. Reticulum destinations remain unlocated; MeshCore uses stored advertisement positions.</p><button class="btn outline" id="mesh-network-unlocated">Unlocated nodes</button></section>
             <section class="camera-map-manager" id="camera-map-manager" aria-label="Camera locations and imports">
               <strong class="camera-section-heading">Camera locations</strong>
               <p class="small muted">Camera pins are infrastructure reports, not RF detections or proof of current operation. Community-mapped locations are not independently verified.</p>
@@ -1195,6 +1198,16 @@ python3 -m openrf.restore --backup /mnt/c/Users/YOUR_USER/Downloads/openrf-priva
           <div id="radio-playback" hidden><label for="radio-player" class="fieldlabel">Received audio · captured sample, not live</label><audio id="radio-player" controls preload="none" aria-label="Listen to the last bounded RTL-SDR reception sample"></audio><p class="small muted">Audio is temporarily held in the local server's memory and replaced by the next sample or server restart; no automatic audio archive or upload.</p></div>
         </div>
         <div class="panel radio-setup-panel"><h3>Linux receiver setup</h3><p class="small muted">Install the optional <code>rtl-sdr</code> utilities (for example <code>sudo apt install rtl-sdr</code> on Ubuntu), connect a compatible receive-only RTL-SDR and antenna, then test USB access in the same Ubuntu environment. WSL often requires explicit USB passthrough; the Windows built-in radio is not shared automatically.</p><p class="small muted">Short samples play only after recording completes. This version does not offer continuous live listening, scanning presets, transmitter controls, voice identification, audio logging or a promise of a received signal.</p><div class="button-line"><button class="btn outline" data-jump="hardware" type="button">Hardware readiness</button><button class="btn outline" data-jump="spectrum" type="button">Open Signal Viewer</button><button class="btn outline" data-jump="hamradio" type="button">Ham Radio channel lists</button></div></div>
+      </section>
+      <section class="page" id="page-mesh-network" aria-label="Mesh Network Dashboard">
+        <div class="section-heading"><div><h2>Mesh Network</h2><p>Local radio databases, cached paths and saved contacts — not a live reachability scan.</p></div><button class="btn outline" id="mesh-network-refresh">Refresh</button></div>
+        <p class="small muted" id="mesh-network-status" role="status">Waiting for local inventory.</p>
+        <div id="mesh-network-overview" class="mesh-network-overview"></div>
+        <section class="panel"><h3>Node inventory</h3><div class="filters"><input class="field" id="mesh-network-search" placeholder="Search nodes" aria-label="Search nodes"><select class="field" id="mesh-network-filter" aria-label="Filter nodes"><option value="all">All nodes</option><option>Meshtastic</option><option>MeshCore</option><option>Reticulum</option><option value="unlocated">Unlocated nodes</option><option value="infrastructure">Reported infrastructure</option></select><select class="field" id="mesh-network-sort" aria-label="Sort nodes"><option value="name">Name</option><option value="protocol">Protocol</option><option value="recent">Last heard (newest)</option><option value="role">Role</option></select></div><p id="mesh-network-count" role="status" class="small muted"></p><div class="mesh-network-table" tabindex="0" role="region" aria-label="Scrollable node inventory"><table><thead><tr><th>Node</th><th>Protocol</th><th>Role</th><th>Last heard</th><th>Location</th><th>Telemetry</th><th>Source / quality</th></tr></thead><tbody id="mesh-network-rows"></tbody></table></div><div class="mesh-network-pager"><button class="btn outline" type="button" id="mesh-network-prev">Previous</button><span id="mesh-network-page" role="status"></span><button class="btn outline" type="button" id="mesh-network-next">Next</button></div></section>
+        <section class="panel mesh-network-detail" id="mesh-network-detail" hidden></section>
+        <section class="panel"><details><summary>Network activity &amp; health</summary><p class="small">Statistics cover the current local inventory only, not total network size, uptime or verified reachability. Cached telemetry may be old. Unknown ages are not counted as stale. Interface counters are shown in the overview above.</p><div id="mesh-network-health" class="mesh-network-overview"></div><h3>Recent reported activity</h3><p class="small">Up to 20 source timestamps from the current inventory, not a packet log or continuous timeline.</p><div id="mesh-network-activity"></div></details></section>
+                <section class="panel"><details><summary>Local node history &amp; recording settings</summary><p class="small">Opt-in: saves changed cached radio records on dashboard/map refresh. Enable background collection separately. Not a continuous packet capture. Includes reported coordinates and identifiers.</p><div class="filters"><label><input type="checkbox" id="mesh-history-enabled"> Record history</label><label><input type="checkbox" id="mesh-history-background"> Collect in background</label><label>Interval (seconds) <input type="number" min="15" max="600" value="30" id="mesh-history-interval" class="field"></label><label>Retention days <input type="number" min="1" max="365" value="30" id="mesh-history-days" class="field"></label><button class="btn outline" id="mesh-history-save">Apply settings</button><button class="btn outline" id="mesh-history-clear">Clear history</button></div><p id="mesh-history-usage" class="small"></p><p id="mesh-collector-status" class="small"></p><p id="mesh-history-status" role="status" class="small"></p></details></section><section class="panel"><details><summary>Topology, infrastructure &amp; diagnostics</summary><p class="small">Cached Reticulum next-hop associations only; these are not verified physical links, neighbors or complete paths. Other protocols have no supported relationship evidence yet.</p><label>Filter <input id="mesh-topology-search" class="field" type="search"></label><div id="mesh-topology"></div><h3>Reported infrastructure</h3><div id="mesh-infrastructure"></div></details></section>
+
       </section>
       <section class="page" id="page-messages" aria-label="Meshtastic messages and conversations">
         <div class="section-heading"><div><h2>Meshtastic</h2><p>Local-first Meshtastic texts and conversations. No internet connection or account is required.</p></div><span class="pill">MESHTASTIC · USB RADIO</span></div>

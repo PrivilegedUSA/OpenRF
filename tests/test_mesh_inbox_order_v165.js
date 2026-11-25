@@ -46,3 +46,12 @@ box.scrollTop=280;
 context.renderMessages([...rows,{...rows[0],text:'next',received_at_utc:'2026-11-20T05:00:00Z'}]);
 assert.equal(box.scrollTop,500,'When near bottom, continue following new messages');
 console.log('PASS v0.2.174 Meshtastic chat chronology, initial bottom and new-message following');
+
+elements['mesh-conversation'].value='node:!00000001';
+context.renderMessages([...rows,{...rows[0],channel:2,text:'other channel'},{...rows[0],node:'!00000002',text:'other node'}]);
+assert.equal(elements['mesh-conversation'].value,'node:!00000001');
+assert(messageTexts().includes('other channel'));
+assert(!messageTexts().includes('other node'));
+assert(elements['mesh-reply-conversation'].disabled);
+context.renderMessages([]);
+assert.equal(elements['mesh-conversation'].value,'node:!00000001');

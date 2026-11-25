@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 import importlib.util
 import ipaddress
 import multiprocessing
+import math
+import time
 import os
 from pathlib import Path
 import re
@@ -309,6 +311,46 @@ def runtime_config(root, tcp_enabled=False, rnode=None, transport_enabled=False,
     return runtime
 
 
+def path_inventory(instance, own_address=None):
+    """Read existing RNS path cache only; never request a route or announce."""
+    try:
+        raw = instance.get_path_table()
+    except Exception as exc:
+        return {'available': False, 'paths': [], 'note': f'Path cache unavailable ({type(exc).__name__}).'}
+    if not isinstance(raw, list):
+        return {'available': False, 'paths': [], 'note': 'Unsupported path table format.'}
+    def address(value):
+        if isinstance(value, bytes):
+            value = value.hex()
+        return value.lower() if isinstance(value, str) and DESTINATION.fullmatch(value) else None
+    def timestamp(value):
+        return value if type(value) in (float, int) and math.isfinite(value) and value > 0 else None
+    now = time.time()
+    paths = {}
+    for row in raw:
+        if not isinstance(row, dict):
+            continue
+        ident = address(row.get('hash'))
+        if not ident or ident == address(own_address):
+            continue
+        updated = timestamp(row.get('timestamp'))
+        if updated is not None and updated > now:
+            updated = None
+        expires = timestamp(row.get('expires'))
+        hops = row.get('hops')
+        item = dict(address=ident, updated=updated, expires=expires,
+                    expired=expires <= now if expires is not None else None,
+                    hops=hops if type(hops) is int and 0 <= hops <= 128 else None,
+                    via=address(row.get('via')),
+                    interface=str(row['interface'])[:120] if isinstance(row.get('interface'), str) else None)
+        if ident not in paths or (updated or 0) > (paths[ident]['updated'] or 0):
+            paths[ident] = item
+    ordered = sorted(paths.values(), key=lambda x: (x['expired'] is True, -(x['updated'] or 0), x['address']))
+    return {'available': True, 'paths': ordered[:1000], 'total': len(ordered),
+            'truncated': len(ordered) > 1000,
+            'note': 'Cached paths may be historical; destination service and reachability are unverified.'}
+
+
 def interface_diagnostics(instance):
     """Expose bounded, factual local RNS interface counters, never private keys."""
     try:
@@ -426,19 +468,26 @@ def reticulum_worker(pipe, data_root, options=None):
         last_announce_requested_at = _utc()
         announce_requests = 1
         pipe.send({'ok':True, 'address': source.hash.hex()})
+        request_id = None
+        def reply(payload):
+            pipe.send(dict(payload, request_id=request_id))
         while True:
             if not pipe.poll(0.5):
                 continue
             command = pipe.recv()
+            request_id = command.get('request_id') if isinstance(command, dict) else None
             action = command.get('action') if isinstance(command, dict) else None
             if action == 'stop':
-                pipe.send({'ok':True, 'stopped':True})
+                reply({'ok':True, 'stopped':True})
                 break
             if action == 'announce':
                 router.announce(source.hash)
                 last_announce_requested_at = _utc()
                 announce_requests += 1
-                pipe.send({'ok':True, 'announced':True, 'delivery_verified':False})
+                reply({'ok':True, 'announced':True, 'delivery_verified':False})
+            elif action == 'mesh_inventory':
+                reply({'ok': True, 'path_cache': path_inventory(rns_instance, source.hash),
+                           'interface_report': interface_diagnostics(rns_instance)})
             elif action == 'diagnostics':
                 report = interface_diagnostics(rns_instance)
                 report.update({'ok':True,
@@ -448,7 +497,7 @@ def reticulum_worker(pipe, data_root, options=None):
                                'announce_requests':announce_requests,
                                'last_announce_requested_at_utc':last_announce_requested_at,
                                'announcement_received_by_peer':None})
-                pipe.send(report)
+                reply(report)
             elif action == 'messages':
                 with inbox_lock:
                     snapshot = []
@@ -459,63 +508,63 @@ def reticulum_worker(pipe, data_root, options=None):
                             item['attachment'] = {**item['attachment'], 'available':current}
                         snapshot.append(item)
                     sequence = received_count
-                pipe.send({'ok':True, 'messages':snapshot, 'receive_sequence':sequence,
+                reply({'ok':True, 'messages':snapshot, 'receive_sequence':sequence,
                            'storage':'WORKER_MEMORY_AND_PRIVATE_LXMF_RUNTIME'})
             elif action == 'clear_messages':
                 with inbox_lock:
                     inbox.clear()
                     attachments.clear()
-                pipe.send({'ok':True, 'cleared':True})
+                reply({'ok':True, 'cleared':True})
             elif action == 'attachment':
                 token = command.get('message', {}).get('id') if isinstance(command.get('message'), dict) else None
                 with inbox_lock:
                     item = attachments.get(token)
                 if item is None:
-                    pipe.send({'ok':False, 'error':'Attachment is no longer available in this session.'})
+                    reply({'ok':False, 'error':'Attachment is no longer available in this session.'})
                 else:
-                    pipe.send({'ok':True, **item})
+                    reply({'ok':True, **item})
             elif action == 'files_status':
-                pipe.send({'ok': True, **file_session.snapshot()})
+                reply({'ok': True, **file_session.snapshot()})
             elif action == 'files_announce':
-                pipe.send({'ok': True, **file_session.announce()})
+                reply({'ok': True, **file_session.announce()})
             elif action == 'files_arm':
                 try:
                     payload = command.get('message')
                     if not isinstance(payload, dict) or set(payload) != {'enabled'}:
                         raise ValueError('Choose the explicit receive switch.')
-                    pipe.send({'ok': True, **file_session.arm(payload['enabled'])})
+                    reply({'ok': True, **file_session.arm(payload['enabled'])})
                 except ValueError as exc:
-                    pipe.send({'ok':False, 'error':str(exc)})
+                    reply({'ok':False, 'error':str(exc)})
             elif action == 'files_send':
                 try:
-                    pipe.send({'ok': True, **file_session.send(command['message'])})
+                    reply({'ok': True, **file_session.send(command['message'])})
                 except ValueError as exc:
-                    pipe.send({'ok':False, 'error':str(exc)})
+                    reply({'ok':False, 'error':str(exc)})
             elif action == 'files_cancel':
                 try:
-                    pipe.send({'ok': True, **file_session.cancel(command['message']['id'])})
+                    reply({'ok': True, **file_session.cancel(command['message']['id'])})
                 except (ValueError, KeyError, TypeError) as exc:
-                    pipe.send({'ok':False, 'error':str(exc)})
+                    reply({'ok':False, 'error':str(exc)})
             elif action == 'files_download':
                 item = file_session.download(command.get('message',{}).get('id'))
-                pipe.send({'ok': bool(item), **item} if item else
+                reply({'ok': bool(item), **item} if item else
                           {'ok': False, 'error':'File is not available during this session.'})
             elif action == 'send':
                 # Validated in parent before IPC; already normalized bytes.
                 payload = command.get('message')
                 if not isinstance(payload, dict) or set(payload) not in ({'destination','text'},
                                                                           {'destination','text','attachment'}):
-                    pipe.send({'ok':False, 'error':'Invalid outbound message.'})
+                    reply({'ok':False, 'error':'Invalid outbound message.'})
                     continue
                 target = bytes.fromhex(payload['destination'])
                 if not RNS.Transport.has_path(target):
                     RNS.Transport.request_path(target)
-                    pipe.send({'ok':True, 'status':'PATH_REQUESTED_NOT_SENT',
+                    reply({'ok':True, 'status':'PATH_REQUESTED_NOT_SENT',
                                'note':'Try sending again when a route to the destination exists.'})
                     continue
                 recipient = RNS.Identity.recall(target)
                 if recipient is None:
-                    pipe.send({'ok':True, 'status':'NO_RECALLED_IDENTITY_NOT_SENT'})
+                    reply({'ok':True, 'status':'NO_RECALLED_IDENTITY_NOT_SENT'})
                     continue
                 destination = RNS.Destination(recipient, RNS.Destination.OUT,
                     RNS.Destination.SINGLE, 'lxmf', 'delivery')
@@ -542,15 +591,15 @@ def reticulum_worker(pipe, data_root, options=None):
                     router.handle_outbound(message)
                 except Exception:
                     _update_outbound_status(inbox, inbox_lock, event_id, 'FAILED_LXMF')
-                    pipe.send({'ok':False, 'error':'LXMF rejected the outbound message; it was not queued.'})
+                    reply({'ok':False, 'error':'LXMF rejected the outbound message; it was not queued.'})
                     continue
                 with inbox_lock:
                     current = next((row['status'] for row in reversed(inbox)
                                     if row.get('event_id') == event_id),
                                    'QUEUED_WITH_LXMF_NOT_DELIVERED')
-                pipe.send({'ok':True, 'status':current, 'event_id':event_id})
+                reply({'ok':True, 'status':current, 'event_id':event_id})
             else:
-                pipe.send({'ok':False, 'error':'Unrecognized local Reticulum command.'})
+                reply({'ok':False, 'error':'Unrecognized local Reticulum command.'})
     except (EOFError, BrokenPipeError):
         pass
     except Exception as exc:
@@ -581,6 +630,7 @@ class ReticulumManager:
         self._transport_enabled = False
         self._halow_device = None
         self._worker_id = None
+        self._pending_request = None
         self._store = ReticulumLocalStore(self.data_root)
 
     def _running(self):
@@ -677,22 +727,42 @@ class ReticulumManager:
             self._error = None
             return self.status()
 
-    def _command(self, action, message=None):
+    def _command(self, action, message=None, *, timeout=8):
         with self._lock:
             if not self._running() or self._pipe is None:
                 raise ReticulumError('Enable Reticulum LAN before this action.', 'reticulum_disconnected')
             try:
-                self._pipe.send({'action':action, 'message':message})
-                if not self._pipe.poll(8):
-                    raise ReticulumError('Reticulum worker response timed out.',
-                                         'reticulum_response_timeout', 503)
-                result = self._pipe.recv()
+                if self._pending_request is not None:
+                    # A timed-out command may still have side effects. Never retry it automatically.
+                    while self._pipe.poll(0):
+                        stale = self._pipe.recv()
+                        if stale.get('request_id') == self._pending_request:
+                            self._pending_request = None
+                            break
+                    if self._pending_request is not None:
+                        raise ReticulumError('Previous Reticulum command still pending; retry later.', 'reticulum_response_timeout', 503)
+                request_id = secrets.token_hex(16)
+                self._pending_request = request_id
+                self._pipe.send({'action':action, 'message':message, 'request_id':request_id})
+                deadline = time.monotonic() + timeout
+                while True:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0 or not self._pipe.poll(remaining):
+                        raise ReticulumError('Reticulum worker response timed out; command outcome unknown.',
+                                             'reticulum_response_timeout', 503)
+                    result = self._pipe.recv()
+                    if result.get('request_id') == request_id:
+                        self._pending_request = None
+                        break
+                    if result.get('request_id') is None and not result.get('ok'):
+                        raise ReticulumError(result.get('error','Reticulum worker failed.'), 'reticulum_worker_failed',503)
             except (BrokenPipeError, EOFError, OSError) as exc:
                 raise ReticulumError('Reticulum worker disconnected.',
                                      'reticulum_disconnected', 503) from exc
             if not result.get('ok'):
                 raise ReticulumError(result.get('error','Reticulum request failed.'),
                                      'reticulum_worker_failed', 503)
+            result.pop('request_id', None)
             return result
 
     def _sync_messages(self, result):
@@ -780,6 +850,12 @@ class ReticulumManager:
                 self._command('clear_messages')
             return {'removed':removed,'cleared':True}
 
+    def mesh_inventory(self):
+        with self._lock:
+            if not self._running():
+                return {}
+            return self._command('mesh_inventory', timeout=2)
+
     def diagnostics(self):
         if not self._running():
             return {'active':False, 'available':False, 'interfaces':[],
@@ -861,6 +937,7 @@ class ReticulumManager:
         process, pipe = self._process, self._pipe
         self._process, self._pipe, self._address = None, None, None
         self._worker_id = None
+        self._pending_request = None
         self._tcp_enabled = False
         self._tcp_port = TCP_PORT
         self._tcp_peer = None
@@ -890,10 +967,17 @@ class ReticulumManager:
                         # from closing the LAN listener and child process.
                         self._error = 'Final Reticulum history sync failed before shutdown.'
                 try:
-                    self._pipe.send({'action':'stop'})
-                    if self._pipe.poll(2):
-                        self._pipe.recv()
-                except (OSError, EOFError, BrokenPipeError):
+                    # Stop is special: explicitly request shutdown even after a
+                    # timed-out history sync. Drain unrelated replies, then terminate
+                    # our own process if it cannot acknowledge promptly.
+                    request_id = secrets.token_hex(16)
+                    self._pipe.send({'action':'stop','request_id':request_id})
+                    deadline = time.monotonic()+2
+                    while time.monotonic() < deadline and self._pipe.poll(max(0,deadline-time.monotonic())):
+                        reply = self._pipe.recv()
+                        if reply.get('request_id') == request_id:
+                            break
+                except (OSError, EOFError, BrokenPipeError, ReticulumError):
                     pass
             self._terminate()
             return {'enabled':False,'worker_stopped':True}

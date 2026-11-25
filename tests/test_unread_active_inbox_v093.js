@@ -29,6 +29,7 @@ function fixture(source,type,sessionStorage){
   const context={nodes,notices,notes,bodyClasses,window:{sessionStorage},document:{
     body:{classList:{contains:()=>false,toggle(name,enabled){
       if(enabled)bodyClasses.add(name);else bodyClasses.delete(name);}}},
+    addEventListener(){},
     dispatchEvent(event){notices.push({type:event.type,count:event.detail.count});}},
     CustomEvent:class{constructor(type,options){this.type=type;this.detail=options.detail;}}};
   const beginning=source.slice(source.indexOf('  const unreadKey='),source.indexOf('  const viewingMessages='));
