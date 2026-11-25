@@ -1,3 +1,7 @@
+## v0.2.227
+
+- Add local FCC H3 ZIP coverage compiler with state discovery, measured row progress, source metadata, compressed shared geometry and R-tree queries. Atomic state pack publication; map reads offline packs directly without GIS dependencies. Preserve existing manual packs and all other databases. See docs/FCC_COVERAGE_COMPILER.md. Actual full California source files not available for validation; no hosted nationwide download yet.
+
 ## v0.2.226
 
 - Separate RF (light amber), ALPR (saturated orange), public towers (rose) and saved cellular observations (slate) in both renderers and legends. Move Cellular observations into the cellular section without changing its persisted key.

@@ -179,7 +179,7 @@ class UpdateManager:
         return self.status()
     def download(self,url,accept):
         self.update(phase='connecting',provider=url,downloaded_bytes=0,total_bytes=None,processed=0)
-        req=urllib.request.Request(url,headers={'User-Agent':'OpenRF/0.2.226 (user-initiated offline camera download)','Accept':accept,'Accept-Encoding':'identity'})
+        req=urllib.request.Request(url,headers={'User-Agent':'OpenRF/0.2.227 (user-initiated offline camera download)','Accept':accept,'Accept-Encoding':'identity'})
         with urllib.request.urlopen(req,timeout=40) as reply:
             if not reply.geturl().startswith('https://'): raise SnapshotError('Insecure traffic download redirect.')
             try: total=int(reply.headers.get('Content-Length','0')) or None

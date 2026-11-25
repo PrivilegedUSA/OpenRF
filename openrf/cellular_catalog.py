@@ -53,7 +53,7 @@ def coords(lon, lat):
 def arcgis(params):
     # ArcGIS query supports form POST. Long GET URLs can produce HTTP 404.
     encoded = urlencode({'f':'json', **params})
-    headers = {'User-Agent':'OpenRF/0.2.226 (manual FCC public data download; https://openrf.app)', 'Accept':'application/json'}
+    headers = {'User-Agent':'OpenRF/0.2.227 (manual FCC public data download; https://openrf.app)', 'Accept':'application/json'}
     request = Request(TOWER_URL, data=encoded.encode('ascii'), headers={**headers,'Content-Type':'application/x-www-form-urlencoded'}, method='POST')
     # Some proxies reject POST. Only fall back to a deliberately short GET.
     for attempt in range(3):
@@ -184,7 +184,10 @@ class Catalog:
         finally: db.close()
 
     def metadata(self):
-        with self.connect() as db: return {k:json.loads(m) for k,m in db.execute('SELECT key,meta FROM datasets')}
+        from .fcc_coverage import pack_metadata
+        with self.connect() as db: result={k:json.loads(m) for k,m in db.execute('SELECT key,meta FROM datasets')}
+        result.update(pack_metadata(self.path.parent/'fcc-coverage'))
+        return result
 
     def status(self):
         return {'datasets':self.metadata(),'job':dict(self.job)}
@@ -258,6 +261,15 @@ class Catalog:
                 packs=[k for k,v in matches if v==profile]
                 total=0; current=[]
                 for pack in packs:
+                    if meta[pack].get('fcc_file'):
+                        from .fcc_coverage import view_pack
+                        for item in view_pack(self.path.parent/'fcc-coverage'/meta[pack]['fcc_file'],meta[pack],(w,s,e,n),MAX_VIEW_VERTICES-total):
+                            if item is None:
+                                total=MAX_VIEW_VERTICES+1; break
+                            v,polygon=item; total+=v
+                            current.append({'carrier':carrier,'pack':pack,'polygon':polygon})
+                        if total>MAX_VIEW_VERTICES: break
+                        continue
                     longitude='west<=? AND east>=?' if w<=e else '(east>=? OR west<=?)'
                     args=(e,w) if w<=e else (w,e)
                     for v,raw in db.execute(f'SELECT vertices,polygon FROM coverage WHERE pack=? AND south<=? AND north>=? AND {longitude}',(pack,n,s,*args)):
