@@ -1,3 +1,7 @@
+## OpenRF v0.2.229 — Statewide and national FCC coverage overview
+
+Offline FCC layers remain visible at wide zoom levels with a labeled coarse report-density grid; zoom in for original polygons. Existing compiled carrier packs work without rebuilding.
+
 ## OpenRF v0.2.228 — Provider-specific FCC coverage compiler
 
 C/M/R markers retain their network identity when clustered; compact count badges show group size. No database or provider changes.

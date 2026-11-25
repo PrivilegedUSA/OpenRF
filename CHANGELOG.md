@@ -1,3 +1,7 @@
+## v0.2.229
+
+- Keep FCC compiled coverage visible at state and nationwide views using a bounded, cached density overview; detailed H3 polygons remain at local zoom. Explicitly label coarse report cells as not full-cell service. Independent carrier profiles, original state packs and all other data preserved. First overview is prepared locally and may take longer. No new external download.
+
 ## v0.2.228
 
 - Recognize provider-specific FCC H3 ZIP filenames and split 5G speed tiers; derive missing provider identity from the six-digit archive identifier, keep unknown providers separate from named carriers, validate conflicting row IDs and speed tiers. Accept partial source sets with independent state/provider packs and protect previously installed profiles from accidental removal. Add a separate statewide aggregate coverage toggle for unattributed statewide sources. Provider-scoped scan/build skips unrelated corrupt statewide files. No actual provider archives tested; synthetic schema fixtures passed.

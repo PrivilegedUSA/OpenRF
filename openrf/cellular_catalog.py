@@ -53,7 +53,7 @@ def coords(lon, lat):
 def arcgis(params):
     # ArcGIS query supports form POST. Long GET URLs can produce HTTP 404.
     encoded = urlencode({'f':'json', **params})
-    headers = {'User-Agent':'OpenRF/0.2.228 (manual FCC public data download; https://openrf.app)', 'Accept':'application/json'}
+    headers = {'User-Agent':'OpenRF/0.2.229 (manual FCC public data download; https://openrf.app)', 'Accept':'application/json'}
     request = Request(TOWER_URL, data=encoded.encode('ascii'), headers={**headers,'Content-Type':'application/x-www-form-urlencoded'}, method='POST')
     # Some proxies reject POST. Only fall back to a deliberately short GET.
     for attempt in range(3):
@@ -248,7 +248,7 @@ class Catalog:
             if not isinstance(v,list) or len(v)!=4 or v[0] not in carriers or not all(isinstance(x,str) and len(x)<=80 for x in v) or v[0] in chosen:
                 raise ValueError('Invalid coverage profile')
             chosen[v[0]]=tuple(v[1:])
-        pts=[]; polygons=[]; limited=[]; meta=self.metadata()
+        pts=[]; polygons=[]; limited=[]; overviews=[]; meta=self.metadata()
         with self.connect() as db:
             for kind in dict.fromkeys(kinds):
                 longitude='lon BETWEEN ? AND ?' if w<=e else '(lon>=? OR lon<=?)'
@@ -259,27 +259,45 @@ class Catalog:
                 matches=[(k,(m['vintage'],m['technology'],m['environment'])) for k,m in meta.items() if k.startswith('coverage:') and m.get('carrier')==carrier]
                 profile=chosen.get(carrier) or (sorted({v for _,v in matches})[-1] if matches else None)
                 packs=[k for k,v in matches if v==profile]
-                total=0; current=[]
-                for pack in packs:
-                    if meta[pack].get('fcc_file'):
-                        from .fcc_coverage import view_pack
-                        for item in view_pack(self.path.parent/'fcc-coverage'/meta[pack]['fcc_file'],meta[pack],(w,s,e,n),MAX_VIEW_VERTICES-total):
+                from .coverage_overview import overview, wide_view
+                from .fcc_coverage import view_pack
+                fcc=[k for k in packs if meta[k].get('fcc_file')]
+                manual=[k for k in packs if k not in fcc]
+                box=(w,s,e,n)
+                total=0; current=[]; overflow=False
+                use_overview=bool(fcc and wide_view(box))
+                if not use_overview:
+                    for pack in fcc:
+                        for item in view_pack(self.path.parent/'fcc-coverage'/meta[pack]['fcc_file'],meta[pack],box,MAX_VIEW_VERTICES-total):
                             if item is None:
-                                total=MAX_VIEW_VERTICES+1; break
+                                use_overview=True; break
                             v,polygon=item; total+=v
                             current.append({'carrier':carrier,'pack':pack,'polygon':polygon})
-                        if total>MAX_VIEW_VERTICES: break
-                        continue
+                        if use_overview: break
+                if use_overview:
+                    total=0; current=[]
+                    cells,step=overview([(self.path.parent/'fcc-coverage'/meta[k]['fcc_file'],meta[k]) for k in fcc],box,MAX_VIEW_VERTICES)
+                    if cells is None: overflow=True
+                    else:
+                        total=5*len(cells)
+                        current=[{'carrier':carrier,'pack':'FCC overview',**cell} for cell in cells]
+                        if cells: overviews.append({'carrier':carrier,'degrees':step})
+                for pack in manual:
                     longitude='west<=? AND east>=?' if w<=e else '(east>=? OR west<=?)'
                     args=(e,w) if w<=e else (w,e)
+                    manual_rows=[]; cost=0
                     for v,raw in db.execute(f'SELECT vertices,polygon FROM coverage WHERE pack=? AND south<=? AND north>=? AND {longitude}',(pack,n,s,*args)):
-                        total+=v
-                        if total>MAX_VIEW_VERTICES: break
-                        current.append({'carrier':carrier,'pack':pack,'polygon':json.loads(raw)})
-                    if total>MAX_VIEW_VERTICES: break
-                if total>MAX_VIEW_VERTICES: limited.append('coverage:'+carrier)
-                else: polygons.extend(current)
-        return {'points':pts,'coverage':polygons,'limited':limited}
+                        cost+=v
+                        if total+cost>MAX_VIEW_VERTICES: break
+                        manual_rows.append({'carrier':carrier,'pack':pack,'polygon':json.loads(raw)})
+                    if total+cost>MAX_VIEW_VERTICES:
+                        overflow=True
+                        if not fcc: current=[]; break
+                    else: total+=cost; current.extend(manual_rows)
+                if overflow: limited.append('coverage:'+carrier)
+                polygons.extend(current)
+        return {'points':pts,'coverage':polygons,'limited':limited,'overviews':overviews}
+
 
 
 def main():

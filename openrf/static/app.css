@@ -3176,7 +3176,7 @@ body.map-workspace .topbar button {border:0!important;}
 .cellular-raster-coverage{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.cellular-raster-pin{position:absolute;transform:translate(-50%,-50%);min-width:10px;min-height:10px;padding:0 2px;border:0;border-radius:12px;color:#101d27;font-size:9px;font-weight:700;line-height:14px;pointer-events:auto;cursor:pointer}
 #cellular-map-legend[hidden],#cellular-credits[hidden]{display:none!important}#cellular-profiles label{display:block;margin:6px 0}#cellular-profiles select{font-size:11px;padding:6px}
 
-/* v0.2.228 — local cellular coverage import */
+/* v0.2.229 — local cellular coverage import */
 .cellular-import-form{display:grid;gap:8px;margin:8px 7px}.cellular-import-form label{display:grid;gap:4px;font-size:12px}.cellular-import-form label.switchline{display:flex;align-items:flex-start}.cellular-import-form .field{width:100%;min-width:0}.cellular-import-form progress{width:100%;height:6px;accent-color:#34c9b1}.cellular-import-form progress[hidden]{display:none}.cellular-import-form .error{color:#ffb0a9}
 
 .cellular-dot.aggregate{background:#66d9a6}
