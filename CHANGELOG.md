@@ -1,3 +1,8 @@
+## v0.2.220
+
+- Cluster public mesh nodes by network on both raster and vector renderers. Separate colliding display markers with small pixel offsets and leader lines; keep reported coordinates and cache data unchanged.
+- Maintain independent layer toggles, colors and detail panels. No provider, schema or cache changes.
+
 ## v0.2.219
 
 - Add public Reticulum directory from REPMAP `/data` with independent offline cache, purple markers, transport filter and source attribution. Only operator-published positions; no IP or name-derived estimates, local announcements or messages. Seven-day cache expiry. Live download not verified; provider data redistribution terms not established; no dataset bundled.

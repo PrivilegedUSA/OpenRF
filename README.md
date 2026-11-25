@@ -1,3 +1,7 @@
+## OpenRF v0.2.220 — Separate public mesh map markers
+
+Public directory clusters are network-specific on both renderers. Colliding markers are visually offset while reported positions and caches are unchanged.
+
 ## OpenRF v0.2.219 — Public Reticulum map and camera retry
 
 Manual REPMAP public infrastructure snapshot, independent offline cache and layers; excludes estimated locations. Temporary traffic-provider errors retry with bounded backoff and separate warnings. See changelog.
