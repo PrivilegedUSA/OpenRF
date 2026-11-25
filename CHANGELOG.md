@@ -1,3 +1,8 @@
+## v0.2.231
+
+- Remove carrier-name underlines; use a subtle teal hover and expanded-state highlight, a pointer cursor and existing keyboard focus feedback. Respect reduced-motion preferences. Checkbox and carrier information behavior are unchanged. No database changes.
+- Document verified-copy migration of compiled FCC packs to external storage under WSL.
+
 ## v0.2.230
 
 - Keep AT&T, T-Mobile, Verizon and Any provider in the main coverage grid. Carrier names open an offline information panel independently of their checkboxes, with selected network-brand examples and service caveats. Move independent regional carrier packs under Advanced, preserving their preference and import support. Use pale lemon for aggregate coverage in both renderers and the legend. No coverage database format changes, rebuilds or downloads.

@@ -1,4 +1,4 @@
-## OpenRF v0.2.230 — Carrier network information and coverage controls
+## OpenRF v0.2.231 — Carrier information hover styling
 
 Offline FCC layers remain visible at wide zoom levels with a labeled coarse report-density grid; zoom in for original polygons. Existing compiled carrier packs work without rebuilding.
 

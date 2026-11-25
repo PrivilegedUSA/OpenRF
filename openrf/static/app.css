@@ -3182,7 +3182,9 @@ body.map-workspace .topbar button {border:0!important;}
 .cellular-dot.aggregate{background:#fff39a}
 /* Carrier name is an independent information action, never a checkbox label. */
 .cellular-carrier-tile{display:flex;align-items:center;gap:7px;padding:10px;border-radius:8px;background:#132834;font-size:12px;color:#cee0e7;min-height:45px;min-width:0}
-#page-map .cellular-carrier-name{background:transparent;color:inherit;padding:0;text-align:left;font:inherit;min-width:0;flex:1;cursor:pointer;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
+#page-map .cellular-carrier-name{background:transparent;color:inherit;padding:0;text-align:left;font:inherit;min-width:0;flex:1;cursor:pointer;text-decoration:none;overflow-wrap:anywhere;border-radius:4px;transition:color 150ms ease,background-color 150ms ease}
+#page-map .cellular-carrier-name:hover,#page-map .cellular-carrier-name[aria-expanded="true"]{color:#70e5d3;background:rgba(52,201,177,.08)}
+@media(prefers-reduced-motion:reduce){#page-map .cellular-carrier-name{transition:none}}
 #page-map .cellular-carrier-name:focus-visible,#page-map #cellular-carrier-info-close:focus-visible{outline:2px solid #34c9b1;outline-offset:3px}
 .cellular-carrier-info{margin:8px 0;padding:10px;background:#162e39;border-radius:8px;color:#cee0e7}.cellular-carrier-info[hidden]{display:none!important}.cellular-carrier-info-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.cellular-carrier-info p{margin:6px 0 0;line-height:1.5}#cellular-carrier-info-close{background:transparent;color:inherit;font-size:20px;padding:2px 6px;cursor:pointer}
 

@@ -17,3 +17,7 @@ buttons[2].click();buttons[2].click();assert.equal(ids['cellular-carrier-info'].
 buttons[3].click();ids['cellular-carrier-info'].handlers.keydown({key:'Escape',stopPropagation(){}});assert.equal(ids['cellular-carrier-info'].hidden,true);
 const h=fs.readFileSync('openrf/static/index.html','utf8'),css=fs.readFileSync('openrf/static/app.css','utf8');const grid=h.split('id="cellular-carrier-grid"')[1].split('<section')[0];assert.deepEqual([...grid.matchAll(/data-cellular-carrier="(.*?)"/g)].map(m=>m[1]),['att','tmobile','verizon','aggregate']);assert.match(h,/id="cellular-regional-carriers"[\s\S]*?data-cellular-carrier="other"/);assert.doesNotMatch(grid,/<label/);assert.match(css,new RegExp('\\.cellular-dot\\.aggregate\\{background:'+colors.aggregate+'\\}'));assert.equal(colors.aggregate,'#fff39a');
 console.log('Carrier info, independent checkbox controls and aggregate palette passed');
+
+assert.match(css,/#page-map \.cellular-carrier-name\{[^}]*text-decoration:none/);
+assert.match(css,/#page-map \.cellular-carrier-name:hover[^}]*color:#70e5d3/);
+assert.match(css,/prefers-reduced-motion:reduce\)\{#page-map \.cellular-carrier-name\{transition:none/);
