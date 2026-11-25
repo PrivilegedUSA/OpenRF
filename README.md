@@ -1,3 +1,7 @@
+## OpenRF v0.2.206 — Public mesh directory foundation
+
+Map layers now include a separate public MeshCore directory with manual download, offline cache and clustered markers; local radio layers remain independent. Public Meshtastic and Reticulum providers are planned, not yet integrated. See `docs/RELEASE_0.2.206_TESTS.md`.
+
 ## OpenRF v0.2.205 — Map layer and feature-info fixes
 
 Mesh layers now show reported position counts and inventory availability. Camera and survey feature popups dismiss on workspace/menu changes and layer changes. The mesh map uses locally available radio node positions, not a public mesh directory. See `docs/RELEASE_0.2.205_TESTS.md`.

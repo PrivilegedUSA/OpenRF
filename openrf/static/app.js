@@ -454,6 +454,7 @@ function closeHeaderMessageMenu(returnFocus = false){
 }
 // Only primary-map feature info is dismissed; preserve navigation and route state.
 function closeMapFeatureInfo() {
+  window.OpenRFPublicMesh?.close();
   const popup=state.mapFeaturePopup;
   state.mapFeaturePopup=null;
   popup?.remove();
@@ -2019,6 +2020,7 @@ function updateMap() {
   }))});
   window.OpenRFCameras?.updateVector(state.map);
   window.OpenRFMeshDashboard?.vector(state.map);
+  window.OpenRFPublicMesh?.vector(state.map);
 }
 function switchToRasterMap(reason) {
   closeMapFeatureInfo();
@@ -2245,6 +2247,7 @@ function startRasterMap(reason, view = null) {
       }
       window.OpenRFCameras?.renderRaster(nextPins,raster,width,height);
       window.OpenRFMeshDashboard?.raster(nextPins,raster,width,height,worldPixel);
+      window.OpenRFPublicMesh?.raster(nextPins,raster,width,height,worldPixel);
       pins.replaceChildren(nextPins);
       renderAreaOverlay();
       renderNavigationOverlay();
@@ -5907,3 +5910,5 @@ refreshAreaPlans().catch(e=>{ $('area-saved-detail').textContent = `Saved area p
 refreshNavigationDestinations().catch(e=>{ $('nav-destination-list').textContent=`Local destinations unavailable: ${e.message}`; });
 
 if(typeof window!=='undefined' && window.OpenRFMeshDashboard) window.OpenRFMeshDashboard.redraw=()=>{if(state.rasterMap)state.rasterMap.render();else if(state.mapReady)window.OpenRFMeshDashboard.vector(state.map);};
+
+if(typeof window!=='undefined' && window.OpenRFPublicMesh) window.OpenRFPublicMesh.redraw=()=>{if(state.rasterMap)state.rasterMap.render();else if(state.mapReady)window.OpenRFPublicMesh.vector(state.map,true);};

@@ -806,6 +806,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, self.repo.stats())
         if path == '/api/radio/status':
             return self._json(200, self.server.radio_receiver.status())
+        if path == '/api/mesh/public':
+            return self._json(200, self.server.public_mesh.snapshot())
         if path == '/api/mesh/dashboard':
             from .mesh_monitor import topology, SnapshotBusy
             try:
@@ -1018,7 +1020,7 @@ class Handler(BaseHTTPRequestHandler):
             file = STATIC_DIR / 'index.html'
         elif path == '/static/hardware-tabs.js':
             file = STATIC_DIR / 'hardware-tabs.js'
-        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/tab-session.js', '/static/browser-workspace.js', '/static/saved-trips.js', '/static/wifi-quick.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/trip-map.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/camera_alerts.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/weather.js', '/static/mesh.js', '/static/meshcore.js', '/static/mesh-dashboard.js', '/static/messaging-tabs.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/reticulum-files.js', '/static/reticulum-tabs.js', '/static/bluetooth-files.js', '/static/camera-layers.js', '/static/chirp-import.js', '/static/surveillance.js', '/static/surveillance.css'):
+        elif path in ('/static/app.css', '/static/app.js', '/static/app-settings.js', '/static/tab-session.js', '/static/browser-workspace.js', '/static/saved-trips.js', '/static/wifi-quick.js', '/static/map-elevation.js', '/static/battery-status.js', '/static/route-elevation.js', '/static/trip-map.js', '/static/field-breadcrumbs.js', '/static/breadcrumb_follow.js', '/static/emergency-tabs.js', '/static/emergency.js', '/static/emergency-library.js', '/static/emergency-sos.js', '/static/emergency-handoff.js', '/static/emergency-teams.js', '/static/emergency-checkins.js', '/static/emergency-inbox.js', '/static/emergency-protocol.js', '/static/emergency-dashboard.js', '/static/emergency-survival.js', '/static/emergency-backup.js', '/static/field-calendar.js', '/static/history-analysis.js', '/static/navigation.js', '/static/route_guidance.js', '/static/navigation_health.js', '/static/camera_alerts.js', '/static/offline_readiness.js', '/static/survey_map.js', '/static/spectrum.js', '/static/spectrum-analysis.js', '/static/sdr-history.js', '/static/radio.js', '/static/weather.js', '/static/mesh.js', '/static/meshcore.js', '/static/mesh-dashboard.js', '/static/public-mesh.js', '/static/messaging-tabs.js', '/static/mesh_connections.js', '/static/field_network.js', '/static/field_hotspot.js', '/static/wifi_halow.js', '/static/reticulum.js', '/static/reticulum-files.js', '/static/reticulum-tabs.js', '/static/bluetooth-files.js', '/static/camera-layers.js', '/static/chirp-import.js', '/static/surveillance.js', '/static/surveillance.css'):
             file = STATIC_DIR / Path(path).name
         elif path == '/static/offline-trails.js':
             file = STATIC_DIR / 'offline-trails.js'
@@ -1035,6 +1037,20 @@ class Handler(BaseHTTPRequestHandler):
         if not self._allowed_host() or not self._allowed_origin() or self.headers.get('Sec-Fetch-Site') == 'cross-site':
             return self._error(HTTPStatus.FORBIDDEN, 'Cross-origin requests are not allowed')
         path = urlparse(self.path).path
+        if path in ('/api/mesh/public/refresh','/api/mesh/public/clear'):
+            from .public_mesh import DirectoryError
+            try:
+                body = self._decode_body()
+                if not isinstance(body, dict) or set(body) != {'confirm'} or body['confirm'] is not True:
+                    raise ValueError('Explicit confirmation required')
+                result = self.server.public_mesh.refresh() if path.endswith('/refresh') else self.server.public_mesh.clear()
+                return self._json(200, result)
+            except ValueError as exc:
+                return self._error(400, str(exc))
+            except DirectoryError as exc:
+                return self._error(409, str(exc))
+            except OSError:
+                return self._error(503, 'Public directory storage unavailable')
         if path in ('/api/mesh/dashboard/history/settings','/api/mesh/dashboard/history/clear'):
             try:
                 if self.server.mesh_history is None: raise OSError('History unavailable')
@@ -2197,6 +2213,8 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
     server.national_alpr_manager = national_alpr.UpdateManager(repository)
     from .mesh_monitor import MeshMonitor, SnapshotCoordinator
     from .mesh_dashboard import dashboard
+    from .public_mesh import PublicMeshDirectory
+    server.public_mesh = PublicMeshDirectory(repository.path.parent / 'public-meshcore.json')
     server.mesh_snapshot = SnapshotCoordinator(lambda: dashboard(server.mesh_manager, server.meshcore_manager, server.reticulum_manager))
     if server.mesh_history is not None:
         server.mesh_monitor = MeshMonitor(server.mesh_history, server.mesh_snapshot)

@@ -1,3 +1,9 @@
+# v0.2.206 — Public MeshCore directory foundation
+
+- Add manual public MeshCore snapshot download, bounded offline cache, source-labelled public layers and screen-space map clustering.
+- Preserve separate local radio inventory, history and messaging. No automatic external requests; public snapshots can be cleared.
+- See `docs/RELEASE_0.2.206_TESTS.md` for provider limitations and acceptance steps.
+
 # v0.2.205 — Map layer and feature-info fixes
 
 - Give Mesh nodes heading more breathing room and prevent long labels from shrinking checkboxes.
