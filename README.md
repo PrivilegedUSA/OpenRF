@@ -1,3 +1,7 @@
+## OpenRF v0.2.210 — Map palette refinement
+
+Red-light cameras are red, speed cameras yellow and ALPR/Flock orange. Includes the compact borderless map styling from v0.2.209. See `docs/RELEASE_0.2.210_TESTS.md`.
+
 ## OpenRF v0.2.208 — Public MeshCore directory compatibility
 
 Map layers now include a separate public MeshCore directory with manual download, offline cache and clustered markers; local radio layers remain independent. Public Meshtastic and Reticulum providers are planned, not yet integrated. See `docs/RELEASE_0.2.208_TESTS.md`.

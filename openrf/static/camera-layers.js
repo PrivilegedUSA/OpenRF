@@ -5,7 +5,7 @@
   const get=id=>document.getElementById(id);
   const controls=[...document.querySelectorAll('[data-camera-type]')];
   if (!get('camera-map-manager') || !controls.length) return;
-  const colors={ALPR:'#8bd9ef',RED_LIGHT:'#ff7974',SPEED:'#f8cc7c'};
+  const colors={ALPR:'#ee7828',RED_LIGHT:'#d82f49',SPEED:'#e4bf28'};
   let entries=[],lastKey='',fetchTimer=null,fetchEpoch=0,active=false;
   const enabled=()=>new Set(controls.filter(c=>c.checked).map(c=>c.dataset.cameraType));
   const setStatus=(message,error=false)=>{const el=get('camera-map-status');el.textContent=message;el.classList.toggle('error',error);};
@@ -63,8 +63,7 @@
     if(!map || map.getSource('camera-catalog-data'))return;
     map.addSource('camera-catalog-data',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
     map.addLayer({id:'camera-catalog-points',type:'circle',source:'camera-catalog-data',paint:{
-      'circle-color':['get','camera_color'],'circle-radius':7,'circle-stroke-color':'#06232b',
-      'circle-stroke-width':2,'circle-opacity':0.95
+      'circle-color':['get','camera_color'],'circle-radius':6,'circle-stroke-width':0,'circle-opacity':1
     }});
     if(!map.__openrfCameraClickHandler){
       map.__openrfCameraClickHandler=true;

@@ -1,3 +1,15 @@
+# v0.2.210 — Camera palette correction
+
+- Red-light cameras red; speed cameras yellow; ALPR/Flock remains orange. Synchronize both renderers, layer swatches and camera keys. Preserve v0.2.209 map styling and cached data.
+- See `docs/RELEASE_0.2.210_TESTS.md`.
+
+# v0.2.209 — Map visual consistency
+
+- Compact, borderless public and local mesh pins, with numeric clusters and rounded-square infrastructure markers. MeshCore blue-teal, Meshtastic green and Reticulum purple; public and local MeshCore labels preserve provenance.
+- ALPR/Flock orange, red-light cameras yellow and speed cameras red, consistently on the vector and raster maps, route camera keys and layer swatches.
+- Map-scoped borderless buttons and panel shells; retain checkbox outlines, keyboard focus and meaningful navigation/DEMO accents. Consistent drawn close icons and a pinned public directory details header.
+- Existing data, camera and mesh directory behavior, navigation and other workspaces are preserved. See `docs/RELEASE_0.2.209_TESTS.md`.
+
 # v0.2.208 — Public MeshCore record parsing and terminal progress
 
 - Read advertised `adv_lat` / `adv_lon` decimal-degree positions; retain compatibility with older `lat` / `lon` fixtures, reject invalid or missing advertised positions, and report rejected record counts on total validation failure.

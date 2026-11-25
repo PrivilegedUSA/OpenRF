@@ -22,18 +22,21 @@
   function details(g){
     window.OpenRFMapFeatureInfo?.close();const p=el('public-mesh-detail');if(!p)return;
     const title=text('strong',g.nodes.length===1?'Public MeshCore node':`${g.nodes.length} public MeshCore nodes in this map cluster`);
-    const dismiss=text('button','Close');dismiss.type='button';dismiss.className='btn outline';dismiss.addEventListener('click',close);
-    p.replaceChildren(title,text('p','Official MeshCore Map · published locations, not verified reachability.'),dismiss);
+    const dismiss=text('button','');dismiss.type='button';dismiss.className='map-sheet-close';dismiss.setAttribute('aria-label','Close public mesh node details');dismiss.title='Close details';dismiss.addEventListener('click',close);
+    const head=text('div','');head.className='public-mesh-detail-head';head.append(title,dismiss);
+    const body=text('div','');body.className='public-mesh-detail-body';body.append(text('p','Official MeshCore Map · published locations, not verified reachability.'));
+    p.replaceChildren(head,body);
     for(const n of g.nodes.slice(0,30)){
       const d=text('div','');d.className='public-mesh-node-detail';
-      d.append(text('strong',n.name),text('p',`${n.role} · ${n.lat}, ${n.lon}`),text('p',`Directory updated: ${n.updated||'Unavailable'} · source: ${n.source||'Unavailable'}`),text('p',`Identifier: ${n.id}`));p.append(d);
+      d.append(text('strong',n.name),text('p',`${n.role} · ${n.lat}, ${n.lon}`),text('p',`Directory updated: ${n.updated||'Unavailable'} · source: ${n.source||'Unavailable'}`),text('p',`Identifier: ${n.id}`));body.append(d);
     }
-    if(g.nodes.length>30)p.append(text('p','Zoom in to inspect the remaining nodes.'));
+    if(g.nodes.length>30)body.append(text('p','Zoom in to inspect the remaining nodes.'));
     p.hidden=false;
   }
   function marker(g,raster=false){
     const b=text('button',g.nodes.length>1?String(g.nodes.length):g.nodes[0].role==='Repeater'?'P+':'P');
     b.type='button';b.className='public-mesh-pin'+(raster?' public-mesh-raster-pin':'');
+    b.dataset.kind=g.nodes.length>1?'cluster':g.nodes[0].role==='Repeater'?'repeater':'node';
     b.title=g.nodes.length>1?`${g.nodes.length} public directory nodes`:g.nodes[0].name+' · public MeshCore directory';b.setAttribute('aria-label',b.title);
     b.addEventListener('click',e=>{e.stopPropagation();details(g);});return b;
   }

@@ -1116,7 +1116,7 @@ body.map-workspace .topbar .menu-toggle:focus-visible,
 .camera-layer-toggles{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0}
 .camera-layer-toggles label{font-size:12px;display:flex;align-items:center;gap:4px;white-space:nowrap}
 .camera-key{font-size:20px;line-height:12px}
-.camera-key.alpr{color:#8bd9ef}.camera-key.red-light{color:#ff7974}.camera-key.speed{color:#f8cc7c}
+.camera-key.alpr{color:#ee7828}.camera-key.red-light{color:#d82f49}.camera-key.speed{color:#e4bf28}
 .camera-manual-form,.chirp-import-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
 .camera-manual-form label,.chirp-import-form label{display:grid;gap:5px;font-size:12px}
 .camera-coordinates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
@@ -1128,9 +1128,9 @@ body.map-workspace .topbar .menu-toggle:focus-visible,
 @media(max-width:620px){.camera-manual-form,.chirp-import-form{grid-template-columns:1fr}}
 
 /* v0.2.55: one consistent checkbox grid and spaced camera actions. */
-#map-survey-panel .layer-dot.camera-alpr{background:#8bd9ef}
-#map-survey-panel .layer-dot.camera-red{background:#ff7974}
-#map-survey-panel .layer-dot.camera-speed{background:#f8cc7c}
+#map-survey-panel .layer-dot.camera-alpr{background:#ee7828}
+#map-survey-panel .layer-dot.camera-red{background:#d82f49}
+#map-survey-panel .layer-dot.camera-speed{background:#e4bf28}
 #map-survey-panel .camera-map-manager{margin:14px 0 12px;padding:13px 2px 12px;border:0;border-top:1px solid #355d62;border-bottom:1px solid #355d62;border-radius:0}
 #map-survey-panel .camera-section-heading{display:block;font-size:13px;color:#d4f7ef;margin:0 7px 6px}
 #map-survey-panel .camera-map-manager > p{margin:9px 7px;line-height:1.55;overflow-wrap:anywhere}
@@ -2989,3 +2989,89 @@ body.map-workspace .topbar .header-wifi-button{background:#0c2833e8;color:#a9e7d
 .public-mesh-raster-pin{position:absolute;transform:translate(-50%,-50%)}
 .public-mesh-detail{position:absolute;z-index:20;left:12px;bottom:64px;width:min(360px,calc(100% - 24px));max-height:45%;overflow:auto;background:#101d27;border:1px solid #35616b;border-radius:10px;padding:12px;overflow-wrap:anywhere;pointer-events:auto}
 .public-mesh-detail[hidden]{display:none}.public-mesh-detail p{font-size:.78rem;margin:6px 0}.public-mesh-node-detail{border-top:1px solid #35616b;padding-top:8px;margin-top:8px}
+
+/* v0.2.209 — map-only visual cleanup. Preserve field/checkbox outlines,
+   section separators, focus rings and semantic warning/DEMO accents. */
+#page-map button,
+#page-map .map-sheet-tools label,
+#page-map .map-layer-options label,
+#page-map .maplibregl-ctrl-group,
+#page-map .maplibregl-ctrl-group button+button,
+#observation-dialog.map-observation-popup button {
+  border:0!important;
+}
+#page-map :is(.map-destination-panel,.map-destination-form,.map-settings-popup,
+  .map-survey-panel,.map-tool-overlay,.map-picked-action,.map-route-choices,
+  .map-directions-review,.map-credits-links,.map-observation-detail,
+  .map-series-detail,.public-mesh-detail,.map-wireless-history,.camera-advanced-import),
+#page-map #map .maplibregl-popup-content,
+#page-map #map .openrf-camera-map-popup .maplibregl-popup-content,
+#observation-dialog.map-observation-popup {
+  border:0!important;
+}
+#page-map .map-follow-hud:not(.navigation-guiding) {border:0;}
+#page-map .route-choice-btn[aria-pressed="true"] {background:#104d4a;}
+#page-map .map-travel-mode-button[aria-pressed="true"] {background:#174d50;}
+
+/* Shared drawn close icon; original labels remain available to assistive tech.
+   Native MapLibre dismiss controls keep their built-in event handlers. */
+#page-map :is(.map-sheet-close,.map-tool-close,.map-settings-close,.map-detail-close,
+  #map-picked-close,#route-choice-close,#map-camera-route-close,.maplibregl-popup-close-button),
+#observation-dialog.map-observation-popup .close-btn {
+  display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;
+  min-width:32px;min-height:32px;padding:0!important;border-radius:8px;
+  font-size:0!important;line-height:1;background:#0c2833ec;color:#c5fff3;
+  box-shadow:none;cursor:pointer;
+}
+#page-map :is(.map-sheet-close,.map-tool-close,.map-settings-close,.map-detail-close,
+  #map-picked-close,#route-choice-close,#map-camera-route-close,.maplibregl-popup-close-button)::before,
+#observation-dialog.map-observation-popup .close-btn::before,
+#page-map .map-search-close-mark::before {
+  content:"";display:block;width:16px;height:16px;background:currentColor;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 6L18 18M18 6L6 18' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+#page-map .map-search-close-mark {display:grid;place-items:center;font-size:0;line-height:1;}
+#page-map #map .maplibregl-popup-close-button {top:5px;right:5px;}
+#page-map #map .maplibregl-popup-content {padding-top:40px;}
+#page-map #map .openrf-camera-map-popup .maplibregl-popup-content {padding-top:40px;}
+#page-map :is(.map-sheet-close,.map-tool-close,.map-settings-close,.map-detail-close,
+  #map-picked-close,#route-choice-close,#map-camera-route-close,.maplibregl-popup-close-button):hover,
+#observation-dialog.map-observation-popup .close-btn:hover {background:#20505a;color:#fff;}
+#page-map button:focus-visible,#observation-dialog.map-observation-popup button:focus-visible {
+  outline:2px solid #98f5df;outline-offset:2px;
+}
+
+/* Smaller borderless mesh pins; the clustering algorithm and data are unchanged. */
+#page-map .public-mesh-pin,#page-map .mesh-network-pin {
+  display:grid;place-items:center;width:24px;height:24px;min-width:24px;min-height:24px;
+  padding:0;border-radius:50%;font-size:10px;line-height:1;font-weight:700;
+  color:#fff;background:#176b79;box-shadow:0 1px 4px #0005;
+}
+#page-map .public-mesh-pin[data-kind="repeater"] {background:#176b79;border-radius:7px;}
+#page-map .public-mesh-pin[data-kind="cluster"] {
+  width:auto;min-width:28px;height:28px;padding:0 6px;border-radius:16px;background:#164957;
+}
+#page-map .mesh-network-pin[data-protocol="Meshtastic"] {background:#397b3d;}
+#page-map .mesh-network-pin[data-protocol="MeshCore"] {background:#176b79;}
+#page-map .mesh-network-pin[data-protocol="Reticulum"] {background:#584188;}
+#page-map .mesh-network-pin.mesh-network-infrastructure {border-radius:7px;}
+#page-map .public-mesh-pin:hover,#page-map .mesh-network-pin:hover {filter:brightness(1.18);}
+#page-map .public-mesh-detail:not([hidden]) {display:flex;flex-direction:column;overflow:hidden;box-shadow:0 7px 22px #0006;}
+#page-map .public-mesh-detail-head {display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex:none;}
+#page-map .public-mesh-detail-head strong {padding-top:5px;min-width:0;}
+#page-map .public-mesh-detail-body {min-height:0;overflow:auto;overscroll-behavior:contain;}
+
+/* Palette consistency: public and local MeshCore share a blue-teal family;
+   the P/C labels distinguish provenance. Camera points use warm hues. */
+#page-map .raster-camera-pin {width:12px;height:12px;min-width:12px;min-height:12px;padding:0;box-shadow:none;pointer-events:auto;}
+#page-map .raster-pin {width:16px;height:16px;padding:0;box-shadow:0 1px 4px #0007;}
+#page-map .raster-pin.selected,#page-map .raster-pin.survey-sample-highlight {box-shadow:0 0 0 3px #f4fff4,0 0 0 6px #1e554e99;}
+#page-map :is(.map-origin-control,.map-altimeter,.map-lane-guidance,.route-road-control,.route-step-avoid-actions,.camera-approach-settings,.raster-notice,.map-survey-plot,.map-location-toast,.map-legend) {border:0!important;}
+#page-map .map-layer-options .mesh-layer-dot {display:inline-block;width:9px;height:9px;flex:0 0 9px;border:0;border-radius:50%;background:#176b79;}
+#page-map .mesh-layer-dot.repeater {border-radius:2px;}
+#page-map .mesh-layer-dot.meshtastic {background:#397b3d;}
+#page-map .mesh-layer-dot.reticulum {background:#584188;}
+#page-map .mesh-layer-dot.infrastructure {background:#9aa8b4;border-radius:2px;}
+
+/* Header actions float over the map too; scope to the map workspace. */
+body.map-workspace .topbar button {border:0!important;}
