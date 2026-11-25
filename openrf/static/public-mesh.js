@@ -12,45 +12,23 @@
     }
     return [...bins.values()].map(g=>({...g,x:g.x/g.nodes.length,y:g.y/g.nodes.length}));
   }
-  // Keep each network's clusters separate. Displace only display pixels when
-  // markers collide; the centroid and original reported coordinates stay intact.
-  function pinWidth(g){return g.nodes.length>1?Math.max(20,8+6*String(g.nodes.length).length):16;}
+  // Network clusters retain independent membership. A compact multi-network
+  // badge replaces overlapping pins at an existing anchor, never displaced pins.
+  const networkOrder=['MeshCore','Meshtastic','Reticulum'];
+  const shortName=n=>({MeshCore:'P',Meshtastic:'M',Reticulum:'R'})[n]||'?';
   function layout(nodes,project,w,h){
-    const multiple=new Set(nodes.map(n=>n.network)).size>1;
-    const raw=groups(nodes,project,w,h,multiple?64:48);
-    const used=new Map(),tile=48,gap=4;
-    const key=(x,y)=>`${x}:${y}`;
-    function nearby(x,y){
-      const a=Math.floor(x/tile),b=Math.floor(y/tile),out=[];
-      for(let i=a-1;i<=a+1;i++)for(let j=b-1;j<=b+1;j++)out.push(...(used.get(key(i,j))||[]));
-      return out;
-    }
-    function free(x,y,width,height){return !nearby(x,y).some(p=>Math.abs(x-p.displayX)<(width+p.width)/2+gap&&Math.abs(y-p.displayY)<(height+p.height)/2+gap);}
-    const result=[];
+    const raw=groups(nodes,project,w,h,48).sort((a,b)=>a.x-b.x||a.y-b.y||networkOrder.indexOf(a.nodes[0].network)-networkOrder.indexOf(b.nodes[0].network));
+    const used=new Map(),result=[],tile=48;
+    // Use a fixed maximum badge footprint so widening a badge cannot hide a
+    // nearby independent pin. Keep the first anchor rather than repelling pins.
     for(const g of raw){
-      const width=pinWidth(g),height=g.nodes.length>1?20:16;
-      let x=g.x,y=g.y;
-      if(!free(x,y,width,height)){
-        // Find the closest available slot on a small pixel grid. Search
-        // outwards, including adjacent bins, rather than hiding any network.
-        const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
-        const step=24,limit=Math.ceil(Math.max(w,h)/step)+1;
-        let found=false;
-        for(let ring=1;ring<=limit&&!found;ring++){
-          const candidates=[];
-          for(let dx=-ring;dx<=ring;dx++)for(let dy=-ring;dy<=ring;dy++){
-            if(Math.max(Math.abs(dx),Math.abs(dy))!==ring)continue;
-            const cx=clamp(g.x+dx*step,width/2,Math.max(width/2,w-width/2));
-            const cy=clamp(g.y+dy*step,height/2,Math.max(height/2,h-height/2));
-            candidates.push([cx,cy,(cx-g.x)**2+(cy-g.y)**2]);
-          }
-          candidates.sort((a,b)=>a[2]-b[2]);
-          for(const [cx,cy] of candidates)if(free(cx,cy,width,height)){x=cx;y=cy;found=true;break;}
-        }
+      const i=Math.floor(g.x/tile),j=Math.floor(g.y/tile);let hit=null,best=Infinity;
+      for(let x=i-1;x<=i+1;x++)for(let y=j-1;y<=j+1;y++)for(const q of used.get(`${x}:${y}`)||[]){
+        const dx=Math.abs(g.x-q.x),dy=Math.abs(g.y-q.y),d=dx*dx+dy*dy;
+        if(dx<46&&dy<24&&d<best){hit=q;best=d;}
       }
-      const placed={...g,displayX:x,displayY:y,width,height};
-      const k=key(Math.floor(x/tile),Math.floor(y/tile));
-      if(!used.has(k))used.set(k,[]);used.get(k).push(placed);result.push(placed);
+      if(hit){hit.parts.push(g);for(const n of g.nodes)hit.nodes.push(n);}
+      else{const q={x:g.x,y:g.y,nodes:[...g.nodes],parts:[g]};result.push(q);const key=`${i}:${j}`;if(!used.has(key))used.set(key,[]);used.get(key).push(q);}
     }
     return result;
   }
@@ -68,28 +46,31 @@
     const title=text('strong',g.nodes.length===1?`Public ${network(g)} node`:`${g.nodes.length} public ${network(g)==='Mixed'?'mesh':network(g)} nodes in this map cluster`);
     const dismiss=text('button','');dismiss.type='button';dismiss.className='map-sheet-close';dismiss.setAttribute('aria-label','Close public mesh node details');dismiss.title='Close details';dismiss.addEventListener('click',close);
     const head=text('div','');head.className='public-mesh-detail-head';head.append(title,dismiss);
-    const body=text('div','');body.className='public-mesh-detail-body';body.append(text('p','Public directory snapshots · reported positions, not verified reachability. Meshtastic and Reticulum positions are approximate. Nearby markers may be offset for visibility; lines point toward their map anchors.'));
+    const body=text('div','');body.className='public-mesh-detail-body';body.append(text('p','Public directory snapshots · reported positions, not verified reachability. Meshtastic and Reticulum positions are approximate. An overlapping badge lists separate networks at a shared display anchor; individual reported coordinates are shown below.'));
     p.replaceChildren(head,body);
-    for(const n of g.nodes.slice(0,30)){
+    const nets=[...new Set(g.nodes.map(n=>n.network))].sort((a,b)=>networkOrder.indexOf(a)-networkOrder.indexOf(b));
+    for(const net of nets){
+      const nodes=g.nodes.filter(n=>n.network===net);
+      if(nets.length>1){const heading=text('strong',`${net} · ${nodes.length} reported node${nodes.length===1?'':'s'}`);heading.className='public-mesh-detail-network';heading.dataset.network=net;body.append(heading);}
+    for(const n of nodes.slice(0,30)){
       const d=text('div','');d.className='public-mesh-node-detail';
       d.append(text('strong',n.name),text('p',`${n.network} · ${n.reported_role||n.role} · ${n.lat}, ${n.lon}`),text('p',`Directory updated: ${n.updated||'Unavailable'} · source: ${n.source||'Unavailable'}`),text('p',`Identifier: ${n.id}`));body.append(d);
     }
-    if(g.nodes.length>30)body.append(text('p','Zoom in to inspect the remaining nodes.'));
+    if(nodes.length>30)body.append(text('p','Zoom in to inspect the remaining nodes in this network.'));
+    }
     p.hidden=false;
   }
   function marker(g,raster=false){
-    const b=text('button',g.nodes.length>1?String(g.nodes.length):g.nodes[0].network==='Reticulum'?(g.nodes[0].role==='Repeater'?'R+':'R'):g.nodes[0].network==='Meshtastic'?(g.nodes[0].role==='Repeater'?'M+':'M'):(g.nodes[0].role==='Repeater'?'P+':'P'));
+    const net=network(g),mixed=net==='Mixed';
+    const b=text('button',mixed?'':g.nodes.length>1?String(g.nodes.length):shortName(net)+(g.nodes[0].role==='Repeater'?'+':''));
     b.type='button';b.className='public-mesh-pin'+(raster?' public-mesh-raster-pin':'');
-    b.dataset.network=network(g);b.dataset.kind=g.nodes.length>1?'cluster':g.nodes[0].role==='Repeater'?'repeater':'node';
-    b.title=g.nodes.length>1?`${g.nodes.length} public ${network(g)} directory nodes`:g.nodes[0].name+' · public '+g.nodes[0].network+' directory';b.setAttribute('aria-label',b.title);
-    if(g.nodes.length>1)b.style.width=`${g.width}px`;
-    const dx=g.displayX-g.x,dy=g.displayY-g.y;
-    if(dx||dy){
-      b.dataset.displaced='true';
-      b.style.setProperty?.('--mesh-leader-length',`${Math.hypot(dx,dy)}px`);
-      b.style.setProperty?.('--mesh-leader-angle',`${Math.atan2(-dy,-dx)}rad`);
-      b.title+=' · visually offset to avoid overlap';b.setAttribute('aria-label',b.title);
-    }
+    b.dataset.network=net;b.dataset.kind=mixed?'overlap':g.nodes.length>1?'cluster':g.nodes[0].role==='Repeater'?'repeater':'node';
+    if(mixed){
+      const names=networkOrder.filter(n=>g.nodes.some(node=>node.network===n));
+      for(const n of names){const dot=text('span',shortName(n));dot.className='public-mesh-overlap-dot';dot.dataset.network=n;b.append(dot);}
+      b.title=names.map(n=>`${n}: ${g.nodes.filter(node=>node.network===n).length}`).join(' · ')+' · Select to inspect overlapping nodes';
+    }else b.title=g.nodes.length>1?`${g.nodes.length} public ${net} directory nodes`:g.nodes[0].name+' · public '+net+' directory';
+    b.setAttribute('aria-label',b.title);
     b.addEventListener('click',e=>{e.stopPropagation();details(g);});return b;
   }
   function clearMarkers(){for(const m of markers)m.remove();markers=[];}
@@ -98,7 +79,7 @@
     const canvas=map.getCanvas();const w=canvas.clientWidth,h=canvas.clientHeight;
     const center=map.getCenter().lng;
     for(const g of layout(enabled(),n=>map.project([n.lon+360*Math.round((center-n.lon)/360),n.lat]),w,h)){
-      markers.push(new window.maplibregl.Marker({element:marker(g),offset:[g.displayX-g.x,g.displayY-g.y]}).setLngLat(map.unproject([g.x,g.y])).addTo(map));
+      markers.push(new window.maplibregl.Marker({element:marker(g),offset:[0,0]}).setLngLat(map.unproject([g.x,g.y])).addTo(map));
     }
   }
   function vector(map,force=false){
@@ -113,7 +94,7 @@
   function raster(parent,r,w,h,project){
     const c=project(r.center[0],r.center[1],r.zoom),size=256*2**r.zoom;
     for(const g of layout(enabled(),n=>{const p=project(n.lon,n.lat,r.zoom);return {x:w/2+((p[0]-c[0]+size*1.5)%size)-size/2,y:h/2+p[1]-c[1]};},w,h)){
-      const b=marker(g,true);b.style.left=`${g.displayX}px`;b.style.top=`${g.displayY}px`;parent.append(b);
+      const b=marker(g,true);b.style.left=`${g.x}px`;b.style.top=`${g.y}px`;parent.append(b);
     }
   }
   function status(d,error=''){

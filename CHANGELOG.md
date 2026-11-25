@@ -1,3 +1,8 @@
+## v0.2.221
+
+- Replace public mesh marker repulsion and leader lines with compact anchored overlap badges and separate network detail sections.
+- Bright cyan MeshCore, lime Meshtastic and hot pink Reticulum markers and matching local/public layer keys. No provider, cache or schema changes.
+
 ## v0.2.220
 
 - Cluster public mesh nodes by network on both raster and vector renderers. Separate colliding display markers with small pixel offsets and leader lines; keep reported coordinates and cache data unchanged.

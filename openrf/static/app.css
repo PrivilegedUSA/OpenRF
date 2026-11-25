@@ -3120,10 +3120,22 @@ body.map-workspace .topbar button {border:0!important;}
 #map-survey-panel #camera-traffic-warning{color:#f5c37e;border-left:3px solid #dca34b;padding:6px 10px;margin:4px 7px;background:rgba(180,110,25,.10);overflow-wrap:anywhere;}
 #map-survey-panel #camera-traffic-warning[hidden]{display:none!important;}
 
-/* Public mesh display offsets: thin non-interactive lines to unchanged anchors. */
-#page-map .public-mesh-pin[data-displaced="true"]::after {
-  content:"";position:absolute;left:50%;top:50%;height:1px;width:var(--mesh-leader-length);
-  background:currentColor;opacity:.8;transform-origin:0 50%;transform:rotate(var(--mesh-leader-angle));
-  pointer-events:none;z-index:-1;
+/* High-contrast mesh palette and anchored overlap badge. No leader lines. */
+#page-map .public-mesh-pin,#page-map .mesh-network-pin {
+  color:#10202b;border:1px solid #10202b;box-shadow:0 0 0 1px #f2f6f8,0 1px 4px #0008;
+  width:19px;height:19px;min-width:19px;min-height:19px;font-size:10px;
 }
-#page-map .public-mesh-pin[data-kind="cluster"] {box-sizing:border-box;}
+#page-map .public-mesh-pin[data-kind="cluster"] {box-sizing:border-box;width:auto;min-width:23px;height:21px;padding:0 4px;}
+#page-map .public-mesh-pin[data-network="MeshCore"],#page-map .mesh-network-pin[data-protocol="MeshCore"],#page-map .public-mesh-overlap-dot[data-network="MeshCore"],#page-map .map-layer-options .mesh-layer-dot {background:#22d3ee;}
+#page-map .public-mesh-pin[data-network="Meshtastic"],#page-map .mesh-network-pin[data-protocol="Meshtastic"],#page-map .public-mesh-overlap-dot[data-network="Meshtastic"],#page-map .map-layer-options .mesh-layer-dot.meshtastic {background:#a3e635;}
+#page-map .public-mesh-pin[data-network="Reticulum"],#page-map .mesh-network-pin[data-protocol="Reticulum"],#page-map .public-mesh-overlap-dot[data-network="Reticulum"],#page-map .map-layer-options .mesh-layer-dot.reticulum {background:#ff70d9;}
+#page-map .map-layer-options .mesh-layer-dot.infrastructure {background:#9aa8b4;}
+#page-map .public-mesh-pin[data-network][data-kind="repeater"] {border-color:#10202b;}
+#page-map .public-mesh-pin[data-network="Meshtastic"][data-kind="repeater"] {background:#a3e635;}
+#page-map .public-mesh-pin[data-network="Reticulum"][data-kind="repeater"] {background:#ff70d9;}
+#page-map .public-mesh-pin[data-kind="overlap"] {display:flex;align-items:center;justify-content:center;gap:1px;width:auto;min-width:0;height:21px;padding:2px;border-radius:12px;background:#10202b;}
+#page-map .public-mesh-overlap-dot {display:grid;place-items:center;width:12px;height:14px;border-radius:50%;color:#10202b;font-size:9px;font-weight:800;pointer-events:none;}
+#page-map .public-mesh-detail-network {display:block;margin-top:12px;}
+#page-map .public-mesh-detail-network[data-network="MeshCore"] {color:#22d3ee;}
+#page-map .public-mesh-detail-network[data-network="Meshtastic"] {color:#a3e635;}
+#page-map .public-mesh-detail-network[data-network="Reticulum"] {color:#ff70d9;}

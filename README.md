@@ -1,3 +1,7 @@
+## OpenRF v0.2.221 — High-contrast mesh markers
+
+Bright mesh colors, anchored multi-network overlap badges with separate network details, no marker repulsion or leader lines. Existing coordinates and caches unchanged.
+
 ## OpenRF v0.2.220 — Separate public mesh map markers
 
 Public directory clusters are network-specific on both renderers. Colliding markers are visually offset while reported positions and caches are unchanged.

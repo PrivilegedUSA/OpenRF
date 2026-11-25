@@ -1,0 +1,9 @@
+# OpenRF 0.2.221 — release checks
+
+Scope: replace public mesh collision displacement and leader lines with a compact anchored multi-network badge. Per-network screen bins are retained; overlapping display groups share a badge at one existing group anchor, with independent network identity, counts and original reported positions in the details panel. No data is re-geocoded or moved. Like any screen-space clustering, badges regroup as the map zooms or pans; at dense zoom levels, neighboring nodes may share one badge. Palette: electric cyan MeshCore (#22d3ee), lime Meshtastic (#a3e635), hot pink Reticulum (#ff70d9), consistent with local mesh pins and layer keys. Local radio node collision handling is unchanged. Other map layers, data sources, caches and database schema unchanged.
+
+Changed files: `openrf/static/public-mesh.js`, `openrf/static/app.css`, `tests/test_public_mesh_overlap_v220.js` (updated assertions for replacement collision behavior), release metadata/cache keys/User-Agent strings, README, changelog, bundle format and this note. No new dependencies.
+
+Acceptance: Enable all three public mesh networks, inspect the bright colors and overlap badges on Default, Satellite and Topographic basemaps. Select each single and multicolor marker and check all relevant network identities and reported positions. Pan and zoom; no leader lines or collision-driven offsets should appear. Check persisted preferences and offline counts after restarting. No new data downloads required. Actual rendered application testing remains unverified; no live provider or radio hardware tests attempted for this display-only change.
+
+Final regression: Python 3.13.5 full unittest discovery — 647 tests passed (81.763 seconds). Node.js v22.16.0 — all 177 JavaScript suites passed. All top-level application JavaScript syntax checks passed.
