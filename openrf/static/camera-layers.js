@@ -24,9 +24,11 @@
       const info=result.snapshot||{},count=Number(info.count||0),wasRunning=snapshotWasRunning;
       snapshotWasRunning=!!result.running;
       if(button)button.disabled=!!result.running;
+      const bar=get('camera-snapshot-progress');
+      if(bar){bar.hidden=!result.running&&result.phase!=='ready';bar.removeAttribute('value');if(result.phase==='ready')bar.value=100;else if(result.phase==='downloading'&&result.total_bytes>0)bar.value=Math.min(100,100*result.downloaded_bytes/result.total_bytes);}
       if(result.running){
-        const label=result.phase==='downloading'?'Downloading':result.phase==='validating'?'Importing and validating':'Updating';
-        setSnapshotStatus(`${label} national ALPR snapshot… ${Number(result.downloaded_bytes||0).toLocaleString()} bytes received; ${Number(result.processed||0).toLocaleString()} features processed. Keep OpenRF running.`);
+        const label=result.phase==='downloading'?'Downloading':result.phase==='validating'?'Importing and validating':result.phase==='saving'?'Saving':'Updating';
+        setSnapshotStatus(`${label} national ALPR snapshot… ${Number(result.downloaded_bytes||0).toLocaleString()} bytes received${result.phase==='downloading'&&result.total_bytes>0?` (${Math.floor(100*result.downloaded_bytes/result.total_bytes)}%)`:result.phase==='downloading'?' (total unknown)':''}; ${Number(result.processed||0).toLocaleString()} features processed. Keep OpenRF running.`);
         if(snapshotPoll===null)snapshotPoll=setTimeout(()=>{snapshotPoll=null;snapshotStatus();},1200);
       }else{
         if(snapshotPoll!==null){clearTimeout(snapshotPoll);snapshotPoll=null;}
@@ -168,25 +170,56 @@
     const el=get('camera-import-status');if(!el)return;
     el.textContent=message;el.dataset.phase=phase;el.classList.toggle('error',phase==='failed');
   };
-  get('camera-import-osm').addEventListener('click',async()=>{
-    const button=get('camera-import-osm'),b=bounds();
-    if(button.disabled)return;
-    if(!usable(b)){setImportStatus('Zoom into a local area first (not across the date line).','failed');return;}
-    if(b[2]-b[0]>8||b[3]-b[1]>8){setImportStatus('Zoom closer: import is limited to a visible area no bigger than 8° × 8°.','failed');return;}
-    button.disabled=true;button.textContent='Importing camera reports…';
-    setImportStatus('Querying OSM/Overpass for ALPR, speed and red-light camera reports. This may take up to a minute or longer if the first server fails. No GPS track is sent.','loading');
-    try{
-      const result=await api('/api/cameras/import-osm','POST',{bounds:b});
-      const counts=result.import.counts||{},total=result.import.matched;
+  let importPoll=null, importRequest=false, lastImportResult=null;
+  const importButton=get('camera-import-osm');
+  async function showImportJob(result){
+    const bar=get('camera-import-progress');
+    const phase=result.phase;
+    if(!phase||phase==='idle')return;
+    if(importRequest&&phase==='idle')return;
+    importButton.disabled=!!result.running;
+    importButton.textContent=result.running?'Importing camera reports…':'Import OSM cameras in view (online)';
+    if(bar){bar.hidden=!result.running&&phase!=='complete';bar.removeAttribute('value');
+      if(phase==='complete')bar.value=100;
+      if(phase==='downloading'&&result.total_bytes>0)bar.value=Math.min(100,100*result.received_bytes/result.total_bytes);}
+    const provider=result.provider?` Provider: ${result.provider}.`:'';
+    const fallback=result.errors?.length?` Previous provider errors: ${result.errors.join('; ')}.`:'';
+    if(result.running){
+      const labels={connecting:'Querying OSM/Overpass',downloading:'Downloading OSM data',processing:'Processing camera reports',saving:'Saving camera reports locally'};
+      const bytes=phase==='downloading'?` · ${Number(result.received_bytes||0).toLocaleString()} bytes${result.total_bytes>0?` / ${Number(result.total_bytes).toLocaleString()} (${Math.floor(100*result.received_bytes/result.total_bytes)}%)`:' (total unknown)'}`:'';
+      setImportStatus((labels[phase]||'Working')+bytes+provider+fallback,phase);
+    }else if(phase==='failed')setImportStatus(`Could not import cameras: ${result.error||'Unknown error'}`+provider+fallback,'failed');
+    else if(phase==='complete'&&result.result){
+      const key=JSON.stringify(result);
+      if(key===lastImportResult)return;lastImportResult=key;
+      const counts=result.result.counts||{},total=result.result.matched;
       // Import never changes saved layer visibility; user chooses what the map shows.
       lastKey='';
       const hidden=['ALPR','RED_LIGHT','SPEED'].filter(kind=>counts[kind]>0&&!enabled().has(kind));
       const names={ALPR:'ALPR / Flock',RED_LIGHT:'Red-light cameras',SPEED:'Speed cameras'};
       setImportStatus(`Import complete: ${total} OSM camera report(s) — ${counts.ALPR??0} ALPR, ${counts.RED_LIGHT??0} red-light, ${counts.SPEED??0} speed. ${total?'Saved locally for offline use.':'No tagged cameras returned in this area; this is not proof that none exist.'}${hidden.length?' Enable '+hidden.map(kind=>names[kind]).join(', ')+' to display the imported reports.':''}`,'complete');
+      get('camera-import-status').textContent+=provider+fallback;
       await refresh(true);
-    }catch(e){setImportStatus(`Could not import cameras: ${e.message}`,'failed');}
-    finally{button.disabled=false;button.textContent='Import OSM cameras in view (online)';}
+    }
+    if(result.running&&importPoll===null)importPoll=setTimeout(()=>{importPoll=null;pollImport();},700);
+  }
+  async function pollImport(){
+    try{const response=await fetch('/api/cameras/import-status',{cache:'no-store'});if(!response.ok)throw Error('HTTP '+response.status);const data=await response.json();if(!importRequest)await showImportJob(data);}
+    catch(e){setImportStatus(`Import status temporarily unavailable: ${e.message}; retrying.`,'failed');if(importPoll===null)importPoll=setTimeout(()=>{importPoll=null;pollImport();},2000);}
+  }
+  importButton.addEventListener('click',async()=>{
+    const b=bounds();
+    if(importButton.disabled||importRequest)return;
+    if(!usable(b)){setImportStatus('Zoom into a local area first (not across the date line).','failed');return;}
+    if(b[2]-b[0]>8||b[3]-b[1]>8){setImportStatus('Zoom closer: import is limited to a visible area no bigger than 8° × 8°.','failed');return;}
+    importRequest=true;importButton.disabled=true;lastImportResult=null;
+    importButton.textContent='Importing camera reports…';
+    setImportStatus('Querying OSM/Overpass…','connecting');
+    try{await showImportJob(await api('/api/cameras/import-osm','POST',{bounds:b}));}
+    catch(e){setImportStatus(`Could not start import: ${e.message}`,'failed');importButton.disabled=false;await pollImport();}
+    finally{importRequest=false;if(importPoll===null)importPoll=setTimeout(()=>{importPoll=null;pollImport();},700);}
   });
+  pollImport();
   get('camera-manual-form').addEventListener('submit',async event=>{
     event.preventDefault();const button=event.currentTarget.querySelector('button[type=submit]');button.disabled=true;
     const data={type:get('camera-kind').value,state:get('camera-verification').value,

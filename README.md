@@ -1,6 +1,6 @@
-## OpenRF v0.2.212 — Map import feedback and compact markers
+## OpenRF v0.2.214 — Basemap restoration and camera import jobs
 
-The regional camera import now sits immediately below the camera switches, with independent progress/result messages. Cellular label restored; mesh markers reduced to 16px, clusters to 20px minimum. See `docs/RELEASE_0.2.212_TESTS.md`.
+Regional OSM camera imports now run as local server jobs with reload-safe progress, fallback diagnostics and per-category results. Basemap changes use a full MapLibre style reload to restore application overlays. See `docs/RELEASE_0.2.214_TESTS.md`.
 
 ## OpenRF v0.2.211 — Persistent mesh layers and regional camera import
 

@@ -196,7 +196,7 @@ def _copy_capped(src,dst,limit,progress=None):
     return total
 
 
-def _ingest(repo, archive_path, *, min_features=None, progress=None, cancelled=None, uploaded=False):
+def _ingest(repo, archive_path, *, min_features=None, progress=None, cancelled=None, uploaded=False, phase=None):
     """Ingest a local .geojson or .gz snapshot, preserving the current DB on any failure."""
     if min_features is None: min_features = MIN_NATIONAL_FEATURES
     def check():
@@ -235,6 +235,7 @@ def _ingest(repo, archive_path, *, min_features=None, progress=None, cancelled=N
         if count<min_features:
             raise SnapshotError(f'Only {count} usable camera positions; refusing to replace the previous nationwide snapshot (minimum {min_features}).')
         check()
+        if phase:phase('saving')
         with repo._lock, repo._connect() as db:
             db.execute('ATTACH DATABASE ? AS alpr_stage',(str(stage),))
             try:
@@ -266,7 +267,7 @@ class UpdateManager:
         self._lock=threading.Lock()
         self._cancel=threading.Event()
         self._thread=None
-        self._state={'phase':'idle','running':False,'processed':0,'downloaded_bytes':0,'error':None}
+        self._state={'phase':'idle','running':False,'processed':0,'downloaded_bytes':0,'total_bytes':None,'error':None}
 
     def status(self):
         with self._lock:result=dict(self._state)
@@ -280,7 +281,7 @@ class UpdateManager:
         with self._lock:
             if self._state['running']:raise SnapshotError('A nationwide ALPR update is already running.')
             self._cancel.clear()
-            self._state={'phase':'downloading','running':True,'processed':0,'downloaded_bytes':0,'error':None}
+            self._state={'phase':'downloading','running':True,'processed':0,'downloaded_bytes':0,'total_bytes':None,'error':None}
             self._thread=threading.Thread(target=self._run,name='OpenRF-ALPR-Download',daemon=True)
             self._thread.start()
         return self.status()
@@ -301,7 +302,7 @@ class UpdateManager:
     def _run_uploaded(self,path):
         try:
             result=_ingest(self.repo,path,progress=lambda n:self._set(processed=n),
-                           cancelled=self._cancel,uploaded=True)
+                           cancelled=self._cancel,uploaded=True,phase=lambda p:self._set(phase=p))
             self._set(phase='ready',running=False,processed=result['count'],
                       downloaded_bytes=result['download_bytes'],error=None)
         except (OSError,ValueError,TimeoutError,sqlite3.Error,UnicodeError) as exc:
@@ -323,12 +324,16 @@ class UpdateManager:
                 with urllib.request.urlopen(req,timeout=40) as reply:
                     if hasattr(reply,'geturl') and not reply.geturl().startswith('https://'):
                         raise SnapshotError('Snapshot download redirected to an insecure destination.')
+                    try:total=int(getattr(reply,'headers',{}).get('Content-Length',0)) or None
+                    except (ValueError,TypeError):total=None
+                    self._set(total_bytes=total)
                     def progress(n):
                         if self._cancel.is_set():raise SnapshotError('Update cancelled during shutdown.')
                         self._set(downloaded_bytes=n)
-                    _copy_capped(reply,sink,MAX_DOWNLOAD_BYTES,progress)
+                    received=_copy_capped(reply,sink,MAX_DOWNLOAD_BYTES,progress)
+                    if total is not None and received!=total:raise SnapshotError('Incomplete national snapshot HTTP response.')
             self._set(phase='validating')
-            result=_ingest(self.repo,path,progress=lambda n:self._set(processed=n),cancelled=self._cancel)
+            result=_ingest(self.repo,path,progress=lambda n:self._set(processed=n),cancelled=self._cancel,phase=lambda p:self._set(phase=p))
             self._set(phase='ready',running=False,processed=result['count'],downloaded_bytes=result['download_bytes'],error=None)
         except (OSError,ValueError,TimeoutError,urllib.error.URLError,sqlite3.Error,UnicodeError) as exc:
             self._set(phase='failed',running=False,error=f'{type(exc).__name__}: {str(exc)[:240]}')

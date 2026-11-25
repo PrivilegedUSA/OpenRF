@@ -1364,7 +1364,7 @@ function selectBaseMap(next){
   updateBaseMapPicker();
   if(state.map){
     state.mapReady=false;
-    state.map.setStyle(openrfMapStyleUrl());
+    state.map.setStyle(openrfMapStyleUrl(), {diff:false});
   }else if(state.rasterMap){
     // A failed WebGL context will not be repaired by switching styles.
     // Keep the working, no-WebGL raster renderer and switch its tile source.
@@ -1397,7 +1397,7 @@ function preferLocalVectorsAtBrowserFix(lon,lat){
     'AUTO · outside local map coverage; using worldwide online OpenRF vectors when internet is available.';
   if(state.map && state.baseMap!=='satellite' && state.baseMap!=='topographic'){
     state.mapReady=false;
-    try{state.map.setStyle(openrfMapStyleUrl());}
+    try{state.map.setStyle(openrfMapStyleUrl(), {diff:false});}
     catch(error){
       console.warn('Unable to change vector map source:',error);
       state.mapStartupError=String(error?.message||error).slice(0,180);
@@ -1416,7 +1416,7 @@ async function refreshOpenRFVectorMapStatus() {
       `Regional offline vector unavailable: ${s.error || 'Map or glyph resources missing'}. Online OpenRF styles remain selectable.`;
     if (!(s.ready && s.fonts_ready) && state.mapVectorOffline) {
       state.mapVectorOffline=false;
-      if(state.map && state.baseMap!=='satellite' && state.baseMap!=='topographic') state.map.setStyle(openrfMapStyleUrl());
+      if(state.map && state.baseMap!=='satellite' && state.baseMap!=='topographic') state.map.setStyle(openrfMapStyleUrl(), {diff:false});
     }
   } catch(err) {$('map-vector-status').textContent=`Map assets status unavailable: ${err.message}`;}
   updateOpenRFVectorButtons();
@@ -1494,7 +1494,7 @@ function tryOfflineVectorRecovery(attempt,allowLoadedStyle=false){
   state.mapBasemapVisible=false;
   state.mapRegionalFramePending=true;
   try{
-    state.map.setStyle(openrfMapStyleUrl());
+    state.map.setStyle(openrfMapStyleUrl(), {diff:false});
     updateOpenRFVectorButtons();
     $('map-vector-status').textContent='Online vector style did not start. Trying the installed regional offline vector map.';
     setTimeout(()=>{
@@ -1589,7 +1589,10 @@ function startMap() {
       installMarkerLayer();
       window.OpenRFCameras?.installVector(state.map);
       if(!state.map.__openrfRefreshClickableCursor)installMapFeatureHoverCursors(state.map);
-      updateMap();updateBrowserLocationMarker();applyPendingLocation();
+      updateMap();
+      window.OpenRFMeshDashboard?.vector(state.map,true);
+      window.OpenRFPublicMesh?.vector(state.map,true);
+      updateBrowserLocationMarker();applyPendingLocation();
       renderAreaOverlay();renderNavigationOverlay();applyNavigationFit();
       const url=openrfMapStyleUrl();
       setTimeout(()=>checkVectorBasemap(attempt,url),9000);
@@ -5563,7 +5566,7 @@ $('map-style').addEventListener('click',()=>{
   rememberBaseMap('default');
   state.style = state.style==='dark'?'light':'dark';
   updateBaseMapPicker();
-  if (state.map) {state.mapReady=false;state.map.setStyle(openrfMapStyleUrl());}
+  if (state.map) {state.mapReady=false;state.map.setStyle(openrfMapStyleUrl(), {diff:false});}
   if (state.rasterMap) {
     for(const image of state.rasterMap.tileNodes.values())image.remove();
     state.rasterMap.tileNodes.clear();state.rasterMap.failedTiles.clear();
@@ -5586,7 +5589,7 @@ $('map-vector-source').addEventListener('click',()=>{
   updateOpenRFVectorButtons();updateOfflineAttribution();
   if (state.map) {
     state.mapReady=false;
-    state.map.setStyle(openrfMapStyleUrl());
+    state.map.setStyle(openrfMapStyleUrl(), {diff:false});
   } else if (state.rasterMap) {
     state.preferredView={center:[...state.rasterMap.center],zoom:state.rasterMap.zoom};
     state.rasterMap.stop();state.rasterMap=null;

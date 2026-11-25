@@ -3082,3 +3082,7 @@ body.map-workspace .topbar button {border:0!important;}
 #map-survey-panel #camera-area-import p {margin:7px 0;line-height:1.45;overflow-wrap:anywhere;}
 #map-survey-panel #camera-import-status.error {color:#ffb0a9;}
 #map-survey-panel #camera-import-status[data-phase="loading"] {color:#a5eee4;}
+
+/* Camera job progress, scoped to the existing Map layers sheet. */
+#map-survey-panel #camera-import-progress,#map-survey-panel #camera-snapshot-progress{width:100%;height:8px;accent-color:#34c9b1;margin:6px 0 2px;}
+#map-survey-panel #camera-import-status:is([data-phase="connecting"],[data-phase="downloading"],[data-phase="processing"],[data-phase="saving"]){color:#a5eee4;}

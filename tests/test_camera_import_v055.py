@@ -121,9 +121,12 @@ class CameraHTTPContractTests(unittest.TestCase):
                 with patch.object(cam,'_read_osm_area',return_value=fixture) as fetch:
                     status,payload=request('POST','/api/cameras/import-osm',
                                            {'bounds':[-121,38,-120,39]})
-                self.assertEqual(status,200)
-                self.assertEqual(payload['import']['matched'],1)
-                fetch.assert_called_once_with([-121,38,-120,39])
+                    self.assertEqual(status,202)
+                    server.camera_import_manager.thread.join(timeout=4)
+                    status,payload=request('GET','/api/cameras/import-status')
+                    self.assertEqual(status,200)
+                    self.assertEqual(payload['result']['matched'],1)
+                    fetch.assert_called_once()
                 status,payload=request('GET','/api/cameras?bounds=%5B-121%2C38%2C-120%2C39%5D')
                 self.assertEqual(status,200)
                 self.assertEqual(len(payload['sites']),1)

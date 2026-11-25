@@ -46,7 +46,7 @@ from .field_network import readiness_report as field_network_readiness_report
 from .field_hotspot import HotspotManager, HotspotError
 from .offline_navigation_readiness import (readiness_report as offline_navigation_readiness_report,
                                            route_coverage_report)
-from . import camera_catalog, chirp_channels, national_alpr, camera_routes
+from . import camera_jobs, camera_catalog, chirp_channels, national_alpr, camera_routes
 from .sdr_survey import capture_sites_geojson
 from .routing import local_route, local_status, RouteUnavailable, RouteError
 from .gnss import read_local_gpsd
@@ -551,6 +551,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._error(404,'Local glyph range unavailable')
         if path == '/api/meta':
             return self._json(200, {'version': __version__, 'platform': 'Linux / Raspberry Pi', 'mode': 'local-only', 'scan_active': self.server.sdr_captures.status()['running']})
+        if path == '/api/cameras/import-status':
+            return self._json(200, self.server.camera_import_manager.status())
         if path == '/api/cameras/snapshot':
             return self._json(200, self.server.national_alpr_manager.status())
         if path == '/api/cameras':
@@ -1731,17 +1733,13 @@ class Handler(BaseHTTPRequestHandler):
                     return self._error(409,str(exc))
             if path == '/api/cameras':
                 return self._json(201,{'camera':camera_catalog.add_manual(self.repo,body)})
-            if path == '/api/cameras/import-osm':
+            if path in ('/api/cameras/import-osm', '/api/cameras/import-start'):
                 if set(body) != {'bounds'}:
                     raise ValueError('Import requires only the selected map bounds.')
-                if not self.server.alpr_import_lock.acquire(blocking=False):
-                    return self._error(409,'Camera area import is already running.')
                 try:
-                    return self._json(200,{'import':camera_catalog.import_feed(self.repo,body['bounds'])})
-                except (ValueError,OSError,TimeoutError) as exc:
-                    return self._error(503,f'Camera area import unavailable: {exc}')
-                finally:
-                    self.server.alpr_import_lock.release()
+                    return self._json(202, self.server.camera_import_manager.start(body['bounds']))
+                except RuntimeError as exc:
+                    return self._error(409, str(exc))
             if path == '/api/radio/start':
                 if set(body) != {'frequency_mhz', 'mode', 'duration_seconds'}:
                     raise ValueError('Receive requests accept frequency_mhz, mode and duration_seconds only')
@@ -2211,7 +2209,7 @@ def create_server(repository: Repository, port: int = 8765) -> ThreadingHTTPServ
         serial_snapshot=lambda port: safe_weather_serial_query(server, port, snapshot=True))
     server.bluetooth_file_manager = BluetoothFileManager()
     server.hotspot_manager = HotspotManager(repository.path.parent / 'field-network')
-    server.alpr_import_lock = threading.Lock()
+    server.camera_import_manager = camera_jobs.ImportManager(repository)
     server.national_alpr_manager = national_alpr.UpdateManager(repository)
     from .mesh_monitor import MeshMonitor, SnapshotCoordinator
     from .mesh_dashboard import dashboard

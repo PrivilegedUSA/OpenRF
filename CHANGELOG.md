@@ -1,3 +1,11 @@
+# v0.2.214 — Basemap overlay restoration and independent camera import jobs
+
+- Recreated the requested recovery release from the known-good v0.2.212 bundle; the previous undeliverable v0.2.214 archive was unavailable.
+- Use full MapLibre style reloads and reattach camera, observation and mesh overlays, preserving preferences and saved data.
+- Run regional camera imports as server-owned jobs with reload-safe status, measured byte progress when available, phase labels and provider fallback details. Reduce enforcement relation geometry downloads by requesting explicit device nodes.
+- Add national ALPR download progress and saving phase; retain transactional replacement and existing cache. No database migrations or new dependencies.
+- See `docs/RELEASE_0.2.214_TESTS.md` for checks and remaining acceptance steps.
+
 # v0.2.212 — Map import feedback and compact markers
 
 - Regional camera import moved below the layer grid, with separate persistent feedback, busy state and per-type counts. Improve provider failure diagnostics and read timeout.

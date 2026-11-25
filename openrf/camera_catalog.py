@@ -6,6 +6,7 @@ never include the user's GPS position, and imported OSM data isn't "verified".
 from __future__ import annotations
 
 import gzip
+import http.client
 import hashlib
 import io
 import json
@@ -147,16 +148,19 @@ def _overpass_query(bounds):
     # Validated and normalized; never inject user-controlled query fragments.
     west, south, east, north = bbox_value(bounds, narrow=True)
     box = f'{south:.6f},{west:.6f},{north:.6f},{east:.6f}'
-    # Relations are returned with member geometry; use only actual device
-    # node positions, never the center of an enforcement zone or intersection.
+    # Keep relation member references but retrieve coordinates only for device
+    # nodes. Avoid downloading full road geometry for enforcement relations.
     return (f'[out:json][timeout:25];('
             f'node["man_made"="surveillance"]["surveillance:type"="ALPR"]({box});'
             f'way["man_made"="surveillance"]["surveillance:type"="ALPR"]({box});'
             f'node["highway"="speed_camera"]({box});'
             f'node["highway"="red_light_camera"]({box});'
+            f'node["enforcement"="traffic_signals"]["surveillance:type"="camera"]({box});'
+            f'node["enforcement"="maxspeed"]["surveillance:type"="camera"]({box});'
             f'node["man_made"="surveillance"]["surveillance"="red_light"]["surveillance:type"="camera"]({box});'
-            f'relation["type"="enforcement"]["enforcement"~"(^|;)(maxspeed|traffic_signals|red_light_camera)(;|$)"]({box});'
-            f');out geom;')
+            f');out center qt;'
+            f'relation["type"="enforcement"]["enforcement"~"(^|;)[[:space:]]*(maxspeed|traffic_signals|red_light_camera)[[:space:]]*(;|$)"]({box})'
+            f'->.enforcement;.enforcement out body qt;node(r.enforcement:"device");out body qt;')
 
 
 def _parse_overpass(document):
@@ -198,8 +202,8 @@ def _parse_overpass(document):
                     except (KeyError,TypeError,ValueError): pass
             add(kind,element.get('id'),coordinates,tags,'ALPR')
         if kind=='node':
-            if tags.get('highway')=='speed_camera': add(kind,element.get('id'),element,tags,'SPEED')
-            if tags.get('highway')=='red_light_camera' or (tags.get('man_made')=='surveillance' and tags.get('surveillance')=='red_light' and tags.get('surveillance:type')=='camera'):
+            if tags.get('highway')=='speed_camera' or (tags.get('surveillance:type')=='camera' and tags.get('enforcement')=='maxspeed'): add(kind,element.get('id'),element,tags,'SPEED')
+            if tags.get('highway')=='red_light_camera' or (tags.get('surveillance:type')=='camera' and tags.get('enforcement')=='traffic_signals') or (tags.get('man_made')=='surveillance' and tags.get('surveillance')=='red_light' and tags.get('surveillance:type')=='camera'):
                 add(kind,element.get('id'),element,tags,'RED_LIGHT')
         if kind=='relation' and tags.get('type')=='enforcement':
             categories={ {'maxspeed':'SPEED','traffic_signals':'RED_LIGHT','red_light_camera':'RED_LIGHT'}[tag.strip()] for tag in str(tags.get('enforcement','')).split(';') if tag.strip() in ('maxspeed','traffic_signals','red_light_camera') }
@@ -212,18 +216,34 @@ def _parse_overpass(document):
     return {'type':'FeatureCollection','features':list(features.values())}
 
 
-def _read_osm_area(bounds):
+def _read_osm_area(bounds, progress=None):
+    progress = progress or (lambda **kw: None)
     query = _overpass_query(bounds)
     payload = urllib.parse.urlencode({'data': query}).encode('utf-8')
     errors = []
     for endpoint in OVERPASS_ENDPOINTS:
+        progress(phase="connecting", provider=endpoint, errors=list(errors), received_bytes=0, total_bytes=None)
         request = urllib.request.Request(endpoint, data=payload, headers={
-            'User-Agent': 'OpenRF/0.2.212 (offline-first; user-initiated OSM area lookup)',
+            'User-Agent': 'OpenRF/0.2.214 (offline-first; user-initiated OSM area lookup)',
             'Content-Type': 'application/x-www-form-urlencoded',
             'Accept': 'application/json'})
         try:
             with urllib.request.urlopen(request, timeout=45) as reply:
-                raw = reply.read(MAX_RESPONSE + 1)
+                headers = getattr(reply, 'headers', {})
+                try: total = int(headers.get('Content-Length', 0)) or None
+                except (ValueError, TypeError): total = None
+                progress(phase='downloading', total_bytes=total)
+                chunks = bytearray()
+                while True:
+                    chunk = reply.read(min(65536, MAX_RESPONSE + 1 - len(chunks)))
+                    if not chunk: break
+                    chunks.extend(chunk)
+                    progress(received_bytes=len(chunks))
+                    if len(chunks)>MAX_RESPONSE: break
+                raw = bytes(chunks)
+                if total is not None and len(raw)!=total:
+                    raise ValueError('Incomplete HTTP response')
+            progress(phase='processing')
             if len(raw) > MAX_RESPONSE:
                 raise ValueError('OSM area response is too large; zoom in and retry.')
             if raw[:2] == b'\x1f\x8b':
@@ -233,7 +253,7 @@ def _read_osm_area(bounds):
                     raise ValueError('OSM area response expands past the safety limit; zoom in.')
             return _parse_overpass(json.loads(raw))
         except (urllib.error.URLError, TimeoutError, OSError, ValueError,
-                json.JSONDecodeError, UnicodeError) as exc:
+                json.JSONDecodeError, UnicodeError, http.client.HTTPException, EOFError) as exc:
             host=endpoint.split('/')[2]
             if isinstance(exc,urllib.error.HTTPError): reason=f'HTTP {exc.code}'
             elif isinstance(exc,TimeoutError) or (isinstance(exc,urllib.error.URLError) and isinstance(exc.reason,TimeoutError)): reason='network timeout'
@@ -242,15 +262,18 @@ def _read_osm_area(bounds):
             elif isinstance(exc,(json.JSONDecodeError,UnicodeError)): reason='invalid JSON response'
             else: reason=type(exc).__name__
             errors.append(f'{host}: {reason}')
+            progress(errors=list(errors))
     raise ValueError('Area query failed at both OSM servers (' + ', '.join(errors) +
                      '). Try again when online or zoom into a smaller area; saved camera pins remain offline.')
 
 
-def import_feed(repo, bounds, fetch=None):
+def import_feed(repo, bounds, fetch=None, progress=None):
+    progress = progress or (lambda **kw: None)
     west,south,east,north=bbox_value(bounds,narrow=True)
     document=fetch() if fetch is not None else _read_osm_area(bounds)
     if not isinstance(document,dict) or document.get('type')!='FeatureCollection' or not isinstance(document.get('features'),list):
         raise ValueError('Published feed did not contain GeoJSON features.')
+    progress(phase='processing')
     rows=[]
     for feature in document['features']:
         if not isinstance(feature,dict):continue
@@ -277,6 +300,7 @@ def import_feed(repo, bounds, fetch=None):
                      ('OpenStreetMap community surveillance mapping (Overpass/DeFlock compatible)' if category=='ALPR' else 'OpenStreetMap community enforcement mapping (Overpass)'),
                      ('https://www.openstreetmap.org/'+str(ext) if isinstance(ext,str) and ext.startswith(('node/','way/')) and ext.split('/',1)[1].isdigit() else 'https://www.openstreetmap.org/'),source_id,utc_now()))
         if len(rows)>=20000:break  # single-area ingest safety cap
+    progress(phase='saving')
     with repo._lock, repo._connect() as db:
         db.executemany('''INSERT INTO camera_sites
         (type,state,label,latitude,longitude,direction,notes,source,source_url,source_id,updated_utc)

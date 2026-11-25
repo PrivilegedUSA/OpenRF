@@ -25,4 +25,4 @@ class EnforcementImport(unittest.TestCase):
             self.assertEqual({s['state'] for s in sites},{'COMMUNITY_MAPPED'})
             self.assertFalse(any(s['source_url'].endswith(('/3','/6','/7','/8')) for s in sites))
         q=cam._overpass_query(bounds)
-        self.assertIn('out geom',q);self.assertIn('speed_camera',q);self.assertIn('traffic_signals',q)
+        self.assertIn('node(r.enforcement:"device")',q);self.assertIn('speed_camera',q);self.assertIn('traffic_signals',q)
