@@ -1,6 +1,6 @@
-"""Compile local FCC state H3 shapefile ZIPs into indexed offline coverage packs.
+"""Compile local FCC state H3 shapefile or GeoPackage ZIPs into indexed offline coverage packs.
 
-Only the compiler needs PyShp and pyproj. The map reader uses the stdlib.
+Only the compiler needs PyShp/pyproj or Shapely/pyproj. The map reader uses the stdlib.
 No network requests, extraction of arbitrary paths, or changes to source files.
 """
 from __future__ import annotations
@@ -20,7 +20,7 @@ import tempfile
 import zipfile
 import zlib
 
-PATTERN = re.compile(r'bdc_(\d{2})_(?:(\d{6})_)?(4GLTE|5GNR(?:_7_1|_35_3)?|MobileVoice)_mobile_(?:broadband|voice)_h3_([JD]\d{2})_(\d{1,2}[a-z]{3}\d{4})\.zip', re.I)
+PATTERN = re.compile(r'bdc_(\d{2})_(?:(\d{6})_)?(4GLTE|5GNR(?:_7_1|_35_3)?|MobileVoice)_mobile_(?:broadband|voice)_h3_([JD]\d{2})_(\d{1,2}[a-z]{3}\d{4})(?:[-_ ]?geo(?:package)?|[-_ ]?gpkg)?(?:\s*\(\d+\))?\.zip', re.I)
 # FCC provider/holding-company identifiers, not MCC/MNC identifiers.
 # https://docs.fcc.gov/public/attachments/FCC-20-40A1.pdf
 PROVIDERS = {'130077': ('att','AT&T'), '130403': ('tmobile','T-Mobile'), '131425': ('verizon','Verizon')}
@@ -36,7 +36,16 @@ SOURCE = 'FCC BDC H3 resolution 9 (provider-modeled; not measured reception)'
 SCHEMA = 1
 
 
-def discover(folder):
+def archive_format(path):
+    with zipfile.ZipFile(path) as z:
+        gpkg=[i for i in z.infolist() if not i.is_dir() and i.filename.lower().endswith('.gpkg')]
+        shp=[i for i in z.infolist() if not i.is_dir() and i.filename.lower().endswith('.shp')]
+        if len(gpkg)==1 and not shp: return 'geopackage'
+        if len(shp)==1 and not gpkg: return 'shapefile'
+        raise ValueError('Expected one H3 GeoPackage or shapefile')
+
+
+def discover(folder, preferred='auto'):
     groups = {}
     for path in sorted(Path(folder).iterdir()):
         m = PATTERN.fullmatch(path.name)
@@ -45,9 +54,22 @@ def discover(folder):
         date = datetime.strptime(release,'%d%b%Y').date().isoformat()
         key=(state,filing.upper(),date)+((provider,) if provider else ())
         group = groups.setdefault(key,{})
-        if kind.lower() in group: raise ValueError('Duplicate source for '+str((state,filing,date,kind)))
-        group[kind.lower()] = path
-    return groups
+        kind=kind.lower()
+        if preferred!='auto':
+            try:
+                if archive_format(path)!=preferred: continue
+            except (ValueError,zipfile.BadZipFile):
+                continue
+        if kind in group:
+            old=group[kind]
+            try: old_fmt=archive_format(old)
+            except (ValueError,zipfile.BadZipFile): old_fmt='invalid'
+            try: new_fmt=archive_format(path)
+            except (ValueError,zipfile.BadZipFile): new_fmt='invalid'
+            if old_fmt==new_fmt: raise ValueError('Ambiguous duplicate archives; keep one copy per format: '+str((old.name,path.name)))
+            if old_fmt=='shapefile' or new_fmt=='invalid' or (old_fmt=='geopackage' and new_fmt!='shapefile'): continue
+        group[kind] = path
+    return {k:v for k,v in groups.items() if v}
 
 
 def auto_folder():
@@ -88,8 +110,62 @@ def members(z):
     return out
 
 
+def check_fields(names,kind,path):
+    required=[('h3_res9_id','h3_res9','h3id','h3_id'),('environmnt','environment','environmen')]
+    if not source_identity(path):
+        has_brand=bool(set(names)&{'brandname','brand_name'}); has_provider=bool(set(names)&{'providerid','provider_id','provider_i'})
+        if has_brand != has_provider: raise ValueError('Incomplete carrier identity fields; cannot classify statewide coverage')
+    if base_kind(kind)!='mobilevoice': required.extend([('technology','tech'),('mindown','min_down'),('minup','min_up')])
+    missing=['/'.join(aliases) for aliases in required if not set(aliases)&set(names)]
+    if missing: raise ValueError('Missing coverage fields '+', '.join(missing)+'; found '+', '.join(names))
+
+
+def quote_sql(identifier):
+    return '"'+identifier.replace('"','""')+'"'
+
+
+@contextmanager
+def gpkg_source(path,work):
+    with zipfile.ZipFile(path) as z:
+        members=[i for i in z.infolist() if not i.is_dir() and i.filename.lower().endswith('.gpkg')]
+        if len(members)!=1: raise ValueError('Expected one GeoPackage')
+        info=members[0]; target=Path(work)/'source.gpkg'
+        if shutil.disk_usage(work).free<info.file_size+128*1024**2: raise ValueError('Insufficient disk space to extract GeoPackage')
+        with z.open(info) as src,target.open('wb') as dst: shutil.copyfileobj(src,dst,1024*1024)
+    try:
+        with open_pack(target) as db:
+            tables=db.execute("SELECT table_name,column_name,geometry_type_name,srs_id FROM gpkg_geometry_columns").fetchall()
+            if len(tables)!=1: raise ValueError('Expected one GeoPackage feature table')
+            table,geom,typ,srs=tables[0]
+            if typ.upper() not in ('POLYGON','MULTIPOLYGON','GEOMETRY'): raise ValueError('Expected polygon GeoPackage')
+            fields=[r[1] for r in db.execute('PRAGMA table_info('+quote_sql(table)+')') if r[1]!=geom]
+            count=db.execute('SELECT count(*) FROM '+quote_sql(table)).fetchone()[0]
+            if not count: raise ValueError('Empty GeoPackage')
+            crs=db.execute('SELECT organization,organization_coordsys_id,definition FROM gpkg_spatial_ref_sys WHERE srs_id=?',(srs,)).fetchone()
+            if not crs: raise ValueError('Missing GeoPackage CRS')
+            yield db,table,geom,fields,count,crs,info.filename,info.file_size,srs
+    finally: target.unlink(missing_ok=True)
+
+
+def gpkg_geometry(blob,srs):
+    from shapely import wkb
+    if not isinstance(blob,bytes) or len(blob)<8 or blob[:2]!=b'GP' or blob[2]!=0: raise ValueError('Invalid GeoPackage geometry header')
+    flags=blob[3]; envelope=(flags>>1)&7
+    if flags&0xf0 or envelope>4: raise ValueError('Empty or unsupported GeoPackage geometry')
+    if struct.unpack_from(('<' if flags&1 else '>')+'i',blob,4)[0]!=srs: raise ValueError('Geometry CRS conflicts with feature table')
+    offset=8+(0,32,48,48,64)[envelope]
+    shape=wkb.loads(blob[offset:])
+    if shape.is_empty or shape.has_z or shape.geom_type not in ('Polygon','MultiPolygon'): raise ValueError('Expected nonempty 2D polygon')
+    return shape.__geo_interface__
+
+
 def inspect_zip(path, kind):
-    """Read only ZIP directory and DBF header; verify schema before a long build."""
+    """Inspect DBF headers or extract GeoPackage to inspect its schema."""
+    if archive_format(path)=='geopackage':
+        with tempfile.TemporaryDirectory(prefix='.fcc-inspect-',dir=Path(path).parent) as tmp:
+            with gpkg_source(path,tmp) as (_,_,_,fields,count,_,_,size,_):
+                names=[x.lower() for x in fields]; check_fields(names,kind,path)
+                return count,names,size
     with zipfile.ZipFile(path) as z:
         parts=members(z)
         with z.open(parts['.dbf']) as f:
@@ -104,13 +180,7 @@ def inspect_zip(path, kind):
                 if fields[pos]==13: break
                 if len(fields)-pos<32: raise ValueError('Invalid DBF field descriptor')
                 names.append(fields[pos:pos+11].split(b'\0',1)[0].decode('ascii').lower())
-            required=[('h3_res9_id','h3_res9','h3id','h3_id'),('environmnt','environment','environmen')]
-            if not source_identity(path):
-                has_brand=bool(set(names)&{'brandname','brand_name'}); has_provider=bool(set(names)&{'providerid','provider_id','provider_i'})
-                if has_brand != has_provider: raise ValueError('Incomplete carrier identity fields; cannot classify statewide coverage')
-            if base_kind(kind)!='mobilevoice': required.extend([('technology','tech'),('mindown','min_down'),('minup','min_up')])
-            missing=['/'.join(aliases) for aliases in required if not set(aliases)&set(names)]
-            if missing: raise ValueError('Missing DBF fields '+', '.join(missing)+'; found '+', '.join(names))
+            check_fields(names,kind,path)
         return count,names,sum(i.file_size for i in parts.values())
 
 
@@ -148,7 +218,8 @@ def attributes(row,kind,source_provider=None):
     if not brand or len(brand)>200 or not provider: raise ValueError('Invalid provider identity')
     tier=kind
     kind=base_kind(kind)
-    cell=str(field(row,'h3_res9_id','h3_res9','h3id','h3_id')).strip().lower()
+    raw_cell=field(row,'h3_res9_id','h3_res9','h3id','h3_id')
+    cell=format(raw_cell,'x') if isinstance(raw_cell,int) else str(raw_cell).strip().lower()
     if not re.fullmatch(r'89[0-9a-f]{13}',cell): raise ValueError('Expected H3 resolution 9 index: '+cell[:60])
     env=str(field(row,'environmnt','environment','environmen')).strip()
     if env in ('0','0.0'): env='Outdoor stationary only'
@@ -199,12 +270,40 @@ CREATE INDEX membership_shape ON membership(shape,profile);
 '''
 
 
-def build_group(key, files, output, progress=print):
+@contextmanager
+def source_rows(path,work,kind):
+    from pyproj import CRS,Transformer
+    if archive_format(path)=='geopackage':
+        with gpkg_source(path,work) as (db,table,geom,fields,count,crs,member,size,srs):
+            org,code,definition=crs
+            tx=Transformer.from_crs(CRS.from_epsg(code) if org.upper()=='EPSG' else CRS.from_wkt(definition),'EPSG:4326',always_xy=True)
+            names=[f.lower() for f in fields]; check_fields(names,kind,path)
+            sql='SELECT '+','.join(map(quote_sql,[*fields,geom]))+' FROM '+quote_sql(table)
+            records=((dict(zip(fields,row[:-1])),gpkg_geometry(row[-1],srs)) for row in db.execute(sql))
+            yield count,names,records,tx.transform,[member],'geopackage'
+        return
+    import shapefile
+    with zipfile.ZipFile(path) as z:
+        parts=members(z)
+        needed=sum(i.file_size for i in parts.values())
+        if shutil.disk_usage(work).free<needed+128*1024**2: raise ValueError('Insufficient free disk space for shapefile extraction and pack')
+        for ext,info in parts.items():
+            with z.open(info) as src,(work/('source'+ext)).open('wb') as dst: shutil.copyfileobj(src,dst,1024*1024)
     try:
-        import shapefile
-        from pyproj import CRS, Transformer
-    except ImportError as e:
-        raise ValueError('Compiler dependencies missing: sudo apt install python3-pyshp python3-pyproj; run /usr/bin/python3') from e
+        crs=CRS.from_wkt((work/'source.prj').read_text(encoding='utf-8-sig'))
+        tx=Transformer.from_crs(crs,'EPSG:4326',always_xy=True)
+        encoding=(work/'source.cpg').read_text().strip() if (work/'source.cpg').exists() else 'utf-8'
+        if encoding.isdigit(): encoding='cp'+encoding
+        if encoding.lower()=='cp65001': encoding='utf-8'
+        with shapefile.Reader(str(work/'source.shp'),encoding=encoding) as reader:
+            total=len(reader)
+            if not total or reader.numRecords!=reader.numShapes: raise ValueError('Empty or mismatched shapefile/attribute table')
+            yield total,[f[0] for f in reader.fields[1:]],((r.record.as_dict(),r.shape.__geo_interface__) for r in reader.iterShapeRecords()),tx.transform,[i.filename for i in parts.values()],'shapefile'
+    finally:
+        for ext in parts: (work/('source'+ext)).unlink(missing_ok=True)
+
+
+def build_group(key, files, output, progress=print):
     state, filing, vintage=key[:3]
     source_provider=key[3] if len(key)==4 else None
     for kind,path in sorted(files.items()):
@@ -225,30 +324,18 @@ def build_group(key, files, output, progress=print):
             db.execute('PRAGMA journal_mode=DELETE'); db.execute('PRAGMA synchronous=NORMAL'); db.executescript(DDL)
             profile_ids={}
             for kind,path in sorted(files.items()):
-                progress(f'{path.name}: checking and extracting shapefile components…')
-                with zipfile.ZipFile(path) as z:
-                    parts=members(z)
-                    needed=sum(i.file_size for i in parts.values())
-                    if shutil.disk_usage(work).free<needed+128*1024**2: raise ValueError('Insufficient free disk space for shapefile extraction and pack; free space and retry')
-                    for ext,info in parts.items():
-                        with z.open(info) as src, (work/('source'+ext)).open('wb') as dst: shutil.copyfileobj(src,dst,1024*1024)
-                crs=CRS.from_wkt((work/'source.prj').read_text(encoding='utf-8-sig'))
-                tx=Transformer.from_crs(crs,'EPSG:4326',always_xy=True)
-                encoding=(work/'source.cpg').read_text().strip() if (work/'source.cpg').exists() else 'utf-8'
-                if encoding.isdigit(): encoding='cp'+encoding
-                if encoding.lower()=='cp65001': encoding='utf-8'
+                progress(f'{path.name}: checking and extracting source…')
                 count=0
-                with shapefile.Reader(str(work/'source.shp'),encoding=encoding) as reader:
-                    total=len(reader); progress(f'{kind}: {total:,} source rows; fields: '+', '.join(f[0] for f in reader.fields[1:]))
-                    if not total or reader.numRecords!=reader.numShapes: raise ValueError('Empty or mismatched shapefile/attribute table')
-                    for record in reader.iterShapeRecords():
+                with source_rows(path,work,kind) as (total,names,records,transform,source_members,source_format):
+                    progress(f'{kind}: {total:,} source rows; fields: '+', '.join(names))
+                    for row,geometry in records:
                         count+=1
                         try:
-                            cell,*profile=attributes(record.record.as_dict(),kind,source_provider); profile=tuple(profile)
+                            cell,*profile=attributes(row,kind,source_provider); profile=tuple(profile)
                             pid=profile_ids.get(profile)
                             if pid is None:
                                 pid=db.execute('INSERT INTO profiles(carrier,brand,provider,technology,environment) VALUES (?,?,?,?,?)',profile).lastrowid; profile_ids[profile]=pid
-                            for w,s,e,n,v,raw in polygon_parts(record.shape.__geo_interface__,tx.transform):
+                            for w,s,e,n,v,raw in polygon_parts(geometry,transform):
                                 cur=db.execute('INSERT OR IGNORE INTO shapes(h3,geom,vertices) VALUES (?,?,?)',(cell,raw,v))
                                 if cur.rowcount:
                                     sid=cur.lastrowid; db.execute('INSERT INTO spatial VALUES (?,?,?,?,?)',(sid,w,e,s,n))
@@ -260,8 +347,7 @@ def build_group(key, files, output, progress=print):
                     if count!=total: raise ValueError(f'{kind}: expected {total}, read {count}; no partial pack installed')
                 db.commit(); progress(f'{kind}: {count:,}/{total:,} rows (100%) processed')
                 # Original archives remain untouched. CRC is checked on every extracted component.
-                source_info.append({'file':path.name,'rows':count,'bytes':path.stat().st_size})
-                for ext in parts: (work/('source'+ext)).unlink()
+                source_info.append({'file':path.name,'rows':count,'bytes':path.stat().st_size,'format':source_format,'members':source_members})
             progress('Indexing and validating completed state pack…')
             layers=[]
             for c,t,e,n in db.execute('SELECT p.carrier,p.technology,p.environment,count(DISTINCT m.shape) FROM profiles p JOIN membership m ON p.id=m.profile GROUP BY 1,2,3 ORDER BY 1,2,3'):
@@ -292,15 +378,24 @@ def open_pack(path):
 
 def pack_metadata(folder):
     result={}
+    from .coverage_compact import active_pack
+    groups={}
     for path in sorted(Path(folder).glob('fcc-*.sqlite3')):
-        if not re.fullmatch(r'fcc-\d{2}(?:-\d{6})?\.sqlite3',path.name): continue
-        with open_pack(path) as db:
-            manifest=json.loads(db.execute("SELECT value FROM metadata WHERE key='manifest'").fetchone()[0])
-        expected=f"fcc-{manifest['state']}"+('-'+manifest['provider_id'] if manifest.get('provider_id') else '')+'.sqlite3'
-        if manifest['format']!='openrf-fcc-h3' or manifest['version']!=SCHEMA or path.name!=expected: raise ValueError('Unsupported FCC pack: '+path.name)
+        if re.fullmatch(r'fcc-\d{2}(?:-\d{6})?\.sqlite3',path.name): groups.setdefault(path.name[4:6],[]).append(path)
+    selected=[]
+    for state,paths in groups.items():
+        compact=active_pack(folder,state,paths)
+        if compact: selected.append(compact); continue
+        for path in paths:
+            with open_pack(path) as db:
+                manifest=json.loads(db.execute("SELECT value FROM metadata WHERE key='manifest'").fetchone()[0])
+            expected=f"fcc-{manifest['state']}"+('-'+manifest['provider_id'] if manifest.get('provider_id') else '')+'.sqlite3'
+            if manifest['format']!='openrf-fcc-h3' or manifest['version']!=SCHEMA or path.name!=expected: raise ValueError('Unsupported FCC pack: '+path.name)
+            selected.append((path,manifest))
+    for path,manifest in selected:
         for i,layer in enumerate(manifest['layers']):
             key=f"coverage:fcc:{path.stem}:{i}"
-            result[key]={**layer,'pack':f"FCC state {manifest['state']}",'vintage':manifest['vintage'],'source':manifest['source'],'saved_at':manifest['saved_at'],'fcc_file':path.name,'filing':manifest['filing']}
+            result[key]={**layer,'pack':f"FCC state {manifest['state']}",'vintage':manifest['vintage'],'source':manifest['source'],'saved_at':manifest['saved_at'],'fcc_file':str(path.relative_to(folder)),'filing':manifest['filing']}
     return result
 
 
@@ -316,20 +411,22 @@ def view_pack(path, layer, bounds, budget):
             WHERE r.south<=? AND r.north>=? AND {lon}
             AND EXISTS (SELECT 1 FROM membership m JOIN profiles p ON p.id=m.profile WHERE m.shape=g.id AND p.carrier=? AND p.technology=?{env_filter})'''
         params=(n,s,*args,layer['carrier'],layer['technology'])+(() if all_outdoor else (layer['environment'],))
+        compact=db.execute("PRAGMA user_version").fetchone()[0]==2
+        if compact: from .coverage_compact import decode
         for vertices,raw in db.execute(sql,params):
             budget-=vertices
             if budget<0: yield None; return
-            yield vertices,json.loads(zlib.decompress(raw))
+            yield vertices,decode(raw) if compact else json.loads(zlib.decompress(raw))
 
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('command',choices=('scan','build')); p.add_argument('--input-dir',type=Path); p.add_argument('--state',help='Two-digit state FIPS, e.g. 06'); p.add_argument('--release',help='Release date YYYY-MM-DD'); p.add_argument('--db',type=Path,default=Path.home()/'.local/share/openrf/openrf.sqlite3')
+    p.add_argument('command',choices=('scan','build')); p.add_argument('--format',choices=('auto','shapefile','geopackage'),default='auto'); p.add_argument('--input-dir',type=Path); p.add_argument('--state',help='Two-digit state FIPS, e.g. 06'); p.add_argument('--release',help='Release date YYYY-MM-DD'); p.add_argument('--db',type=Path,default=Path.home()/'.local/share/openrf/openrf.sqlite3')
     scope=p.add_mutually_exclusive_group(); scope.add_argument('--provider',help='Six-digit FCC provider ID'); scope.add_argument('--aggregate',action='store_true',help='Only statewide archives without a provider ID')
     a=p.parse_args()
     if a.provider and not re.fullmatch(r'\d{6}',a.provider): p.error('--provider must contain six digits')
     try:
-        folder=a.input_dir or auto_folder(); groups=discover(folder)
+        folder=a.input_dir or auto_folder(); groups=discover(folder,a.format)
         if not groups: raise ValueError('No matching files in '+str(folder))
         print('FCC source folder:',folder,flush=True)
         def progress(msg): print(msg,flush=True)
@@ -347,7 +444,7 @@ def main():
             return 1 if failed else 0
         for key,files in select_groups(groups,a.state,a.release,a.provider,a.aggregate): build_group(key,files,a.db.parent/'fcc-coverage',progress)
         return 0
-    except (OSError,ValueError,sqlite3.Error,zipfile.BadZipFile,RuntimeError) as exc:
+    except (OSError,ValueError,sqlite3.Error,zipfile.BadZipFile,RuntimeError,ImportError) as exc:
         print(f'FCC compiler stopped: {exc}. Any previously completed state pack is retained.',flush=True); return 1
 
 if __name__=='__main__': raise SystemExit(main())

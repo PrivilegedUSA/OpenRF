@@ -1,3 +1,9 @@
+## v0.2.232
+
+- Add optional compact shared state FCC packs using integer H3 IDs and lossless delta-coded polygon coordinates; deduplicate identical cell/geometry pairs across carriers. Preserve original databases and verify every geometry round trip and membership count before publishing. Explicit activation, deactivation and fallback when originals change. No H3 geometry reconstruction or new runtime dependencies.
+- Accept FCC H3 GeoPackage ZIP inputs (optional Shapely/pyproj), including renamed `geo.zip` files; retain shapefile support, choose source format explicitly, and record original archive member names. Raw propagation coverage is not supported.
+- Real California optimization, GeoPackage schema validation and performance measurements remain local acceptance steps. Nationwide downloads and standalone distribution packs are not implemented.
+
 ## v0.2.231
 
 - Remove carrier-name underlines; use a subtle teal hover and expanded-state highlight, a pointer cursor and existing keyboard focus feedback. Respect reduced-motion preferences. Checkbox and carrier information behavior are unchanged. No database changes.
