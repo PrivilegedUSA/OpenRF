@@ -19,7 +19,7 @@ project/
 {
   "project": "OpenRF",
   "formatVersion": 1,
-  "version": "0.2.234"
+  "version": "0.2.236"
 }
 ```
 

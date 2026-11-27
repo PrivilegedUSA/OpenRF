@@ -1,3 +1,14 @@
+## v0.2.236
+
+- Restore the exact v0.2.233 cellular coverage rendering and overview implementation at user request, including ordinary overlapping translucent solid carrier colors, prior polygon budget, overview grid and cache behavior. Retain the v0.2.233 viewport retry and disconnect fixes. No changes to original or compact FCC packs, activation, preferences or storage configuration. The approximate overview and occasional coarse grid at intermediate zoom levels are known limitations.
+- Supersedes the experimental rendering changes in v0.2.234 and v0.2.235; the experiment-specific test is not applicable to the restored renderer.
+
+## v0.2.235
+
+- Restore the v0.2.233 solid-color cellular rendering path after v0.2.234 visibility regression; remove experimental stripe patterns and dynamic paint changes. Retain density-based overview opacity and transparent outlines. Show rendering errors in the cellular status instead of silently logging them.
+- Restore earlier viewport budget and reusable overview-v1 cache to reduce cold-start work. No compact pack rebuild, activation change, source downloads or cache deletion required. Multi-carrier comparison and finer gap-preserving overviews remain future work.
+- Test actual bundled MapLibre style validation, layer selection, source updates and style recreation. Live California visual verification is still required.
+
 ## v0.2.234
 
 - Retain original FCC polygons within a higher bounded viewport budget; finer adaptive overview grid with approximate H3 area-density shading and no overview outlines. Sparse bins no longer receive a fixed minimum fill. New disposable overview-v2 cache; original and compact databases unchanged.

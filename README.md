@@ -1,6 +1,6 @@
-## OpenRF v0.2.234 — Coverage viewport reliability
+## OpenRF v0.2.236 — Restore v0.2.233 coverage rendering
 
-Serialize viewport loads, preserve last successful coverage during retries, and avoid duplicate error responses after a client disconnect. No coverage rebuild required.
+Restore v0.2.233 solid translucent carrier fills and overview behavior. Retain serialized viewport loads, last successful coverage during retries, and safe client disconnect handling. No coverage rebuild required.
 
 ## OpenRF v0.2.232 — Compact FCC coverage and GeoPackage input
 

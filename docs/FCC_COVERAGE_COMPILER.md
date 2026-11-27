@@ -1,4 +1,4 @@
-# FCC H3 offline coverage compiler — v0.2.234
+# FCC H3 offline coverage compiler — v0.2.236
 
 Local-only first implementation. Download **By Provider** state ZIPs for 4G LTE, 5G NR 7/1, 5G NR 35/3 and Mobile Voice, H3 shapefile, matching filing and release. California Verizon filenames begin `bdc_06_131425_`. AT&T 130077, T-Mobile 130403 and Verizon 131425 follow the FCC provider/holding-company ID table. Unknown IDs are shown as Other carriers, never guessed. Statewide archives without provider fields are supported as a separate Any provider (aggregate) layer; they cannot identify individual carriers. Keep original ZIP files in Downloads. Fixed broadband and summary ZIPs are ignored. No FCC account, network or upload is used by the compiler itself.
 
@@ -19,15 +19,15 @@ After building, start OpenRF and select Map → Layers → Cellular infrastructu
 
 Official references: https://help.bdc.fcc.gov/hc/en-us/articles/43909220634651-How-to-Download-Mobile-Broadband-Coverage-Data-from-the-FCC-s-National-Broadband-Map-Step-by-Step-Instructions ; https://help.bdc.fcc.gov/hc/en-us/articles/6047425308187-Formatting-Mobile-Broadband-Availability-Coverage-Maps ; https://help.bdc.fcc.gov/hc/en-us/articles/6047464151195-Formatting-Mobile-Voice-Availability-Coverage-Maps . The supplied statewide upload was truncated; the actual provider archives have not been inspected and their production schemas must be verified locally. Unexpected fields, profile codes or geometry fail clearly rather than labeling data incorrectly.
 
-## Wide-area display (v0.2.234)
+## Wide-area display (v0.2.236)
 
-Existing compiled packs remain compatible. The first wide view creates a disposable `.overview-v2` cache inside the local `fcc-coverage` directory, keyed to each source pack and coverage profile. Grid cells aggregate reported H3 polygon bounding-box centers, with opacity proportional to approximate H3 nominal area density (not a measured or exact coverage fraction); a colored square does not assert service across its whole area. The finer grid adapts to the viewport and feature budget; sparse bins have no fixed minimum opacity and no outline. Overlapping carriers use distinct diagonal bands for visual comparison, not sub-cell location claims. Local views use original polygons when within budget. No extra data download or compiler rebuild is required; first wide-view preparation may take longer. Blank areas are not proof of absent service. Replacing a source pack invalidates its derived cache.
+Existing compiled packs remain compatible. The first wide view creates a disposable `.overview-v1` cache inside the local `fcc-coverage` directory, keyed to each source pack and coverage profile. Grid cells aggregate reported H3 polygon bounding-box centers, with three report-density shading levels; a colored square does not assert service across its whole area. The grid adapts to the viewport and feature budget. Local views use original polygons when within budget. No extra data download or compiler rebuild is required; first wide-view preparation may take longer. Blank areas are not proof of absent service. Replacing a source pack invalidates its derived cache.
 
 ## External storage (WSL)
 
 Stop OpenRF and all compiler jobs before moving data. An NTFS external drive can hold the FCC source ZIPs and compiled coverage packs. Confirm it is mounted (`mountpoint /mnt/e` for E:) and has enough actual free space (`df -h /mnt/e`). Copy the published `fcc-*.sqlite3` files to a new external directory, compare each with `cmp`, then rename the original `fcc-coverage` directory to a backup and create a symbolic link in its place pointing to the external directory. Keep the backup until OpenRF has loaded the external packs successfully. The disposable overview cache can be regenerated. The compiler writes temporary build files beside the packs, so they also use the external disk. Pass `--input-dir /mnt/e/OpenRF-data/fcc-source` if original ZIPs have been relocated there. Always check the drive is mounted before launching or compiling; never disconnect it while the app or compiler is using it. External NTFS performance and SQLite behavior on the user's WSL installation need local verification. Do not run concurrent writers. Other OpenRF data stays in its existing location.
 
-## Compact shared state coverage and GeoPackage input (v0.2.234)
+## Compact shared state coverage and GeoPackage input (v0.2.236)
 
 Stop OpenRF and other compiler jobs first. Verify E: is mounted and contains the existing `fcc-06-*.sqlite3` originals. Run in the project directory:
 
