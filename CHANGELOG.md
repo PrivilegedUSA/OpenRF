@@ -1,3 +1,7 @@
+## v0.2.233
+
+- Serialize cellular viewport loads per tab, coalesce queued zoom/pan changes, retain previous viewport during transient failure, retry twice and allow explicit reload. Reject stale responses. Handle client disconnects without sending a second HTTP error. Existing compact and original coverage packs unchanged.
+
 ## v0.2.232
 
 - Add optional compact shared state FCC packs using integer H3 IDs and lossless delta-coded polygon coordinates; deduplicate identical cell/geometry pairs across carriers. Preserve original databases and verify every geometry round trip and membership count before publishing. Explicit activation, deactivation and fallback when originals change. No H3 geometry reconstruction or new runtime dependencies.

@@ -1,3 +1,7 @@
+## OpenRF v0.2.233 — Coverage viewport reliability
+
+Serialize viewport loads, preserve last successful coverage during retries, and avoid duplicate error responses after a client disconnect. No coverage rebuild required.
+
 ## OpenRF v0.2.232 — Compact FCC coverage and GeoPackage input
 
 Optional shared state packs preserve original geometry at existing precision and carrier profiles. Convert existing packs locally, activate only after validation, and deactivate to return to originals. FCC H3 shapefile and GeoPackage archives supported. See docs/FCC_COVERAGE_COMPILER.md.

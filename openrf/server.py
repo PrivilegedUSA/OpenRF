@@ -149,8 +149,13 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' https://unpkg.com 'unsafe-inline'; connect-src 'self' https://tiles.openfreemap.org https://unpkg.com https://*.openfreemap.org https://basemap.nationalmap.gov; img-src 'self' data: blob: https://*.openfreemap.org https://basemap.nationalmap.gov; font-src 'self' data: https://*.openfreemap.org; frame-src https:; worker-src 'self' blob:")
         for key, value in (extra_headers or {}).items():
             self.send_header(key, value)
-        self.end_headers()
-        self.wfile.write(raw)
+        try:
+            self.end_headers()
+            self.wfile.write(raw)
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            # A client closed the connection (e.g. tab reload). The response
+            # cannot be delivered; do not turn this into a second HTTP error.
+            self.close_connection = True
 
     def log_request(self, code='-', size='-'):
         # Do not expose private identifiers, search queries, attachment tokens or GPS in logs.
