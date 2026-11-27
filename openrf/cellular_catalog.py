@@ -53,7 +53,7 @@ def coords(lon, lat):
 def arcgis(params):
     # ArcGIS query supports form POST. Long GET URLs can produce HTTP 404.
     encoded = urlencode({'f':'json', **params})
-    headers = {'User-Agent':'OpenRF/0.2.238 (manual FCC public data download; https://openrf.app)', 'Accept':'application/json'}
+    headers = {'User-Agent':'OpenRF/0.2.240 (manual FCC public data download; https://openrf.app)', 'Accept':'application/json'}
     request = Request(TOWER_URL, data=encoded.encode('ascii'), headers={**headers,'Content-Type':'application/x-www-form-urlencoded'}, method='POST')
     # Some proxies reject POST. Only fall back to a deliberately short GET.
     for attempt in range(3):
@@ -248,7 +248,7 @@ class Catalog:
             if not isinstance(v,list) or len(v)!=4 or v[0] not in carriers or not all(isinstance(x,str) and len(x)<=80 for x in v) or v[0] in chosen:
                 raise ValueError('Invalid coverage profile')
             chosen[v[0]]=tuple(v[1:])
-        pts=[]; polygons=[]; limited=[]; overviews=[]; meta=self.metadata()
+        pts=[]; polygons=[]; limited=[]; overviews=[]; coverage_sources={}; meta=self.metadata()
         with self.connect() as db:
             for kind in dict.fromkeys(kinds):
                 longitude='lon BETWEEN ? AND ?' if w<=e else '(lon>=? OR lon<=?)'
@@ -258,11 +258,22 @@ class Catalog:
             for carrier in dict.fromkeys(carriers):
                 matches=[(k,(m['vintage'],m['technology'],m['environment'])) for k,m in meta.items() if k.startswith('coverage:') and m.get('carrier')==carrier]
                 profile=chosen.get(carrier) or (sorted({v for _,v in matches})[-1] if matches else None)
-                packs=[k for k,v in matches if v==profile]
+                # FCC state revisions differ even within one filing period. A combined
+                # profile selects the matching technology/environment in every active
+                # FCC state, without changing the source metadata or manual imports.
+                if profile is not None and not profile[0].startswith(('manual:','fcc:')) and any(v==profile and meta[k].get('fcc_file') for k,v in matches):
+                    profile=('fcc:all',*profile[1:])
+                if profile is not None and profile[0]=='fcc:all':
+                    packs=[k for k,v in matches if meta[k].get('fcc_file') and v[1:]==profile[1:]]
+                elif profile is not None and profile[0].startswith('manual:'):
+                    packs=[k for k,v in matches if not meta[k].get('fcc_file') and v==(profile[0][7:],*profile[1:])]
+                else:
+                    packs=[k for k,v in matches if v==profile]
                 from .coverage_overview import overview, wide_view
                 from .fcc_coverage import view_pack
                 fcc=[k for k in packs if meta[k].get('fcc_file')]
                 manual=[k for k in packs if k not in fcc]
+                coverage_sources[carrier]=[{'pack':name,'vintage':date} for name,date in sorted({(meta[k]['pack'],meta[k]['vintage']) for k in packs})]
                 box=(w,s,e,n)
                 total=0; current=[]; overflow=False
                 use_overview=bool(fcc and wide_view(box))
@@ -296,7 +307,7 @@ class Catalog:
                     else: total+=cost; current.extend(manual_rows)
                 if overflow: limited.append('coverage:'+carrier)
                 polygons.extend(current)
-        return {'points':pts,'coverage':polygons,'limited':limited,'overviews':overviews}
+        return {'points':pts,'coverage':polygons,'limited':limited,'overviews':overviews,'coverage_sources':coverage_sources}
 
 
 

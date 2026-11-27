@@ -1,3 +1,12 @@
+## v0.2.240
+
+- Normalize legacy FCC date-specific viewport selectors on the server as well as the browser, preserving explicit manual import selections. Report selected state pack sources in viewport status for diagnostics. No renderer or coverage pack changes.
+
+## v0.2.239
+
+- Group FCC coverage selections by carrier, technology and reception environment across installed states rather than by a single revision date. Show the installed revision range in the dropdown, preserve source dates, migrate saved FCC selections, and retain date-specific manual imports and legacy API selectors.
+- Default FCC view includes matching active state packs, including different revisions of the same filing. No map styling, geometry, cache format, database migration or compilation changes.
+
 ## v0.2.238
 
 - Nationwide FCC H3 plan/run/status CLI for 50 states and DC, provider selection, credentialed catalog adapter and local archive mode. Sequential downloads with byte progress, temporary-failure retries, strong-ETag range resume where supported, and ZIP/member/schema validation.

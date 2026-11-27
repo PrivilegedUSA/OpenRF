@@ -1,4 +1,4 @@
-# Nationwide FCC H3 compiler (v0.2.238)
+# Nationwide FCC H3 compiler (v0.2.240)
 
 This developer-side CLI prepares standalone compact state databases. It does not change the renderer or download anything on application startup. All 50 states and Washington, DC are selectable; territories, aggregate statewide coverage, raw propagation polygons and 3G are not included in this first batch workflow. The default carrier IDs are AT&T 130077, T-Mobile 130403 and Verizon 131425. `--all-providers` selects every recognized provider-specific H3 entry from the supplied catalog; existing UI grouping of other providers is unchanged. The FCC catalog is the source of available files, not evidence that every provider or technology has coverage in every state.
 

@@ -1,4 +1,4 @@
-## OpenRF v0.2.238 — Nationwide FCC coverage compiler
+## OpenRF v0.2.240 — Nationwide FCC coverage compiler
 
 Plan and batch-build state-specific standalone compact H3 packs from local archives or the credentialed FCC public data API. Resume completed archives and states; produce local checksum manifests. See docs/FCC_NATIONWIDE.md. No map styling changes or public hosting.
 

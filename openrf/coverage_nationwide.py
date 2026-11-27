@@ -77,7 +77,7 @@ class FCCClient:
         token = token or os.environ.get('FCC_HASH_VALUE')
         if not username or not token or any('\r' in x or '\n' in x for x in (username, token)):
             raise ValueError('Set FCC_USERNAME and FCC_HASH_VALUE in this terminal (FCC account API token)')
-        self.headers = {'username':username, 'hash_value':token, 'User-Agent':'OpenRF coverage compiler/0.2.238', 'Accept-Encoding':'identity'}
+        self.headers = {'username':username, 'hash_value':token, 'User-Agent':'OpenRF coverage compiler/0.2.240', 'Accept-Encoding':'identity'}
         self.opener = build_opener(NoRedirect())
 
     def request(self, path, extra=None):
