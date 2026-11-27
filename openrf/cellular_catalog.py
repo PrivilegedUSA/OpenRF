@@ -53,7 +53,7 @@ def coords(lon, lat):
 def arcgis(params):
     # ArcGIS query supports form POST. Long GET URLs can produce HTTP 404.
     encoded = urlencode({'f':'json', **params})
-    headers = {'User-Agent':'OpenRF/0.2.237 (manual FCC public data download; https://openrf.app)', 'Accept':'application/json'}
+    headers = {'User-Agent':'OpenRF/0.2.238 (manual FCC public data download; https://openrf.app)', 'Accept':'application/json'}
     request = Request(TOWER_URL, data=encoded.encode('ascii'), headers={**headers,'Content-Type':'application/x-www-form-urlencoded'}, method='POST')
     # Some proxies reject POST. Only fall back to a deliberately short GET.
     for attempt in range(3):

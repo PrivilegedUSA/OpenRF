@@ -1,3 +1,9 @@
+## v0.2.238
+
+- Nationwide FCC H3 plan/run/status CLI for 50 states and DC, provider selection, credentialed catalog adapter and local archive mode. Sequential downloads with byte progress, temporary-failure retries, strong-ETag range resume where supported, and ZIP/member/schema validation.
+- Persistent plan and state journal, direct compact compilation, existing state pack protection, optional standalone activation and a local draft distribution manifest with SHA-256 and installed sizes. Resume completed archives and states; interrupted state compilation restarts that state.
+- FCC API adapter requires live account verification; no FCC credentials or datasets bundled, no redistribution approval, no upload or in-app downloader. Existing coverage renderer unchanged.
+
 ## v0.2.237
 
 - Explicit standalone activation for validated compact v2 FCC state packs, including discovery without original v1 databases and portability to a clean installation. Original-linked activation still checks freshness; standalone pins a specific file stamp and must be reactivated after moving or replacing the file. No automatic removal of original packs.
