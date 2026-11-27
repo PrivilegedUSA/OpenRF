@@ -1,3 +1,9 @@
+## v0.2.234
+
+- Retain original FCC polygons within a higher bounded viewport budget; finer adaptive overview grid with approximate H3 area-density shading and no overview outlines. Sparse bins no longer receive a fixed minimum fill. New disposable overview-v2 cache; original and compact databases unchanged.
+- Show separate diagonal carrier color bands when multiple carrier layers are visible, on vector and raster maps. Bands are a visual encoding, not a sub-cell measurement or an additional coverage claim. Preserve per-carrier profiles and colors.
+- Actual California rendering speed, appearance and statewide accuracy remain local acceptance checks; this is not exact polygon union or precomputed tile generation.
+
 ## v0.2.233
 
 - Serialize cellular viewport loads per tab, coalesce queued zoom/pan changes, retain previous viewport during transient failure, retry twice and allow explicit reload. Reject stale responses. Handle client disconnects without sending a second HTTP error. Existing compact and original coverage packs unchanged.

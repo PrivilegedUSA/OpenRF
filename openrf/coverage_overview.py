@@ -1,8 +1,8 @@
 """Bounded multiscale display of FCC coverage reports from existing offline packs.
 
-Overview squares count reported H3 cells whose polygon bounding-box centers fall
+Overview bins count reported H3 cells whose polygon bounding-box centers fall
 inside a grid cell. They do not assert coverage throughout that square or a
-coverage probability. Detailed geometry remains authoritative at local scales.
+coverage probability. Shading scales with nominal H3 area density. Detailed geometry remains authoritative at local scales.
 Derived caches are disposable, source-fingerprinted and atomically published.
 """
 from collections import defaultdict
@@ -17,14 +17,14 @@ import threading
 
 from .fcc_coverage import open_pack
 
-BASE = 32  # cells per degree; grid is anchored at (-180, -90)
-MAX_CELLS = 9000
+BASE = 128  # cells per degree; grid is anchored at (-180, -90)
+MAX_CELLS = 18000
 _LOCK = threading.Lock()
 
 
 def wide_view(bounds):
     w,s,e,n=bounds
-    return max((e-w) if e>=w else (e-w+360),n-s)>3
+    return max((e-w) if e>=w else (e-w+360),n-s)>4
 
 
 def _fingerprint(path):
@@ -36,7 +36,7 @@ def _base_cells(path, layer):
     path=Path(path)
     key=[layer[k] for k in ('carrier','technology','environment')]
     token=hashlib.sha256(json.dumps([path.name,key]).encode()).hexdigest()[:24]
-    folder=path.parent/'.overview-v1'
+    folder=path.parent/'.overview-v2'
     cache=folder/(token+'.json')
     with _LOCK:
         stamp=_fingerprint(path)
@@ -50,8 +50,8 @@ def _base_cells(path, layer):
             env='' if all_outdoor else ' AND p.environment=?'
             # Group unique source H3 IDs in each base cell. R-tree bounds are
             # sufficient for the overview; no geometry decompression needed.
-            rows=db.execute(f'''SELECT CAST((r.west+r.east+360)*16 AS INTEGER) AS x,
-                CAST((r.south+r.north+180)*16 AS INTEGER) AS y, count(DISTINCT g.h3)
+            rows=db.execute(f'''SELECT CAST((r.west+r.east+360)*64 AS INTEGER) AS x,
+                CAST((r.south+r.north+180)*64 AS INTEGER) AS y, count(DISTINCT g.h3)
                 FROM profiles p JOIN membership m ON m.profile=p.id
                 JOIN shapes g ON g.id=m.shape JOIN spatial r ON r.id=g.id
                 WHERE p.carrier=? AND p.technology=?{env}
@@ -95,7 +95,7 @@ def overview(packs,bounds,budget):
     w,s,e,n=bounds
     span=max(e-w if e>=w else e-w+360,n-s)
     factor=1
-    while span*BASE/factor>180: factor*=2
+    while span*BASE/factor>300: factor*=2
     sources=[]
     for path,layer in packs:
         if _has_spatial_candidates(path,bounds): sources.append(_base_cells(path,layer))
@@ -114,9 +114,13 @@ def overview(packs,bounds,budget):
     for (ix,iy),count in sorted(bins.items()):
         west=ix*step-180; south=iy*step-90
         east=min(180,west+step); north=min(90,south+step)
-        # Quantized intensity describes report density, not percent coverage.
-        density=count/(factor*factor)
-        opacity=0.10 if density<10 else 0.17 if density<50 else 0.24
+        # Nominal H3 resolution-9 cell area (km²), divided by geographic
+        # bin area. Center assignment and variable H3 areas make this an
+        # approximate density proxy, NOT an exact area fraction or service
+        # probability. No minimum fill for sparse bins.
+        area=6371.0088**2*math.radians(east-west)*abs(math.sin(math.radians(north))-math.sin(math.radians(south)))
+        density=min(1.0,count*0.1053325/max(area,1e-12))
+        opacity=round(0.38*density,6)
         polygons.append({'polygon':[[[west,south],[east,south],[east,north],[west,north],[west,south]]],
-                         'overview':True,'reports':count,'opacity':opacity})
+                         'overview':True,'reports':count,'density':density,'opacity':opacity})
     return polygons,step

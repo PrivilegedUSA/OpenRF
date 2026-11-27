@@ -29,7 +29,7 @@ MAX_FILE = 128 * 1024**2
 MAX_VERTICES = 2_000_000
 MAX_FEATURES = 100_000
 MAX_VIEW_POINTS = 2500
-MAX_VIEW_VERTICES = 150_000
+MAX_VIEW_VERTICES = 300_000
 
 
 def now():
@@ -53,7 +53,7 @@ def coords(lon, lat):
 def arcgis(params):
     # ArcGIS query supports form POST. Long GET URLs can produce HTTP 404.
     encoded = urlencode({'f':'json', **params})
-    headers = {'User-Agent':'OpenRF/0.2.233 (manual FCC public data download; https://openrf.app)', 'Accept':'application/json'}
+    headers = {'User-Agent':'OpenRF/0.2.234 (manual FCC public data download; https://openrf.app)', 'Accept':'application/json'}
     request = Request(TOWER_URL, data=encoded.encode('ascii'), headers={**headers,'Content-Type':'application/x-www-form-urlencoded'}, method='POST')
     # Some proxies reject POST. Only fall back to a deliberately short GET.
     for attempt in range(3):

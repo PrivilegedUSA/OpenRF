@@ -1,4 +1,4 @@
-## OpenRF v0.2.233 — Coverage viewport reliability
+## OpenRF v0.2.234 — Coverage viewport reliability
 
 Serialize viewport loads, preserve last successful coverage during retries, and avoid duplicate error responses after a client disconnect. No coverage rebuild required.
 

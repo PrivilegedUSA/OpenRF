@@ -42,7 +42,7 @@ class CoverageOverview(unittest.TestCase):
             self.assertTrue(all(x['overview'] for x in v['coverage']))
         self.assertGreater(country['overviews'][0]['degrees'],state['overviews'][0]['degrees'])
         self.assertEqual(self.cat.view((-100,30,-90,40),[],['verizon'])['coverage'],[])
-        self.assertTrue(list((self.folder/'.overview-v1').glob('*.json')))
+        self.assertTrue(list((self.folder/'.overview-v2').glob('*.json')))
 
     def test_budget_and_profile_isolation(self):
         self.fixture('130403','tmobile',[(-122,39)])
@@ -62,6 +62,19 @@ class CoverageOverview(unittest.TestCase):
         # Source packs are opened read-only by overview code.
         self.assertNotEqual(self.path.read_bytes(),source)
         before=self.path.read_bytes();overview([(self.path,self.layer)],(-125,32,-113,43),1000);self.assertEqual(self.path.read_bytes(),before)
+
+    def test_sparse_bins_do_not_look_fully_covered(self):
+        from openrf.coverage_overview import BASE
+        x=int((180-121)*BASE); y=int((90+38)*BASE)
+        with patch('openrf.coverage_overview._base_cells',return_value=[[x,y,1],[x+4,y,4]]):
+            cells,step=overview([(self.path,self.layer)],(-121.1,37.9,-120.9,38.1),1000)
+        self.assertEqual(len(cells),2)
+        sparse,dense=cells
+        self.assertGreater(sparse['opacity'],0)
+        self.assertLess(sparse['opacity'],dense['opacity'])
+        self.assertLess(sparse['density'],1)
+        self.assertLessEqual(dense['density'],1)
+        self.assertAlmostEqual(sparse['opacity'],0.38*sparse['density'],places=6)
 
     def test_dateline_and_multi_state(self):
         west=self.fixture('131425','verizon',[(179.8,52),(-179.8,52)],state='02')
