@@ -89,3 +89,9 @@ class GeoPackageTest(unittest.TestCase):
             out=f.build_group(key,files,root/'fcc-coverage',lambda _:None)
             meta=c.manifest(out);self.assertEqual(meta['sources'][0]['format'],'geopackage');self.assertIn('24oct2026',meta['sources'][0]['members'][0]);self.assertEqual(meta['vintage'],'2026-11-10')
             self.assertEqual(len(Catalog(root/'catalog.sqlite3').view((-121.1,37.9,-120.9,38.1),[],['att'])['coverage']),1)
+            dest=root/'direct'/'fcc-coverage'
+            direct=c.build_direct(dest,'06',src,preferred='geopackage',progress=lambda _:None)
+            self.assertEqual(c.manifest(direct)['layers'],meta['layers'])
+            self.assertEqual(c.manifest(direct)['sources'][0]['format'],'geopackage')
+            c.set_active(dest,'06',True,standalone=True)
+            self.assertEqual(len(Catalog(dest.parent/'catalog.sqlite3').view((-121.1,37.9,-120.9,38.1),[],['att'])['coverage']),1)

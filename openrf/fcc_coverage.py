@@ -236,7 +236,7 @@ def attributes(row,kind,source_provider=None):
     return cell,group,brand,provider,tech,env
 
 
-def polygon_parts(geometry, transform):
+def polygon_parts(geometry, transform, encode_geometry=None):
     typ=geometry['type']; polys=geometry['coordinates']
     if typ=='Polygon': polys=[polys]
     elif typ!='MultiPolygon': raise ValueError('Expected polygon geometry, found '+typ)
@@ -257,7 +257,8 @@ def polygon_parts(geometry, transform):
             if (signed>0)!=(ring_index==0): core=core[:1]+core[:0:-1]
             rings.append(core+[core[0]])
         if not rings or max(xs)-min(xs)>180: raise ValueError('Empty or unsplit antimeridian polygon; source not installed')
-        yield (min(xs),min(ys),max(xs),max(ys),sum(map(len,rings)),zlib.compress(json.dumps(rings,separators=(',',':')).encode(),level=3))
+        raw=encode_geometry(rings) if encode_geometry is not None else zlib.compress(json.dumps(rings,separators=(',',':')).encode(),level=3)
+        yield (min(xs),min(ys),max(xs),max(ys),sum(map(len,rings)),raw)
 
 
 DDL='''PRAGMA user_version=1;
@@ -378,12 +379,13 @@ def open_pack(path):
 
 def pack_metadata(folder):
     result={}
-    from .coverage_compact import active_pack
+    from .coverage_compact import active_pack, compact_states
     groups={}
     for path in sorted(Path(folder).glob('fcc-*.sqlite3')):
         if re.fullmatch(r'fcc-\d{2}(?:-\d{6})?\.sqlite3',path.name): groups.setdefault(path.name[4:6],[]).append(path)
+    for state in compact_states(folder): groups.setdefault(state,[])
     selected=[]
-    for state,paths in groups.items():
+    for state,paths in sorted(groups.items()):
         compact=active_pack(folder,state,paths)
         if compact: selected.append(compact); continue
         for path in paths:

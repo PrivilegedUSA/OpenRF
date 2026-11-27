@@ -1,3 +1,9 @@
+## v0.2.237
+
+- Explicit standalone activation for validated compact v2 FCC state packs, including discovery without original v1 databases and portability to a clean installation. Original-linked activation still checks freshness; standalone pins a specific file stamp and must be reactivated after moving or replacing the file. No automatic removal of original packs.
+- Direct build from H3 shapefile/GeoPackage ZIPs into the shared compact state format, skipping v1 intermediates. Initial direct path is for new states or isolated output folders only; no overwriting existing state data. Provider-specific inputs preferred; aggregate-only states supported. All selected input groups must share a filing and vintage.
+- Activation stage messages and status command. Existing compact geometry, map renderer, overview cache, colors, and viewport behavior are unchanged. Nationwide acquisition, manifests/hosting, replacement lifecycle and Pi performance are future work.
+
 ## v0.2.236
 
 - Restore the exact v0.2.233 cellular coverage rendering and overview implementation at user request, including ordinary overlapping translucent solid carrier colors, prior polygon budget, overview grid and cache behavior. Retain the v0.2.233 viewport retry and disconnect fixes. No changes to original or compact FCC packs, activation, preferences or storage configuration. The approximate overview and occasional coarse grid at intermediate zoom levels are known limitations.

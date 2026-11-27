@@ -1,4 +1,4 @@
-# FCC H3 offline coverage compiler — v0.2.236
+# FCC H3 offline coverage compiler — v0.2.237
 
 Local-only first implementation. Download **By Provider** state ZIPs for 4G LTE, 5G NR 7/1, 5G NR 35/3 and Mobile Voice, H3 shapefile, matching filing and release. California Verizon filenames begin `bdc_06_131425_`. AT&T 130077, T-Mobile 130403 and Verizon 131425 follow the FCC provider/holding-company ID table. Unknown IDs are shown as Other carriers, never guessed. Statewide archives without provider fields are supported as a separate Any provider (aggregate) layer; they cannot identify individual carriers. Keep original ZIP files in Downloads. Fixed broadband and summary ZIPs are ignored. No FCC account, network or upload is used by the compiler itself.
 
@@ -19,7 +19,7 @@ After building, start OpenRF and select Map → Layers → Cellular infrastructu
 
 Official references: https://help.bdc.fcc.gov/hc/en-us/articles/43909220634651-How-to-Download-Mobile-Broadband-Coverage-Data-from-the-FCC-s-National-Broadband-Map-Step-by-Step-Instructions ; https://help.bdc.fcc.gov/hc/en-us/articles/6047425308187-Formatting-Mobile-Broadband-Availability-Coverage-Maps ; https://help.bdc.fcc.gov/hc/en-us/articles/6047464151195-Formatting-Mobile-Voice-Availability-Coverage-Maps . The supplied statewide upload was truncated; the actual provider archives have not been inspected and their production schemas must be verified locally. Unexpected fields, profile codes or geometry fail clearly rather than labeling data incorrectly.
 
-## Wide-area display (v0.2.236)
+## Wide-area display (v0.2.237)
 
 Existing compiled packs remain compatible. The first wide view creates a disposable `.overview-v1` cache inside the local `fcc-coverage` directory, keyed to each source pack and coverage profile. Grid cells aggregate reported H3 polygon bounding-box centers, with three report-density shading levels; a colored square does not assert service across its whole area. The grid adapts to the viewport and feature budget. Local views use original polygons when within budget. No extra data download or compiler rebuild is required; first wide-view preparation may take longer. Blank areas are not proof of absent service. Replacing a source pack invalidates its derived cache.
 
@@ -27,7 +27,7 @@ Existing compiled packs remain compatible. The first wide view creates a disposa
 
 Stop OpenRF and all compiler jobs before moving data. An NTFS external drive can hold the FCC source ZIPs and compiled coverage packs. Confirm it is mounted (`mountpoint /mnt/e` for E:) and has enough actual free space (`df -h /mnt/e`). Copy the published `fcc-*.sqlite3` files to a new external directory, compare each with `cmp`, then rename the original `fcc-coverage` directory to a backup and create a symbolic link in its place pointing to the external directory. Keep the backup until OpenRF has loaded the external packs successfully. The disposable overview cache can be regenerated. The compiler writes temporary build files beside the packs, so they also use the external disk. Pass `--input-dir /mnt/e/OpenRF-data/fcc-source` if original ZIPs have been relocated there. Always check the drive is mounted before launching or compiling; never disconnect it while the app or compiler is using it. External NTFS performance and SQLite behavior on the user's WSL installation need local verification. Do not run concurrent writers. Other OpenRF data stays in its existing location.
 
-## Compact shared state coverage and GeoPackage input (v0.2.236)
+## Compact shared state coverage and GeoPackage input (v0.2.237)
 
 Stop OpenRF and other compiler jobs first. Verify E: is mounted and contains the existing `fcc-06-*.sqlite3` originals. Run in the project directory:
 
@@ -35,7 +35,7 @@ Stop OpenRF and other compiler jobs first. Verify E: is mounted and contains the
 mountpoint -q /mnt/e && SQLITE_TMPDIR=/mnt/e/OpenRF-data/fcc-coverage /usr/bin/python3 -m openrf.coverage_compact build --state 06 --folder /mnt/e/OpenRF-data/fcc-coverage
 ```
 
-The optimizer streams each original pack, encodes H3 keys as integers, and encodes coordinates with signed delta varints at the existing seven-decimal precision. Every polygon is decoded and compared during conversion. Identical H3/geometry pairs are shared across carriers; different geometries for the same H3 ID remain distinct, including holes or clipped boundaries. Profile memberships are checked against the original counts. All sources must have matching state, filing and vintage. The original v1 packs are opened read-only. The shared SQLite pack is written atomically in `compact-v2/`; it reports original and new byte totals, percent reduction, elapsed time and SHA-256. Temporary files and VACUUM can require multiple additional GB of free space. Never remove original packs: this experimental format requires them for rollback and freshness checks.
+The optimizer streams each original pack, encodes H3 keys as integers, and encodes coordinates with signed delta varints at the existing seven-decimal precision. Every polygon is decoded and compared during conversion. Identical H3/geometry pairs are shared across carriers; different geometries for the same H3 ID remain distinct, including holes or clipped boundaries. Profile memberships are checked against the original counts. All sources must have matching state, filing and vintage. The original v1 packs are opened read-only. The shared SQLite pack is written atomically in `compact-v2/`; it reports original and new byte totals, percent reduction, elapsed time and SHA-256. Temporary files and VACUUM can require multiple additional GB of free space. Keep original packs for rollback and freshness checks unless explicitly switching to standalone mode as described below.
 
 After successful conversion, optionally activate it:
 
@@ -43,7 +43,7 @@ After successful conversion, optionally activate it:
 /usr/bin/python3 -m openrf.coverage_compact activate --state 06
 ```
 
-Restart OpenRF, compare local and statewide views of all carriers. To return to originals, stop OpenRF and run `python3 -m openrf.coverage_compact deactivate --state 06`. Changes to the original pack set, original file stamps or compact pack stamp automatically disable the compact pack. Statewide overview caches are recreated on first use. The optimized pack is not a standalone distributable yet; no source deletion is supported. This does not reconstruct ideal H3 hexagons or change existing coordinates.
+Restart OpenRF, compare local and statewide views of all carriers. To return to originals, stop OpenRF and run `python3 -m openrf.coverage_compact deactivate --state 06`. Changes to the original pack set, original file stamps or compact pack stamp automatically disable the compact pack. Statewide overview caches are recreated on first use. Original-linked mode still depends on the originals. Standalone activation is described below. This does not reconstruct ideal H3 hexagons or change existing coordinates.
 
 For the renamed FCC GeoPackage files, optional compiler dependencies: `sudo apt install python3-shapely python3-pyproj`. Scan first:
 
@@ -52,3 +52,24 @@ For the renamed FCC GeoPackage files, optional compiler dependencies: `sudo apt 
 ```
 
 The scanner extracts the GeoPackage to a temporary directory beside the archive to verify the schema and row count. Only one polygon feature table, standard GeoPackage geometry and supported CRS/fields are accepted. Both archive and member names are recorded during builds; the archive date remains the existing profile vintage, and differing internal dates are retained as source provenance, not silently reconciled. Use `--format shapefile` for ESRI input; default `auto` prefers a shapefile if both formats are present. Ambiguous duplicates are rejected. For an isolated GeoPackage build, add `--db /mnt/e/OpenRF-data/geopackage-test/catalog.sqlite3` to the `build` command, which stores the output in that directory's `fcc-coverage/` rather than overwriting working packs. No raw coverage input. Real FCC files and Pi hardware remain untested.
+
+
+## Standalone compact snapshots and direct compilation (v0.2.237)
+
+Stop OpenRF and other compiler jobs. For the already-built California compact pack, no recompilation or new archive is needed:
+
+```bash
+mountpoint -q /mnt/e && /usr/bin/python3 -m openrf.coverage_compact activate --state 06 --standalone
+/usr/bin/python3 -m openrf.coverage_compact status --state 06
+```
+
+Standalone activation reads the manifest, rejects changed or newly added originals if present, checks SQLite integrity and expected schema, then atomically writes a local activation marker. It does not modify the compact database. Once enabled, the compact snapshot is authoritative for that state: subsequently adding or rebuilding original v1 files does not refresh the pinned snapshot. To return to originals, deactivate and restore any archived v1 files. Keep originals in a backup directory until you have checked all profiles and zoom levels with the originals absent. The command never deletes data. Moving or replacing a compact file invalidates the local marker; activate again on the destination. Original-linked mode (`activate` without `--standalone`) retains the previous exact original-stamp checks. A standalone pack is portable data, not yet a published or authenticated download; independently verify SHA-256 against a trusted manifest before installing a transferred pack.
+
+For a new state, build directly from local FCC H3 ZIPs:
+
+```bash
+mountpoint -q /mnt/e && SQLITE_TMPDIR=/mnt/e/OpenRF-data/fcc-coverage /usr/bin/python3 -m openrf.coverage_compact build-direct --state 32 --folder /mnt/e/OpenRF-data/fcc-coverage --input-dir /mnt/e/OpenRF-data/fcc-source
+/usr/bin/python3 -m openrf.coverage_compact activate --state 32 --standalone
+```
+
+Example state 32 is Nevada; obtain its input archives first. Direct builds require the same optional GIS libraries as v1 compilation. `--format geopackage` or `--format shapefile` selects a source format; `--release YYYY-MM-DD` selects a common vintage. All selected groups must share a filing/vintage; provider files are preferred over statewide aggregate data. No intermediate v1 state pack is created. Each polygon is canonicalized and losslessly encoded at existing seven-decimal precision; source row counts, file identities, profile memberships, provenance and SQLite integrity are checked. The completed output is published without overwriting existing files. This initial direct-build path refuses a state that already has original or compact packs; use an isolated `--folder` for experiments. Run only one writer at a time. No automatic source acquisition, nationwide downloader, or in-place standalone refresh is implemented. Real FCC direct compilation speed and external NTFS publication still require local validation. Existing overview rendering and cache format remain unchanged.

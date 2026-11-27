@@ -14,8 +14,11 @@ import sqlite3
 import tempfile
 import time
 import zlib
+import zipfile
 
 from .fcc_coverage import open_pack, DDL, SOURCE
+
+COMPACT_DDL=DDL.replace("user_version=1","user_version=2").replace("h3 TEXT","h3 INTEGER").replace(", UNIQUE(h3,geom)","")+"CREATE UNIQUE INDEX build_dedup ON shapes(h3,geom);"
 
 
 def encode(rings):
@@ -68,21 +71,48 @@ def originals(folder,state):
 
 def manifest(path):
     with open_pack(path) as db:
-        return json.loads(db.execute("SELECT value FROM metadata WHERE key='manifest'").fetchone()[0])
+        row=db.execute("SELECT value FROM metadata WHERE key='manifest'").fetchone()
+        if not row: raise ValueError("Missing coverage manifest")
+        return json.loads(row[0])
+
+
+def compact_target(folder,state):
+    return Path(folder)/'compact-v2'/f'fcc-{state}-shared.sqlite3'
+
+
+def compact_states(folder):
+    # Include states that have no v1 pack at all. Inactive or invalid packs are
+    # filtered by active_pack, not published merely because a file exists.
+    return {p.name[4:6] for p in (Path(folder)/'compact-v2').glob('fcc-*-shared.active')
+            if re.fullmatch(r'fcc-\d{2}-shared\.active',p.name)}
+
+
+def validate_manifest(meta,state):
+    if (not isinstance(meta,dict) or meta.get('format')!='openrf-fcc-h3'
+            or meta.get('version')!=2 or meta.get('state')!=state
+            or not isinstance(meta.get('originals'),list)
+            or not isinstance(meta.get('layers'),list) or not meta['layers']
+            or not all(isinstance(meta.get(k),str) and meta[k] for k in ('source','vintage','filing','saved_at'))):
+        raise ValueError('Invalid compact pack manifest')
+    for layer in meta['layers']:
+        if (not isinstance(layer,dict) or not all(isinstance(layer.get(k),str) and layer[k] for k in ('carrier','technology','environment'))
+                or not isinstance(layer.get('count'),int) or layer['count']<=0):
+            raise ValueError('Invalid compact coverage profile')
 
 
 def active_pack(folder,state,paths):
-    """Opt-in only, automatically fall back to current originals on any change."""
-    target=Path(folder)/'compact-v2'/f'fcc-{state}-shared.sqlite3'
-    flag=target.with_suffix('.active')
+    """Legacy opt-in checks original stamps; standalone pins an explicit snapshot."""
+    target=compact_target(folder,state); flag=target.with_suffix('.active')
     try:
         if not flag.is_file(): return None
-        meta=manifest(target)
-        if meta['format']!='openrf-fcc-h3' or meta['version']!=2 or meta['state']!=state: return None
-        if meta['originals']!=[stamp(p) for p in paths]: return None
-        if json.loads(flag.read_text())!=stamp(target): return None
+        marker=json.loads(flag.read_text())
+        if isinstance(marker,dict):
+            if marker.get('mode')!='standalone' or marker.get('stamp')!=stamp(target): return None
+        elif marker!=stamp(target): return None
+        meta=manifest(target); validate_manifest(meta,state)
+        if not isinstance(marker,dict) and meta['originals']!=[stamp(p) for p in paths]: return None
         return target,meta
-    except (OSError,ValueError,KeyError,sqlite3.Error): return None
+    except (OSError,ValueError,KeyError,TypeError,sqlite3.Error): return None
 
 
 def layers(db):
@@ -107,11 +137,11 @@ def optimize(folder,state,progress=print):
         working=Path(tmp)/'pack.sqlite3'
         with closing(sqlite3.connect(working)) as db:
             db.execute('PRAGMA synchronous=NORMAL'); db.execute('PRAGMA temp_store=FILE')
-            ddl=DDL.replace('user_version=1','user_version=2').replace('h3 TEXT','h3 INTEGER').replace(', UNIQUE(h3,geom)','')
-            db.executescript(ddl+'CREATE UNIQUE INDEX build_dedup ON shapes(h3,geom);')
+            db.executescript(COMPACT_DDL)
             profiles={}; expected={}
             for path in paths:
                 with open_pack(path) as old:
+                    progress(f'Checking original {path.name}…')
                     if old.execute('PRAGMA quick_check').fetchone()!=('ok',): raise ValueError('Invalid original pack '+path.name)
                     ids={}
                     for pid,*fields in old.execute('SELECT id,carrier,brand,provider,technology,environment FROM profiles'):
@@ -161,28 +191,138 @@ def optimize(folder,state,progress=print):
     return target
 
 
-def set_active(folder,state,enable):
-    target=Path(folder)/'compact-v2'/f'fcc-{state}-shared.sqlite3'; flag=target.with_suffix('.active')
+def set_active(folder,state,enable,standalone=False,progress=lambda _:None):
+    target=compact_target(folder,state); flag=target.with_suffix('.active')
     if not enable: flag.unlink(missing_ok=True); return
-    meta=manifest(target)
-    if meta['originals']!=[stamp(p) for p in originals(folder,state)]: raise ValueError('Compact pack is stale; optimize again')
-    if meta['version']!=2 or meta['state']!=state: raise ValueError('Invalid compact pack')
+    progress('Reading compact manifest…')
+    meta=manifest(target); validate_manifest(meta,state)
+    current=[stamp(p) for p in originals(folder,state)]
+    if standalone:
+        # Existing originals may be removed, but a stale or newly added v1
+        # pack must not accidentally be masked when opting in.
+        if any(item not in meta['originals'] for item in current):
+            raise ValueError('Original packs changed or were added; use a separate folder or rebuild before standalone activation')
+    elif not meta['originals'] or meta['originals']!=current:
+        raise ValueError('Compact pack is stale or standalone-only; use --standalone for a verified independent snapshot')
+    initial=stamp(target)
+    progress('Checking compact SQLite integrity (may take several minutes)…')
     with open_pack(target) as db:
-        if db.execute('PRAGMA quick_check').fetchone()!=('ok',): raise ValueError('Invalid compact pack')
+        if db.execute('PRAGMA user_version').fetchone()!=(2,): raise ValueError('Invalid compact schema version')
+        if db.execute('PRAGMA quick_check').fetchall()!=[('ok',)]: raise ValueError('Invalid compact pack')
+        # Ensure all runtime tables are present without scanning millions of rows.
+        for table,columns in [('shapes','id,h3,geom,vertices'),('profiles','id,carrier,brand,provider,technology,environment'),('membership','shape,profile'),('spatial','id,west,east,south,north')]:
+            db.execute(f'SELECT {columns} FROM {table} LIMIT 0')
+    if initial!=stamp(target) or current!=[stamp(p) for p in originals(folder,state)]: raise ValueError('Coverage files changed during activation')
+    progress('Saving activation flag…')
+    marker={'mode':'standalone','stamp':initial} if standalone else initial
     with tempfile.NamedTemporaryFile(mode='w',dir=target.parent,delete=False) as f:
-        tmp=Path(f.name); json.dump(stamp(target),f)
+        tmp=Path(f.name); json.dump(marker,f)
     try: os.replace(tmp,flag)
     finally: tmp.unlink(missing_ok=True)
 
 
+def build_direct(folder,state,input_dir,preferred='auto',release=None,progress=print):
+    """Build a new state directly from FCC ZIPs, without any v1 intermediates.
+
+    Existing state packs are never replaced by this first direct-build path.
+    Build to an isolated folder to benchmark or prepare a replacement.
+    """
+    from datetime import datetime, timezone
+    from . import fcc_coverage as f
+    folder=Path(folder); target=compact_target(folder,state)
+    if target.exists() or originals(folder,state):
+        raise ValueError('State already has coverage packs; direct build requires a new state or isolated --folder')
+    groups=f.discover(input_dir,preferred)
+    selected=f.select_groups(groups,state,release)
+    # Match the v1 compiler default: prefer provider-specific sources; use
+    # aggregate-only archives only when no provider files are available.
+    if len({key[1:3] for key,_ in selected})!=1:
+        raise ValueError('Selected source groups have different filing/release dates; specify a common --release')
+    filing,vintage=selected[0][0][1:3]
+    sources=[]; jobs=[]
+    for key,files in selected:
+        provider=key[3] if len(key)==4 else None
+        for kind,path in sorted(files.items()):
+            if f.source_identity(path)!=provider: raise ValueError('Source provider mismatch')
+            progress(f'Preflight {path.name}…')
+            total,_,_=f.inspect_zip(path,kind)
+            jobs.append((provider,kind,path,total,stamp(path)))
+    target.parent.mkdir(parents=True,exist_ok=True)
+    start=time.monotonic()
+    with tempfile.TemporaryDirectory(prefix='.direct-',dir=target.parent) as tmp:
+        work=Path(tmp); dbpath=work/'pack.sqlite3'
+        with closing(sqlite3.connect(dbpath)) as db:
+            db.execute('PRAGMA synchronous=NORMAL'); db.execute('PRAGMA temp_store=FILE'); db.executescript(COMPACT_DDL)
+            profiles={}
+            for provider,kind,path,expected,source_stamp in jobs:
+                progress(f'Extracting {path.name}…')
+                count=0
+                with f.source_rows(path,work,kind) as (total,names,records,transform,members,fmt):
+                    if total!=expected: raise ValueError('Source row count changed since preflight')
+                    for row,geometry in records:
+                        count+=1
+                        try:
+                            cell,*profile=f.attributes(row,kind,provider); profile=tuple(profile)
+                            pid=profiles.get(profile)
+                            if pid is None:
+                                pid=db.execute('INSERT INTO profiles(carrier,brand,provider,technology,environment) VALUES (?,?,?,?,?)',profile).lastrowid
+                                profiles[profile]=pid
+                            for w,s,e,n,v,rings in f.polygon_parts(geometry,transform,encode_geometry=lambda x:x):
+                                raw=encode(rings)
+                                if decode(raw)!=rings: raise ValueError('Geometry round-trip mismatch')
+                                h3=int(cell,16)
+                                cur=db.execute('INSERT OR IGNORE INTO shapes(h3,geom,vertices) VALUES (?,?,?)',(h3,raw,v))
+                                if cur.rowcount:
+                                    sid=cur.lastrowid; db.execute('INSERT INTO spatial VALUES (?,?,?,?,?)',(sid,w,e,s,n))
+                                else: sid=db.execute('SELECT id FROM shapes WHERE h3=? AND geom=?',(h3,raw)).fetchone()[0]
+                                db.execute('INSERT OR IGNORE INTO membership VALUES (?,?)',(pid,sid))
+                        except Exception as exc: raise ValueError(f'{path.name}, source row {count}: {exc}') from exc
+                        if count%25000==0:
+                            db.commit(); progress(f'{path.name}: {count:,}/{total:,} rows ({100*count/total:.1f}%)')
+                if count!=expected or stamp(path)!=source_stamp: raise ValueError('Source changed or incomplete; no pack installed')
+                db.commit(); progress(f'{path.name}: {count:,}/{expected:,} rows (100%)')
+                sources.append(dict(file=path.name,rows=count,bytes=source_stamp[1],format=fmt,members=members,provider_id=provider))
+            meta=dict(format='openrf-fcc-h3',version=2,state=state,provider_id=None,filing=filing,vintage=vintage,source=SOURCE,saved_at=datetime.now(timezone.utc).isoformat(timespec='seconds'),layers=layers(db),originals=[],sources=sources,geometry='delta-varint exact v1 coordinate precision')
+            validate_manifest(meta,state)
+            db.execute('INSERT INTO metadata VALUES (?,?)',('manifest',json.dumps(meta)))
+            db.execute('DROP INDEX build_dedup'); db.commit()
+            progress('Compacting database and validating…'); db.execute('VACUUM')
+            if db.execute('PRAGMA quick_check').fetchall()!=[('ok',)]: raise ValueError('Compact pack validation failed')
+        if target.exists() or originals(folder,state): raise ValueError('State packs appeared during build; refusing to overwrite')
+        if any(stamp(path)!=source_stamp for _,_,path,_,source_stamp in jobs): raise ValueError('Source files changed during build')
+        # Hard link is atomic and refuses a concurrent destination. Both files
+        # are on the same filesystem (including NTFS through WSL).
+        os.link(dbpath,target)
+    progress(f'{target}: {target.stat().st_size:,} bytes · elapsed {time.monotonic()-start:.1f}s')
+    progress('Use activate --standalone to enable the new state pack.')
+    return target
+
+
 def main():
-    p=argparse.ArgumentParser(description=__doc__); p.add_argument('command',choices=['build','activate','deactivate']); p.add_argument('--state',required=True); p.add_argument('--folder',type=Path,default=Path.home()/'.local/share/openrf/fcc-coverage'); a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__)
+    p.add_argument('command',choices=['build','build-direct','activate','deactivate','status'])
+    p.add_argument('--state',required=True); p.add_argument('--folder',type=Path,default=Path.home()/'.local/share/openrf/fcc-coverage')
+    p.add_argument('--standalone',action='store_true',help='Pin the validated compact snapshot without requiring original packs')
+    p.add_argument('--input-dir',type=Path); p.add_argument('--format',choices=['auto','shapefile','geopackage'],default='auto'); p.add_argument('--release')
+    a=p.parse_args()
     if not re.fullmatch(r'\d{2}',a.state): p.error('Two-digit state FIPS required')
+    if a.standalone and a.command!='activate': p.error('--standalone is only for activate')
+    if a.command=='build-direct' and not a.input_dir: p.error('build-direct requires --input-dir')
+    def progress(msg): print(msg,flush=True)
     try:
-        if a.command=='build': optimize(a.folder,a.state,lambda msg:print(msg,flush=True))
-        else: set_active(a.folder,a.state,a.command=='activate'); print('Compact coverage '+('enabled' if a.command=='activate' else 'disabled')+'; reload saved cellular data.')
+        if a.command=='build': optimize(a.folder,a.state,progress)
+        elif a.command=='build-direct': build_direct(a.folder,a.state,a.input_dir,a.format,a.release,progress)
+        elif a.command=='status':
+            paths=originals(a.folder,a.state); active=active_pack(a.folder,a.state,paths)
+            if active:
+                target,meta=active; marker=json.loads(target.with_suffix('.active').read_text()); mode='standalone' if isinstance(marker,dict) else 'original-linked'
+                print(f'Active compact coverage: {mode} · {target} · {len(meta["layers"])} profiles · {len(paths)} original pack(s) present')
+            else: print(f'Compact coverage not active; {len(paths)} original pack(s) present')
+        else:
+            set_active(a.folder,a.state,a.command=='activate',a.standalone,progress)
+            print('Compact coverage '+('enabled (standalone)' if a.standalone else 'enabled' if a.command=='activate' else 'disabled')+'; reload saved cellular data.')
         return 0
-    except (OSError,ValueError,sqlite3.Error,KeyError) as e:
+    except (OSError,ValueError,sqlite3.Error,KeyError,TypeError,RuntimeError,ImportError,zipfile.BadZipFile) as e:
         print(f'Coverage optimizer stopped: {e}. Original packs retained.',flush=True); return 1
 
 if __name__=='__main__': raise SystemExit(main())

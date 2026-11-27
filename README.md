@@ -1,4 +1,4 @@
-## OpenRF v0.2.236 — Restore v0.2.233 coverage rendering
+## OpenRF v0.2.237 — Restore v0.2.233 coverage rendering
 
 Restore v0.2.233 solid translucent carrier fills and overview behavior. Retain serialized viewport loads, last successful coverage during retries, and safe client disconnect handling. No coverage rebuild required.
 
